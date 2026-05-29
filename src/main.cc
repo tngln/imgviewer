@@ -1,4 +1,5 @@
 #include "main.hpp"
+#include "renderer.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -11,9 +12,53 @@ namespace {
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 constexpr wchar_t kWindowTitle[] = L"ImgViewer";
 
+Renderer* GetRenderer(HWND hwnd)
+{
+    return reinterpret_cast<Renderer*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+}
+
+HRESULT InitializeDpiAwareness()
+{
+    if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+        return S_OK;
+    }
+
+    const DWORD error = GetLastError();
+    if (error == ERROR_ACCESS_DENIED) {
+        return S_OK;
+    }
+
+    RETURN_IF_FAILED(HRESULT_FROM_WIN32(error));
+    return S_OK;
+}
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
     switch (message) {
+    case WM_NCCREATE: {
+        const auto* create_struct = reinterpret_cast<CREATESTRUCTW*>(lparam);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create_struct->lpCreateParams));
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_CREATE: {
+        Renderer* renderer = GetRenderer(hwnd);
+        if (renderer == nullptr || FAILED(renderer->Initialize(hwnd))) {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    case WM_SIZE: {
+        Renderer* renderer = GetRenderer(hwnd);
+        if (renderer != nullptr && FAILED(renderer->Resize())) {
+            return -1;
+        }
+
+        return 0;
+    }
+
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -42,11 +87,14 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
 
 HRESULT RunApplicationAsHresult()
 {
+    RETURN_IF_FAILED(InitializeDpiAwareness());
+
     HINSTANCE instance = GetModuleHandleW(nullptr);
     RETURN_LAST_ERROR_IF_NULL(instance);
 
     RETURN_IF_FAILED(RegisterMainWindowClass(instance));
 
+    Renderer renderer;
     wil::unique_hwnd window{CreateWindowExW(
         0,
         kWindowClassName,
@@ -59,7 +107,7 @@ HRESULT RunApplicationAsHresult()
         nullptr,
         nullptr,
         instance,
-        nullptr)};
+        &renderer)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
 
     ShowWindow(window.get(), SW_SHOWDEFAULT);

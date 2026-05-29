@@ -4,6 +4,7 @@ project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
     src/main.cc
+    src/renderer.cc
 )
 
 target_include_directories(imgviewer PRIVATE
@@ -38,6 +39,10 @@ if(MSVC)
 endif()
 
 target_link_libraries(imgviewer PRIVATE
+    d2d1
+    dcomp
+    d3d11
+    dxgi
     user32
     gdi32
 )
