@@ -1,0 +1,8 @@
+CompileFlags:
+  CompilationDatabase: build
+  Compiler: clang-cl
+  Add:
+    - /std:c++20
+    - /DWIN32_LEAN_AND_MEAN
+    - /DUNICODE
+    - /D_UNICODE

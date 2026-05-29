@@ -1,0 +1,16 @@
+build/
+.cache/
+.clangd-index/
+.vs/
+.vscode/
+CMakeUserPresets.json
+
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.dll
+*.lib
+*.exp
+*.user
+*.suo
