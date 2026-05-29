@@ -16,9 +16,6 @@ if /I "%CONFIG%"=="Debug" (
     exit /b 1
 )
 
-set "BUILD_DIR=%ROOT%build\debug"
-if "%CONFIG%"=="Release" set "BUILD_DIR=%ROOT%build\release"
-
 if not exist "%VSWHERE%" (
     echo vswhere.exe was not found.
     exit /b 1
@@ -60,10 +57,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-"%CMAKE_EXE%" -S "%ROOT%." -B "%BUILD_DIR%" -G Ninja -DCMAKE_BUILD_TYPE=%CONFIG% -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+"%CMAKE_EXE%" --preset "%CONFIG%"
 if errorlevel 1 exit /b %errorlevel%
 
-"%CMAKE_EXE%" --build "%BUILD_DIR%" --config %CONFIG%
+"%CMAKE_EXE%" --build --preset "%CONFIG%"
 if errorlevel 1 exit /b %errorlevel%
 
-echo Built %BUILD_DIR%\imgviewer.exe
+echo Built %ROOT%build\%CONFIG%\imgviewer.exe

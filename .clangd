@@ -1,5 +1,5 @@
 CompileFlags:
-  CompilationDatabase: build/debug
+  CompilationDatabase: build/Debug
   Compiler: clang-cl
   Add:
     - /std:c++20
