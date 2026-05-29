@@ -5,12 +5,16 @@
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
 
+#include "coordinates.hpp"
 #include "icons.inc"
 
 namespace {
 
 constexpr float kTestIconSize = 96.0f;
 constexpr float kTestIconPadding = 24.0f;
+constexpr wchar_t kTitleText[] = L"ImgViewer";
+constexpr wchar_t kBodyText[] = L"D2D + DirectWrite text rendering";
+constexpr wchar_t kIconText[] = L"\xE921  \xE922  \xE8BB";
 
 HRESULT CreatePathGeometryFromIcon(
     ID2D1Factory1* factory,
@@ -107,6 +111,30 @@ HRESULT Renderer::Initialize(HWND hwnd)
     RETURN_IF_FAILED(d3d_device_->QueryInterface(IID_PPV_ARGS(dxgi_device_.put())));
     RETURN_IF_FAILED(d2d_factory_->CreateDevice(dxgi_device_.get(), d2d_device_.put()));
     RETURN_IF_FAILED(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_context_.put()));
+    RETURN_IF_FAILED(DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(dwrite_factory_.put())));
+    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
+        L"Segoe UI",
+        nullptr,
+        DWRITE_FONT_WEIGHT_SEMI_BOLD,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        28.0f,
+        L"",
+        body_text_format_.put()));
+    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
+        L"Segoe MDL2 Assets",
+        nullptr,
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        24.0f,
+        L"",
+        icon_text_format_.put()));
+    RETURN_IF_FAILED(body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    RETURN_IF_FAILED(icon_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
 
     RETURN_IF_FAILED(DCompositionCreateDevice(
         dxgi_device_.get(),
@@ -116,6 +144,7 @@ HRESULT Renderer::Initialize(HWND hwnd)
     RETURN_IF_FAILED(dcomp_device_->CreateTargetForHwnd(hwnd_, TRUE, dcomp_target_.put()));
     RETURN_IF_FAILED(dcomp_device_->CreateVisual(root_visual_.put()));
     RETURN_IF_FAILED(dcomp_target_->SetRoot(root_visual_.get()));
+    RETURN_IF_FAILED(CreateUiAccessibilityProvider(hwnd_, this, accessibility_provider_.put()));
 
     RETURN_IF_FAILED(CreateCompositionSurface());
     RETURN_IF_FAILED(dcomp_device_->Commit());
@@ -152,17 +181,76 @@ HRESULT Renderer::CreateCompositionSurface()
         surface_.put()));
 
     RETURN_IF_FAILED(root_visual_->SetContent(surface_.get()));
-    RETURN_IF_FAILED(RenderTestContent(width, height));
+    RETURN_IF_FAILED(root_visual_->SetOffsetX(0.0f));
+    RETURN_IF_FAILED(root_visual_->SetOffsetY(0.0f));
+
+    surface_width_ = width;
+    surface_height_ = height;
+    RETURN_IF_FAILED(Render());
 
     return S_OK;
 }
 
-HRESULT Renderer::RenderTestContent(UINT surface_width, UINT surface_height)
+HRESULT Renderer::Render()
+{
+    if (!surface_) {
+        return S_OK;
+    }
+
+    RETURN_IF_FAILED(RenderTestContent());
+    RETURN_IF_FAILED(dcomp_device_->Commit());
+
+    return S_OK;
+}
+
+UiEventResult Renderer::OnPointerMove(float x, float y)
+{
+    return ui_.OnPointerMove(D2D1::Point2F(x, y));
+}
+
+UiEventResult Renderer::OnPointerDown(float x, float y)
+{
+    return ui_.OnPointerDown(D2D1::Point2F(x, y));
+}
+
+UiEventResult Renderer::OnPointerUp(float x, float y)
+{
+    return ui_.OnPointerUp(D2D1::Point2F(x, y));
+}
+
+UiEventResult Renderer::OnPointerLeave()
+{
+    return ui_.OnPointerLeave();
+}
+
+IRawElementProviderSimple* Renderer::GetAccessibilityProvider()
+{
+    return accessibility_provider_.get();
+}
+
+void Renderer::InvokeTestButtonFromAccessibility()
+{
+    ui_.InvokeTestButton();
+    Render();
+}
+
+D2D1_RECT_F Renderer::TestButtonRect() const
+{
+    return ui_.TestButtonRect();
+}
+
+HRESULT Renderer::RenderTestContent()
 {
     wil::com_ptr<IDXGISurface> dxgi_surface;
+    const RECT update_rect = {
+        0,
+        0,
+        static_cast<LONG>(surface_width_),
+        static_cast<LONG>(surface_height_),
+    };
     POINT offset = {};
     RETURN_IF_FAILED(surface_->BeginDraw(
-        nullptr,
+        &update_rect,
         __uuidof(IDXGISurface),
         reinterpret_cast<void**>(dxgi_surface.put()),
         &offset));
@@ -189,24 +277,64 @@ HRESULT Renderer::RenderTestContent(UINT surface_width, UINT surface_height)
     RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
         D2D1::ColorF(0x2f6fed),
         icon_brush.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> title_brush;
+    RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
+        D2D1::ColorF(0x172033),
+        title_brush.put()));
+    wil::com_ptr<ID2D1SolidColorBrush> muted_brush;
+    RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
+        D2D1::ColorF(0x697386),
+        muted_brush.put()));
 
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();
     d2d_context_->Clear(D2D1::ColorF(0xf7f9fc));
 
-    const float width = static_cast<float>(surface_width);
-    const float height = static_cast<float>(surface_height);
+    const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
+    const D2D1_SIZE_F size = coordinates.PhysicalToRender(surface_width_, surface_height_);
+    const float width = size.width;
+    const float height = size.height;
+    const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
+    const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(-offset_render.x, -offset_render.y);
+    d2d_context_->SetTransform(root_transform);
+
     const float icon_size = (std::max)(16.0f, (std::min)(kTestIconSize, (std::min)(width, height) - kTestIconPadding));
     const float scale = icon_size / icons::kImageIconViewport;
-    const float left = (width - icon_size) * 0.5f - static_cast<float>(offset.x);
-    const float top = (height - icon_size) * 0.5f - static_cast<float>(offset.y);
+    const float left = (width - icon_size) * 0.5f;
+    const float top = (height - icon_size) * 0.5f;
 
     const D2D1_MATRIX_3X2_F transform =
         D2D1::Matrix3x2F::Scale(scale, scale) *
-        D2D1::Matrix3x2F::Translation(left, top);
+        D2D1::Matrix3x2F::Translation(left, top) *
+        root_transform;
     d2d_context_->SetTransform(transform);
     d2d_context_->DrawGeometry(icon_geometry.get(), icon_brush.get(), 1.75f / scale);
-    d2d_context_->SetTransform(D2D1::Matrix3x2F::Identity());
+    d2d_context_->SetTransform(root_transform);
+    d2d_context_->DrawTextW(
+        kTitleText,
+        ARRAYSIZE(kTitleText) - 1,
+        body_text_format_.get(),
+        D2D1::RectF(32.0f, 26.0f, width - 32.0f, 66.0f),
+        title_brush.get(),
+        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
+        DWRITE_MEASURING_MODE_NATURAL);
+    d2d_context_->DrawTextW(
+        kBodyText,
+        ARRAYSIZE(kBodyText) - 1,
+        body_text_format_.get(),
+        D2D1::RectF(32.0f, 64.0f, width - 32.0f, 104.0f),
+        muted_brush.get(),
+        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
+        DWRITE_MEASURING_MODE_NATURAL);
+    d2d_context_->DrawTextW(
+        kIconText,
+        ARRAYSIZE(kIconText) - 1,
+        icon_text_format_.get(),
+        D2D1::RectF(32.0f, 112.0f, width - 32.0f, 152.0f),
+        icon_brush.get(),
+        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
+        DWRITE_MEASURING_MODE_NATURAL);
+    ui_.Draw(d2d_context_.get(), body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
     d2d_context_->SetTarget(nullptr);

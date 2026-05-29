@@ -5,6 +5,8 @@ project(imgviewer LANGUAGES CXX)
 add_executable(imgviewer
     src/main.cc
     src/renderer.cc
+    src/ui.a11y.cc
+    src/ui.cc
 )
 
 target_include_directories(imgviewer PRIVATE
@@ -42,7 +44,9 @@ target_link_libraries(imgviewer PRIVATE
     d2d1
     dcomp
     d3d11
+    dwrite
     dxgi
+    uiautomationcore
     user32
     gdi32
 )

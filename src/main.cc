@@ -1,8 +1,10 @@
 #include "main.hpp"
+#include "coordinates.hpp"
 #include "renderer.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <windowsx.h>
 
 #include <wil/resource.h>
 #include <wil/result_macros.h>
@@ -12,9 +14,42 @@ namespace {
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 constexpr wchar_t kWindowTitle[] = L"ImgViewer";
 
+D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
+{
+    const POINT point{
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+    };
+    return CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+}
+
 Renderer* GetRenderer(HWND hwnd)
 {
     return reinterpret_cast<Renderer*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+}
+
+void RenderIfNeeded(Renderer* renderer, UiEventResult result)
+{
+    if (renderer == nullptr) {
+        return;
+    }
+
+    if (result.released_capture) {
+        ReleaseCapture();
+    }
+
+    if (result.needs_render) {
+        renderer->Render();
+    }
+}
+
+void TrackMouseLeave(HWND hwnd)
+{
+    TRACKMOUSEEVENT track_event = {};
+    track_event.cbSize = sizeof(track_event);
+    track_event.dwFlags = TME_LEAVE;
+    track_event.hwndTrack = hwnd;
+    TrackMouseEvent(&track_event);
 }
 
 HRESULT InitializeDpiAwareness()
@@ -57,6 +92,50 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
 
         return 0;
+    }
+
+    case WM_MOUSEMOVE: {
+        Renderer* renderer = GetRenderer(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        TrackMouseLeave(hwnd);
+        RenderIfNeeded(renderer, renderer != nullptr ? renderer->OnPointerMove(point.x, point.y) : UiEventResult{});
+        return 0;
+    }
+
+    case WM_LBUTTONDOWN: {
+        Renderer* renderer = GetRenderer(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        const UiEventResult result = renderer != nullptr ? renderer->OnPointerDown(point.x, point.y) : UiEventResult{};
+        if (result.captured) {
+            SetCapture(hwnd);
+        }
+        RenderIfNeeded(renderer, result);
+        return result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_LBUTTONUP: {
+        Renderer* renderer = GetRenderer(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        const UiEventResult result = renderer != nullptr ? renderer->OnPointerUp(point.x, point.y) : UiEventResult{};
+        RenderIfNeeded(renderer, result);
+        return result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_MOUSELEAVE: {
+        Renderer* renderer = GetRenderer(hwnd);
+        RenderIfNeeded(renderer, renderer != nullptr ? renderer->OnPointerLeave() : UiEventResult{});
+        return 0;
+    }
+
+    case WM_GETOBJECT: {
+        if (lparam == UiaRootObjectId) {
+            Renderer* renderer = GetRenderer(hwnd);
+            if (renderer != nullptr) {
+                return UiaReturnRawElementProvider(hwnd, wparam, lparam, renderer->GetAccessibilityProvider());
+            }
+        }
+
+        return DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
     case WM_DESTROY:
