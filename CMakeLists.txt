@@ -3,8 +3,10 @@ cmake_minimum_required(VERSION 3.29)
 project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
+    src/image.decoder.cc
     src/main.cc
     src/renderer.cc
+    src/surface.manager.cc
     src/ui.a11y.cc
     src/ui.cc
 )
@@ -46,7 +48,10 @@ target_link_libraries(imgviewer PRIVATE
     d3d11
     dwrite
     dxgi
+    ole32
+    shell32
     uiautomationcore
     user32
+    windowscodecs
     gdi32
 )

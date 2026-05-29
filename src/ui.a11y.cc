@@ -19,10 +19,18 @@
 namespace {
 
 constexpr wchar_t kRootName[] = L"ImgViewer";
-constexpr wchar_t kButtonName[] = L"Test Button";
-constexpr wchar_t kButtonAutomationId[] = L"test-button";
+constexpr wchar_t kOpenButtonName[] = L"Open Image";
+constexpr wchar_t kOpenButtonAutomationId[] = L"open-image";
+constexpr wchar_t kTestButtonName[] = L"Test Button";
+constexpr wchar_t kTestButtonAutomationId[] = L"test-button";
 constexpr int kRootRuntimeId = 1;
-constexpr int kButtonRuntimeId = 2;
+constexpr int kOpenButtonRuntimeId = 2;
+constexpr int kTestButtonRuntimeId = 3;
+
+enum class AccessibleButtonId {
+    OpenImage,
+    Test,
+};
 
 SAFEARRAY* MakeRuntimeId(int local_id)
 {
@@ -212,13 +220,15 @@ public:
 
     HWND hwnd() const { return hwnd_; }
     Renderer* renderer() const { return renderer_; }
-    UiButtonProvider* button_provider() const { return button_provider_.get(); }
+    UiButtonProvider* open_button_provider() const { return open_button_provider_.get(); }
+    UiButtonProvider* test_button_provider() const { return test_button_provider_.get(); }
 
 private:
     HWND hwnd_ = nullptr;
     Renderer* renderer_ = nullptr;
     ComRc<UiRootProvider> rc_;
-    wil::com_ptr<UiButtonProvider> button_provider_;
+    wil::com_ptr<UiButtonProvider> open_button_provider_;
+    wil::com_ptr<UiButtonProvider> test_button_provider_;
 };
 
 class UiButtonProvider final :
@@ -226,7 +236,7 @@ class UiButtonProvider final :
     public IRawElementProviderFragment,
     public IInvokeProvider {
 public:
-    explicit UiButtonProvider(UiRootProvider* root) : root_(root) {}
+    UiButtonProvider(UiRootProvider* root, AccessibleButtonId id) : root_(root), id_(id) {}
 
     IFACEMETHODIMP QueryInterface(REFIID iid, void** object) noexcept override
     {
@@ -275,11 +285,11 @@ public:
     IFACEMETHODIMP GetPropertyValue(PROPERTYID property_id, VARIANT* value) noexcept override
     {
         if (property_id == UIA_NamePropertyId) {
-            return SetBstrVariant(kButtonName, value);
+            return SetBstrVariant(Name(), value);
         }
 
         if (property_id == UIA_AutomationIdPropertyId) {
-            return SetBstrVariant(kButtonAutomationId, value);
+            return SetBstrVariant(AutomationId(), value);
         }
 
         if (property_id == UIA_ControlTypePropertyId) {
@@ -311,6 +321,12 @@ public:
         if (direction == NavigateDirection_Parent) {
             *provider = static_cast<IRawElementProviderFragment*>(root_);
             root_->AddRef();
+        } else if (direction == NavigateDirection_NextSibling && id_ == AccessibleButtonId::OpenImage) {
+            *provider = static_cast<IRawElementProviderFragment*>(root_->test_button_provider());
+            (*provider)->AddRef();
+        } else if (direction == NavigateDirection_PreviousSibling && id_ == AccessibleButtonId::Test) {
+            *provider = static_cast<IRawElementProviderFragment*>(root_->open_button_provider());
+            (*provider)->AddRef();
         }
 
         return S_OK;
@@ -319,7 +335,7 @@ public:
     IFACEMETHODIMP GetRuntimeId(SAFEARRAY** runtime_id) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, runtime_id);
-        *runtime_id = MakeRuntimeId(kButtonRuntimeId);
+        *runtime_id = MakeRuntimeId(id_ == AccessibleButtonId::OpenImage ? kOpenButtonRuntimeId : kTestButtonRuntimeId);
         RETURN_IF_NULL_ALLOC(*runtime_id);
         return S_OK;
     }
@@ -328,7 +344,8 @@ public:
     {
         RETURN_HR_IF_NULL(E_POINTER, rect);
 
-        const D2D1_RECT_F button_rect = root_->renderer()->TestButtonRect();
+        const D2D1_RECT_F button_rect =
+            id_ == AccessibleButtonId::OpenImage ? root_->renderer()->OpenButtonRect() : root_->renderer()->TestButtonRect();
         POINT origin = {};
         RETURN_IF_WIN32_BOOL_FALSE(ClientToScreen(root_->hwnd(), &origin));
 
@@ -363,20 +380,39 @@ public:
 
     IFACEMETHODIMP Invoke() noexcept override
     {
-        root_->renderer()->InvokeTestButtonFromAccessibility();
+        if (id_ == AccessibleButtonId::OpenImage) {
+            root_->renderer()->InvokeOpenImageFromAccessibility();
+        } else {
+            root_->renderer()->InvokeTestButtonFromAccessibility();
+        }
         return S_OK;
     }
 
 private:
+    const wchar_t* Name() const
+    {
+        return id_ == AccessibleButtonId::OpenImage ? kOpenButtonName : kTestButtonName;
+    }
+
+    const wchar_t* AutomationId() const
+    {
+        return id_ == AccessibleButtonId::OpenImage ? kOpenButtonAutomationId : kTestButtonAutomationId;
+    }
+
     UiRootProvider* root_ = nullptr;
+    AccessibleButtonId id_ = AccessibleButtonId::Test;
     ComRc<UiButtonProvider> rc_;
 };
 
 HRESULT UiRootProvider::Initialize()
 {
-    auto* provider = new (std::nothrow) UiButtonProvider(this);
-    RETURN_IF_NULL_ALLOC(provider);
-    button_provider_.attach(provider);
+    auto* open_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::OpenImage);
+    RETURN_IF_NULL_ALLOC(open_provider);
+    open_button_provider_.attach(open_provider);
+
+    auto* test_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::Test);
+    RETURN_IF_NULL_ALLOC(test_provider);
+    test_button_provider_.attach(test_provider);
     return S_OK;
 }
 
@@ -385,8 +421,11 @@ IFACEMETHODIMP UiRootProvider::Navigate(NavigateDirection direction, IRawElement
     RETURN_HR_IF_NULL(E_POINTER, provider);
     *provider = nullptr;
 
-    if (direction == NavigateDirection_FirstChild || direction == NavigateDirection_LastChild) {
-        *provider = static_cast<IRawElementProviderFragment*>(button_provider_.get());
+    if (direction == NavigateDirection_FirstChild) {
+        *provider = static_cast<IRawElementProviderFragment*>(open_button_provider_.get());
+        (*provider)->AddRef();
+    } else if (direction == NavigateDirection_LastChild) {
+        *provider = static_cast<IRawElementProviderFragment*>(test_button_provider_.get());
         (*provider)->AddRef();
     }
 
@@ -399,10 +438,18 @@ IFACEMETHODIMP UiRootProvider::ElementProviderFromPoint(double x, double y, IRaw
     *provider = nullptr;
 
     UiaRect button_rect = {};
-    RETURN_IF_FAILED(button_provider_->get_BoundingRectangle(&button_rect));
+    RETURN_IF_FAILED(open_button_provider_->get_BoundingRectangle(&button_rect));
     if (x >= button_rect.left && x < button_rect.left + button_rect.width && y >= button_rect.top &&
         y < button_rect.top + button_rect.height) {
-        *provider = static_cast<IRawElementProviderFragment*>(button_provider_.get());
+        *provider = static_cast<IRawElementProviderFragment*>(open_button_provider_.get());
+        (*provider)->AddRef();
+        return S_OK;
+    }
+
+    RETURN_IF_FAILED(test_button_provider_->get_BoundingRectangle(&button_rect));
+    if (x >= button_rect.left && x < button_rect.left + button_rect.width && y >= button_rect.top &&
+        y < button_rect.top + button_rect.height) {
+        *provider = static_cast<IRawElementProviderFragment*>(test_button_provider_.get());
         (*provider)->AddRef();
     }
 

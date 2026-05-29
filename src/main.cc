@@ -1,10 +1,16 @@
 #include "main.hpp"
+#include "app.messages.hpp"
 #include "coordinates.hpp"
 #include "renderer.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <windowsx.h>
+
+#include <shellapi.h>
+#include <shobjidl.h>
+#include <string>
+#include <vector>
 
 #include <wil/resource.h>
 #include <wil/result_macros.h>
@@ -28,7 +34,64 @@ Renderer* GetRenderer(HWND hwnd)
     return reinterpret_cast<Renderer*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
-void RenderIfNeeded(Renderer* renderer, UiEventResult result)
+void LoadImageFile(HWND hwnd, Renderer* renderer, const wchar_t* path)
+{
+    if (renderer == nullptr || path == nullptr || path[0] == L'\0') {
+        return;
+    }
+
+    const HRESULT hr = renderer->LoadImageFile(path);
+    if (FAILED(hr)) {
+        MessageBoxW(hwnd, L"Could not open the selected image.", kWindowTitle, MB_OK | MB_ICONERROR);
+    }
+}
+
+HRESULT PickImageFile(HWND hwnd, std::wstring* path)
+{
+    RETURN_HR_IF_NULL(E_POINTER, path);
+
+    wil::com_ptr<IFileOpenDialog> dialog;
+    RETURN_IF_FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put())));
+
+    constexpr COMDLG_FILTERSPEC filters[] = {
+        {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.tif;*.tiff;*.webp"},
+        {L"All files", L"*.*"},
+    };
+    RETURN_IF_FAILED(dialog->SetFileTypes(ARRAYSIZE(filters), filters));
+    RETURN_IF_FAILED(dialog->SetFileTypeIndex(1));
+
+    const HRESULT show_result = dialog->Show(hwnd);
+    if (show_result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+        return show_result;
+    }
+    RETURN_IF_FAILED(show_result);
+
+    wil::com_ptr<IShellItem> item;
+    RETURN_IF_FAILED(dialog->GetResult(item.put()));
+
+    wil::unique_cotaskmem_string file_path;
+    RETURN_IF_FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, file_path.put()));
+    *path = file_path.get();
+    return S_OK;
+}
+
+void HandleOpenImageCommand(HWND hwnd, Renderer* renderer)
+{
+    std::wstring path;
+    const HRESULT hr = PickImageFile(hwnd, &path);
+    if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+        return;
+    }
+
+    if (FAILED(hr)) {
+        MessageBoxW(hwnd, L"Could not show the image picker.", kWindowTitle, MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    LoadImageFile(hwnd, renderer, path.c_str());
+}
+
+void RenderIfNeeded(HWND hwnd, Renderer* renderer, UiEventResult result)
 {
     if (renderer == nullptr) {
         return;
@@ -40,6 +103,10 @@ void RenderIfNeeded(Renderer* renderer, UiEventResult result)
 
     if (result.needs_render) {
         renderer->Render();
+    }
+
+    if (result.command == UiCommand::OpenImage) {
+        HandleOpenImageCommand(hwnd, renderer);
     }
 }
 
@@ -70,6 +137,11 @@ HRESULT InitializeDpiAwareness()
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
     switch (message) {
+    case kImgViewerOpenImageMessage: {
+        HandleOpenImageCommand(hwnd, GetRenderer(hwnd));
+        return 0;
+    }
+
     case WM_NCCREATE: {
         const auto* create_struct = reinterpret_cast<CREATESTRUCTW*>(lparam);
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create_struct->lpCreateParams));
@@ -94,11 +166,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 0;
     }
 
+    case WM_ERASEBKGND:
+        return 1;
+
     case WM_MOUSEMOVE: {
         Renderer* renderer = GetRenderer(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         TrackMouseLeave(hwnd);
-        RenderIfNeeded(renderer, renderer != nullptr ? renderer->OnPointerMove(point.x, point.y) : UiEventResult{});
+        RenderIfNeeded(hwnd, renderer, renderer != nullptr ? renderer->OnPointerMove(point.x, point.y) : UiEventResult{});
         return 0;
     }
 
@@ -109,7 +184,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (result.captured) {
             SetCapture(hwnd);
         }
-        RenderIfNeeded(renderer, result);
+        RenderIfNeeded(hwnd, renderer, result);
         return result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
@@ -117,13 +192,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         Renderer* renderer = GetRenderer(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         const UiEventResult result = renderer != nullptr ? renderer->OnPointerUp(point.x, point.y) : UiEventResult{};
-        RenderIfNeeded(renderer, result);
+        RenderIfNeeded(hwnd, renderer, result);
         return result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
     case WM_MOUSELEAVE: {
         Renderer* renderer = GetRenderer(hwnd);
-        RenderIfNeeded(renderer, renderer != nullptr ? renderer->OnPointerLeave() : UiEventResult{});
+        RenderIfNeeded(hwnd, renderer, renderer != nullptr ? renderer->OnPointerLeave() : UiEventResult{});
+        return 0;
+    }
+
+    case WM_DROPFILES: {
+        Renderer* renderer = GetRenderer(hwnd);
+        const HDROP drop = reinterpret_cast<HDROP>(wparam);
+        const UINT length = DragQueryFileW(drop, 0, nullptr, 0);
+        if (length > 0) {
+            std::vector<wchar_t> path(static_cast<size_t>(length) + 1);
+            DragQueryFileW(drop, 0, path.data(), static_cast<UINT>(path.size()));
+            LoadImageFile(hwnd, renderer, path.data());
+        }
+        DragFinish(drop);
         return 0;
     }
 
@@ -151,11 +239,9 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
 {
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(window_class);
-    window_class.style = CS_HREDRAW | CS_VREDRAW;
     window_class.lpfnWndProc = WindowProc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    window_class.hbrBackground = reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
     window_class.lpszClassName = kWindowClassName;
 
     const ATOM window_class_atom = RegisterClassExW(&window_class);
@@ -167,6 +253,9 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
 HRESULT RunApplicationAsHresult()
 {
     RETURN_IF_FAILED(InitializeDpiAwareness());
+    const HRESULT co_initialize_result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    RETURN_IF_FAILED(co_initialize_result);
+    auto co_uninitialize = wil::scope_exit([] { CoUninitialize(); });
 
     HINSTANCE instance = GetModuleHandleW(nullptr);
     RETURN_LAST_ERROR_IF_NULL(instance);
@@ -188,9 +277,18 @@ HRESULT RunApplicationAsHresult()
         instance,
         &renderer)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
+    DragAcceptFiles(window.get(), TRUE);
 
     ShowWindow(window.get(), SW_SHOWDEFAULT);
     RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));
+
+    int argc = 0;
+    wil::unique_hlocal command_line_args{reinterpret_cast<HLOCAL>(CommandLineToArgvW(GetCommandLineW(), &argc))};
+    RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
+    auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
+    if (argc > 1) {
+        LoadImageFile(window.get(), &renderer, argv[1]);
+    }
 
     MSG message = {};
     while (true) {

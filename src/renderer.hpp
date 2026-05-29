@@ -11,6 +11,8 @@
 
 #include <wil/com.h>
 
+#include "image.decoder.hpp"
+#include "surface.manager.hpp"
 #include "ui.a11y.hpp"
 #include "ui.hpp"
 
@@ -25,16 +27,25 @@ public:
     UiEventResult OnPointerLeave();
     IRawElementProviderSimple* GetAccessibilityProvider();
     void InvokeTestButtonFromAccessibility();
+    void InvokeOpenImageFromAccessibility();
+    HRESULT LoadImageFile(const wchar_t* path);
     D2D1_RECT_F TestButtonRect() const;
+    D2D1_RECT_F OpenButtonRect() const;
 
 private:
-    HRESULT CreateCompositionSurface();
-    HRESULT RenderTestContent();
+    HRESULT ResizeSurfacesToClient();
+    HRESULT BeginDrawLayer(
+        SurfaceLayerId id,
+        DXGI_ALPHA_MODE alpha_mode,
+        ID2D1Bitmap1** target,
+        POINT* offset);
+    HRESULT RenderImageLayer();
+    HRESULT RenderUiOverlayLayer();
 
     HWND hwnd_ = nullptr;
-    UINT surface_width_ = 1;
-    UINT surface_height_ = 1;
     UiController ui_;
+    ImageDecoder image_decoder_;
+    DecodedImage current_image_;
     wil::com_ptr<ID2D1Factory1> d2d_factory_;
     wil::com_ptr<ID3D11Device> d3d_device_;
     wil::com_ptr<ID3D11DeviceContext> d3d_context_;
@@ -47,6 +58,6 @@ private:
     wil::com_ptr<IDCompositionDevice> dcomp_device_;
     wil::com_ptr<IDCompositionTarget> dcomp_target_;
     wil::com_ptr<IDCompositionVisual> root_visual_;
-    wil::com_ptr<IDCompositionSurface> surface_;
+    SurfaceManager surfaces_;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider_;
 };

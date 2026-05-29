@@ -3,11 +3,17 @@
 #include <d2d1_1.h>
 #include <dwrite.h>
 
+enum class UiCommand {
+    None,
+    OpenImage,
+};
+
 struct UiEventResult {
     bool handled = false;
     bool needs_render = false;
     bool captured = false;
     bool released_capture = false;
+    UiCommand command = UiCommand::None;
 };
 
 class UiController final {
@@ -22,13 +28,21 @@ public:
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format);
     D2D1_RECT_F TestButtonRect() const;
+    D2D1_RECT_F OpenButtonRect() const;
     void InvokeTestButton();
 
 private:
-    bool HitTestButton(D2D1_POINT_2F point) const;
+    enum class ButtonId {
+        None,
+        OpenImage,
+        Test,
+    };
 
-    D2D1_RECT_F button_rect_ = D2D1_RECT_F{32.0f, 168.0f, 188.0f, 212.0f};
-    bool button_hovered_ = false;
-    bool button_pressed_ = false;
+    ButtonId HitTest(D2D1_POINT_2F point) const;
+
+    D2D1_RECT_F open_button_rect_ = D2D1_RECT_F{32.0f, 168.0f, 232.0f, 212.0f};
+    D2D1_RECT_F test_button_rect_ = D2D1_RECT_F{244.0f, 168.0f, 400.0f, 212.0f};
+    ButtonId hovered_button_ = ButtonId::None;
+    ButtonId pressed_button_ = ButtonId::None;
     unsigned int button_clicks_ = 0;
 };
