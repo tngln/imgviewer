@@ -2,7 +2,22 @@
 setlocal
 
 set "ROOT=%~dp0"
+set "CONFIG=%~1"
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+
+if not defined CONFIG set "CONFIG=Debug"
+
+if /I "%CONFIG%"=="Debug" (
+    set "CONFIG=Debug"
+) else if /I "%CONFIG%"=="Release" (
+    set "CONFIG=Release"
+) else (
+    echo Usage: build.bat [Debug^|Release]
+    exit /b 1
+)
+
+set "BUILD_DIR=%ROOT%build\debug"
+if "%CONFIG%"=="Release" set "BUILD_DIR=%ROOT%build\release"
 
 if not exist "%VSWHERE%" (
     echo vswhere.exe was not found.
@@ -45,10 +60,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-"%CMAKE_EXE%" -S "%ROOT%." -B "%ROOT%build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+"%CMAKE_EXE%" -S "%ROOT%." -B "%BUILD_DIR%" -G Ninja -DCMAKE_BUILD_TYPE=%CONFIG% -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 if errorlevel 1 exit /b %errorlevel%
 
-"%CMAKE_EXE%" --build "%ROOT%build" --config Release
+"%CMAKE_EXE%" --build "%BUILD_DIR%" --config %CONFIG%
 if errorlevel 1 exit /b %errorlevel%
 
-echo Built %ROOT%build\imgviewer.exe
+echo Built %BUILD_DIR%\imgviewer.exe
