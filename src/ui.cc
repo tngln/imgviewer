@@ -7,6 +7,7 @@
 
 #include <d2d1helper.h>
 
+#include "math.hpp"
 #include "ui.layout.hpp"
 #include "ui.theme.hpp"
 
@@ -70,11 +71,6 @@ constexpr UiElementMetadata kOpenMetadata{
     .automation_id = L"open-image",
     .runtime_id = 6,
 };
-bool Contains(D2D1_RECT_F rect, D2D1_POINT_2F point)
-{
-    return point.x >= rect.left && point.x < rect.right && point.y >= rect.top && point.y < rect.bottom;
-}
-
 } // namespace
 
 UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
@@ -276,7 +272,7 @@ D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
-    return Contains(titlebar_rect_, point) && HitTest(point) == UiElementId::None;
+    return math::Contains(titlebar_rect_, point) && HitTest(point) == UiElementId::None;
 }
 
 void UiController::SetTitleText(const wchar_t* title)

@@ -5,9 +5,8 @@
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
 
-#include "coordinates.hpp"
+#include "math.hpp"
 #include "ui.draw.hpp"
-#include "ui.layout.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -221,7 +220,7 @@ HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
     d2d_context_->BeginDraw();
     draw.Clear(ui_theme::color::kWindowBackground);
 
-    const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
+    const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
     const float width = size.width;
     const float height = size.height;
@@ -297,7 +296,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     d2d_context_->BeginDraw();
     draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
 
-    const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
+    const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
     const float width = size.width;
     const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
@@ -306,7 +305,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     draw.DrawBodyText(
         kBodyText,
         ARRAYSIZE(kBodyText) - 1,
-        ui_layout::StableRect(
+        math::StableRect(
             ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kBodyTextTop,
             width - ui_theme::metrics::kPanelPadding,
@@ -315,7 +314,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     draw.DrawIconText(
         kIconText,
         ARRAYSIZE(kIconText) - 1,
-        ui_layout::StableRect(
+        math::StableRect(
             ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kIconTextTop,
             width - ui_theme::metrics::kPanelPadding,

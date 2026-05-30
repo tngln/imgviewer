@@ -1,7 +1,7 @@
 #include "main.hpp"
 #include "app.messages.hpp"
-#include "coordinates.hpp"
 #include "image.viewer.hpp"
+#include "math.hpp"
 #include "renderer.hpp"
 #include "ui.a11y.hpp"
 #include "ui.hpp"
@@ -39,7 +39,7 @@ D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
         GET_X_LPARAM(lparam),
         GET_Y_LPARAM(lparam),
     };
-    return CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+    return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
 }
 
 D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
@@ -49,7 +49,7 @@ D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
         GET_Y_LPARAM(lparam),
     };
     ScreenToClient(hwnd, &point);
-    return CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+    return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
 }
 
 AppContext* GetAppContext(HWND hwnd)
@@ -302,7 +302,7 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
 
     POINT client_point = screen_point;
     ScreenToClient(hwnd, &client_point);
-    const D2D1_POINT_2F render_point = CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
+    const D2D1_POINT_2F render_point = math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
     AppContext* context = GetAppContext(hwnd);
     if (context != nullptr && context->ui.IsPointInCaptionDragArea(render_point)) {
         return HTCAPTION;
