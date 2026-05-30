@@ -325,7 +325,7 @@ HRESULT Renderer::RenderImageLayer()
     const float width = size.width;
     const float height = size.height;
     const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
-    const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(-offset_render.x, -offset_render.y);
+    const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y);
     d2d_context_->SetTransform(root_transform);
 
     if (current_image_.bitmap) {
@@ -399,7 +399,7 @@ HRESULT Renderer::RenderUiOverlayLayer()
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
     const float width = size.width;
     const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
-    const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(-offset_render.x, -offset_render.y);
+    const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y);
     d2d_context_->SetTransform(root_transform);
     d2d_context_->DrawTextW(
         kTitleText,

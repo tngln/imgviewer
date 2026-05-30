@@ -52,7 +52,7 @@ HRESULT SurfaceManager::CreateLayerSurface(Layer& layer, UINT width, UINT height
     RETURN_HR_IF_NULL(E_UNEXPECTED, device_);
     RETURN_HR_IF_NULL(E_UNEXPECTED, layer.visual);
 
-    if (layer.surface && layer.allocated_width >= width && layer.allocated_height >= height) {
+    if (layer.surface && layer.allocated_width == width && layer.allocated_height == height) {
         return S_OK;
     }
 
