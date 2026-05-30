@@ -11,19 +11,18 @@ namespace {
 D2D1_COLOR_F ButtonFillColor(UiElementState state)
 {
     if (state.danger && (state.hovered || state.pressed)) {
-        return state.pressed ? D2D1::ColorF(ui_theme::color::kDangerPressed) :
-                               D2D1::ColorF(ui_theme::color::kDangerHovered);
+        return state.pressed ? ui_theme::color::kDangerPressed : ui_theme::color::kDangerHovered;
     }
 
     if (state.pressed) {
-        return D2D1::ColorF(ui_theme::color::kButtonPressed);
+        return ui_theme::color::kButtonPressed;
     }
 
     if (state.hovered || state.active) {
-        return D2D1::ColorF(ui_theme::color::kButtonHovered);
+        return ui_theme::color::kButtonHovered;
     }
 
-    return D2D1::ColorF(ui_theme::color::kButtonDefault);
+    return ui_theme::color::kButtonDefault;
 }
 
 } // namespace
@@ -42,7 +41,7 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
     const D2D1_ROUNDED_RECT button =
         D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius);
     draw.FillRoundedRect(button, ButtonFillColor(state));
-    draw.DrawRoundedRect(button, D2D1::ColorF(ui_theme::color::kBorder), 1.0f);
+    draw.DrawRoundedRect(button, ui_theme::color::kBorder, 1.0f);
     draw.DrawIconText(
         icon_,
         static_cast<UINT32>(wcslen(icon_)),
@@ -51,7 +50,7 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kButtonIconTop,
             rect.left + ui_theme::offset::kButtonIconRight,
             rect.bottom),
-        D2D1::ColorF(ui_theme::color::kAccent));
+        ui_theme::color::kAccent);
     draw.DrawBodyText(
         text_,
         static_cast<UINT32>(wcslen(text_)),
@@ -60,7 +59,7 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kButtonTextTop,
             rect.right - ui_theme::offset::kButtonTextRight,
             rect.bottom),
-        D2D1::ColorF(ui_theme::color::kBodyText));
+        ui_theme::color::kBodyText);
 }
 
 IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElement(metadata), icon_(icon) {}
@@ -83,6 +82,5 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kCaptionIconTop,
             rect.right,
             rect.bottom),
-        state.danger && state.hovered ? D2D1::ColorF(ui_theme::color::kBodyText) :
-                                        D2D1::ColorF(ui_theme::color::kAccent));
+        state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent);
 }

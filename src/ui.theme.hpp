@@ -1,21 +1,38 @@
 #pragma once
 
+#include <d2d1helper.h>
+
+namespace ui_theme::detail {
+
+constexpr float ColorChannel(unsigned int value, unsigned int shift)
+{
+    return static_cast<float>((value >> shift) & 0xffU) / 255.0f;
+}
+
+} // namespace ui_theme::detail
+
+#define COLOR(value) \
+    D2D1_COLOR_F { \
+        ui_theme::detail::ColorChannel((value), 16U), ui_theme::detail::ColorChannel((value), 8U), \
+            ui_theme::detail::ColorChannel((value), 0U), 1.0f \
+    }
+
 namespace ui_theme {
 
 namespace color {
 
-constexpr unsigned int kWindowBackground = 0xf7f9fc;
-constexpr unsigned int kTitleBarBackground = 0xffffff;
+constexpr auto kWindowBackground = COLOR(0xf7f9fc);
+constexpr auto kTitleBarBackground = COLOR(0xffffff);
 constexpr float kTitleBarBackgroundOpacity = 0.86f;
-constexpr unsigned int kBorder = 0xb8c7dc;
-constexpr unsigned int kBodyText = 0x172033;
-constexpr unsigned int kMutedText = 0x697386;
-constexpr unsigned int kAccent = 0x2f6fed;
-constexpr unsigned int kButtonDefault = 0xffffff;
-constexpr unsigned int kButtonHovered = 0xebf2ff;
-constexpr unsigned int kButtonPressed = 0xdbe7ff;
-constexpr unsigned int kDangerHovered = 0xffdad6;
-constexpr unsigned int kDangerPressed = 0xf2b8b5;
+constexpr auto kBorder = COLOR(0xb8c7dc);
+constexpr auto kBodyText = COLOR(0x172033);
+constexpr auto kMutedText = COLOR(0x697386);
+constexpr auto kAccent = COLOR(0x2f6fed);
+constexpr auto kButtonDefault = COLOR(0xffffff);
+constexpr auto kButtonHovered = COLOR(0xebf2ff);
+constexpr auto kButtonPressed = COLOR(0xdbe7ff);
+constexpr auto kDangerHovered = COLOR(0xffdad6);
+constexpr auto kDangerPressed = COLOR(0xf2b8b5);
 
 } // namespace color
 

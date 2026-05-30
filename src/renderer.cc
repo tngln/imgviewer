@@ -489,7 +489,7 @@ HRESULT Renderer::RenderImageLayer()
 
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();
-    draw.Clear(D2D1::ColorF(ui_theme::color::kWindowBackground));
+    draw.Clear(ui_theme::color::kWindowBackground);
 
     const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
@@ -535,7 +535,7 @@ HRESULT Renderer::RenderImageLayer()
         d2d_context_->SetTransform(transform);
         draw.DrawGeometry(
             icon_geometry.get(),
-            D2D1::ColorF(ui_theme::color::kAccent),
+            ui_theme::color::kAccent,
             ui_theme::metrics::kPathIconStrokeWidth / scale);
     }
 
@@ -581,7 +581,7 @@ HRESULT Renderer::RenderUiOverlayLayer()
             ui_theme::metrics::kBodyTextTop,
             width - ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kBodyTextBottom),
-        D2D1::ColorF(ui_theme::color::kMutedText));
+        ui_theme::color::kMutedText);
     draw.DrawIconText(
         kIconText,
         ARRAYSIZE(kIconText) - 1,
@@ -590,7 +590,7 @@ HRESULT Renderer::RenderUiOverlayLayer()
             ui_theme::metrics::kIconTextTop,
             width - ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kIconTextBottom),
-        D2D1::ColorF(ui_theme::color::kAccent));
+        ui_theme::color::kAccent);
     ui_.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());

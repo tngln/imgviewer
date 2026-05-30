@@ -225,7 +225,8 @@ void UiController::Draw(
     maximize_button_->SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
     draw.FillRect(
         titlebar_rect_,
-        D2D1::ColorF(ui_theme::color::kTitleBarBackground, ui_theme::color::kTitleBarBackgroundOpacity));
+        D2D1::ColorF(ui_theme::color::kTitleBarBackground.r, ui_theme::color::kTitleBarBackground.g,
+            ui_theme::color::kTitleBarBackground.b, ui_theme::color::kTitleBarBackgroundOpacity));
     if (!maximized_) {
         draw.DrawRect(
             D2D1::RectF(
@@ -233,14 +234,14 @@ void UiController::Draw(
                 ui_theme::metrics::kWindowBorderInset,
                 (std::max)(ui_theme::metrics::kWindowBorderMinimum, size.width - ui_theme::metrics::kWindowBorderInset),
                 (std::max)(ui_theme::metrics::kWindowBorderMinimum, size.height - ui_theme::metrics::kWindowBorderInset)),
-            D2D1::ColorF(ui_theme::color::kBorder),
+            ui_theme::color::kBorder,
             1.0f);
     }
     draw.DrawBodyText(
         title_text_.c_str(),
         static_cast<UINT32>(title_text_.size()),
         title_text_rect_,
-        D2D1::ColorF(ui_theme::color::kBodyText),
+        ui_theme::color::kBodyText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
 
@@ -261,7 +262,7 @@ void UiController::Draw(
             open_button_->Rect().bottom + ui_theme::metrics::kStatusTextTopGap,
             test_button_->Rect().right + ui_theme::metrics::kStatusTextRightPadding,
             open_button_->Rect().bottom + ui_theme::metrics::kStatusTextTopGap + ui_theme::metrics::kStatusTextHeight),
-        D2D1::ColorF(ui_theme::color::kBodyText));
+        ui_theme::color::kBodyText);
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
