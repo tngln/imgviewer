@@ -28,7 +28,12 @@ public:
     IRawElementProviderSimple* GetAccessibilityProvider();
     void InvokeTestButtonFromAccessibility();
     void InvokeOpenImageFromAccessibility();
+    void InvokeUiCommandFromAccessibility(UiCommand command);
     HRESULT LoadImageFile(const wchar_t* path);
+    void SetTitleText(const wchar_t* title);
+    void SetWindowState(bool top_most, bool maximized);
+    bool IsPointInCaptionDragArea(float x, float y) const;
+    D2D1_RECT_F UiElementRect(UiElementId id) const;
     D2D1_RECT_F TestButtonRect() const;
     D2D1_RECT_F OpenButtonRect() const;
 

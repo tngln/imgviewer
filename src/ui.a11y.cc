@@ -19,15 +19,31 @@
 namespace {
 
 constexpr wchar_t kRootName[] = L"ImgViewer";
+constexpr wchar_t kTopMostButtonName[] = L"Top Most";
+constexpr wchar_t kTopMostButtonAutomationId[] = L"top-most";
+constexpr wchar_t kMinimizeButtonName[] = L"Minimize";
+constexpr wchar_t kMinimizeButtonAutomationId[] = L"minimize";
+constexpr wchar_t kMaximizeButtonName[] = L"Maximize or Restore";
+constexpr wchar_t kMaximizeButtonAutomationId[] = L"maximize-restore";
+constexpr wchar_t kCloseButtonName[] = L"Close";
+constexpr wchar_t kCloseButtonAutomationId[] = L"close";
 constexpr wchar_t kOpenButtonName[] = L"Open Image";
 constexpr wchar_t kOpenButtonAutomationId[] = L"open-image";
 constexpr wchar_t kTestButtonName[] = L"Test Button";
 constexpr wchar_t kTestButtonAutomationId[] = L"test-button";
 constexpr int kRootRuntimeId = 1;
-constexpr int kOpenButtonRuntimeId = 2;
-constexpr int kTestButtonRuntimeId = 3;
+constexpr int kTopMostButtonRuntimeId = 2;
+constexpr int kMinimizeButtonRuntimeId = 3;
+constexpr int kMaximizeButtonRuntimeId = 4;
+constexpr int kCloseButtonRuntimeId = 5;
+constexpr int kOpenButtonRuntimeId = 6;
+constexpr int kTestButtonRuntimeId = 7;
 
 enum class AccessibleButtonId {
+    TopMost,
+    Minimize,
+    MaximizeRestore,
+    Close,
     OpenImage,
     Test,
 };
@@ -220,13 +236,24 @@ public:
 
     HWND hwnd() const { return hwnd_; }
     Renderer* renderer() const { return renderer_; }
+    UiButtonProvider* top_most_button_provider() const { return top_most_button_provider_.get(); }
+    UiButtonProvider* minimize_button_provider() const { return minimize_button_provider_.get(); }
+    UiButtonProvider* maximize_button_provider() const { return maximize_button_provider_.get(); }
+    UiButtonProvider* close_button_provider() const { return close_button_provider_.get(); }
     UiButtonProvider* open_button_provider() const { return open_button_provider_.get(); }
     UiButtonProvider* test_button_provider() const { return test_button_provider_.get(); }
+    UiButtonProvider* ProviderFor(AccessibleButtonId id) const;
+    UiButtonProvider* NextProvider(AccessibleButtonId id) const;
+    UiButtonProvider* PreviousProvider(AccessibleButtonId id) const;
 
 private:
     HWND hwnd_ = nullptr;
     Renderer* renderer_ = nullptr;
     ComRc<UiRootProvider> rc_;
+    wil::com_ptr<UiButtonProvider> top_most_button_provider_;
+    wil::com_ptr<UiButtonProvider> minimize_button_provider_;
+    wil::com_ptr<UiButtonProvider> maximize_button_provider_;
+    wil::com_ptr<UiButtonProvider> close_button_provider_;
     wil::com_ptr<UiButtonProvider> open_button_provider_;
     wil::com_ptr<UiButtonProvider> test_button_provider_;
 };
@@ -321,11 +348,11 @@ public:
         if (direction == NavigateDirection_Parent) {
             *provider = static_cast<IRawElementProviderFragment*>(root_);
             root_->AddRef();
-        } else if (direction == NavigateDirection_NextSibling && id_ == AccessibleButtonId::OpenImage) {
-            *provider = static_cast<IRawElementProviderFragment*>(root_->test_button_provider());
+        } else if (direction == NavigateDirection_NextSibling && root_->NextProvider(id_) != nullptr) {
+            *provider = static_cast<IRawElementProviderFragment*>(root_->NextProvider(id_));
             (*provider)->AddRef();
-        } else if (direction == NavigateDirection_PreviousSibling && id_ == AccessibleButtonId::Test) {
-            *provider = static_cast<IRawElementProviderFragment*>(root_->open_button_provider());
+        } else if (direction == NavigateDirection_PreviousSibling && root_->PreviousProvider(id_) != nullptr) {
+            *provider = static_cast<IRawElementProviderFragment*>(root_->PreviousProvider(id_));
             (*provider)->AddRef();
         }
 
@@ -335,7 +362,7 @@ public:
     IFACEMETHODIMP GetRuntimeId(SAFEARRAY** runtime_id) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, runtime_id);
-        *runtime_id = MakeRuntimeId(id_ == AccessibleButtonId::OpenImage ? kOpenButtonRuntimeId : kTestButtonRuntimeId);
+        *runtime_id = MakeRuntimeId(RuntimeId());
         RETURN_IF_NULL_ALLOC(*runtime_id);
         return S_OK;
     }
@@ -344,8 +371,7 @@ public:
     {
         RETURN_HR_IF_NULL(E_POINTER, rect);
 
-        const D2D1_RECT_F button_rect =
-            id_ == AccessibleButtonId::OpenImage ? root_->renderer()->OpenButtonRect() : root_->renderer()->TestButtonRect();
+        const D2D1_RECT_F button_rect = root_->renderer()->UiElementRect(ElementId());
         POINT origin = {};
         RETURN_IF_WIN32_BOOL_FALSE(ClientToScreen(root_->hwnd(), &origin));
 
@@ -380,10 +406,12 @@ public:
 
     IFACEMETHODIMP Invoke() noexcept override
     {
-        if (id_ == AccessibleButtonId::OpenImage) {
+        if (id_ == AccessibleButtonId::Test) {
+            root_->renderer()->InvokeTestButtonFromAccessibility();
+        } else if (id_ == AccessibleButtonId::OpenImage) {
             root_->renderer()->InvokeOpenImageFromAccessibility();
         } else {
-            root_->renderer()->InvokeTestButtonFromAccessibility();
+            root_->renderer()->InvokeUiCommandFromAccessibility(Command());
         }
         return S_OK;
     }
@@ -391,12 +419,96 @@ public:
 private:
     const wchar_t* Name() const
     {
-        return id_ == AccessibleButtonId::OpenImage ? kOpenButtonName : kTestButtonName;
+        switch (id_) {
+        case AccessibleButtonId::TopMost:
+            return kTopMostButtonName;
+        case AccessibleButtonId::Minimize:
+            return kMinimizeButtonName;
+        case AccessibleButtonId::MaximizeRestore:
+            return kMaximizeButtonName;
+        case AccessibleButtonId::Close:
+            return kCloseButtonName;
+        case AccessibleButtonId::OpenImage:
+            return kOpenButtonName;
+        case AccessibleButtonId::Test:
+        default:
+            return kTestButtonName;
+        }
     }
 
     const wchar_t* AutomationId() const
     {
-        return id_ == AccessibleButtonId::OpenImage ? kOpenButtonAutomationId : kTestButtonAutomationId;
+        switch (id_) {
+        case AccessibleButtonId::TopMost:
+            return kTopMostButtonAutomationId;
+        case AccessibleButtonId::Minimize:
+            return kMinimizeButtonAutomationId;
+        case AccessibleButtonId::MaximizeRestore:
+            return kMaximizeButtonAutomationId;
+        case AccessibleButtonId::Close:
+            return kCloseButtonAutomationId;
+        case AccessibleButtonId::OpenImage:
+            return kOpenButtonAutomationId;
+        case AccessibleButtonId::Test:
+        default:
+            return kTestButtonAutomationId;
+        }
+    }
+
+    int RuntimeId() const
+    {
+        switch (id_) {
+        case AccessibleButtonId::TopMost:
+            return kTopMostButtonRuntimeId;
+        case AccessibleButtonId::Minimize:
+            return kMinimizeButtonRuntimeId;
+        case AccessibleButtonId::MaximizeRestore:
+            return kMaximizeButtonRuntimeId;
+        case AccessibleButtonId::Close:
+            return kCloseButtonRuntimeId;
+        case AccessibleButtonId::OpenImage:
+            return kOpenButtonRuntimeId;
+        case AccessibleButtonId::Test:
+        default:
+            return kTestButtonRuntimeId;
+        }
+    }
+
+    UiElementId ElementId() const
+    {
+        switch (id_) {
+        case AccessibleButtonId::TopMost:
+            return UiElementId::TopMost;
+        case AccessibleButtonId::Minimize:
+            return UiElementId::Minimize;
+        case AccessibleButtonId::MaximizeRestore:
+            return UiElementId::MaximizeRestore;
+        case AccessibleButtonId::Close:
+            return UiElementId::Close;
+        case AccessibleButtonId::OpenImage:
+            return UiElementId::OpenImage;
+        case AccessibleButtonId::Test:
+        default:
+            return UiElementId::Test;
+        }
+    }
+
+    UiCommand Command() const
+    {
+        switch (id_) {
+        case AccessibleButtonId::TopMost:
+            return UiCommand::ToggleTopMost;
+        case AccessibleButtonId::Minimize:
+            return UiCommand::Minimize;
+        case AccessibleButtonId::MaximizeRestore:
+            return UiCommand::ToggleMaximize;
+        case AccessibleButtonId::Close:
+            return UiCommand::Close;
+        case AccessibleButtonId::OpenImage:
+            return UiCommand::OpenImage;
+        default:
+            return UiCommand::None;
+        }
     }
 
     UiRootProvider* root_ = nullptr;
@@ -406,6 +518,22 @@ private:
 
 HRESULT UiRootProvider::Initialize()
 {
+    auto* top_most_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::TopMost);
+    RETURN_IF_NULL_ALLOC(top_most_provider);
+    top_most_button_provider_.attach(top_most_provider);
+
+    auto* minimize_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::Minimize);
+    RETURN_IF_NULL_ALLOC(minimize_provider);
+    minimize_button_provider_.attach(minimize_provider);
+
+    auto* maximize_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::MaximizeRestore);
+    RETURN_IF_NULL_ALLOC(maximize_provider);
+    maximize_button_provider_.attach(maximize_provider);
+
+    auto* close_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::Close);
+    RETURN_IF_NULL_ALLOC(close_provider);
+    close_button_provider_.attach(close_provider);
+
     auto* open_provider = new (std::nothrow) UiButtonProvider(this, AccessibleButtonId::OpenImage);
     RETURN_IF_NULL_ALLOC(open_provider);
     open_button_provider_.attach(open_provider);
@@ -416,13 +544,68 @@ HRESULT UiRootProvider::Initialize()
     return S_OK;
 }
 
+UiButtonProvider* UiRootProvider::ProviderFor(AccessibleButtonId id) const
+{
+    switch (id) {
+    case AccessibleButtonId::TopMost:
+        return top_most_button_provider_.get();
+    case AccessibleButtonId::Minimize:
+        return minimize_button_provider_.get();
+    case AccessibleButtonId::MaximizeRestore:
+        return maximize_button_provider_.get();
+    case AccessibleButtonId::Close:
+        return close_button_provider_.get();
+    case AccessibleButtonId::OpenImage:
+        return open_button_provider_.get();
+    case AccessibleButtonId::Test:
+    default:
+        return test_button_provider_.get();
+    }
+}
+
+UiButtonProvider* UiRootProvider::NextProvider(AccessibleButtonId id) const
+{
+    switch (id) {
+    case AccessibleButtonId::TopMost:
+        return minimize_button_provider_.get();
+    case AccessibleButtonId::Minimize:
+        return maximize_button_provider_.get();
+    case AccessibleButtonId::MaximizeRestore:
+        return close_button_provider_.get();
+    case AccessibleButtonId::Close:
+        return open_button_provider_.get();
+    case AccessibleButtonId::OpenImage:
+        return test_button_provider_.get();
+    default:
+        return nullptr;
+    }
+}
+
+UiButtonProvider* UiRootProvider::PreviousProvider(AccessibleButtonId id) const
+{
+    switch (id) {
+    case AccessibleButtonId::Minimize:
+        return top_most_button_provider_.get();
+    case AccessibleButtonId::MaximizeRestore:
+        return minimize_button_provider_.get();
+    case AccessibleButtonId::Close:
+        return maximize_button_provider_.get();
+    case AccessibleButtonId::OpenImage:
+        return close_button_provider_.get();
+    case AccessibleButtonId::Test:
+        return open_button_provider_.get();
+    default:
+        return nullptr;
+    }
+}
+
 IFACEMETHODIMP UiRootProvider::Navigate(NavigateDirection direction, IRawElementProviderFragment** provider) noexcept
 {
     RETURN_HR_IF_NULL(E_POINTER, provider);
     *provider = nullptr;
 
     if (direction == NavigateDirection_FirstChild) {
-        *provider = static_cast<IRawElementProviderFragment*>(open_button_provider_.get());
+        *provider = static_cast<IRawElementProviderFragment*>(top_most_button_provider_.get());
         (*provider)->AddRef();
     } else if (direction == NavigateDirection_LastChild) {
         *provider = static_cast<IRawElementProviderFragment*>(test_button_provider_.get());
@@ -438,19 +621,23 @@ IFACEMETHODIMP UiRootProvider::ElementProviderFromPoint(double x, double y, IRaw
     *provider = nullptr;
 
     UiaRect button_rect = {};
-    RETURN_IF_FAILED(open_button_provider_->get_BoundingRectangle(&button_rect));
-    if (x >= button_rect.left && x < button_rect.left + button_rect.width && y >= button_rect.top &&
-        y < button_rect.top + button_rect.height) {
-        *provider = static_cast<IRawElementProviderFragment*>(open_button_provider_.get());
-        (*provider)->AddRef();
-        return S_OK;
-    }
-
-    RETURN_IF_FAILED(test_button_provider_->get_BoundingRectangle(&button_rect));
-    if (x >= button_rect.left && x < button_rect.left + button_rect.width && y >= button_rect.top &&
-        y < button_rect.top + button_rect.height) {
-        *provider = static_cast<IRawElementProviderFragment*>(test_button_provider_.get());
-        (*provider)->AddRef();
+    constexpr AccessibleButtonId ids[] = {
+        AccessibleButtonId::TopMost,
+        AccessibleButtonId::Minimize,
+        AccessibleButtonId::MaximizeRestore,
+        AccessibleButtonId::Close,
+        AccessibleButtonId::OpenImage,
+        AccessibleButtonId::Test,
+    };
+    for (const AccessibleButtonId id : ids) {
+        UiButtonProvider* button_provider = ProviderFor(id);
+        RETURN_IF_FAILED(button_provider->get_BoundingRectangle(&button_rect));
+        if (x >= button_rect.left && x < button_rect.left + button_rect.width && y >= button_rect.top &&
+            y < button_rect.top + button_rect.height) {
+            *provider = static_cast<IRawElementProviderFragment*>(button_provider);
+            (*provider)->AddRef();
+            return S_OK;
+        }
     }
 
     return S_OK;

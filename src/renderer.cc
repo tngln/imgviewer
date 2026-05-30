@@ -13,7 +13,6 @@ namespace {
 
 constexpr float kTestIconSize = 96.0f;
 constexpr float kTestIconPadding = 24.0f;
-constexpr wchar_t kTitleText[] = L"ImgViewer";
 constexpr wchar_t kBodyText[] = L"D2D + DirectWrite text rendering";
 constexpr wchar_t kIconText[] = L"\xE921  \xE922  \xE8BB";
 
@@ -234,6 +233,11 @@ void Renderer::InvokeOpenImageFromAccessibility()
     PostMessageW(hwnd_, kImgViewerOpenImageMessage, 0, 0);
 }
 
+void Renderer::InvokeUiCommandFromAccessibility(UiCommand command)
+{
+    PostMessageW(hwnd_, kImgViewerUiCommandMessage, static_cast<WPARAM>(command), 0);
+}
+
 HRESULT Renderer::LoadImageFile(const wchar_t* path)
 {
     DecodedImage image;
@@ -244,14 +248,36 @@ HRESULT Renderer::LoadImageFile(const wchar_t* path)
     return S_OK;
 }
 
+void Renderer::SetTitleText(const wchar_t* title)
+{
+    ui_.SetTitleText(title);
+    Render();
+}
+
+void Renderer::SetWindowState(bool top_most, bool maximized)
+{
+    ui_.SetWindowState(top_most, maximized);
+    Render();
+}
+
+bool Renderer::IsPointInCaptionDragArea(float x, float y) const
+{
+    return ui_.IsPointInCaptionDragArea(D2D1::Point2F(x, y));
+}
+
+D2D1_RECT_F Renderer::UiElementRect(UiElementId id) const
+{
+    return ui_.ElementRect(id);
+}
+
 D2D1_RECT_F Renderer::TestButtonRect() const
 {
-    return ui_.TestButtonRect();
+    return ui_.ElementRect(UiElementId::Test);
 }
 
 D2D1_RECT_F Renderer::OpenButtonRect() const
 {
-    return ui_.OpenButtonRect();
+    return ui_.ElementRect(UiElementId::OpenImage);
 }
 
 HRESULT Renderer::BeginDrawLayer(
@@ -382,10 +408,6 @@ HRESULT Renderer::RenderUiOverlayLayer()
     RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
         D2D1::ColorF(0x2f6fed),
         icon_brush.put()));
-    wil::com_ptr<ID2D1SolidColorBrush> title_brush;
-    RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
-        D2D1::ColorF(0x172033),
-        title_brush.put()));
     wil::com_ptr<ID2D1SolidColorBrush> muted_brush;
     RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
         D2D1::ColorF(0x697386),
@@ -402,18 +424,10 @@ HRESULT Renderer::RenderUiOverlayLayer()
     const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y);
     d2d_context_->SetTransform(root_transform);
     d2d_context_->DrawTextW(
-        kTitleText,
-        ARRAYSIZE(kTitleText) - 1,
-        body_text_format_.get(),
-        StableRect(32.0f, 26.0f, width - 32.0f, 66.0f),
-        title_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
-    d2d_context_->DrawTextW(
         kBodyText,
         ARRAYSIZE(kBodyText) - 1,
         body_text_format_.get(),
-        StableRect(32.0f, 64.0f, width - 32.0f, 104.0f),
+        StableRect(32.0f, 58.0f, width - 32.0f, 98.0f),
         muted_brush.get(),
         D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
@@ -421,11 +435,11 @@ HRESULT Renderer::RenderUiOverlayLayer()
         kIconText,
         ARRAYSIZE(kIconText) - 1,
         icon_text_format_.get(),
-        StableRect(32.0f, 112.0f, width - 32.0f, 152.0f),
+        StableRect(32.0f, 96.0f, width - 32.0f, 136.0f),
         icon_brush.get(),
         D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
-    ui_.Draw(d2d_context_.get(), body_text_format_.get(), icon_text_format_.get());
+    ui_.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
     d2d_context_->SetTarget(nullptr);

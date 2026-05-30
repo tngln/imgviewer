@@ -34,6 +34,66 @@ Renderer* GetRenderer(HWND hwnd)
     return reinterpret_cast<Renderer*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
+bool IsWindowTopMost(HWND hwnd)
+{
+    return (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+}
+
+void SyncWindowState(HWND hwnd, Renderer* renderer)
+{
+    if (renderer != nullptr) {
+        renderer->SetWindowState(IsWindowTopMost(hwnd), IsZoomed(hwnd));
+    }
+}
+
+std::wstring FileNameFromPath(const wchar_t* path)
+{
+    if (path == nullptr) {
+        return kWindowTitle;
+    }
+
+    std::wstring value(path);
+    const size_t separator = value.find_last_of(L"\\/");
+    if (separator != std::wstring::npos) {
+        value.erase(0, separator + 1);
+    }
+
+    return value.empty() ? std::wstring(kWindowTitle) : value;
+}
+
+void ExecuteUiCommand(HWND hwnd, Renderer* renderer, UiCommand command)
+{
+    switch (command) {
+    case UiCommand::OpenImage:
+        break;
+    case UiCommand::ToggleTopMost: {
+        const bool top_most = !IsWindowTopMost(hwnd);
+        SetWindowPos(
+            hwnd,
+            top_most ? HWND_TOPMOST : HWND_NOTOPMOST,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SyncWindowState(hwnd, renderer);
+        break;
+    }
+    case UiCommand::Minimize:
+        ShowWindow(hwnd, SW_MINIMIZE);
+        break;
+    case UiCommand::ToggleMaximize:
+        ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
+        SyncWindowState(hwnd, renderer);
+        break;
+    case UiCommand::Close:
+        PostMessageW(hwnd, WM_CLOSE, 0, 0);
+        break;
+    default:
+        break;
+    }
+}
+
 void LoadImageFile(HWND hwnd, Renderer* renderer, const wchar_t* path)
 {
     if (renderer == nullptr || path == nullptr || path[0] == L'\0') {
@@ -43,7 +103,12 @@ void LoadImageFile(HWND hwnd, Renderer* renderer, const wchar_t* path)
     const HRESULT hr = renderer->LoadImageFile(path);
     if (FAILED(hr)) {
         MessageBoxW(hwnd, L"Could not open the selected image.", kWindowTitle, MB_OK | MB_ICONERROR);
+        return;
     }
+
+    const std::wstring file_name = FileNameFromPath(path);
+    renderer->SetTitleText(file_name.c_str());
+    SetWindowTextW(hwnd, file_name.c_str());
 }
 
 HRESULT PickImageFile(HWND hwnd, std::wstring* path)
@@ -107,7 +172,65 @@ void RenderIfNeeded(HWND hwnd, Renderer* renderer, UiEventResult result)
 
     if (result.command == UiCommand::OpenImage) {
         HandleOpenImageCommand(hwnd, renderer);
+    } else if (result.command != UiCommand::None) {
+        ExecuteUiCommand(hwnd, renderer, result.command);
     }
+}
+
+LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
+{
+    POINT screen_point{
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+    };
+
+    RECT window_rect = {};
+    GetWindowRect(hwnd, &window_rect);
+    const UINT dpi = GetDpiForWindow(hwnd);
+    const int resize_border =
+        GetSystemMetricsForDpi(SM_CXFRAME, dpi) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+
+    if (!IsZoomed(hwnd)) {
+        const bool left = screen_point.x >= window_rect.left && screen_point.x < window_rect.left + resize_border;
+        const bool right = screen_point.x < window_rect.right && screen_point.x >= window_rect.right - resize_border;
+        const bool top = screen_point.y >= window_rect.top && screen_point.y < window_rect.top + resize_border;
+        const bool bottom = screen_point.y < window_rect.bottom && screen_point.y >= window_rect.bottom - resize_border;
+
+        if (top && left) {
+            return HTTOPLEFT;
+        }
+        if (top && right) {
+            return HTTOPRIGHT;
+        }
+        if (bottom && left) {
+            return HTBOTTOMLEFT;
+        }
+        if (bottom && right) {
+            return HTBOTTOMRIGHT;
+        }
+        if (left) {
+            return HTLEFT;
+        }
+        if (right) {
+            return HTRIGHT;
+        }
+        if (top) {
+            return HTTOP;
+        }
+        if (bottom) {
+            return HTBOTTOM;
+        }
+    }
+
+    POINT client_point = screen_point;
+    ScreenToClient(hwnd, &client_point);
+    const D2D1_POINT_2F render_point = CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
+    Renderer* renderer = GetRenderer(hwnd);
+    if (renderer != nullptr && renderer->IsPointInCaptionDragArea(render_point.x, render_point.y)) {
+        return HTCAPTION;
+    }
+
+    return HTCLIENT;
 }
 
 void TrackMouseLeave(HWND hwnd)
@@ -137,10 +260,21 @@ HRESULT InitializeDpiAwareness()
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
     switch (message) {
+    case kImgViewerUiCommandMessage: {
+        ExecuteUiCommand(hwnd, GetRenderer(hwnd), static_cast<UiCommand>(wparam));
+        return 0;
+    }
+
     case kImgViewerOpenImageMessage: {
         HandleOpenImageCommand(hwnd, GetRenderer(hwnd));
         return 0;
     }
+
+    case WM_NCCALCSIZE:
+        if (wparam == TRUE) {
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
 
     case WM_NCCREATE: {
         const auto* create_struct = reinterpret_cast<CREATESTRUCTW*>(lparam);
@@ -162,9 +296,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (renderer != nullptr && FAILED(renderer->Resize())) {
             return -1;
         }
+        SyncWindowState(hwnd, renderer);
 
         return 0;
     }
+
+    case WM_NCHITTEST:
+        return HitTestFrame(hwnd, lparam);
+
+    case WM_NCLBUTTONDBLCLK:
+        if (wparam == HTCAPTION) {
+            ExecuteUiCommand(hwnd, GetRenderer(hwnd), UiCommand::ToggleMaximize);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
 
     case WM_ERASEBKGND:
         return 1;
@@ -278,6 +423,14 @@ HRESULT RunApplicationAsHresult()
         &renderer)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
     DragAcceptFiles(window.get(), TRUE);
+    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
+        window.get(),
+        nullptr,
+        0,
+        0,
+        0,
+        0,
+        SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
 
     ShowWindow(window.get(), SW_SHOWDEFAULT);
     RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));
