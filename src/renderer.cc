@@ -444,12 +444,12 @@ size_t Renderer::UiElementCount() const
     return ui_.ElementCount();
 }
 
-const UiButtonMetadata* Renderer::UiElementMetadataAt(size_t index) const
+const UiElementMetadata* Renderer::UiElementMetadataAt(size_t index) const
 {
     return ui_.ElementMetadataAt(index);
 }
 
-const UiButtonMetadata* Renderer::UiElementMetadata(UiElementId id) const
+const UiElementMetadata* Renderer::UiElementMetadata(UiElementId id) const
 {
     return ui_.ElementMetadata(id);
 }

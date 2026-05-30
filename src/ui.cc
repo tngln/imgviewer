@@ -18,47 +18,53 @@ constexpr wchar_t kMaximizeIcon[] = L"\xE922";
 constexpr wchar_t kRestoreIcon[] = L"\xE923";
 constexpr wchar_t kCloseIcon[] = L"\xE8BB";
 
-constexpr UiButtonMetadata kTopMostMetadata{
-    UiElementId::TopMost,
-    UiCommand::ToggleTopMost,
-    L"Top Most",
-    L"top-most",
-    2,
+constexpr UiElementMetadata kTopMostMetadata{
+    .id = UiElementId::TopMost,
+    .role = UiElementRole::Button,
+    .command = UiCommand::ToggleTopMost,
+    .name = L"Top Most",
+    .automation_id = L"top-most",
+    .runtime_id = 2,
 };
-constexpr UiButtonMetadata kMinimizeMetadata{
-    UiElementId::Minimize,
-    UiCommand::Minimize,
-    L"Minimize",
-    L"minimize",
-    3,
+constexpr UiElementMetadata kMinimizeMetadata{
+    .id = UiElementId::Minimize,
+    .role = UiElementRole::Button,
+    .command = UiCommand::Minimize,
+    .name = L"Minimize",
+    .automation_id = L"minimize",
+    .runtime_id = 3,
 };
-constexpr UiButtonMetadata kMaximizeMetadata{
-    UiElementId::MaximizeRestore,
-    UiCommand::ToggleMaximize,
-    L"Maximize or Restore",
-    L"maximize-restore",
-    4,
+constexpr UiElementMetadata kMaximizeMetadata{
+    .id = UiElementId::MaximizeRestore,
+    .role = UiElementRole::Button,
+    .command = UiCommand::ToggleMaximize,
+    .name = L"Maximize or Restore",
+    .automation_id = L"maximize-restore",
+    .runtime_id = 4,
 };
-constexpr UiButtonMetadata kCloseMetadata{
-    UiElementId::Close,
-    UiCommand::Close,
-    L"Close",
-    L"close",
-    5,
+constexpr UiElementMetadata kCloseMetadata{
+    .id = UiElementId::Close,
+    .role = UiElementRole::Button,
+    .command = UiCommand::Close,
+    .name = L"Close",
+    .automation_id = L"close",
+    .runtime_id = 5,
 };
-constexpr UiButtonMetadata kOpenMetadata{
-    UiElementId::OpenImage,
-    UiCommand::OpenImage,
-    L"Open Image",
-    L"open-image",
-    6,
+constexpr UiElementMetadata kOpenMetadata{
+    .id = UiElementId::OpenImage,
+    .role = UiElementRole::Button,
+    .command = UiCommand::OpenImage,
+    .name = L"Open Image",
+    .automation_id = L"open-image",
+    .runtime_id = 6,
 };
-constexpr UiButtonMetadata kTestMetadata{
-    UiElementId::Test,
-    UiCommand::None,
-    L"Test Button",
-    L"test-button",
-    7,
+constexpr UiElementMetadata kTestMetadata{
+    .id = UiElementId::Test,
+    .role = UiElementRole::Button,
+    .command = UiCommand::None,
+    .name = L"Test Button",
+    .automation_id = L"test-button",
+    .runtime_id = 7,
 };
 
 bool Contains(D2D1_RECT_F rect, D2D1_POINT_2F point)
@@ -238,13 +244,13 @@ UiElementId UiController::HitTest(D2D1_POINT_2F point) const
 
 UiCommand UiController::CommandFor(UiElementId id) const
 {
-    const UiButtonMetadata* metadata = MetadataForElement(id);
+    const UiElementMetadata* metadata = MetadataForElement(id);
     return metadata != nullptr ? metadata->command : UiCommand::None;
 }
 
-UiButtonState UiController::ButtonState(UiElementId id, bool active, bool danger) const
+UiElementState UiController::ButtonState(UiElementId id, bool active, bool danger) const
 {
-    return UiButtonState{
+    return UiElementState{
         .hovered = hovered_button_ == id,
         .pressed = pressed_button_ == id,
         .active = active,
@@ -252,7 +258,7 @@ UiButtonState UiController::ButtonState(UiElementId id, bool active, bool danger
     };
 }
 
-const UiButtonMetadata* UiController::MetadataForElement(UiElementId id) const
+const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 {
     switch (id) {
     case UiElementId::TopMost:
@@ -277,7 +283,7 @@ size_t UiController::ElementCount() const
     return 6;
 }
 
-const UiButtonMetadata* UiController::ElementMetadataAt(size_t index) const
+const UiElementMetadata* UiController::ElementMetadataAt(size_t index) const
 {
     switch (index) {
     case 0:
@@ -297,7 +303,7 @@ const UiButtonMetadata* UiController::ElementMetadataAt(size_t index) const
     }
 }
 
-const UiButtonMetadata* UiController::ElementMetadata(UiElementId id) const
+const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
 {
     return MetadataForElement(id);
 }

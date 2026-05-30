@@ -79,6 +79,19 @@ HRESULT SetBoolVariant(bool value, VARIANT* variant)
     return S_OK;
 }
 
+int ControlTypeForRole(UiElementRole role)
+{
+    switch (role) {
+    case UiElementRole::Button:
+        return UIA_ButtonControlTypeId;
+    case UiElementRole::Text:
+        return UIA_TextControlTypeId;
+    case UiElementRole::Pane:
+    default:
+        return UIA_PaneControlTypeId;
+    }
+}
+
 class UiButtonProvider;
 
 class UiRootProvider final :
@@ -274,7 +287,7 @@ public:
 
     IFACEMETHODIMP GetPropertyValue(PROPERTYID property_id, VARIANT* value) noexcept override
     {
-        const UiButtonMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
+        const UiElementMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
 
         if (property_id == UIA_NamePropertyId) {
@@ -286,12 +299,19 @@ public:
         }
 
         if (property_id == UIA_ControlTypePropertyId) {
-            return SetIntVariant(UIA_ButtonControlTypeId, value);
+            return SetIntVariant(ControlTypeForRole(metadata->role), value);
         }
 
-        if (property_id == UIA_IsEnabledPropertyId || property_id == UIA_IsControlElementPropertyId ||
-            property_id == UIA_IsContentElementPropertyId) {
+        if (property_id == UIA_IsEnabledPropertyId) {
             return SetBoolVariant(true, value);
+        }
+
+        if (property_id == UIA_IsControlElementPropertyId) {
+            return SetBoolVariant(metadata->is_control, value);
+        }
+
+        if (property_id == UIA_IsContentElementPropertyId) {
+            return SetBoolVariant(metadata->is_content, value);
         }
 
         RETURN_HR_IF_NULL(E_POINTER, value);
@@ -328,7 +348,7 @@ public:
     IFACEMETHODIMP GetRuntimeId(SAFEARRAY** runtime_id) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, runtime_id);
-        const UiButtonMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
+        const UiElementMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
         *runtime_id = MakeRuntimeId(metadata->runtime_id);
         RETURN_IF_NULL_ALLOC(*runtime_id);
@@ -374,7 +394,7 @@ public:
 
     IFACEMETHODIMP Invoke() noexcept override
     {
-        const UiButtonMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
+        const UiElementMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
         if (id_ == UiElementId::Test) {
             root_->renderer()->InvokeTestButtonFromAccessibility();
@@ -396,7 +416,7 @@ HRESULT UiRootProvider::Initialize()
 {
     button_providers_.reserve(renderer_->UiElementCount());
     for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiButtonMetadata* metadata = renderer_->UiElementMetadataAt(index);
+        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
 
         auto* provider = new (std::nothrow) UiButtonProvider(this, metadata->id);
@@ -417,7 +437,7 @@ UiButtonProvider* UiRootProvider::ProviderAt(size_t index) const
 UiButtonProvider* UiRootProvider::ProviderFor(UiElementId id) const
 {
     for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiButtonMetadata* metadata = renderer_->UiElementMetadataAt(index);
+        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
         if (metadata != nullptr && metadata->id == id) {
             return ProviderAt(index);
         }
@@ -429,7 +449,7 @@ UiButtonProvider* UiRootProvider::ProviderFor(UiElementId id) const
 UiButtonProvider* UiRootProvider::NextProvider(UiElementId id) const
 {
     for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiButtonMetadata* metadata = renderer_->UiElementMetadataAt(index);
+        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
         if (metadata != nullptr && metadata->id == id) {
             return ProviderAt(index + 1);
         }
@@ -441,7 +461,7 @@ UiButtonProvider* UiRootProvider::NextProvider(UiElementId id) const
 UiButtonProvider* UiRootProvider::PreviousProvider(UiElementId id) const
 {
     for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiButtonMetadata* metadata = renderer_->UiElementMetadataAt(index);
+        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
         if (metadata != nullptr && metadata->id == id) {
             return index > 0 ? ProviderAt(index - 1) : nullptr;
         }

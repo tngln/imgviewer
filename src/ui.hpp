@@ -30,8 +30,8 @@ public:
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format);
     size_t ElementCount() const;
-    const UiButtonMetadata* ElementMetadataAt(size_t index) const;
-    const UiButtonMetadata* ElementMetadata(UiElementId id) const;
+    const UiElementMetadata* ElementMetadataAt(size_t index) const;
+    const UiElementMetadata* ElementMetadata(UiElementId id) const;
     D2D1_RECT_F ElementRect(UiElementId id) const;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
@@ -41,8 +41,8 @@ public:
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
     UiCommand CommandFor(UiElementId id) const;
-    UiButtonState ButtonState(UiElementId id, bool active = false, bool danger = false) const;
-    const UiButtonMetadata* MetadataForElement(UiElementId id) const;
+    UiElementState ButtonState(UiElementId id, bool active = false, bool danger = false) const;
+    const UiElementMetadata* MetadataForElement(UiElementId id) const;
 
     std::wstring title_text_ = L"ImgViewer";
     D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
