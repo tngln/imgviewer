@@ -31,6 +31,13 @@ float AngleFromCenter(D2D1_POINT_2F point, D2D1_POINT_2F center)
     return std::atan2(point.y - center.y, point.x - center.x);
 }
 
+D2D1_POINT_2F TransformVector(D2D1_MATRIX_3X2_F matrix, D2D1_POINT_2F vector)
+{
+    return D2D1::Point2F(
+        vector.x * matrix._11 + vector.y * matrix._21,
+        vector.x * matrix._12 + vector.y * matrix._22);
+}
+
 HRESULT CreatePathGeometryFromIcon(
     ID2D1Factory1* factory,
     const icons::PathCommand* commands,
@@ -231,8 +238,13 @@ UiEventResult Renderer::OnPointerMove(float x, float y)
         }
 
         const D2D1_POINT_2F point = D2D1::Point2F(x, y);
-        image_view_center_.x -= (point.x - image_last_pan_point_.x) / image_scale;
-        image_view_center_.y -= (point.y - image_last_pan_point_.y) / image_scale;
+        const D2D1_POINT_2F screen_delta = D2D1::Point2F(
+            point.x - image_last_pan_point_.x,
+            point.y - image_last_pan_point_.y);
+        const D2D1_POINT_2F image_delta =
+            TransformVector(D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_), screen_delta);
+        image_view_center_.x -= image_delta.x / image_scale;
+        image_view_center_.y -= image_delta.y / image_scale;
         image_last_pan_point_ = point;
         Render();
         return UiEventResult{
