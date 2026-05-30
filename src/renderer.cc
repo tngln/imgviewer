@@ -1,22 +1,16 @@
 #include "renderer.hpp"
 
 #include <algorithm>
-#include <cmath>
 
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
 
-#include "app.messages.hpp"
 #include "coordinates.hpp"
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
 
 namespace {
 
-constexpr float kMinImageZoomMultiplier = 0.05f;
-constexpr float kMaxImageZoomMultiplier = 64.0f;
-constexpr float kWheelZoomStep = 1.12f;
-constexpr float kRadiansToDegrees = 57.2957795f;
 constexpr wchar_t kBodyText[] = L"D2D + DirectWrite text rendering";
 constexpr wchar_t kIconText[] = L"\xE921  \xE922  \xE8BB";
 
@@ -25,16 +19,17 @@ D2D1_RECT_F StableRect(float left, float top, float right, float bottom)
     return D2D1::RectF(left, top, (std::max)(left + 1.0f, right), (std::max)(top + 1.0f, bottom));
 }
 
-float AngleFromCenter(D2D1_POINT_2F point, D2D1_POINT_2F center)
+float ImageScaleForViewport(const ImageViewerSnapshot& image, UINT viewport_width, UINT viewport_height)
 {
-    return std::atan2(point.y - center.y, point.x - center.x);
-}
+    if (image.bitmap == nullptr || image.pixel_size.width == 0 || image.pixel_size.height == 0) {
+        return 0.0f;
+    }
 
-D2D1_POINT_2F TransformVector(D2D1_MATRIX_3X2_F matrix, D2D1_POINT_2F vector)
-{
-    return D2D1::Point2F(
-        vector.x * matrix._11 + vector.y * matrix._21,
-        vector.x * matrix._12 + vector.y * matrix._22);
+    const float image_width = static_cast<float>(image.pixel_size.width);
+    const float image_height = static_cast<float>(image.pixel_size.height);
+    const float available_width = (std::max)(1.0f, static_cast<float>(viewport_width));
+    const float available_height = (std::max)(1.0f, static_cast<float>(viewport_height));
+    return (std::min)(available_width / image_width, available_height / image_height) * image.zoom_multiplier;
 }
 
 } // namespace
@@ -77,7 +72,6 @@ HRESULT Renderer::Initialize(HWND hwnd)
     RETURN_IF_FAILED(d3d_device_->QueryInterface(IID_PPV_ARGS(dxgi_device_.put())));
     RETURN_IF_FAILED(d2d_factory_->CreateDevice(dxgi_device_.get(), d2d_device_.put()));
     RETURN_IF_FAILED(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_context_.put()));
-    RETURN_IF_FAILED(image_decoder_.Initialize());
     RETURN_IF_FAILED(DWriteCreateFactory(
         DWRITE_FACTORY_TYPE_SHARED,
         __uuidof(IDWriteFactory),
@@ -112,7 +106,6 @@ HRESULT Renderer::Initialize(HWND hwnd)
     RETURN_IF_FAILED(dcomp_device_->CreateVisual(root_visual_.put()));
     RETURN_IF_FAILED(dcomp_target_->SetRoot(root_visual_.get()));
     RETURN_IF_FAILED(surfaces_.Initialize(dcomp_device_.get(), root_visual_.get()));
-    RETURN_IF_FAILED(CreateUiAccessibilityProvider(hwnd_, this, accessibility_provider_.put()));
 
     RETURN_IF_FAILED(ResizeSurfacesToClient());
     RETURN_IF_FAILED(dcomp_device_->Commit());
@@ -140,277 +133,31 @@ HRESULT Renderer::ResizeSurfacesToClient()
     const UINT height = static_cast<UINT>(std::max<LONG>(1, client_rect.bottom - client_rect.top));
 
     RETURN_IF_FAILED(surfaces_.Resize(width, height));
-    RETURN_IF_FAILED(Render());
 
     return S_OK;
 }
 
-HRESULT Renderer::Render()
+HRESULT Renderer::Render(const ImageViewerController& viewer, UiController& ui)
 {
     if (!surfaces_.Surface(SurfaceLayerId::Image) || !surfaces_.Surface(SurfaceLayerId::UiOverlay)) {
         return S_OK;
     }
 
-    RETURN_IF_FAILED(RenderImageLayer());
-    RETURN_IF_FAILED(RenderUiOverlayLayer());
+    RETURN_IF_FAILED(RenderImageLayer(viewer.Snapshot()));
+    RETURN_IF_FAILED(RenderUiOverlayLayer(ui));
     RETURN_IF_FAILED(dcomp_device_->Commit());
 
     return S_OK;
 }
 
-UiEventResult Renderer::OnPointerMove(float x, float y)
+D2D1_SIZE_U Renderer::ViewportPixelSize() const
 {
-    if (image_is_rotating_) {
-        const D2D1_POINT_2F point = D2D1::Point2F(x, y);
-        const D2D1_POINT_2F viewport_center = D2D1::Point2F(
-            static_cast<float>(surfaces_.Width()) * 0.5f,
-            static_cast<float>(surfaces_.Height()) * 0.5f);
-        const float angle = AngleFromCenter(point, viewport_center);
-        image_rotation_degrees_ += (angle - image_last_rotation_angle_) * kRadiansToDegrees;
-        image_last_rotation_angle_ = angle;
-        Render();
-        return UiEventResult{
-            .handled = true,
-            .needs_render = false,
-        };
-    }
-
-    if (image_is_panning_) {
-        const float image_scale = CurrentImageScale(surfaces_.Width(), surfaces_.Height());
-        if (image_scale <= 0.0f) {
-            return {};
-        }
-
-        const D2D1_POINT_2F point = D2D1::Point2F(x, y);
-        const D2D1_POINT_2F screen_delta = D2D1::Point2F(
-            point.x - image_last_pan_point_.x,
-            point.y - image_last_pan_point_.y);
-        const D2D1_POINT_2F image_delta =
-            TransformVector(D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_), screen_delta);
-        image_view_center_.x -= image_delta.x / image_scale;
-        image_view_center_.y -= image_delta.y / image_scale;
-        image_last_pan_point_ = point;
-        Render();
-        return UiEventResult{
-            .handled = true,
-            .needs_render = false,
-        };
-    }
-
-    return ui_.OnPointerMove(D2D1::Point2F(x, y));
+    return D2D1::SizeU(surfaces_.Width(), surfaces_.Height());
 }
 
-UiEventResult Renderer::OnPointerDown(float x, float y)
+ID2D1DeviceContext* Renderer::BitmapDeviceContext() const
 {
-    const D2D1_POINT_2F point = D2D1::Point2F(x, y);
-    UiEventResult ui_result = ui_.OnPointerDown(point);
-    if (ui_result.handled || !current_image_.bitmap) {
-        return ui_result;
-    }
-
-    if (r_key_is_down_) {
-        image_is_rotating_ = true;
-        const D2D1_POINT_2F viewport_center = D2D1::Point2F(
-            static_cast<float>(surfaces_.Width()) * 0.5f,
-            static_cast<float>(surfaces_.Height()) * 0.5f);
-        image_last_rotation_angle_ = AngleFromCenter(point, viewport_center);
-        return UiEventResult{
-            .handled = true,
-            .needs_render = false,
-            .captured = true,
-        };
-    }
-
-    image_is_panning_ = true;
-    image_last_pan_point_ = point;
-    return UiEventResult{
-        .handled = true,
-        .needs_render = false,
-        .captured = true,
-    };
-}
-
-UiEventResult Renderer::OnPointerUp(float x, float y)
-{
-    if (image_is_rotating_) {
-        image_is_rotating_ = false;
-        image_last_rotation_angle_ = AngleFromCenter(
-            D2D1::Point2F(x, y),
-            D2D1::Point2F(static_cast<float>(surfaces_.Width()) * 0.5f, static_cast<float>(surfaces_.Height()) * 0.5f));
-        return UiEventResult{
-            .handled = true,
-            .needs_render = false,
-            .released_capture = true,
-        };
-    }
-
-    if (image_is_panning_) {
-        image_is_panning_ = false;
-        image_last_pan_point_ = D2D1::Point2F(x, y);
-        return UiEventResult{
-            .handled = true,
-            .needs_render = false,
-            .released_capture = true,
-        };
-    }
-
-    return ui_.OnPointerUp(D2D1::Point2F(x, y));
-}
-
-UiEventResult Renderer::OnPointerLeave()
-{
-    return ui_.OnPointerLeave();
-}
-
-bool Renderer::OnMouseWheel(float x, float y, int delta)
-{
-    if (!current_image_.bitmap || delta == 0 || surfaces_.Width() == 0 || surfaces_.Height() == 0) {
-        return false;
-    }
-
-    const float image_width = static_cast<float>(current_image_.pixel_size.width);
-    const float image_height = static_cast<float>(current_image_.pixel_size.height);
-    if (image_width <= 0.0f || image_height <= 0.0f) {
-        return false;
-    }
-
-    const float viewport_width = static_cast<float>(surfaces_.Width());
-    const float viewport_height = static_cast<float>(surfaces_.Height());
-    const float fit_scale = CurrentImageScale(surfaces_.Width(), surfaces_.Height()) / image_zoom_multiplier_;
-    const float old_scale = fit_scale * image_zoom_multiplier_;
-    const float wheel_steps = static_cast<float>(delta) / static_cast<float>(WHEEL_DELTA);
-    const float new_zoom = std::clamp(
-        image_zoom_multiplier_ * std::pow(kWheelZoomStep, wheel_steps),
-        kMinImageZoomMultiplier,
-        kMaxImageZoomMultiplier);
-    if (new_zoom == image_zoom_multiplier_) {
-        return false;
-    }
-
-    const D2D1_POINT_2F viewport_center = D2D1::Point2F(viewport_width * 0.5f, viewport_height * 0.5f);
-    const D2D1_POINT_2F pointer = D2D1::Point2F(x, y);
-    const D2D1_POINT_2F image_point_under_pointer = D2D1::Point2F(
-        image_view_center_.x + (pointer.x - viewport_center.x) / old_scale,
-        image_view_center_.y + (pointer.y - viewport_center.y) / old_scale);
-
-    const float new_scale = fit_scale * new_zoom;
-    image_view_center_ = D2D1::Point2F(
-        image_point_under_pointer.x - (pointer.x - viewport_center.x) / new_scale,
-        image_point_under_pointer.y - (pointer.y - viewport_center.y) / new_scale);
-    image_zoom_multiplier_ = new_zoom;
-
-    Render();
-    return true;
-}
-
-bool Renderer::OnKeyDown(UINT virtual_key)
-{
-    if (virtual_key == 'R') {
-        r_key_is_down_ = true;
-        return true;
-    }
-
-    return false;
-}
-
-bool Renderer::OnKeyUp(UINT virtual_key)
-{
-    if (virtual_key == 'R') {
-        const bool was_rotating = image_is_rotating_;
-        r_key_is_down_ = false;
-        image_is_rotating_ = false;
-        return was_rotating;
-    }
-
-    return false;
-}
-
-IRawElementProviderSimple* Renderer::GetAccessibilityProvider()
-{
-    return accessibility_provider_.get();
-}
-
-void Renderer::InvokeTestButtonFromAccessibility()
-{
-    ui_.InvokeTestButton();
-    Render();
-}
-
-void Renderer::InvokeOpenImageFromAccessibility()
-{
-    PostMessageW(hwnd_, kImgViewerOpenImageMessage, 0, 0);
-}
-
-void Renderer::InvokeUiCommandFromAccessibility(UiCommand command)
-{
-    PostMessageW(hwnd_, kImgViewerUiCommandMessage, static_cast<WPARAM>(command), 0);
-}
-
-HRESULT Renderer::LoadImageFile(const wchar_t* path)
-{
-    DecodedImage image;
-    RETURN_IF_FAILED(image_decoder_.DecodeFirstFrame(path, d2d_context_.get(), &image));
-
-    current_image_ = std::move(image);
-    image_view_center_ = D2D1::Point2F(
-        static_cast<float>(current_image_.pixel_size.width) * 0.5f,
-        static_cast<float>(current_image_.pixel_size.height) * 0.5f);
-    image_zoom_multiplier_ = 1.0f;
-    image_rotation_degrees_ = 0.0f;
-    RETURN_IF_FAILED(Render());
-    return S_OK;
-}
-
-D2D1_SIZE_U Renderer::CurrentImagePixelSize() const
-{
-    return current_image_.pixel_size;
-}
-
-void Renderer::SetTitleText(const wchar_t* title)
-{
-    ui_.SetTitleText(title);
-    Render();
-}
-
-void Renderer::SetWindowState(bool top_most, bool maximized)
-{
-    ui_.SetWindowState(top_most, maximized);
-    Render();
-}
-
-bool Renderer::IsPointInCaptionDragArea(float x, float y) const
-{
-    return ui_.IsPointInCaptionDragArea(D2D1::Point2F(x, y));
-}
-
-size_t Renderer::UiElementCount() const
-{
-    return ui_.ElementCount();
-}
-
-const UiElementMetadata* Renderer::UiElementMetadataAt(size_t index) const
-{
-    return ui_.ElementMetadataAt(index);
-}
-
-const UiElementMetadata* Renderer::UiElementMetadata(UiElementId id) const
-{
-    return ui_.ElementMetadata(id);
-}
-
-D2D1_RECT_F Renderer::UiElementRect(UiElementId id) const
-{
-    return ui_.ElementRect(id);
-}
-
-D2D1_RECT_F Renderer::TestButtonRect() const
-{
-    return ui_.ElementRect(UiElementId::Test);
-}
-
-D2D1_RECT_F Renderer::OpenButtonRect() const
-{
-    return ui_.ElementRect(UiElementId::OpenImage);
+    return d2d_context_.get();
 }
 
 HRESULT Renderer::BeginDrawLayer(
@@ -453,20 +200,7 @@ HRESULT Renderer::BeginDrawLayer(
     return S_OK;
 }
 
-float Renderer::CurrentImageScale(UINT viewport_width, UINT viewport_height) const
-{
-    if (!current_image_.bitmap || current_image_.pixel_size.width == 0 || current_image_.pixel_size.height == 0) {
-        return 0.0f;
-    }
-
-    const float image_width = static_cast<float>(current_image_.pixel_size.width);
-    const float image_height = static_cast<float>(current_image_.pixel_size.height);
-    const float available_width = (std::max)(1.0f, static_cast<float>(viewport_width));
-    const float available_height = (std::max)(1.0f, static_cast<float>(viewport_height));
-    return (std::min)(available_width / image_width, available_height / image_height) * image_zoom_multiplier_;
-}
-
-HRESULT Renderer::RenderImageLayer()
+HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),
@@ -499,22 +233,22 @@ HRESULT Renderer::RenderImageLayer()
     const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y);
     d2d_context_->SetTransform(root_transform);
 
-    if (current_image_.bitmap) {
-        const float image_width = static_cast<float>(current_image_.pixel_size.width);
-        const float image_height = static_cast<float>(current_image_.pixel_size.height);
-        const float image_scale = CurrentImageScale(surfaces_.Width(), surfaces_.Height());
+    if (image.bitmap != nullptr) {
+        const float image_width = static_cast<float>(image.pixel_size.width);
+        const float image_height = static_cast<float>(image.pixel_size.height);
+        const float image_scale = ImageScaleForViewport(image, surfaces_.Width(), surfaces_.Height());
         const float draw_width = image_width * image_scale;
         const float draw_height = image_height * image_scale;
         const D2D1_POINT_2F viewport_center = D2D1::Point2F(width * 0.5f, height * 0.5f);
         const D2D1_RECT_F destination = D2D1::RectF(
-            viewport_center.x - image_view_center_.x * image_scale,
-            viewport_center.y - image_view_center_.y * image_scale,
-            viewport_center.x - image_view_center_.x * image_scale + draw_width,
-            viewport_center.y - image_view_center_.y * image_scale + draw_height);
+            viewport_center.x - image.view_center.x * image_scale,
+            viewport_center.y - image.view_center.y * image_scale,
+            viewport_center.x - image.view_center.x * image_scale + draw_width,
+            viewport_center.y - image.view_center.y * image_scale + draw_height);
         d2d_context_->SetTransform(
-            D2D1::Matrix3x2F::Rotation(image_rotation_degrees_, viewport_center) * root_transform);
+            D2D1::Matrix3x2F::Rotation(image.rotation_degrees, viewport_center) * root_transform);
         d2d_context_->DrawBitmap(
-            current_image_.bitmap.get(),
+            image.bitmap,
             destination,
             1.0f,
             D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC);
@@ -547,7 +281,7 @@ HRESULT Renderer::RenderImageLayer()
     return S_OK;
 }
 
-HRESULT Renderer::RenderUiOverlayLayer()
+HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),
@@ -591,7 +325,7 @@ HRESULT Renderer::RenderUiOverlayLayer()
             width - ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kIconTextBottom),
         ui_theme::color::kAccent);
-    ui_.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
+    ui.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
     d2d_context_->SetTarget(nullptr);

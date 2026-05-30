@@ -6,9 +6,9 @@
 #include <UIAutomationCore.h>
 #include <UIAutomationCoreApi.h>
 
-class Renderer;
+class UiController;
 
 HRESULT CreateUiAccessibilityProvider(
     HWND hwnd,
-    Renderer* renderer,
+    UiController* ui,
     IRawElementProviderSimple** provider);

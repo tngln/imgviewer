@@ -1,7 +1,10 @@
 #include "main.hpp"
 #include "app.messages.hpp"
 #include "coordinates.hpp"
+#include "image.viewer.hpp"
 #include "renderer.hpp"
+#include "ui.a11y.hpp"
+#include "ui.hpp"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -14,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
@@ -21,6 +25,13 @@ namespace {
 
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 constexpr wchar_t kWindowTitle[] = L"ImgViewer";
+
+struct AppContext final {
+    Renderer renderer;
+    UiController ui;
+    ImageViewerController viewer;
+    wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
+};
 
 D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
 {
@@ -41,9 +52,9 @@ D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
     return CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
 }
 
-Renderer* GetRenderer(HWND hwnd)
+AppContext* GetAppContext(HWND hwnd)
 {
-    return reinterpret_cast<Renderer*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    return reinterpret_cast<AppContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
 bool IsWindowTopMost(HWND hwnd)
@@ -56,10 +67,20 @@ int ResizeBorderThicknessForDpi(UINT dpi)
     return GetSystemMetricsForDpi(SM_CXFRAME, dpi) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
 }
 
-void SyncWindowState(HWND hwnd, Renderer* renderer)
+HRESULT RenderApplication(AppContext* context)
 {
-    if (renderer != nullptr) {
-        renderer->SetWindowState(IsWindowTopMost(hwnd), IsZoomed(hwnd));
+    if (context == nullptr) {
+        return S_OK;
+    }
+
+    RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
+    return S_OK;
+}
+
+void SyncWindowState(HWND hwnd, UiController* ui)
+{
+    if (ui != nullptr) {
+        ui->SetWindowState(IsWindowTopMost(hwnd), IsZoomed(hwnd));
     }
 }
 
@@ -93,7 +114,7 @@ std::wstring FileNameFromPath(const wchar_t* path)
     return value.empty() ? std::wstring(kWindowTitle) : value;
 }
 
-void ExecuteUiCommand(HWND hwnd, Renderer* renderer, UiCommand command)
+void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
 {
     switch (command) {
     case UiCommand::OpenImage:
@@ -108,7 +129,10 @@ void ExecuteUiCommand(HWND hwnd, Renderer* renderer, UiCommand command)
             0,
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-        SyncWindowState(hwnd, renderer);
+        if (context != nullptr) {
+            SyncWindowState(hwnd, &context->ui);
+            RenderApplication(context);
+        }
         break;
     }
     case UiCommand::Minimize:
@@ -116,7 +140,10 @@ void ExecuteUiCommand(HWND hwnd, Renderer* renderer, UiCommand command)
         break;
     case UiCommand::ToggleMaximize:
         ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
-        SyncWindowState(hwnd, renderer);
+        if (context != nullptr) {
+            SyncWindowState(hwnd, &context->ui);
+            RenderApplication(context);
+        }
         break;
     case UiCommand::Close:
         PostMessageW(hwnd, WM_CLOSE, 0, 0);
@@ -126,25 +153,26 @@ void ExecuteUiCommand(HWND hwnd, Renderer* renderer, UiCommand command)
     }
 }
 
-void LoadImageFile(HWND hwnd, Renderer* renderer, const wchar_t* path)
+void LoadImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
 {
-    if (renderer == nullptr || path == nullptr || path[0] == L'\0') {
+    if (context == nullptr || path == nullptr || path[0] == L'\0') {
         return;
     }
 
-    const HRESULT hr = renderer->LoadImageFile(path);
+    const HRESULT hr = context->viewer.LoadImageFile(path, context->renderer.BitmapDeviceContext());
     if (FAILED(hr)) {
         MessageBoxW(hwnd, L"Could not open the selected image.", kWindowTitle, MB_OK | MB_ICONERROR);
         return;
     }
 
     const std::wstring file_name = FileNameFromPath(path);
-    const D2D1_SIZE_U image_size = renderer->CurrentImagePixelSize();
+    const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     wchar_t resolution_text[64] = {};
     swprintf_s(resolution_text, L"  %ux%u", image_size.width, image_size.height);
     const std::wstring title_text = file_name + resolution_text;
-    renderer->SetTitleText(title_text.c_str());
+    context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
+    RenderApplication(context);
 }
 
 HRESULT PickImageFile(HWND hwnd, std::wstring* path)
@@ -176,7 +204,7 @@ HRESULT PickImageFile(HWND hwnd, std::wstring* path)
     return S_OK;
 }
 
-void HandleOpenImageCommand(HWND hwnd, Renderer* renderer)
+void HandleOpenImageCommand(HWND hwnd, AppContext* context)
 {
     std::wstring path;
     const HRESULT hr = PickImageFile(hwnd, &path);
@@ -189,12 +217,12 @@ void HandleOpenImageCommand(HWND hwnd, Renderer* renderer)
         return;
     }
 
-    LoadImageFile(hwnd, renderer, path.c_str());
+    LoadImageFile(hwnd, context, path.c_str());
 }
 
-void RenderIfNeeded(HWND hwnd, Renderer* renderer, UiEventResult result)
+void RenderIfNeeded(HWND hwnd, AppContext* context, UiEventResult result)
 {
-    if (renderer == nullptr) {
+    if (context == nullptr) {
         return;
     }
 
@@ -203,13 +231,28 @@ void RenderIfNeeded(HWND hwnd, Renderer* renderer, UiEventResult result)
     }
 
     if (result.needs_render) {
-        renderer->Render();
+        RenderApplication(context);
     }
 
     if (result.command == UiCommand::OpenImage) {
-        HandleOpenImageCommand(hwnd, renderer);
+        HandleOpenImageCommand(hwnd, context);
     } else if (result.command != UiCommand::None) {
-        ExecuteUiCommand(hwnd, renderer, result.command);
+        ExecuteUiCommand(hwnd, context, result.command);
+    }
+}
+
+void RenderIfNeeded(AppContext* context, ImageViewerEventResult result)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    if (result.released_capture) {
+        ReleaseCapture();
+    }
+
+    if (result.needs_render) {
+        RenderApplication(context);
     }
 }
 
@@ -260,8 +303,8 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
     POINT client_point = screen_point;
     ScreenToClient(hwnd, &client_point);
     const D2D1_POINT_2F render_point = CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
-    Renderer* renderer = GetRenderer(hwnd);
-    if (renderer != nullptr && renderer->IsPointInCaptionDragArea(render_point.x, render_point.y)) {
+    AppContext* context = GetAppContext(hwnd);
+    if (context != nullptr && context->ui.IsPointInCaptionDragArea(render_point)) {
         return HTCAPTION;
     }
 
@@ -314,12 +357,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 {
     switch (message) {
     case kImgViewerUiCommandMessage: {
-        ExecuteUiCommand(hwnd, GetRenderer(hwnd), static_cast<UiCommand>(wparam));
+        ExecuteUiCommand(hwnd, GetAppContext(hwnd), static_cast<UiCommand>(wparam));
         return 0;
     }
 
     case kImgViewerOpenImageMessage: {
-        HandleOpenImageCommand(hwnd, GetRenderer(hwnd));
+        HandleOpenImageCommand(hwnd, GetAppContext(hwnd));
         return 0;
     }
 
@@ -333,8 +376,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_CREATE: {
-        Renderer* renderer = GetRenderer(hwnd);
-        if (renderer == nullptr || FAILED(renderer->Initialize(hwnd))) {
+        AppContext* context = GetAppContext(hwnd);
+        if (context == nullptr ||
+            FAILED(context->renderer.Initialize(hwnd)) ||
+            FAILED(context->viewer.Initialize()) ||
+            FAILED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put())) ||
+            FAILED(RenderApplication(context))) {
             return -1;
         }
 
@@ -342,11 +389,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_SIZE: {
-        Renderer* renderer = GetRenderer(hwnd);
-        if (renderer != nullptr && FAILED(renderer->Resize())) {
+        AppContext* context = GetAppContext(hwnd);
+        if (context != nullptr && FAILED(context->renderer.Resize())) {
             return -1;
         }
-        SyncWindowState(hwnd, renderer);
+        if (context != nullptr) {
+            SyncWindowState(hwnd, &context->ui);
+            if (FAILED(RenderApplication(context))) {
+                return -1;
+            }
+        }
 
         return 0;
     }
@@ -356,7 +408,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_NCLBUTTONDBLCLK:
         if (wparam == HTCAPTION) {
-            ExecuteUiCommand(hwnd, GetRenderer(hwnd), UiCommand::ToggleMaximize);
+            ExecuteUiCommand(hwnd, GetAppContext(hwnd), UiCommand::ToggleMaximize);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -365,42 +417,68 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 1;
 
     case WM_MOUSEMOVE: {
-        Renderer* renderer = GetRenderer(hwnd);
+        AppContext* context = GetAppContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         TrackMouseLeave(hwnd);
-        RenderIfNeeded(hwnd, renderer, renderer != nullptr ? renderer->OnPointerMove(point.x, point.y) : UiEventResult{});
+        ImageViewerEventResult viewer_result = {};
+        if (context != nullptr) {
+            viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+        }
+        RenderIfNeeded(context, viewer_result);
+        if (context != nullptr && !viewer_result.handled) {
+            RenderIfNeeded(hwnd, context, context->ui.OnPointerMove(point));
+        }
         return 0;
     }
 
     case WM_LBUTTONDOWN: {
-        Renderer* renderer = GetRenderer(hwnd);
+        AppContext* context = GetAppContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        const UiEventResult result = renderer != nullptr ? renderer->OnPointerDown(point.x, point.y) : UiEventResult{};
-        if (result.captured) {
+        UiEventResult ui_result = context != nullptr ? context->ui.OnPointerDown(point) : UiEventResult{};
+        ImageViewerEventResult viewer_result = {};
+        if (context != nullptr && !ui_result.handled) {
+            viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
+        }
+        if (ui_result.captured || viewer_result.captured) {
             SetCapture(hwnd);
         }
-        RenderIfNeeded(hwnd, renderer, result);
-        return result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+        RenderIfNeeded(hwnd, context, ui_result);
+        RenderIfNeeded(context, viewer_result);
+        return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
     case WM_LBUTTONUP: {
-        Renderer* renderer = GetRenderer(hwnd);
+        AppContext* context = GetAppContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        const UiEventResult result = renderer != nullptr ? renderer->OnPointerUp(point.x, point.y) : UiEventResult{};
-        RenderIfNeeded(hwnd, renderer, result);
-        return result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+        ImageViewerEventResult viewer_result = {};
+        if (context != nullptr) {
+            viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
+        }
+        RenderIfNeeded(context, viewer_result);
+        UiEventResult ui_result = {};
+        if (context != nullptr && !viewer_result.handled) {
+            ui_result = context->ui.OnPointerUp(point);
+            RenderIfNeeded(hwnd, context, ui_result);
+        }
+        return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
     case WM_MOUSELEAVE: {
-        Renderer* renderer = GetRenderer(hwnd);
-        RenderIfNeeded(hwnd, renderer, renderer != nullptr ? renderer->OnPointerLeave() : UiEventResult{});
+        AppContext* context = GetAppContext(hwnd);
+        RenderIfNeeded(hwnd, context, context != nullptr ? context->ui.OnPointerLeave() : UiEventResult{});
         return 0;
     }
 
     case WM_MOUSEWHEEL: {
-        Renderer* renderer = GetRenderer(hwnd);
+        AppContext* context = GetAppContext(hwnd);
         const D2D1_POINT_2F point = GetScreenPointerPoint(hwnd, lparam);
-        if (renderer != nullptr && renderer->OnMouseWheel(point.x, point.y, GET_WHEEL_DELTA_WPARAM(wparam))) {
+        if (context != nullptr &&
+            context->viewer.OnMouseWheel(
+                point.x,
+                point.y,
+                GET_WHEEL_DELTA_WPARAM(wparam),
+                context->renderer.ViewportPixelSize())) {
+            RenderApplication(context);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -408,8 +486,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
-        Renderer* renderer = GetRenderer(hwnd);
-        if (renderer != nullptr && renderer->OnKeyDown(static_cast<UINT>(wparam))) {
+        AppContext* context = GetAppContext(hwnd);
+        if (context != nullptr && context->viewer.OnKeyDown(static_cast<UINT>(wparam))) {
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -417,8 +495,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_KEYUP:
     case WM_SYSKEYUP: {
-        Renderer* renderer = GetRenderer(hwnd);
-        if (renderer != nullptr && renderer->OnKeyUp(static_cast<UINT>(wparam))) {
+        AppContext* context = GetAppContext(hwnd);
+        if (context != nullptr && context->viewer.OnKeyUp(static_cast<UINT>(wparam))) {
             ReleaseCapture();
             return 0;
         }
@@ -426,13 +504,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_DROPFILES: {
-        Renderer* renderer = GetRenderer(hwnd);
+        AppContext* context = GetAppContext(hwnd);
         const HDROP drop = reinterpret_cast<HDROP>(wparam);
         const UINT length = DragQueryFileW(drop, 0, nullptr, 0);
         if (length > 0) {
             std::vector<wchar_t> path(static_cast<size_t>(length) + 1);
             DragQueryFileW(drop, 0, path.data(), static_cast<UINT>(path.size()));
-            LoadImageFile(hwnd, renderer, path.data());
+            LoadImageFile(hwnd, context, path.data());
         }
         DragFinish(drop);
         return 0;
@@ -440,9 +518,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_GETOBJECT: {
         if (lparam == UiaRootObjectId) {
-            Renderer* renderer = GetRenderer(hwnd);
-            if (renderer != nullptr) {
-                return UiaReturnRawElementProvider(hwnd, wparam, lparam, renderer->GetAccessibilityProvider());
+            AppContext* context = GetAppContext(hwnd);
+            if (context != nullptr) {
+                return UiaReturnRawElementProvider(
+                    hwnd,
+                    wparam,
+                    lparam,
+                    context->accessibility_provider.get());
             }
         }
 
@@ -486,7 +568,7 @@ HRESULT RunApplicationAsHresult()
 
     RETURN_IF_FAILED(RegisterMainWindowClass(instance));
 
-    Renderer renderer;
+    AppContext context;
     wil::unique_hwnd window{CreateWindowExW(
         0,
         kWindowClassName,
@@ -499,7 +581,7 @@ HRESULT RunApplicationAsHresult()
         nullptr,
         nullptr,
         instance,
-        &renderer)};
+        &context)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
     DragAcceptFiles(window.get(), TRUE);
     DisableIme(window.get());
@@ -521,7 +603,7 @@ HRESULT RunApplicationAsHresult()
     RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
     auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
     if (argc > 1) {
-        LoadImageFile(window.get(), &renderer, argv[1]);
+        LoadImageFile(window.get(), &context, argv[1]);
     }
 
     MSG message = {};

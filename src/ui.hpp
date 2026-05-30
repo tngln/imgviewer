@@ -37,7 +37,6 @@ public:
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
     void SetWindowState(bool top_most, bool maximized);
-    void InvokeTestButton();
 
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
@@ -54,10 +53,8 @@ private:
     IconButton* maximize_button_ = nullptr;
     IconButton* close_button_ = nullptr;
     Button* open_button_ = nullptr;
-    Button* test_button_ = nullptr;
     UiElementId hovered_button_ = UiElementId::None;
     UiElementId pressed_button_ = UiElementId::None;
     bool top_most_ = false;
     bool maximized_ = false;
-    unsigned int button_clicks_ = 0;
 };

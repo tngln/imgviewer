@@ -19,7 +19,6 @@ enum class UiCommand {
 enum class UiElementId {
     None,
     OpenImage,
-    Test,
     TopMost,
     Minimize,
     MaximizeRestore,

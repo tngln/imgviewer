@@ -12,8 +12,6 @@ namespace {
 
 constexpr wchar_t kOpenIcon[] = L"\xE8E5";
 constexpr wchar_t kOpenText[] = L"Open Image";
-constexpr wchar_t kTestIcon[] = L"\xE8FB";
-constexpr wchar_t kTestText[] = L"Test Button";
 constexpr wchar_t kTopMostIcon[] = L"\xE718";
 constexpr wchar_t kMinimizeIcon[] = L"\xE921";
 constexpr wchar_t kMaximizeIcon[] = L"\xE922";
@@ -70,15 +68,6 @@ constexpr UiElementMetadata kOpenMetadata{
     .automation_id = L"open-image",
     .runtime_id = 6,
 };
-constexpr UiElementMetadata kTestMetadata{
-    .id = UiElementId::Test,
-    .role = UiElementRole::Button,
-    .command = UiCommand::None,
-    .name = L"Test Button",
-    .automation_id = L"test-button",
-    .runtime_id = 7,
-};
-
 bool Contains(D2D1_RECT_F rect, D2D1_POINT_2F point)
 {
     return point.x >= rect.left && point.x < rect.right && point.y >= rect.top && point.y < rect.bottom;
@@ -96,7 +85,6 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMaximizeMetadata, kMaximizeIcon)));
     close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kCloseMetadata, kCloseIcon)));
     open_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kOpenMetadata, kOpenIcon, kOpenText)));
-    test_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kTestMetadata, kTestIcon, kTestText)));
 
     top_most_button_->SetRect(D2D1_RECT_F{720.0f, 0.0f, 768.0f, ui_theme::metrics::kTitleBarHeight});
     minimize_button_->SetRect(D2D1_RECT_F{768.0f, 0.0f, 816.0f, ui_theme::metrics::kTitleBarHeight});
@@ -106,12 +94,6 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         ui_theme::metrics::kPanelPadding,
         ui_theme::metrics::kPrimaryButtonTop,
         ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth,
-        ui_theme::metrics::kPrimaryButtonTop + ui_theme::metrics::kPrimaryButtonHeight});
-    test_button_->SetRect(D2D1_RECT_F{
-        ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth + ui_theme::metrics::kButtonGap,
-        ui_theme::metrics::kPrimaryButtonTop,
-        ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth + ui_theme::metrics::kButtonGap +
-            ui_theme::metrics::kTestButtonWidth,
         ui_theme::metrics::kPrimaryButtonTop + ui_theme::metrics::kPrimaryButtonHeight});
 }
 
@@ -152,12 +134,7 @@ UiEventResult UiController::OnPointerUp(D2D1_POINT_2F point)
     hovered_button_ = HitTest(point);
     pressed_button_ = UiElementId::None;
 
-    UiCommand command = CommandFor(pressed_button);
-    if (hovered_button_ == pressed_button && pressed_button == UiElementId::Test) {
-        ++button_clicks_;
-    } else if (hovered_button_ != pressed_button) {
-        command = UiCommand::None;
-    }
+    UiCommand command = hovered_button_ == pressed_button ? CommandFor(pressed_button) : UiCommand::None;
 
     return UiEventResult{
         .handled = true,
@@ -250,19 +227,6 @@ void UiController::Draw(
     maximize_button_->Draw(draw_context, ButtonState(UiElementId::MaximizeRestore));
     close_button_->Draw(draw_context, ButtonState(UiElementId::Close, false, true));
     open_button_->Draw(draw_context, ButtonState(UiElementId::OpenImage));
-    test_button_->Draw(draw_context, ButtonState(UiElementId::Test));
-
-    wchar_t click_text[64] = {};
-    const int click_text_length = swprintf_s(click_text, L"Button clicks: %u", button_clicks_);
-    draw.DrawBodyText(
-        click_text,
-        static_cast<UINT32>(click_text_length),
-        D2D1::RectF(
-            open_button_->Rect().left,
-            open_button_->Rect().bottom + ui_theme::metrics::kStatusTextTopGap,
-            test_button_->Rect().right + ui_theme::metrics::kStatusTextRightPadding,
-            open_button_->Rect().bottom + ui_theme::metrics::kStatusTextTopGap + ui_theme::metrics::kStatusTextHeight),
-        ui_theme::color::kBodyText);
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
@@ -329,9 +293,4 @@ void UiController::SetWindowState(bool top_most, bool maximized)
 {
     top_most_ = top_most;
     maximized_ = maximized;
-}
-
-void UiController::InvokeTestButton()
-{
-    ++button_clicks_;
 }

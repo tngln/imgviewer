@@ -4,6 +4,7 @@ project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
     src/image.decoder.cc
+    src/image.viewer.cc
     src/main.cc
     src/renderer.cc
     src/surface.manager.cc

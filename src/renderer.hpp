@@ -10,38 +10,17 @@
 
 #include <wil/com.h>
 
-#include "image.decoder.hpp"
+#include "image.viewer.hpp"
 #include "surface.manager.hpp"
-#include "ui.a11y.hpp"
 #include "ui.hpp"
 
 class Renderer final {
 public:
     HRESULT Initialize(HWND hwnd);
     HRESULT Resize();
-    HRESULT Render();
-    UiEventResult OnPointerMove(float x, float y);
-    UiEventResult OnPointerDown(float x, float y);
-    UiEventResult OnPointerUp(float x, float y);
-    UiEventResult OnPointerLeave();
-    bool OnMouseWheel(float x, float y, int delta);
-    bool OnKeyDown(UINT virtual_key);
-    bool OnKeyUp(UINT virtual_key);
-    IRawElementProviderSimple* GetAccessibilityProvider();
-    void InvokeTestButtonFromAccessibility();
-    void InvokeOpenImageFromAccessibility();
-    void InvokeUiCommandFromAccessibility(UiCommand command);
-    HRESULT LoadImageFile(const wchar_t* path);
-    D2D1_SIZE_U CurrentImagePixelSize() const;
-    void SetTitleText(const wchar_t* title);
-    void SetWindowState(bool top_most, bool maximized);
-    bool IsPointInCaptionDragArea(float x, float y) const;
-    size_t UiElementCount() const;
-    const UiElementMetadata* UiElementMetadataAt(size_t index) const;
-    const UiElementMetadata* UiElementMetadata(UiElementId id) const;
-    D2D1_RECT_F UiElementRect(UiElementId id) const;
-    D2D1_RECT_F TestButtonRect() const;
-    D2D1_RECT_F OpenButtonRect() const;
+    HRESULT Render(const ImageViewerController& viewer, UiController& ui);
+    D2D1_SIZE_U ViewportPixelSize() const;
+    ID2D1DeviceContext* BitmapDeviceContext() const;
 
 private:
     HRESULT ResizeSurfacesToClient();
@@ -50,22 +29,10 @@ private:
         DXGI_ALPHA_MODE alpha_mode,
         ID2D1Bitmap1** target,
         POINT* offset);
-    float CurrentImageScale(UINT viewport_width, UINT viewport_height) const;
-    HRESULT RenderImageLayer();
-    HRESULT RenderUiOverlayLayer();
+    HRESULT RenderImageLayer(const ImageViewerSnapshot& image);
+    HRESULT RenderUiOverlayLayer(UiController& ui);
 
     HWND hwnd_ = nullptr;
-    UiController ui_;
-    ImageDecoder image_decoder_;
-    DecodedImage current_image_;
-    D2D1_POINT_2F image_view_center_ = {};
-    float image_zoom_multiplier_ = 1.0f;
-    float image_rotation_degrees_ = 0.0f;
-    bool image_is_panning_ = false;
-    bool image_is_rotating_ = false;
-    bool r_key_is_down_ = false;
-    D2D1_POINT_2F image_last_pan_point_ = {};
-    float image_last_rotation_angle_ = 0.0f;
     wil::com_ptr<ID2D1Factory1> d2d_factory_;
     wil::com_ptr<ID3D11Device> d3d_device_;
     wil::com_ptr<ID3D11DeviceContext> d3d_context_;
@@ -79,5 +46,4 @@ private:
     wil::com_ptr<IDCompositionTarget> dcomp_target_;
     wil::com_ptr<IDCompositionVisual> root_visual_;
     SurfaceManager surfaces_;
-    wil::com_ptr<IRawElementProviderSimple> accessibility_provider_;
 };

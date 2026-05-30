@@ -13,8 +13,9 @@
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
+#include "app.messages.hpp"
 #include "com.rc.hpp"
-#include "renderer.hpp"
+#include "ui.hpp"
 
 namespace {
 
@@ -99,7 +100,7 @@ class UiRootProvider final :
     public IRawElementProviderFragment,
     public IRawElementProviderFragmentRoot {
 public:
-    UiRootProvider(HWND hwnd, Renderer* renderer) : hwnd_(hwnd), renderer_(renderer) {}
+    UiRootProvider(HWND hwnd, UiController* ui) : hwnd_(hwnd), ui_(ui) {}
 
     HRESULT Initialize();
 
@@ -221,7 +222,7 @@ public:
     }
 
     HWND hwnd() const { return hwnd_; }
-    Renderer* renderer() const { return renderer_; }
+    UiController* ui() const { return ui_; }
     UiButtonProvider* ProviderAt(size_t index) const;
     UiButtonProvider* ProviderFor(UiElementId id) const;
     UiButtonProvider* NextProvider(UiElementId id) const;
@@ -229,7 +230,7 @@ public:
 
 private:
     HWND hwnd_ = nullptr;
-    Renderer* renderer_ = nullptr;
+    UiController* ui_ = nullptr;
     ComRc<UiRootProvider> rc_;
     std::vector<wil::com_ptr<UiButtonProvider>> button_providers_;
 };
@@ -287,7 +288,7 @@ public:
 
     IFACEMETHODIMP GetPropertyValue(PROPERTYID property_id, VARIANT* value) noexcept override
     {
-        const UiElementMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
+        const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
 
         if (property_id == UIA_NamePropertyId) {
@@ -348,7 +349,7 @@ public:
     IFACEMETHODIMP GetRuntimeId(SAFEARRAY** runtime_id) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, runtime_id);
-        const UiElementMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
+        const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
         *runtime_id = MakeRuntimeId(metadata->runtime_id);
         RETURN_IF_NULL_ALLOC(*runtime_id);
@@ -359,7 +360,7 @@ public:
     {
         RETURN_HR_IF_NULL(E_POINTER, rect);
 
-        const D2D1_RECT_F button_rect = root_->renderer()->UiElementRect(id_);
+        const D2D1_RECT_F button_rect = root_->ui()->ElementRect(id_);
         POINT origin = {};
         RETURN_IF_WIN32_BOOL_FALSE(ClientToScreen(root_->hwnd(), &origin));
 
@@ -394,14 +395,14 @@ public:
 
     IFACEMETHODIMP Invoke() noexcept override
     {
-        const UiElementMetadata* metadata = root_->renderer()->UiElementMetadata(id_);
+        const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
-        if (id_ == UiElementId::Test) {
-            root_->renderer()->InvokeTestButtonFromAccessibility();
-        } else if (id_ == UiElementId::OpenImage) {
-            root_->renderer()->InvokeOpenImageFromAccessibility();
+        if (metadata->command == UiCommand::OpenImage) {
+            PostMessageW(root_->hwnd(), kImgViewerOpenImageMessage, 0, 0);
+        } else if (metadata->command != UiCommand::None) {
+            PostMessageW(root_->hwnd(), kImgViewerUiCommandMessage, static_cast<WPARAM>(metadata->command), 0);
         } else {
-            root_->renderer()->InvokeUiCommandFromAccessibility(metadata->command);
+            return E_NOTIMPL;
         }
         return S_OK;
     }
@@ -414,9 +415,9 @@ private:
 
 HRESULT UiRootProvider::Initialize()
 {
-    button_providers_.reserve(renderer_->UiElementCount());
-    for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
+    button_providers_.reserve(ui_->ElementCount());
+    for (size_t index = 0; index < ui_->ElementCount(); ++index) {
+        const UiElementMetadata* metadata = ui_->ElementMetadataAt(index);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
 
         auto* provider = new (std::nothrow) UiButtonProvider(this, metadata->id);
@@ -436,8 +437,8 @@ UiButtonProvider* UiRootProvider::ProviderAt(size_t index) const
 
 UiButtonProvider* UiRootProvider::ProviderFor(UiElementId id) const
 {
-    for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
+    for (size_t index = 0; index < ui_->ElementCount(); ++index) {
+        const UiElementMetadata* metadata = ui_->ElementMetadataAt(index);
         if (metadata != nullptr && metadata->id == id) {
             return ProviderAt(index);
         }
@@ -448,8 +449,8 @@ UiButtonProvider* UiRootProvider::ProviderFor(UiElementId id) const
 
 UiButtonProvider* UiRootProvider::NextProvider(UiElementId id) const
 {
-    for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
+    for (size_t index = 0; index < ui_->ElementCount(); ++index) {
+        const UiElementMetadata* metadata = ui_->ElementMetadataAt(index);
         if (metadata != nullptr && metadata->id == id) {
             return ProviderAt(index + 1);
         }
@@ -460,8 +461,8 @@ UiButtonProvider* UiRootProvider::NextProvider(UiElementId id) const
 
 UiButtonProvider* UiRootProvider::PreviousProvider(UiElementId id) const
 {
-    for (size_t index = 0; index < renderer_->UiElementCount(); ++index) {
-        const UiElementMetadata* metadata = renderer_->UiElementMetadataAt(index);
+    for (size_t index = 0; index < ui_->ElementCount(); ++index) {
+        const UiElementMetadata* metadata = ui_->ElementMetadataAt(index);
         if (metadata != nullptr && metadata->id == id) {
             return index > 0 ? ProviderAt(index - 1) : nullptr;
         }
@@ -510,15 +511,15 @@ IFACEMETHODIMP UiRootProvider::ElementProviderFromPoint(double x, double y, IRaw
 
 HRESULT CreateUiAccessibilityProvider(
     HWND hwnd,
-    Renderer* renderer,
+    UiController* ui,
     IRawElementProviderSimple** provider)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, hwnd);
-    RETURN_HR_IF_NULL(E_INVALIDARG, renderer);
+    RETURN_HR_IF_NULL(E_INVALIDARG, ui);
     RETURN_HR_IF_NULL(E_POINTER, provider);
 
     *provider = nullptr;
-    auto* root_provider = new (std::nothrow) UiRootProvider(hwnd, renderer);
+    auto* root_provider = new (std::nothrow) UiRootProvider(hwnd, ui);
     RETURN_IF_NULL_ALLOC(root_provider);
 
     wil::com_ptr<UiRootProvider> root_provider_holder;
