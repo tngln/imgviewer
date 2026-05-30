@@ -3,6 +3,7 @@
 #include <d2d1_1.h>
 #include <dwrite.h>
 #include <cstddef>
+#include <memory>
 #include <string>
 
 #include "ui.button.hpp"
@@ -47,12 +48,13 @@ private:
     std::wstring title_text_ = L"ImgViewer";
     D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
     D2D1_RECT_F title_text_rect_ = D2D1_RECT_F{16.0f, 0.0f, 720.0f, 48.0f};
-    IconButton top_most_button_;
-    IconButton minimize_button_;
-    IconButton maximize_button_;
-    IconButton close_button_;
-    Button open_button_;
-    Button test_button_;
+    std::unique_ptr<UiElement> root_;
+    IconButton* top_most_button_ = nullptr;
+    IconButton* minimize_button_ = nullptr;
+    IconButton* maximize_button_ = nullptr;
+    IconButton* close_button_ = nullptr;
+    Button* open_button_ = nullptr;
+    Button* test_button_ = nullptr;
     UiElementId hovered_button_ = UiElementId::None;
     UiElementId pressed_button_ = UiElementId::None;
     bool top_most_ = false;

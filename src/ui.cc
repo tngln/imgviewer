@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cwchar>
+#include <memory>
 
 #include <d2d1helper.h>
 #include <wil/com.h>
@@ -18,6 +19,16 @@ constexpr wchar_t kMaximizeIcon[] = L"\xE922";
 constexpr wchar_t kRestoreIcon[] = L"\xE923";
 constexpr wchar_t kCloseIcon[] = L"\xE8BB";
 
+constexpr UiElementMetadata kRootMetadata{
+    .id = UiElementId::None,
+    .role = UiElementRole::Pane,
+    .command = UiCommand::None,
+    .name = L"ImgViewer",
+    .automation_id = L"root",
+    .runtime_id = 1,
+    .is_control = true,
+    .is_content = true,
+};
 constexpr UiElementMetadata kTopMostMetadata{
     .id = UiElementId::TopMost,
     .role = UiElementRole::Button,
@@ -74,20 +85,24 @@ bool Contains(D2D1_RECT_F rect, D2D1_POINT_2F point)
 
 } // namespace
 
-UiController::UiController() :
-    top_most_button_(kTopMostMetadata, kTopMostIcon),
-    minimize_button_(kMinimizeMetadata, kMinimizeIcon),
-    maximize_button_(kMaximizeMetadata, kMaximizeIcon),
-    close_button_(kCloseMetadata, kCloseIcon),
-    open_button_(kOpenMetadata, kOpenIcon, kOpenText),
-    test_button_(kTestMetadata, kTestIcon, kTestText)
+UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
 {
-    top_most_button_.SetRect(D2D1_RECT_F{720.0f, 0.0f, 768.0f, 48.0f});
-    minimize_button_.SetRect(D2D1_RECT_F{768.0f, 0.0f, 816.0f, 48.0f});
-    maximize_button_.SetRect(D2D1_RECT_F{816.0f, 0.0f, 864.0f, 48.0f});
-    close_button_.SetRect(D2D1_RECT_F{864.0f, 0.0f, 912.0f, 48.0f});
-    open_button_.SetRect(D2D1_RECT_F{32.0f, 128.0f, 232.0f, 172.0f});
-    test_button_.SetRect(D2D1_RECT_F{244.0f, 128.0f, 400.0f, 172.0f});
+    top_most_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kTopMostMetadata, kTopMostIcon)));
+    minimize_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMinimizeMetadata, kMinimizeIcon)));
+    maximize_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMaximizeMetadata, kMaximizeIcon)));
+    close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kCloseMetadata, kCloseIcon)));
+    open_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kOpenMetadata, kOpenIcon, kOpenText)));
+    test_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kTestMetadata, kTestIcon, kTestText)));
+
+    top_most_button_->SetRect(D2D1_RECT_F{720.0f, 0.0f, 768.0f, 48.0f});
+    minimize_button_->SetRect(D2D1_RECT_F{768.0f, 0.0f, 816.0f, 48.0f});
+    maximize_button_->SetRect(D2D1_RECT_F{816.0f, 0.0f, 864.0f, 48.0f});
+    close_button_->SetRect(D2D1_RECT_F{864.0f, 0.0f, 912.0f, 48.0f});
+    open_button_->SetRect(D2D1_RECT_F{32.0f, 128.0f, 232.0f, 172.0f});
+    test_button_->SetRect(D2D1_RECT_F{244.0f, 128.0f, 400.0f, 172.0f});
 }
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
@@ -162,13 +177,14 @@ void UiController::Draw(
     IDWriteTextFormat* icon_text_format)
 {
     const D2D1_SIZE_F size = viewport_size;
+    root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
     titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, size.width, 48.0f);
-    close_button_.SetRect(D2D1::RectF((std::max)(0.0f, size.width - 48.0f), 0.0f, size.width, 48.0f));
-    maximize_button_.SetRect(D2D1::RectF(close_button_.Rect().left - 48.0f, 0.0f, close_button_.Rect().left, 48.0f));
-    minimize_button_.SetRect(D2D1::RectF(maximize_button_.Rect().left - 48.0f, 0.0f, maximize_button_.Rect().left, 48.0f));
-    top_most_button_.SetRect(D2D1::RectF(minimize_button_.Rect().left - 48.0f, 0.0f, minimize_button_.Rect().left, 48.0f));
-    title_text_rect_ = D2D1::RectF(16.0f, 0.0f, (std::max)(17.0f, top_most_button_.Rect().left - 12.0f), 48.0f);
-    maximize_button_.SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
+    close_button_->SetRect(D2D1::RectF((std::max)(0.0f, size.width - 48.0f), 0.0f, size.width, 48.0f));
+    maximize_button_->SetRect(D2D1::RectF(close_button_->Rect().left - 48.0f, 0.0f, close_button_->Rect().left, 48.0f));
+    minimize_button_->SetRect(D2D1::RectF(maximize_button_->Rect().left - 48.0f, 0.0f, maximize_button_->Rect().left, 48.0f));
+    top_most_button_->SetRect(D2D1::RectF(minimize_button_->Rect().left - 48.0f, 0.0f, minimize_button_->Rect().left, 48.0f));
+    title_text_rect_ = D2D1::RectF(16.0f, 0.0f, (std::max)(17.0f, top_most_button_->Rect().left - 12.0f), 48.0f);
+    maximize_button_->SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
 
     wil::com_ptr<ID2D1SolidColorBrush> stroke_brush;
     d2d_context->CreateSolidColorBrush(D2D1::ColorF(0xb8c7dc), stroke_brush.put());
@@ -194,12 +210,17 @@ void UiController::Draw(
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
 
-    top_most_button_.Draw(d2d_context, icon_text_format, ButtonState(UiElementId::TopMost, top_most_));
-    minimize_button_.Draw(d2d_context, icon_text_format, ButtonState(UiElementId::Minimize));
-    maximize_button_.Draw(d2d_context, icon_text_format, ButtonState(UiElementId::MaximizeRestore));
-    close_button_.Draw(d2d_context, icon_text_format, ButtonState(UiElementId::Close, false, true));
-    open_button_.Draw(d2d_context, body_text_format, icon_text_format, ButtonState(UiElementId::OpenImage));
-    test_button_.Draw(d2d_context, body_text_format, icon_text_format, ButtonState(UiElementId::Test));
+    const UiDrawContext draw_context{
+        .d2d_context = d2d_context,
+        .body_text_format = body_text_format,
+        .icon_text_format = icon_text_format,
+    };
+    top_most_button_->Draw(draw_context, ButtonState(UiElementId::TopMost, top_most_));
+    minimize_button_->Draw(draw_context, ButtonState(UiElementId::Minimize));
+    maximize_button_->Draw(draw_context, ButtonState(UiElementId::MaximizeRestore));
+    close_button_->Draw(draw_context, ButtonState(UiElementId::Close, false, true));
+    open_button_->Draw(draw_context, ButtonState(UiElementId::OpenImage));
+    test_button_->Draw(draw_context, ButtonState(UiElementId::Test));
 
     wchar_t click_text[64] = {};
     const int click_text_length = swprintf_s(click_text, L"Button clicks: %u", button_clicks_);
@@ -207,7 +228,7 @@ void UiController::Draw(
         click_text,
         static_cast<UINT32>(click_text_length),
         body_text_format,
-        D2D1::RectF(open_button_.Rect().left, open_button_.Rect().bottom + 12.0f, test_button_.Rect().right + 120.0f, open_button_.Rect().bottom + 52.0f),
+        D2D1::RectF(open_button_->Rect().left, open_button_->Rect().bottom + 12.0f, test_button_->Rect().right + 120.0f, open_button_->Rect().bottom + 52.0f),
         text_brush.get(),
         D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
@@ -215,31 +236,8 @@ void UiController::Draw(
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
 {
-    if (close_button_.Contains(point)) {
-        return UiElementId::Close;
-    }
-
-    if (maximize_button_.Contains(point)) {
-        return UiElementId::MaximizeRestore;
-    }
-
-    if (minimize_button_.Contains(point)) {
-        return UiElementId::Minimize;
-    }
-
-    if (top_most_button_.Contains(point)) {
-        return UiElementId::TopMost;
-    }
-
-    if (open_button_.Contains(point)) {
-        return UiElementId::OpenImage;
-    }
-
-    if (test_button_.Contains(point)) {
-        return UiElementId::Test;
-    }
-
-    return UiElementId::None;
+    const UiElement* hit_element = root_->HitTest(point);
+    return hit_element != nullptr ? hit_element->Id() : UiElementId::None;
 }
 
 UiCommand UiController::CommandFor(UiElementId id) const
@@ -260,47 +258,19 @@ UiElementState UiController::ButtonState(UiElementId id, bool active, bool dange
 
 const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 {
-    switch (id) {
-    case UiElementId::TopMost:
-        return &top_most_button_.Metadata();
-    case UiElementId::Minimize:
-        return &minimize_button_.Metadata();
-    case UiElementId::MaximizeRestore:
-        return &maximize_button_.Metadata();
-    case UiElementId::Close:
-        return &close_button_.Metadata();
-    case UiElementId::OpenImage:
-        return &open_button_.Metadata();
-    case UiElementId::Test:
-        return &test_button_.Metadata();
-    default:
-        return nullptr;
-    }
+    const UiElement* element = root_->FindById(id);
+    return element != nullptr && element != root_.get() ? &element->Metadata() : nullptr;
 }
 
 size_t UiController::ElementCount() const
 {
-    return 6;
+    return root_->ChildCount();
 }
 
 const UiElementMetadata* UiController::ElementMetadataAt(size_t index) const
 {
-    switch (index) {
-    case 0:
-        return &top_most_button_.Metadata();
-    case 1:
-        return &minimize_button_.Metadata();
-    case 2:
-        return &maximize_button_.Metadata();
-    case 3:
-        return &close_button_.Metadata();
-    case 4:
-        return &open_button_.Metadata();
-    case 5:
-        return &test_button_.Metadata();
-    default:
-        return nullptr;
-    }
+    const UiElement* element = root_->ChildAt(index);
+    return element != nullptr ? &element->Metadata() : nullptr;
 }
 
 const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
@@ -310,22 +280,8 @@ const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
 
 D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 {
-    switch (id) {
-    case UiElementId::TopMost:
-        return top_most_button_.Rect();
-    case UiElementId::Minimize:
-        return minimize_button_.Rect();
-    case UiElementId::MaximizeRestore:
-        return maximize_button_.Rect();
-    case UiElementId::Close:
-        return close_button_.Rect();
-    case UiElementId::OpenImage:
-        return open_button_.Rect();
-    case UiElementId::Test:
-        return test_button_.Rect();
-    default:
-        return D2D1::RectF();
-    }
+    const UiElement* element = root_->FindById(id);
+    return element != nullptr && element != root_.get() ? element->Rect() : D2D1::RectF();
 }
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
