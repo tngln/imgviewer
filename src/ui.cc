@@ -5,7 +5,6 @@
 #include <memory>
 
 #include <d2d1helper.h>
-#include <wil/com.h>
 
 namespace {
 
@@ -177,6 +176,12 @@ void UiController::Draw(
     IDWriteTextFormat* icon_text_format)
 {
     const D2D1_SIZE_F size = viewport_size;
+    const UiDrawContext draw_context{
+        .d2d_context = d2d_context,
+        .body_text_format = body_text_format,
+        .icon_text_format = icon_text_format,
+    };
+    const UiDraw draw(draw_context);
     root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
     titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, size.width, 48.0f);
     close_button_->SetRect(D2D1::RectF((std::max)(0.0f, size.width - 48.0f), 0.0f, size.width, 48.0f));
@@ -185,36 +190,21 @@ void UiController::Draw(
     top_most_button_->SetRect(D2D1::RectF(minimize_button_->Rect().left - 48.0f, 0.0f, minimize_button_->Rect().left, 48.0f));
     title_text_rect_ = D2D1::RectF(16.0f, 0.0f, (std::max)(17.0f, top_most_button_->Rect().left - 12.0f), 48.0f);
     maximize_button_->SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
-
-    wil::com_ptr<ID2D1SolidColorBrush> stroke_brush;
-    d2d_context->CreateSolidColorBrush(D2D1::ColorF(0xb8c7dc), stroke_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> text_brush;
-    d2d_context->CreateSolidColorBrush(D2D1::ColorF(0x172033), text_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> titlebar_brush;
-    d2d_context->CreateSolidColorBrush(D2D1::ColorF(0xffffff, 0.86f), titlebar_brush.put());
-    d2d_context->FillRectangle(titlebar_rect_, titlebar_brush.get());
+    draw.FillRect(titlebar_rect_, D2D1::ColorF(0xffffff, 0.86f));
     if (!maximized_) {
-        d2d_context->DrawRectangle(
+        draw.DrawRect(
             D2D1::RectF(0.5f, 0.5f, (std::max)(0.5f, size.width - 0.5f), (std::max)(0.5f, size.height - 0.5f)),
-            stroke_brush.get(),
+            D2D1::ColorF(0xb8c7dc),
             1.0f);
     }
-    d2d_context->DrawTextW(
+    draw.DrawBodyText(
         title_text_.c_str(),
         static_cast<UINT32>(title_text_.size()),
-        body_text_format,
         title_text_rect_,
-        text_brush.get(),
+        D2D1::ColorF(0x172033),
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
 
-    const UiDrawContext draw_context{
-        .d2d_context = d2d_context,
-        .body_text_format = body_text_format,
-        .icon_text_format = icon_text_format,
-    };
     top_most_button_->Draw(draw_context, ButtonState(UiElementId::TopMost, top_most_));
     minimize_button_->Draw(draw_context, ButtonState(UiElementId::Minimize));
     maximize_button_->Draw(draw_context, ButtonState(UiElementId::MaximizeRestore));
@@ -224,14 +214,11 @@ void UiController::Draw(
 
     wchar_t click_text[64] = {};
     const int click_text_length = swprintf_s(click_text, L"Button clicks: %u", button_clicks_);
-    d2d_context->DrawTextW(
+    draw.DrawBodyText(
         click_text,
         static_cast<UINT32>(click_text_length),
-        body_text_format,
         D2D1::RectF(open_button_->Rect().left, open_button_->Rect().bottom + 12.0f, test_button_->Rect().right + 120.0f, open_button_->Rect().bottom + 52.0f),
-        text_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
+        D2D1::ColorF(0x172033));
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const

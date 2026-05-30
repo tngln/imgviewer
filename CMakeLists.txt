@@ -9,6 +9,7 @@ add_executable(imgviewer
     src/surface.manager.cc
     src/ui.a11y.cc
     src/ui.button.cc
+    src/ui.draw.cc
     src/ui.element.cc
     src/ui.cc
 )

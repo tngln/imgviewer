@@ -8,7 +8,7 @@
 
 #include "app.messages.hpp"
 #include "coordinates.hpp"
-#include "icons.inc"
+#include "ui.draw.hpp"
 
 namespace {
 
@@ -36,61 +36,6 @@ D2D1_POINT_2F TransformVector(D2D1_MATRIX_3X2_F matrix, D2D1_POINT_2F vector)
     return D2D1::Point2F(
         vector.x * matrix._11 + vector.y * matrix._21,
         vector.x * matrix._12 + vector.y * matrix._22);
-}
-
-HRESULT CreatePathGeometryFromIcon(
-    ID2D1Factory1* factory,
-    const icons::PathCommand* commands,
-    size_t command_count,
-    ID2D1PathGeometry** geometry)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, factory);
-    RETURN_HR_IF_NULL(E_INVALIDARG, commands);
-    RETURN_HR_IF_NULL(E_INVALIDARG, geometry);
-
-    wil::com_ptr<ID2D1PathGeometry> path_geometry;
-    RETURN_IF_FAILED(factory->CreatePathGeometry(path_geometry.put()));
-
-    wil::com_ptr<ID2D1GeometrySink> sink;
-    RETURN_IF_FAILED(path_geometry->Open(sink.put()));
-
-    bool figure_is_open = false;
-    for (size_t index = 0; index < command_count; ++index) {
-        const icons::PathCommand& command = commands[index];
-        switch (command.verb) {
-        case icons::PathVerb::MoveTo:
-            if (figure_is_open) {
-                sink->EndFigure(D2D1_FIGURE_END_OPEN);
-            }
-            sink->BeginFigure(command.points[0], D2D1_FIGURE_BEGIN_HOLLOW);
-            figure_is_open = true;
-            break;
-
-        case icons::PathVerb::LineTo:
-            sink->AddLine(command.points[0]);
-            break;
-
-        case icons::PathVerb::CubicTo:
-            sink->AddBezier(D2D1::BezierSegment(command.points[0], command.points[1], command.points[2]));
-            break;
-
-        case icons::PathVerb::Close:
-            if (figure_is_open) {
-                sink->EndFigure(D2D1_FIGURE_END_CLOSED);
-                figure_is_open = false;
-            }
-            break;
-        }
-    }
-
-    if (figure_is_open) {
-        sink->EndFigure(D2D1_FIGURE_END_OPEN);
-    }
-
-    RETURN_IF_FAILED(sink->Close());
-    *geometry = path_geometry.detach();
-
-    return S_OK;
 }
 
 } // namespace
@@ -524,6 +469,10 @@ float Renderer::CurrentImageScale(UINT viewport_width, UINT viewport_height) con
 
 HRESULT Renderer::RenderImageLayer()
 {
+    const UiDrawContext draw_context{
+        .d2d_context = d2d_context_.get(),
+    };
+    const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     POINT offset = {};
     RETURN_IF_FAILED(BeginDrawLayer(
@@ -539,14 +488,9 @@ HRESULT Renderer::RenderImageLayer()
         ARRAYSIZE(icons::kImageIconPath),
         icon_geometry.put()));
 
-    wil::com_ptr<ID2D1SolidColorBrush> icon_brush;
-    RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
-        D2D1::ColorF(0x2f6fed),
-        icon_brush.put()));
-
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();
-    d2d_context_->Clear(D2D1::ColorF(0xf7f9fc));
+    draw.Clear(D2D1::ColorF(0xf7f9fc));
 
     const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
@@ -586,7 +530,7 @@ HRESULT Renderer::RenderImageLayer()
             D2D1::Matrix3x2F::Translation(left, top) *
             root_transform;
         d2d_context_->SetTransform(transform);
-        d2d_context_->DrawGeometry(icon_geometry.get(), icon_brush.get(), 1.75f / scale);
+        draw.DrawGeometry(icon_geometry.get(), D2D1::ColorF(0x2f6fed), 1.75f / scale);
     }
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
@@ -599,6 +543,12 @@ HRESULT Renderer::RenderImageLayer()
 
 HRESULT Renderer::RenderUiOverlayLayer()
 {
+    const UiDrawContext draw_context{
+        .d2d_context = d2d_context_.get(),
+        .body_text_format = body_text_format_.get(),
+        .icon_text_format = icon_text_format_.get(),
+    };
+    const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     POINT offset = {};
     RETURN_IF_FAILED(BeginDrawLayer(
@@ -607,18 +557,9 @@ HRESULT Renderer::RenderUiOverlayLayer()
         target_bitmap.put(),
         &offset));
 
-    wil::com_ptr<ID2D1SolidColorBrush> icon_brush;
-    RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
-        D2D1::ColorF(0x2f6fed),
-        icon_brush.put()));
-    wil::com_ptr<ID2D1SolidColorBrush> muted_brush;
-    RETURN_IF_FAILED(d2d_context_->CreateSolidColorBrush(
-        D2D1::ColorF(0x697386),
-        muted_brush.put()));
-
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();
-    d2d_context_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
+    draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
 
     const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
@@ -626,22 +567,16 @@ HRESULT Renderer::RenderUiOverlayLayer()
     const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
     const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y);
     d2d_context_->SetTransform(root_transform);
-    d2d_context_->DrawTextW(
+    draw.DrawBodyText(
         kBodyText,
         ARRAYSIZE(kBodyText) - 1,
-        body_text_format_.get(),
         StableRect(32.0f, 58.0f, width - 32.0f, 98.0f),
-        muted_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
-    d2d_context_->DrawTextW(
+        D2D1::ColorF(0x697386));
+    draw.DrawIconText(
         kIconText,
         ARRAYSIZE(kIconText) - 1,
-        icon_text_format_.get(),
         StableRect(32.0f, 96.0f, width - 32.0f, 136.0f),
-        icon_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
+        D2D1::ColorF(0x2f6fed));
     ui_.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());

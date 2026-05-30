@@ -3,7 +3,6 @@
 #include <cwchar>
 
 #include <d2d1helper.h>
-#include <wil/com.h>
 
 namespace {
 
@@ -36,37 +35,20 @@ Button::Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* t
 void Button::Draw(const UiDrawContext& context, UiElementState state) const
 {
     const D2D1_RECT_F rect = Rect();
-    wil::com_ptr<ID2D1SolidColorBrush> fill_brush;
-    context.d2d_context->CreateSolidColorBrush(ButtonFillColor(state), fill_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> stroke_brush;
-    context.d2d_context->CreateSolidColorBrush(D2D1::ColorF(0xb8c7dc), stroke_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> text_brush;
-    context.d2d_context->CreateSolidColorBrush(D2D1::ColorF(0x172033), text_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> icon_brush;
-    context.d2d_context->CreateSolidColorBrush(D2D1::ColorF(0x2f6fed), icon_brush.put());
-
+    const UiDraw draw(context);
     const D2D1_ROUNDED_RECT button = D2D1::RoundedRect(rect, 6.0f, 6.0f);
-    context.d2d_context->FillRoundedRectangle(button, fill_brush.get());
-    context.d2d_context->DrawRoundedRectangle(button, stroke_brush.get(), 1.0f);
-    context.d2d_context->DrawTextW(
+    draw.FillRoundedRect(button, ButtonFillColor(state));
+    draw.DrawRoundedRect(button, D2D1::ColorF(0xb8c7dc), 1.0f);
+    draw.DrawIconText(
         icon_,
         static_cast<UINT32>(wcslen(icon_)),
-        context.icon_text_format,
         D2D1::RectF(rect.left + 14.0f, rect.top + 10.0f, rect.left + 38.0f, rect.bottom),
-        icon_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
-    context.d2d_context->DrawTextW(
+        D2D1::ColorF(0x2f6fed));
+    draw.DrawBodyText(
         text_,
         static_cast<UINT32>(wcslen(text_)),
-        context.body_text_format,
         D2D1::RectF(rect.left + 44.0f, rect.top + 5.0f, rect.right - 12.0f, rect.bottom),
-        text_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
+        D2D1::ColorF(0x172033));
 }
 
 IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElement(metadata), icon_(icon) {}
@@ -79,22 +61,11 @@ void IconButton::SetIcon(const wchar_t* icon)
 void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
 {
     const D2D1_RECT_F rect = Rect();
-    wil::com_ptr<ID2D1SolidColorBrush> fill_brush;
-    context.d2d_context->CreateSolidColorBrush(ButtonFillColor(state), fill_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> text_brush;
-    context.d2d_context->CreateSolidColorBrush(D2D1::ColorF(0x172033), text_brush.put());
-
-    wil::com_ptr<ID2D1SolidColorBrush> icon_brush;
-    context.d2d_context->CreateSolidColorBrush(D2D1::ColorF(0x2f6fed), icon_brush.put());
-
-    context.d2d_context->FillRectangle(rect, fill_brush.get());
-    context.d2d_context->DrawTextW(
+    const UiDraw draw(context);
+    draw.FillRect(rect, ButtonFillColor(state));
+    draw.DrawIconText(
         icon_,
         static_cast<UINT32>(wcslen(icon_)),
-        context.icon_text_format,
         D2D1::RectF(rect.left + 12.0f, rect.top + 10.0f, rect.right, rect.bottom),
-        state.danger && state.hovered ? text_brush.get() : icon_brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
-        DWRITE_MEASURING_MODE_NATURAL);
+        state.danger && state.hovered ? D2D1::ColorF(0x172033) : D2D1::ColorF(0x2f6fed));
 }

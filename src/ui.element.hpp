@@ -1,10 +1,11 @@
 #pragma once
 
 #include <d2d1_1.h>
-#include <dwrite.h>
 
 #include <memory>
 #include <vector>
+
+#include "ui.draw.hpp"
 
 enum class UiCommand {
     None,
@@ -47,12 +48,6 @@ struct UiElementState final {
     bool pressed = false;
     bool active = false;
     bool danger = false;
-};
-
-struct UiDrawContext final {
-    ID2D1DeviceContext* d2d_context = nullptr;
-    IDWriteTextFormat* body_text_format = nullptr;
-    IDWriteTextFormat* icon_text_format = nullptr;
 };
 
 class UiElement {
