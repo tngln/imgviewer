@@ -417,6 +417,11 @@ HRESULT Renderer::LoadImageFile(const wchar_t* path)
     return S_OK;
 }
 
+D2D1_SIZE_U Renderer::CurrentImagePixelSize() const
+{
+    return current_image_.pixel_size;
+}
+
 void Renderer::SetTitleText(const wchar_t* title)
 {
     ui_.SetTitleText(title);

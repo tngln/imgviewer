@@ -55,4 +55,5 @@ target_link_libraries(imgviewer PRIVATE
     user32
     windowscodecs
     gdi32
+    imm32
 )

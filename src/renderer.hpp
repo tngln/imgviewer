@@ -33,6 +33,7 @@ public:
     void InvokeOpenImageFromAccessibility();
     void InvokeUiCommandFromAccessibility(UiCommand command);
     HRESULT LoadImageFile(const wchar_t* path);
+    D2D1_SIZE_U CurrentImagePixelSize() const;
     void SetTitleText(const wchar_t* title);
     void SetWindowState(bool top_most, bool maximized);
     bool IsPointInCaptionDragArea(float x, float y) const;

@@ -8,6 +8,8 @@
 #include <windowsx.h>
 
 #include <dwmapi.h>
+#include <cwchar>
+#include <imm.h>
 #include <shellapi.h>
 #include <shobjidl.h>
 #include <string>
@@ -72,6 +74,11 @@ HRESULT ApplyDwmFrame(HWND hwnd)
     return S_OK;
 }
 
+void DisableIme(HWND hwnd)
+{
+    ImmAssociateContext(hwnd, nullptr);
+}
+
 std::wstring FileNameFromPath(const wchar_t* path)
 {
     if (path == nullptr) {
@@ -133,8 +140,12 @@ void LoadImageFile(HWND hwnd, Renderer* renderer, const wchar_t* path)
     }
 
     const std::wstring file_name = FileNameFromPath(path);
-    renderer->SetTitleText(file_name.c_str());
-    SetWindowTextW(hwnd, file_name.c_str());
+    const D2D1_SIZE_U image_size = renderer->CurrentImagePixelSize();
+    wchar_t resolution_text[64] = {};
+    swprintf_s(resolution_text, L"  %ux%u", image_size.width, image_size.height);
+    const std::wstring title_text = file_name + resolution_text;
+    renderer->SetTitleText(title_text.c_str());
+    SetWindowTextW(hwnd, title_text.c_str());
 }
 
 HRESULT PickImageFile(HWND hwnd, std::wstring* path)
@@ -492,6 +503,7 @@ HRESULT RunApplicationAsHresult()
         &renderer)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
     DragAcceptFiles(window.get(), TRUE);
+    DisableIme(window.get());
     RETURN_IF_FAILED(ApplyDwmFrame(window.get()));
     RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
         window.get(),
