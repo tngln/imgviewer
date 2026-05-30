@@ -7,6 +7,7 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include <dwmapi.h>
 #include <shellapi.h>
 #include <shobjidl.h>
 #include <string>
@@ -29,6 +30,16 @@ D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
     return CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
 }
 
+D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
+{
+    POINT point{
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+    };
+    ScreenToClient(hwnd, &point);
+    return CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+}
+
 Renderer* GetRenderer(HWND hwnd)
 {
     return reinterpret_cast<Renderer*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
@@ -39,11 +50,26 @@ bool IsWindowTopMost(HWND hwnd)
     return (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
 }
 
+int ResizeBorderThicknessForDpi(UINT dpi)
+{
+    return GetSystemMetricsForDpi(SM_CXFRAME, dpi) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+}
+
 void SyncWindowState(HWND hwnd, Renderer* renderer)
 {
     if (renderer != nullptr) {
         renderer->SetWindowState(IsWindowTopMost(hwnd), IsZoomed(hwnd));
     }
+}
+
+HRESULT ApplyDwmFrame(HWND hwnd)
+{
+    DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
+    RETURN_IF_FAILED(DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &policy, sizeof(policy)));
+
+    const MARGINS margins = {0, 0, 0, 1};
+    RETURN_IF_FAILED(DwmExtendFrameIntoClientArea(hwnd, &margins));
+    return S_OK;
 }
 
 std::wstring FileNameFromPath(const wchar_t* path)
@@ -187,8 +213,7 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
     RECT window_rect = {};
     GetWindowRect(hwnd, &window_rect);
     const UINT dpi = GetDpiForWindow(hwnd);
-    const int resize_border =
-        GetSystemMetricsForDpi(SM_CXFRAME, dpi) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+    const int resize_border = ResizeBorderThicknessForDpi(dpi);
 
     if (!IsZoomed(hwnd)) {
         const bool left = screen_point.x >= window_rect.left && screen_point.x < window_rect.left + resize_border;
@@ -233,6 +258,24 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
     return HTCLIENT;
 }
 
+LRESULT CalculateClientArea(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+    if (wparam != TRUE) {
+        return DefWindowProcW(hwnd, WM_NCCALCSIZE, wparam, lparam);
+    }
+
+    auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
+    if (IsZoomed(hwnd)) {
+        const int resize_border = ResizeBorderThicknessForDpi(GetDpiForWindow(hwnd));
+        params->rgrc[0].left += resize_border;
+        params->rgrc[0].top += resize_border;
+        params->rgrc[0].right -= resize_border;
+        params->rgrc[0].bottom -= resize_border;
+    }
+
+    return 0;
+}
+
 void TrackMouseLeave(HWND hwnd)
 {
     TRACKMOUSEEVENT track_event = {};
@@ -271,10 +314,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_NCCALCSIZE:
-        if (wparam == TRUE) {
-            return 0;
-        }
-        return DefWindowProcW(hwnd, message, wparam, lparam);
+        return CalculateClientArea(hwnd, wparam, lparam);
 
     case WM_NCCREATE: {
         const auto* create_struct = reinterpret_cast<CREATESTRUCTW*>(lparam);
@@ -347,6 +387,34 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 0;
     }
 
+    case WM_MOUSEWHEEL: {
+        Renderer* renderer = GetRenderer(hwnd);
+        const D2D1_POINT_2F point = GetScreenPointerPoint(hwnd, lparam);
+        if (renderer != nullptr && renderer->OnMouseWheel(point.x, point.y, GET_WHEEL_DELTA_WPARAM(wparam))) {
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN: {
+        Renderer* renderer = GetRenderer(hwnd);
+        if (renderer != nullptr && renderer->OnKeyDown(static_cast<UINT>(wparam))) {
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_KEYUP:
+    case WM_SYSKEYUP: {
+        Renderer* renderer = GetRenderer(hwnd);
+        if (renderer != nullptr && renderer->OnKeyUp(static_cast<UINT>(wparam))) {
+            ReleaseCapture();
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
     case WM_DROPFILES: {
         Renderer* renderer = GetRenderer(hwnd);
         const HDROP drop = reinterpret_cast<HDROP>(wparam);
@@ -384,6 +452,7 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
 {
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(window_class);
+    window_class.style = CS_DROPSHADOW;
     window_class.lpfnWndProc = WindowProc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
@@ -423,6 +492,7 @@ HRESULT RunApplicationAsHresult()
         &renderer)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
     DragAcceptFiles(window.get(), TRUE);
+    RETURN_IF_FAILED(ApplyDwmFrame(window.get()));
     RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
         window.get(),
         nullptr,

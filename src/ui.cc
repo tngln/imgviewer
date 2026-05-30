@@ -132,6 +132,12 @@ void UiController::Draw(
     wil::com_ptr<ID2D1SolidColorBrush> titlebar_brush;
     d2d_context->CreateSolidColorBrush(D2D1::ColorF(0xffffff, 0.86f), titlebar_brush.put());
     d2d_context->FillRectangle(titlebar_rect_, titlebar_brush.get());
+    if (!maximized_) {
+        d2d_context->DrawRectangle(
+            D2D1::RectF(0.5f, 0.5f, (std::max)(0.5f, size.width - 0.5f), (std::max)(0.5f, size.height - 0.5f)),
+            stroke_brush.get(),
+            1.0f);
+    }
     d2d_context->DrawTextW(
         title_text_.c_str(),
         static_cast<UINT32>(title_text_.size()),

@@ -46,6 +46,7 @@ target_link_libraries(imgviewer PRIVATE
     d2d1
     dcomp
     d3d11
+    dwmapi
     dwrite
     dxgi
     ole32
