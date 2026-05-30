@@ -6,7 +6,6 @@
 #include <UIAutomationClient.h>
 #pragma warning(pop)
 
-#include <algorithm>
 #include <new>
 
 #include <wil/com.h>
