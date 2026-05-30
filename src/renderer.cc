@@ -9,11 +9,10 @@
 #include "app.messages.hpp"
 #include "coordinates.hpp"
 #include "ui.draw.hpp"
+#include "ui.theme.hpp"
 
 namespace {
 
-constexpr float kTestIconSize = 96.0f;
-constexpr float kTestIconPadding = 24.0f;
 constexpr float kMinImageZoomMultiplier = 0.05f;
 constexpr float kMaxImageZoomMultiplier = 64.0f;
 constexpr float kWheelZoomStep = 1.12f;
@@ -490,7 +489,7 @@ HRESULT Renderer::RenderImageLayer()
 
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();
-    draw.Clear(D2D1::ColorF(0xf7f9fc));
+    draw.Clear(D2D1::ColorF(ui_theme::color::kWindowBackground));
 
     const CoordinateSpace coordinates = CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
@@ -520,7 +519,11 @@ HRESULT Renderer::RenderImageLayer()
             1.0f,
             D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC);
     } else {
-        const float icon_size = (std::max)(16.0f, (std::min)(kTestIconSize, (std::min)(width, height) - kTestIconPadding));
+        const float icon_size = (std::max)(
+            ui_theme::metrics::kIconPlaceholderMinimumSize,
+            (std::min)(
+                ui_theme::metrics::kIconPlaceholderSize,
+                (std::min)(width, height) - ui_theme::metrics::kIconPlaceholderPadding));
         const float scale = icon_size / icons::kImageIconViewport;
         const float left = (width - icon_size) * 0.5f;
         const float top = (height - icon_size) * 0.5f;
@@ -530,7 +533,10 @@ HRESULT Renderer::RenderImageLayer()
             D2D1::Matrix3x2F::Translation(left, top) *
             root_transform;
         d2d_context_->SetTransform(transform);
-        draw.DrawGeometry(icon_geometry.get(), D2D1::ColorF(0x2f6fed), 1.75f / scale);
+        draw.DrawGeometry(
+            icon_geometry.get(),
+            D2D1::ColorF(ui_theme::color::kAccent),
+            ui_theme::metrics::kPathIconStrokeWidth / scale);
     }
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
@@ -570,13 +576,21 @@ HRESULT Renderer::RenderUiOverlayLayer()
     draw.DrawBodyText(
         kBodyText,
         ARRAYSIZE(kBodyText) - 1,
-        StableRect(32.0f, 58.0f, width - 32.0f, 98.0f),
-        D2D1::ColorF(0x697386));
+        StableRect(
+            ui_theme::metrics::kPanelPadding,
+            ui_theme::metrics::kBodyTextTop,
+            width - ui_theme::metrics::kPanelPadding,
+            ui_theme::metrics::kBodyTextBottom),
+        D2D1::ColorF(ui_theme::color::kMutedText));
     draw.DrawIconText(
         kIconText,
         ARRAYSIZE(kIconText) - 1,
-        StableRect(32.0f, 96.0f, width - 32.0f, 136.0f),
-        D2D1::ColorF(0x2f6fed));
+        StableRect(
+            ui_theme::metrics::kPanelPadding,
+            ui_theme::metrics::kIconTextTop,
+            width - ui_theme::metrics::kPanelPadding,
+            ui_theme::metrics::kIconTextBottom),
+        D2D1::ColorF(ui_theme::color::kAccent));
     ui_.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());

@@ -6,6 +6,8 @@
 
 #include <d2d1helper.h>
 
+#include "ui.theme.hpp"
+
 namespace {
 
 constexpr wchar_t kOpenIcon[] = L"\xE8E5";
@@ -96,12 +98,21 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
     open_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kOpenMetadata, kOpenIcon, kOpenText)));
     test_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kTestMetadata, kTestIcon, kTestText)));
 
-    top_most_button_->SetRect(D2D1_RECT_F{720.0f, 0.0f, 768.0f, 48.0f});
-    minimize_button_->SetRect(D2D1_RECT_F{768.0f, 0.0f, 816.0f, 48.0f});
-    maximize_button_->SetRect(D2D1_RECT_F{816.0f, 0.0f, 864.0f, 48.0f});
-    close_button_->SetRect(D2D1_RECT_F{864.0f, 0.0f, 912.0f, 48.0f});
-    open_button_->SetRect(D2D1_RECT_F{32.0f, 128.0f, 232.0f, 172.0f});
-    test_button_->SetRect(D2D1_RECT_F{244.0f, 128.0f, 400.0f, 172.0f});
+    top_most_button_->SetRect(D2D1_RECT_F{720.0f, 0.0f, 768.0f, ui_theme::metrics::kTitleBarHeight});
+    minimize_button_->SetRect(D2D1_RECT_F{768.0f, 0.0f, 816.0f, ui_theme::metrics::kTitleBarHeight});
+    maximize_button_->SetRect(D2D1_RECT_F{816.0f, 0.0f, 864.0f, ui_theme::metrics::kTitleBarHeight});
+    close_button_->SetRect(D2D1_RECT_F{864.0f, 0.0f, 912.0f, ui_theme::metrics::kTitleBarHeight});
+    open_button_->SetRect(D2D1_RECT_F{
+        ui_theme::metrics::kPanelPadding,
+        ui_theme::metrics::kPrimaryButtonTop,
+        ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth,
+        ui_theme::metrics::kPrimaryButtonTop + ui_theme::metrics::kPrimaryButtonHeight});
+    test_button_->SetRect(D2D1_RECT_F{
+        ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth + ui_theme::metrics::kButtonGap,
+        ui_theme::metrics::kPrimaryButtonTop,
+        ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth + ui_theme::metrics::kButtonGap +
+            ui_theme::metrics::kTestButtonWidth,
+        ui_theme::metrics::kPrimaryButtonTop + ui_theme::metrics::kPrimaryButtonHeight});
 }
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
@@ -183,25 +194,53 @@ void UiController::Draw(
     };
     const UiDraw draw(draw_context);
     root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-    titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, size.width, 48.0f);
-    close_button_->SetRect(D2D1::RectF((std::max)(0.0f, size.width - 48.0f), 0.0f, size.width, 48.0f));
-    maximize_button_->SetRect(D2D1::RectF(close_button_->Rect().left - 48.0f, 0.0f, close_button_->Rect().left, 48.0f));
-    minimize_button_->SetRect(D2D1::RectF(maximize_button_->Rect().left - 48.0f, 0.0f, maximize_button_->Rect().left, 48.0f));
-    top_most_button_->SetRect(D2D1::RectF(minimize_button_->Rect().left - 48.0f, 0.0f, minimize_button_->Rect().left, 48.0f));
-    title_text_rect_ = D2D1::RectF(16.0f, 0.0f, (std::max)(17.0f, top_most_button_->Rect().left - 12.0f), 48.0f);
+    titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, size.width, ui_theme::metrics::kTitleBarHeight);
+    close_button_->SetRect(D2D1::RectF(
+        (std::max)(0.0f, size.width - ui_theme::metrics::kCaptionButtonWidth),
+        0.0f,
+        size.width,
+        ui_theme::metrics::kTitleBarHeight));
+    maximize_button_->SetRect(D2D1::RectF(
+        close_button_->Rect().left - ui_theme::metrics::kCaptionButtonWidth,
+        0.0f,
+        close_button_->Rect().left,
+        ui_theme::metrics::kTitleBarHeight));
+    minimize_button_->SetRect(D2D1::RectF(
+        maximize_button_->Rect().left - ui_theme::metrics::kCaptionButtonWidth,
+        0.0f,
+        maximize_button_->Rect().left,
+        ui_theme::metrics::kTitleBarHeight));
+    top_most_button_->SetRect(D2D1::RectF(
+        minimize_button_->Rect().left - ui_theme::metrics::kCaptionButtonWidth,
+        0.0f,
+        minimize_button_->Rect().left,
+        ui_theme::metrics::kTitleBarHeight));
+    title_text_rect_ = D2D1::RectF(
+        ui_theme::metrics::kTitleTextLeft,
+        0.0f,
+        (std::max)(
+            ui_theme::metrics::kTitleTextLeft + 1.0f,
+            top_most_button_->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
+        ui_theme::metrics::kTitleBarHeight);
     maximize_button_->SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
-    draw.FillRect(titlebar_rect_, D2D1::ColorF(0xffffff, 0.86f));
+    draw.FillRect(
+        titlebar_rect_,
+        D2D1::ColorF(ui_theme::color::kTitleBarBackground, ui_theme::color::kTitleBarBackgroundOpacity));
     if (!maximized_) {
         draw.DrawRect(
-            D2D1::RectF(0.5f, 0.5f, (std::max)(0.5f, size.width - 0.5f), (std::max)(0.5f, size.height - 0.5f)),
-            D2D1::ColorF(0xb8c7dc),
+            D2D1::RectF(
+                ui_theme::metrics::kWindowBorderInset,
+                ui_theme::metrics::kWindowBorderInset,
+                (std::max)(ui_theme::metrics::kWindowBorderMinimum, size.width - ui_theme::metrics::kWindowBorderInset),
+                (std::max)(ui_theme::metrics::kWindowBorderMinimum, size.height - ui_theme::metrics::kWindowBorderInset)),
+            D2D1::ColorF(ui_theme::color::kBorder),
             1.0f);
     }
     draw.DrawBodyText(
         title_text_.c_str(),
         static_cast<UINT32>(title_text_.size()),
         title_text_rect_,
-        D2D1::ColorF(0x172033),
+        D2D1::ColorF(ui_theme::color::kBodyText),
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
 
@@ -217,8 +256,12 @@ void UiController::Draw(
     draw.DrawBodyText(
         click_text,
         static_cast<UINT32>(click_text_length),
-        D2D1::RectF(open_button_->Rect().left, open_button_->Rect().bottom + 12.0f, test_button_->Rect().right + 120.0f, open_button_->Rect().bottom + 52.0f),
-        D2D1::ColorF(0x172033));
+        D2D1::RectF(
+            open_button_->Rect().left,
+            open_button_->Rect().bottom + ui_theme::metrics::kStatusTextTopGap,
+            test_button_->Rect().right + ui_theme::metrics::kStatusTextRightPadding,
+            open_button_->Rect().bottom + ui_theme::metrics::kStatusTextTopGap + ui_theme::metrics::kStatusTextHeight),
+        D2D1::ColorF(ui_theme::color::kBodyText));
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
