@@ -19,7 +19,9 @@ target_include_directories(imgviewer PRIVATE
 target_compile_features(imgviewer PRIVATE cxx_std_20)
 
 target_compile_definitions(imgviewer PRIVATE
+    NOMINMAX
     UNICODE
+    WIN32_LEAN_AND_MEAN
     _UNICODE
 )
 
