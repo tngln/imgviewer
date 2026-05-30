@@ -36,6 +36,9 @@ public:
     void SetTitleText(const wchar_t* title);
     void SetWindowState(bool top_most, bool maximized);
     bool IsPointInCaptionDragArea(float x, float y) const;
+    size_t UiElementCount() const;
+    const UiButtonMetadata* UiElementMetadataAt(size_t index) const;
+    const UiButtonMetadata* UiElementMetadata(UiElementId id) const;
     D2D1_RECT_F UiElementRect(UiElementId id) const;
     D2D1_RECT_F TestButtonRect() const;
     D2D1_RECT_F OpenButtonRect() const;

@@ -439,6 +439,21 @@ bool Renderer::IsPointInCaptionDragArea(float x, float y) const
     return ui_.IsPointInCaptionDragArea(D2D1::Point2F(x, y));
 }
 
+size_t Renderer::UiElementCount() const
+{
+    return ui_.ElementCount();
+}
+
+const UiButtonMetadata* Renderer::UiElementMetadataAt(size_t index) const
+{
+    return ui_.ElementMetadataAt(index);
+}
+
+const UiButtonMetadata* Renderer::UiElementMetadata(UiElementId id) const
+{
+    return ui_.ElementMetadata(id);
+}
+
 D2D1_RECT_F Renderer::UiElementRect(UiElementId id) const
 {
     return ui_.ElementRect(id);
