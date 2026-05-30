@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cwchar>
 #include <memory>
+#include <vector>
 
 #include <d2d1helper.h>
 
+#include "ui.layout.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -85,16 +87,6 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMaximizeMetadata, kMaximizeIcon)));
     close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kCloseMetadata, kCloseIcon)));
     open_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kOpenMetadata, kOpenIcon, kOpenText)));
-
-    top_most_button_->SetRect(D2D1_RECT_F{720.0f, 0.0f, 768.0f, ui_theme::metrics::kTitleBarHeight});
-    minimize_button_->SetRect(D2D1_RECT_F{768.0f, 0.0f, 816.0f, ui_theme::metrics::kTitleBarHeight});
-    maximize_button_->SetRect(D2D1_RECT_F{816.0f, 0.0f, 864.0f, ui_theme::metrics::kTitleBarHeight});
-    close_button_->SetRect(D2D1_RECT_F{864.0f, 0.0f, 912.0f, ui_theme::metrics::kTitleBarHeight});
-    open_button_->SetRect(D2D1_RECT_F{
-        ui_theme::metrics::kPanelPadding,
-        ui_theme::metrics::kPrimaryButtonTop,
-        ui_theme::metrics::kPanelPadding + ui_theme::metrics::kOpenButtonWidth,
-        ui_theme::metrics::kPrimaryButtonTop + ui_theme::metrics::kPrimaryButtonHeight});
 }
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
@@ -170,35 +162,7 @@ void UiController::Draw(
         .icon_text_format = icon_text_format,
     };
     const UiDraw draw(draw_context);
-    root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-    titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, size.width, ui_theme::metrics::kTitleBarHeight);
-    close_button_->SetRect(D2D1::RectF(
-        (std::max)(0.0f, size.width - ui_theme::metrics::kCaptionButtonWidth),
-        0.0f,
-        size.width,
-        ui_theme::metrics::kTitleBarHeight));
-    maximize_button_->SetRect(D2D1::RectF(
-        close_button_->Rect().left - ui_theme::metrics::kCaptionButtonWidth,
-        0.0f,
-        close_button_->Rect().left,
-        ui_theme::metrics::kTitleBarHeight));
-    minimize_button_->SetRect(D2D1::RectF(
-        maximize_button_->Rect().left - ui_theme::metrics::kCaptionButtonWidth,
-        0.0f,
-        maximize_button_->Rect().left,
-        ui_theme::metrics::kTitleBarHeight));
-    top_most_button_->SetRect(D2D1::RectF(
-        minimize_button_->Rect().left - ui_theme::metrics::kCaptionButtonWidth,
-        0.0f,
-        minimize_button_->Rect().left,
-        ui_theme::metrics::kTitleBarHeight));
-    title_text_rect_ = D2D1::RectF(
-        ui_theme::metrics::kTitleTextLeft,
-        0.0f,
-        (std::max)(
-            ui_theme::metrics::kTitleTextLeft + 1.0f,
-            top_most_button_->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
-        ui_theme::metrics::kTitleBarHeight);
+    Layout(size);
     maximize_button_->SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
     draw.FillRect(
         titlebar_rect_,
@@ -227,6 +191,37 @@ void UiController::Draw(
     maximize_button_->Draw(draw_context, ButtonState(UiElementId::MaximizeRestore));
     close_button_->Draw(draw_context, ButtonState(UiElementId::Close, false, true));
     open_button_->Draw(draw_context, ButtonState(UiElementId::OpenImage));
+}
+
+void UiController::Layout(D2D1_SIZE_F viewport_size)
+{
+    const D2D1_RECT_F root_rect = D2D1::RectF(0.0f, 0.0f, viewport_size.width, viewport_size.height);
+    root_->SetRect(root_rect);
+
+    titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, viewport_size.width, ui_theme::metrics::kTitleBarHeight);
+    const std::vector<D2D1_RECT_F> caption_buttons = ui_layout::PlaceRightAlignedRow(
+        titlebar_rect_,
+        ui_theme::metrics::kCaptionButtonWidth,
+        ui_theme::metrics::kTitleBarHeight,
+        4);
+    close_button_->SetRect(caption_buttons[0]);
+    maximize_button_->SetRect(caption_buttons[1]);
+    minimize_button_->SetRect(caption_buttons[2]);
+    top_most_button_->SetRect(caption_buttons[3]);
+
+    title_text_rect_ = D2D1::RectF(
+        ui_theme::metrics::kTitleTextLeft,
+        0.0f,
+        (std::max)(
+            ui_theme::metrics::kTitleTextLeft + 1.0f,
+            top_most_button_->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
+        ui_theme::metrics::kTitleBarHeight);
+
+    const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceHorizontalRow(
+        D2D1::Point2F(ui_theme::metrics::kPanelPadding, ui_theme::metrics::kPrimaryButtonTop),
+        ui_theme::metrics::kPrimaryButtonHeight,
+        std::vector<float>{ui_theme::metrics::kOpenButtonWidth});
+    open_button_->SetRect(primary_buttons[0]);
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const

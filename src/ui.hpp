@@ -39,6 +39,7 @@ public:
     void SetWindowState(bool top_most, bool maximized);
 
 private:
+    void Layout(D2D1_SIZE_F viewport_size);
     UiElementId HitTest(D2D1_POINT_2F point) const;
     UiCommand CommandFor(UiElementId id) const;
     UiElementState ButtonState(UiElementId id, bool active = false, bool danger = false) const;

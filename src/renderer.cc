@@ -7,17 +7,13 @@
 
 #include "coordinates.hpp"
 #include "ui.draw.hpp"
+#include "ui.layout.hpp"
 #include "ui.theme.hpp"
 
 namespace {
 
 constexpr wchar_t kBodyText[] = L"D2D + DirectWrite text rendering";
 constexpr wchar_t kIconText[] = L"\xE921  \xE922  \xE8BB";
-
-D2D1_RECT_F StableRect(float left, float top, float right, float bottom)
-{
-    return D2D1::RectF(left, top, (std::max)(left + 1.0f, right), (std::max)(top + 1.0f, bottom));
-}
 
 float ImageScaleForViewport(const ImageViewerSnapshot& image, UINT viewport_width, UINT viewport_height)
 {
@@ -310,7 +306,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     draw.DrawBodyText(
         kBodyText,
         ARRAYSIZE(kBodyText) - 1,
-        StableRect(
+        ui_layout::StableRect(
             ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kBodyTextTop,
             width - ui_theme::metrics::kPanelPadding,
@@ -319,7 +315,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     draw.DrawIconText(
         kIconText,
         ARRAYSIZE(kIconText) - 1,
-        StableRect(
+        ui_layout::StableRect(
             ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kIconTextTop,
             width - ui_theme::metrics::kPanelPadding,

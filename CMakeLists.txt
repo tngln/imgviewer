@@ -12,6 +12,7 @@ add_executable(imgviewer
     src/ui.button.cc
     src/ui.draw.cc
     src/ui.element.cc
+    src/ui.layout.cc
     src/ui.cc
 )
 
