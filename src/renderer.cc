@@ -320,7 +320,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
             width - ui_theme::metrics::kPanelPadding,
             ui_theme::metrics::kIconTextBottom),
         ui_theme::color::kAccent);
-    ui.Draw(d2d_context_.get(), size, body_text_format_.get(), icon_text_format_.get());
+    ui.Draw(d2d_context_.get(), size, dwrite_factory_.get(), body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
     d2d_context_->SetTarget(nullptr);

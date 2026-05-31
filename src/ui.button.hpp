@@ -8,6 +8,7 @@ class Button final : public UiElement {
 public:
     Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* text);
 
+    float PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const;
     void Draw(const UiDrawContext& context, UiElementState state) const override;
 
 private:

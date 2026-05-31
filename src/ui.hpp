@@ -28,6 +28,7 @@ public:
     void Draw(
         ID2D1DeviceContext* d2d_context,
         D2D1_SIZE_F viewport_size,
+        IDWriteFactory* dwrite_factory,
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format);
     size_t ElementCount() const;
@@ -39,7 +40,7 @@ public:
     void SetWindowState(bool top_most, bool maximized);
 
 private:
-    void Layout(D2D1_SIZE_F viewport_size);
+    void Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_factory, IDWriteTextFormat* body_text_format);
     UiElementId HitTest(D2D1_POINT_2F point) const;
     UiCommand CommandFor(UiElementId id) const;
     UiElementState ButtonState(UiElementId id, bool active = false, bool danger = false) const;

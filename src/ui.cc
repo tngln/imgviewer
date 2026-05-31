@@ -148,6 +148,7 @@ UiEventResult UiController::OnPointerLeave()
 void UiController::Draw(
     ID2D1DeviceContext* d2d_context,
     D2D1_SIZE_F viewport_size,
+    IDWriteFactory* dwrite_factory,
     IDWriteTextFormat* body_text_format,
     IDWriteTextFormat* icon_text_format)
 {
@@ -158,7 +159,7 @@ void UiController::Draw(
         .icon_text_format = icon_text_format,
     };
     const UiDraw draw(draw_context);
-    Layout(size);
+    Layout(size, dwrite_factory, body_text_format);
     maximize_button_->SetIcon(maximized_ ? kRestoreIcon : kMaximizeIcon);
     draw.FillRect(
         titlebar_rect_,
@@ -189,7 +190,7 @@ void UiController::Draw(
     open_button_->Draw(draw_context, ButtonState(UiElementId::OpenImage));
 }
 
-void UiController::Layout(D2D1_SIZE_F viewport_size)
+void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_factory, IDWriteTextFormat* body_text_format)
 {
     const D2D1_RECT_F root_rect = D2D1::RectF(0.0f, 0.0f, viewport_size.width, viewport_size.height);
     root_->SetRect(root_rect);
@@ -213,10 +214,12 @@ void UiController::Layout(D2D1_SIZE_F viewport_size)
             top_most_button_->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
         ui_theme::metrics::kTitleBarHeight);
 
+    const float open_button_width =
+        (std::max)(ui_theme::metrics::kOpenButtonWidth, open_button_->PreferredWidth(dwrite_factory, body_text_format));
     const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceHorizontalRow(
         D2D1::Point2F(ui_theme::metrics::kPanelPadding, ui_theme::metrics::kPrimaryButtonTop),
         ui_theme::metrics::kPrimaryButtonHeight,
-        std::vector<float>{ui_theme::metrics::kOpenButtonWidth});
+        std::vector<float>{open_button_width});
     open_button_->SetRect(primary_buttons[0]);
 }
 

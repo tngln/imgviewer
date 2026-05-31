@@ -1,9 +1,11 @@
 #include "ui.button.hpp"
 
+#include <cmath>
 #include <cwchar>
 
 #include <d2d1helper.h>
 
+#include "ui.text.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -34,6 +36,15 @@ Button::Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* t
 {
 }
 
+float Button::PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const
+{
+    const ui_text::TextMetrics metrics =
+        ui_text::MeasureText(factory, body_text_format, text_, static_cast<UINT32>(wcslen(text_)));
+    return ui_theme::offset::kButtonTextLeft +
+        std::ceil(metrics.width) +
+        ui_theme::offset::kButtonTextRight;
+}
+
 void Button::Draw(const UiDrawContext& context, UiElementState state) const
 {
     const D2D1_RECT_F rect = Rect();
@@ -59,7 +70,8 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kButtonTextTop,
             rect.right - ui_theme::offset::kButtonTextRight,
             rect.bottom),
-        ui_theme::color::kBodyText);
+        ui_theme::color::kBodyText,
+        D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }
 
 IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElement(metadata), icon_(icon) {}
