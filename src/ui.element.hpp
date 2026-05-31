@@ -36,6 +36,7 @@ struct UiElementMetadata final {
     UiElementRole role = UiElementRole::Button;
     UiCommand command = UiCommand::None;
     const wchar_t* name = L"";
+    const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
     int runtime_id = 0;
     bool is_control = true;

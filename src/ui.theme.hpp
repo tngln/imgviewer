@@ -40,6 +40,7 @@ namespace metrics {
 
 constexpr float kTitleBarHeight = 48.0f;
 constexpr float kCaptionButtonWidth = 48.0f;
+constexpr float kCaptionButtonEdgePadding = 1.0f;
 constexpr float kTitleTextLeft = 16.0f;
 constexpr float kTitleTextRightPadding = 12.0f;
 constexpr float kWindowBorderInset = 0.5f;

@@ -3,12 +3,14 @@
 #include <algorithm>
 #include <cwchar>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <d2d1helper.h>
 
 #include "math.hpp"
 #include "ui.layout.hpp"
+#include "ui.text.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -26,6 +28,7 @@ constexpr UiElementMetadata kRootMetadata{
     .role = UiElementRole::Pane,
     .command = UiCommand::None,
     .name = L"ImgViewer",
+    .tooltip = L"",
     .automation_id = L"root",
     .runtime_id = 1,
     .is_control = true,
@@ -36,6 +39,7 @@ constexpr UiElementMetadata kTopMostMetadata{
     .role = UiElementRole::Button,
     .command = UiCommand::ToggleTopMost,
     .name = L"Top Most",
+    .tooltip = L"Keep window on top",
     .automation_id = L"top-most",
     .runtime_id = 2,
 };
@@ -44,6 +48,7 @@ constexpr UiElementMetadata kMinimizeMetadata{
     .role = UiElementRole::Button,
     .command = UiCommand::Minimize,
     .name = L"Minimize",
+    .tooltip = L"Minimize",
     .automation_id = L"minimize",
     .runtime_id = 3,
 };
@@ -52,6 +57,7 @@ constexpr UiElementMetadata kMaximizeMetadata{
     .role = UiElementRole::Button,
     .command = UiCommand::ToggleMaximize,
     .name = L"Maximize or Restore",
+    .tooltip = L"Maximize or restore",
     .automation_id = L"maximize-restore",
     .runtime_id = 4,
 };
@@ -60,6 +66,7 @@ constexpr UiElementMetadata kCloseMetadata{
     .role = UiElementRole::Button,
     .command = UiCommand::Close,
     .name = L"Close",
+    .tooltip = L"Close",
     .automation_id = L"close",
     .runtime_id = 5,
 };
@@ -68,6 +75,7 @@ constexpr UiElementMetadata kOpenMetadata{
     .role = UiElementRole::Button,
     .command = UiCommand::OpenImage,
     .name = L"Open Image",
+    .tooltip = L"Open image",
     .automation_id = L"open-image",
     .runtime_id = 6,
 };
@@ -175,9 +183,15 @@ void UiController::Draw(
             ui_theme::color::kBorder,
             1.0f);
     }
-    draw.DrawBodyText(
+    const std::wstring title_text = ui_text::TruncateText(
+        dwrite_factory,
+        body_text_format,
         title_text_.c_str(),
         static_cast<UINT32>(title_text_.size()),
+        math::RectWidth(title_text_rect_));
+    draw.DrawBodyText(
+        title_text.c_str(),
+        static_cast<UINT32>(title_text.size()),
         title_text_rect_,
         ui_theme::color::kBodyText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
@@ -196,10 +210,16 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_fact
     root_->SetRect(root_rect);
 
     titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, viewport_size.width, ui_theme::metrics::kTitleBarHeight);
+    const float caption_edge_padding = ui_theme::metrics::kCaptionButtonEdgePadding;
+    const D2D1_RECT_F caption_button_area = D2D1::RectF(
+        titlebar_rect_.left,
+        titlebar_rect_.top + caption_edge_padding,
+        titlebar_rect_.right - caption_edge_padding,
+        titlebar_rect_.bottom);
     const std::vector<D2D1_RECT_F> caption_buttons = ui_layout::PlaceRightAlignedRow(
-        titlebar_rect_,
+        caption_button_area,
         ui_theme::metrics::kCaptionButtonWidth,
-        ui_theme::metrics::kTitleBarHeight,
+        ui_theme::metrics::kTitleBarHeight - caption_edge_padding,
         4);
     close_button_->SetRect(caption_buttons[0]);
     maximize_button_->SetRect(caption_buttons[1]);

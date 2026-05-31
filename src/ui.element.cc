@@ -1,5 +1,7 @@
 #include "ui.element.hpp"
 
+#include <utility>
+
 UiElement::UiElement(UiElementMetadata metadata) : metadata_(metadata) {}
 
 void UiElement::SetRect(D2D1_RECT_F rect)
@@ -48,7 +50,7 @@ size_t UiElement::ChildCount() const
 
 UiElement* UiElement::ChildAt(size_t index)
 {
-    return index < children_.size() ? children_[index].get() : nullptr;
+    return const_cast<UiElement*>(std::as_const(*this).ChildAt(index));
 }
 
 const UiElement* UiElement::ChildAt(size_t index) const
@@ -58,18 +60,7 @@ const UiElement* UiElement::ChildAt(size_t index) const
 
 UiElement* UiElement::FindById(UiElementId id)
 {
-    if (metadata_.id == id) {
-        return this;
-    }
-
-    for (const auto& child : children_) {
-        UiElement* found = child->FindById(id);
-        if (found != nullptr) {
-            return found;
-        }
-    }
-
-    return nullptr;
+    return const_cast<UiElement*>(std::as_const(*this).FindById(id));
 }
 
 const UiElement* UiElement::FindById(UiElementId id) const
@@ -90,14 +81,7 @@ const UiElement* UiElement::FindById(UiElementId id) const
 
 UiElement* UiElement::HitTest(D2D1_POINT_2F point)
 {
-    for (auto child = children_.rbegin(); child != children_.rend(); ++child) {
-        UiElement* found = (*child)->HitTest(point);
-        if (found != nullptr) {
-            return found;
-        }
-    }
-
-    return Contains(point) ? this : nullptr;
+    return const_cast<UiElement*>(std::as_const(*this).HitTest(point));
 }
 
 const UiElement* UiElement::HitTest(D2D1_POINT_2F point) const

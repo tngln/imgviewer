@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include <commctrl.h>
 #include <dwmapi.h>
 #include <cwchar>
 #include <imm.h>
@@ -25,12 +26,14 @@ namespace {
 
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 constexpr wchar_t kWindowTitle[] = L"ImgViewer";
+constexpr UINT kTooltipToolInfoSize = TTTOOLINFOW_V2_SIZE;
 
 struct AppContext final {
     Renderer renderer;
     UiController ui;
     ImageViewerController viewer;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
+    wil::unique_hwnd tooltip;
 };
 
 D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
@@ -74,6 +77,91 @@ HRESULT RenderApplication(AppContext* context)
     }
 
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
+    return S_OK;
+}
+
+RECT UiElementRectToWin32Rect(D2D1_RECT_F rect)
+{
+    return RECT{
+        static_cast<LONG>(rect.left),
+        static_cast<LONG>(rect.top),
+        static_cast<LONG>(rect.right),
+        static_cast<LONG>(rect.bottom),
+    };
+}
+
+void UpdateUiTooltipRects(HWND hwnd, AppContext* context)
+{
+    if (context == nullptr || context->tooltip.get() == nullptr) {
+        return;
+    }
+
+    for (size_t index = 0; index < context->ui.ElementCount(); ++index) {
+        const UiElementMetadata* metadata = context->ui.ElementMetadataAt(index);
+        if (metadata == nullptr || metadata->tooltip[0] == L'\0') {
+            continue;
+        }
+
+        TTTOOLINFOW tool_info = {};
+        tool_info.cbSize = kTooltipToolInfoSize;
+        tool_info.hwnd = hwnd;
+        tool_info.uId = static_cast<UINT_PTR>(metadata->runtime_id);
+        tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
+        SendMessageW(context->tooltip.get(), TTM_NEWTOOLRECTW, 0, reinterpret_cast<LPARAM>(&tool_info));
+    }
+}
+
+HRESULT InitializeUiTooltips(HWND hwnd, AppContext* context)
+{
+    if (context == nullptr || context->tooltip.get() != nullptr) {
+        return S_OK;
+    }
+
+    context->tooltip.reset(CreateWindowExW(
+        WS_EX_TOPMOST,
+        TOOLTIPS_CLASSW,
+        nullptr,
+        WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        hwnd,
+        nullptr,
+        GetModuleHandleW(nullptr),
+        nullptr));
+    if (context->tooltip.get() == nullptr) {
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    SetWindowPos(
+        context->tooltip.get(),
+        HWND_TOPMOST,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+
+    for (size_t index = 0; index < context->ui.ElementCount(); ++index) {
+        const UiElementMetadata* metadata = context->ui.ElementMetadataAt(index);
+        if (metadata == nullptr || metadata->tooltip[0] == L'\0') {
+            continue;
+        }
+
+        TTTOOLINFOW tool_info = {};
+        tool_info.cbSize = kTooltipToolInfoSize;
+        tool_info.uFlags = TTF_SUBCLASS;
+        tool_info.hwnd = hwnd;
+        tool_info.uId = static_cast<UINT_PTR>(metadata->runtime_id);
+        tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
+        tool_info.lpszText = const_cast<LPWSTR>(metadata->tooltip);
+        if (SendMessageW(context->tooltip.get(), TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool_info)) == FALSE) {
+            context->tooltip.reset();
+            return E_FAIL;
+        }
+    }
+
     return S_OK;
 }
 
@@ -398,6 +486,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             if (FAILED(RenderApplication(context))) {
                 return -1;
             }
+            UpdateUiTooltipRects(hwnd, context);
         }
 
         return 0;
@@ -558,6 +647,12 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
 
 HRESULT RunApplicationAsHresult()
 {
+    INITCOMMONCONTROLSEX common_controls = {
+        .dwSize = sizeof(INITCOMMONCONTROLSEX),
+        .dwICC = ICC_WIN95_CLASSES,
+    };
+    InitCommonControlsEx(&common_controls);
+
     RETURN_IF_FAILED(InitializeDpiAwareness());
     const HRESULT co_initialize_result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     RETURN_IF_FAILED(co_initialize_result);
@@ -597,6 +692,7 @@ HRESULT RunApplicationAsHresult()
 
     ShowWindow(window.get(), SW_SHOWDEFAULT);
     RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));
+    InitializeUiTooltips(window.get(), &context);
 
     int argc = 0;
     wil::unique_hlocal command_line_args{reinterpret_cast<HLOCAL>(CommandLineToArgvW(GetCommandLineW(), &argc))};

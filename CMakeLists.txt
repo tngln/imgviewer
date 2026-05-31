@@ -51,6 +51,7 @@ if(MSVC)
 endif()
 
 target_link_libraries(imgviewer PRIVATE
+    comctl32
     d2d1
     dcomp
     d3d11
