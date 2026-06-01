@@ -135,11 +135,7 @@ ID2D1DeviceContext* Renderer::BitmapDeviceContext() const
     return d2d_context_.get();
 }
 
-HRESULT Renderer::BeginDrawLayer(
-    SurfaceLayerId id,
-    DXGI_ALPHA_MODE alpha_mode,
-    ID2D1Bitmap1** target,
-    POINT* offset)
+HRESULT Renderer::BeginDrawLayer(SurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset)
 {
     RETURN_HR_IF_NULL(E_POINTER, target);
     RETURN_HR_IF_NULL(E_POINTER, offset);
@@ -163,7 +159,7 @@ HRESULT Renderer::BeginDrawLayer(
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     const D2D1_BITMAP_PROPERTIES1 bitmap_properties = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, static_cast<D2D1_ALPHA_MODE>(alpha_mode)),
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, static_cast<D2D1_ALPHA_MODE>(surfaces_.AlphaMode(id))),
         96.0f,
         96.0f);
     RETURN_IF_FAILED(d2d_context_->CreateBitmapFromDxgiSurface(
@@ -183,11 +179,7 @@ HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
     const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     POINT offset = {};
-    RETURN_IF_FAILED(BeginDrawLayer(
-        SurfaceLayerId::Image,
-        DXGI_ALPHA_MODE_IGNORE,
-        target_bitmap.put(),
-        &offset));
+    RETURN_IF_FAILED(BeginDrawLayer(SurfaceLayerId::Image, target_bitmap.put(), &offset));
 
     wil::com_ptr<ID2D1PathGeometry> icon_geometry;
     RETURN_IF_FAILED(CreatePathGeometryFromIcon(
@@ -268,11 +260,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     POINT offset = {};
-    RETURN_IF_FAILED(BeginDrawLayer(
-        SurfaceLayerId::UiOverlay,
-        DXGI_ALPHA_MODE_PREMULTIPLIED,
-        target_bitmap.put(),
-        &offset));
+    RETURN_IF_FAILED(BeginDrawLayer(SurfaceLayerId::UiOverlay, target_bitmap.put(), &offset));
 
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();

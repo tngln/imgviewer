@@ -24,11 +24,7 @@ public:
 
 private:
     HRESULT ResizeSurfacesToClient();
-    HRESULT BeginDrawLayer(
-        SurfaceLayerId id,
-        DXGI_ALPHA_MODE alpha_mode,
-        ID2D1Bitmap1** target,
-        POINT* offset);
+    HRESULT BeginDrawLayer(SurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset);
     HRESULT RenderImageLayer(const ImageViewerSnapshot& image);
     HRESULT RenderUiOverlayLayer(UiController& ui);
 
