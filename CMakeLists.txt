@@ -16,6 +16,7 @@ add_executable(imgviewer
     src/ui.layout.cc
     src/ui.text.cc
     src/ui.cc
+    src/util.cc
 )
 
 target_include_directories(imgviewer PRIVATE

@@ -14,19 +14,6 @@ namespace {
 constexpr wchar_t kBodyText[] = L"D2D + DirectWrite text rendering";
 constexpr wchar_t kIconText[] = L"\xE921  \xE922  \xE8BB";
 
-float ImageScaleForViewport(const ImageViewerSnapshot& image, UINT viewport_width, UINT viewport_height)
-{
-    if (image.bitmap == nullptr || image.pixel_size.width == 0 || image.pixel_size.height == 0) {
-        return 0.0f;
-    }
-
-    const float image_width = static_cast<float>(image.pixel_size.width);
-    const float image_height = static_cast<float>(image.pixel_size.height);
-    const float available_width = (std::max)(1.0f, static_cast<float>(viewport_width));
-    const float available_height = (std::max)(1.0f, static_cast<float>(viewport_height));
-    return (std::min)(available_width / image_width, available_height / image_height) * image.zoom_multiplier;
-}
-
 } // namespace
 
 HRESULT Renderer::Initialize(HWND hwnd)
@@ -231,7 +218,9 @@ HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
     if (image.bitmap != nullptr) {
         const float image_width = static_cast<float>(image.pixel_size.width);
         const float image_height = static_cast<float>(image.pixel_size.height);
-        const float image_scale = ImageScaleForViewport(image, surfaces_.Width(), surfaces_.Height());
+        const float image_scale =
+            math::FitScale(image.pixel_size, D2D1::SizeU(surfaces_.Width(), surfaces_.Height())) *
+            image.zoom_multiplier;
         const float draw_width = image_width * image_scale;
         const float draw_height = image_height * image_scale;
         const D2D1_POINT_2F viewport_center = D2D1::Point2F(width * 0.5f, height * 0.5f);

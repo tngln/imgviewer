@@ -6,24 +6,14 @@
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
 
+#include "math.hpp"
+
 namespace {
 
 constexpr float kMinImageZoomMultiplier = 0.05f;
 constexpr float kMaxImageZoomMultiplier = 64.0f;
 constexpr float kWheelZoomStep = 1.12f;
 constexpr float kRadiansToDegrees = 57.2957795f;
-
-float AngleFromCenter(D2D1_POINT_2F point, D2D1_POINT_2F center)
-{
-    return std::atan2(point.y - center.y, point.x - center.x);
-}
-
-D2D1_POINT_2F TransformVector(D2D1_MATRIX_3X2_F matrix, D2D1_POINT_2F vector)
-{
-    return D2D1::Point2F(
-        vector.x * matrix._11 + vector.y * matrix._21,
-        vector.x * matrix._12 + vector.y * matrix._22);
-}
 
 } // namespace
 
@@ -77,7 +67,7 @@ ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2
         const D2D1_POINT_2F viewport_center = D2D1::Point2F(
             static_cast<float>(viewport_size.width) * 0.5f,
             static_cast<float>(viewport_size.height) * 0.5f);
-        const float angle = AngleFromCenter(point, viewport_center);
+        const float angle = math::AngleFromCenter(point, viewport_center);
         image_rotation_degrees_ += (angle - image_last_rotation_angle_) * kRadiansToDegrees;
         image_last_rotation_angle_ = angle;
         return ImageViewerEventResult{
@@ -97,7 +87,7 @@ ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2
             point.x - image_last_pan_point_.x,
             point.y - image_last_pan_point_.y);
         const D2D1_POINT_2F image_delta =
-            TransformVector(D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_), screen_delta);
+            math::TransformVector(D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_), screen_delta);
         image_view_center_.x -= image_delta.x / image_scale;
         image_view_center_.y -= image_delta.y / image_scale;
         image_last_pan_point_ = point;
@@ -123,7 +113,7 @@ ImageViewerEventResult ImageViewerController::OnPointerDown(float x, float y, D2
         const D2D1_POINT_2F viewport_center = D2D1::Point2F(
             static_cast<float>(viewport_size.width) * 0.5f,
             static_cast<float>(viewport_size.height) * 0.5f);
-        image_last_rotation_angle_ = AngleFromCenter(point, viewport_center);
+        image_last_rotation_angle_ = math::AngleFromCenter(point, viewport_center);
         return ImageViewerEventResult{
             .handled = true,
             .captured = true,
@@ -142,7 +132,7 @@ ImageViewerEventResult ImageViewerController::OnPointerUp(float x, float y, D2D1
 {
     if (image_is_rotating_) {
         image_is_rotating_ = false;
-        image_last_rotation_angle_ = AngleFromCenter(
+        image_last_rotation_angle_ = math::AngleFromCenter(
             D2D1::Point2F(x, y),
             D2D1::Point2F(
                 static_cast<float>(viewport_size.width) * 0.5f,
@@ -171,15 +161,13 @@ bool ImageViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_
         return false;
     }
 
-    const float image_width = static_cast<float>(current_image_.pixel_size.width);
-    const float image_height = static_cast<float>(current_image_.pixel_size.height);
-    if (image_width <= 0.0f || image_height <= 0.0f) {
+    const float fit_scale = math::FitScale(current_image_.pixel_size, viewport_size);
+    if (fit_scale <= 0.0f) {
         return false;
     }
 
     const float viewport_width = static_cast<float>(viewport_size.width);
     const float viewport_height = static_cast<float>(viewport_size.height);
-    const float fit_scale = CurrentImageScale(viewport_size) / image_zoom_multiplier_;
     const float old_scale = fit_scale * image_zoom_multiplier_;
     const float wheel_steps = static_cast<float>(delta) / static_cast<float>(WHEEL_DELTA);
     const float new_zoom = std::clamp(
@@ -242,13 +230,9 @@ ImageViewerEventResult ImageViewerController::OnKeyUp(UINT virtual_key)
 
 float ImageViewerController::CurrentImageScale(D2D1_SIZE_U viewport_size) const
 {
-    if (!current_image_.bitmap || current_image_.pixel_size.width == 0 || current_image_.pixel_size.height == 0) {
+    if (!current_image_.bitmap) {
         return 0.0f;
     }
 
-    const float image_width = static_cast<float>(current_image_.pixel_size.width);
-    const float image_height = static_cast<float>(current_image_.pixel_size.height);
-    const float available_width = (std::max)(1.0f, static_cast<float>(viewport_size.width));
-    const float available_height = (std::max)(1.0f, static_cast<float>(viewport_size.height));
-    return (std::min)(available_width / image_width, available_height / image_height) * image_zoom_multiplier_;
+    return math::FitScale(current_image_.pixel_size, viewport_size) * image_zoom_multiplier_;
 }

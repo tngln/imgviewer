@@ -6,14 +6,13 @@
 #include "renderer.hpp"
 #include "ui.a11y.hpp"
 #include "ui.hpp"
+#include "util.hpp"
 
 #include <windows.h>
 #include <windowsx.h>
 
 #include <commctrl.h>
-#include <dwmapi.h>
 #include <cwchar>
-#include <imm.h>
 #include <shellapi.h>
 #include <shobjidl.h>
 #include <optional>
@@ -63,16 +62,6 @@ AppContext* GetAppContext(HWND hwnd)
     return reinterpret_cast<AppContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
-bool IsWindowTopMost(HWND hwnd)
-{
-    return (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
-}
-
-int ResizeBorderThicknessForDpi(UINT dpi)
-{
-    return GetSystemMetricsForDpi(SM_CXFRAME, dpi) + GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
-}
-
 HRESULT RenderApplication(AppContext* context)
 {
     if (context == nullptr) {
@@ -81,16 +70,6 @@ HRESULT RenderApplication(AppContext* context)
 
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
     return S_OK;
-}
-
-RECT UiElementRectToWin32Rect(D2D1_RECT_F rect)
-{
-    return RECT{
-        static_cast<LONG>(rect.left),
-        static_cast<LONG>(rect.top),
-        static_cast<LONG>(rect.right),
-        static_cast<LONG>(rect.bottom),
-    };
 }
 
 void UpdateUiTooltipRects(HWND hwnd, AppContext* context)
@@ -109,7 +88,7 @@ void UpdateUiTooltipRects(HWND hwnd, AppContext* context)
         tool_info.cbSize = kTooltipToolInfoSize;
         tool_info.hwnd = hwnd;
         tool_info.uId = static_cast<UINT_PTR>(metadata->runtime_id);
-        tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
+        tool_info.rect = util::UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
         SendMessageW(context->tooltip.get(), TTM_NEWTOOLRECTW, 0, reinterpret_cast<LPARAM>(&tool_info));
     }
 }
@@ -157,7 +136,7 @@ HRESULT InitializeUiTooltips(HWND hwnd, AppContext* context)
         tool_info.uFlags = TTF_SUBCLASS;
         tool_info.hwnd = hwnd;
         tool_info.uId = static_cast<UINT_PTR>(metadata->runtime_id);
-        tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
+        tool_info.rect = util::UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
         tool_info.lpszText = const_cast<LPWSTR>(metadata->tooltip);
         if (SendMessageW(context->tooltip.get(), TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool_info)) == FALSE) {
             context->tooltip.reset();
@@ -171,38 +150,8 @@ HRESULT InitializeUiTooltips(HWND hwnd, AppContext* context)
 void SyncWindowState(HWND hwnd, UiController* ui)
 {
     if (ui != nullptr) {
-        ui->SetWindowState(IsWindowTopMost(hwnd), IsZoomed(hwnd));
+        ui->SetWindowState(util::IsWindowTopMost(hwnd), IsZoomed(hwnd));
     }
-}
-
-HRESULT ApplyDwmFrame(HWND hwnd)
-{
-    DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
-    RETURN_IF_FAILED(DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &policy, sizeof(policy)));
-
-    const MARGINS margins = {0, 0, 0, 1};
-    RETURN_IF_FAILED(DwmExtendFrameIntoClientArea(hwnd, &margins));
-    return S_OK;
-}
-
-void DisableIme(HWND hwnd)
-{
-    ImmAssociateContext(hwnd, nullptr);
-}
-
-std::wstring FileNameFromPath(const wchar_t* path)
-{
-    if (path == nullptr) {
-        return kWindowTitle;
-    }
-
-    std::wstring value(path);
-    const size_t separator = value.find_last_of(L"\\/");
-    if (separator != std::wstring::npos) {
-        value.erase(0, separator + 1);
-    }
-
-    return value.empty() ? std::wstring(kWindowTitle) : value;
 }
 
 void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
@@ -211,7 +160,7 @@ void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
     case UiCommand::OpenImage:
         break;
     case UiCommand::ToggleTopMost: {
-        const bool top_most = !IsWindowTopMost(hwnd);
+        const bool top_most = !util::IsWindowTopMost(hwnd);
         SetWindowPos(
             hwnd,
             top_most ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -261,7 +210,7 @@ void LoadImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
         MessageBoxW(hwnd, L"Could not read the image folder.", kWindowTitle, MB_OK | MB_ICONWARNING);
     }
 
-    const std::wstring file_name = FileNameFromPath(path);
+    const std::wstring file_name = util::FileNameFromPath(path, kWindowTitle);
     const ImageSequencePosition position = context->sequence.Position();
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     wchar_t position_text[64] = {};
@@ -383,7 +332,7 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
     RECT window_rect = {};
     GetWindowRect(hwnd, &window_rect);
     const UINT dpi = GetDpiForWindow(hwnd);
-    const int resize_border = ResizeBorderThicknessForDpi(dpi);
+    const int resize_border = util::ResizeBorderThicknessForDpi(dpi);
 
     if (!IsZoomed(hwnd)) {
         const bool left = screen_point.x >= window_rect.left && screen_point.x < window_rect.left + resize_border;
@@ -436,7 +385,7 @@ LRESULT CalculateClientArea(HWND hwnd, WPARAM wparam, LPARAM lparam)
 
     auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
     if (IsZoomed(hwnd)) {
-        const int resize_border = ResizeBorderThicknessForDpi(GetDpiForWindow(hwnd));
+        const int resize_border = util::ResizeBorderThicknessForDpi(GetDpiForWindow(hwnd));
         params->rgrc[0].left += resize_border;
         params->rgrc[0].top += resize_border;
         params->rgrc[0].right -= resize_border;
@@ -444,30 +393,6 @@ LRESULT CalculateClientArea(HWND hwnd, WPARAM wparam, LPARAM lparam)
     }
 
     return 0;
-}
-
-void TrackMouseLeave(HWND hwnd)
-{
-    TRACKMOUSEEVENT track_event = {};
-    track_event.cbSize = sizeof(track_event);
-    track_event.dwFlags = TME_LEAVE;
-    track_event.hwndTrack = hwnd;
-    TrackMouseEvent(&track_event);
-}
-
-HRESULT InitializeDpiAwareness()
-{
-    if (SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
-        return S_OK;
-    }
-
-    const DWORD error = GetLastError();
-    if (error == ERROR_ACCESS_DENIED) {
-        return S_OK;
-    }
-
-    RETURN_IF_FAILED(HRESULT_FROM_WIN32(error));
-    return S_OK;
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
@@ -537,7 +462,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_MOUSEMOVE: {
         AppContext* context = GetAppContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        TrackMouseLeave(hwnd);
+        util::TrackMouseLeave(hwnd);
         ImageViewerEventResult viewer_result = {};
         if (context != nullptr) {
             viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
@@ -688,7 +613,7 @@ HRESULT RunApplicationAsHresult()
     };
     InitCommonControlsEx(&common_controls);
 
-    RETURN_IF_FAILED(InitializeDpiAwareness());
+    RETURN_IF_FAILED(util::InitializeDpiAwareness());
     const HRESULT co_initialize_result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     RETURN_IF_FAILED(co_initialize_result);
     auto co_uninitialize = wil::scope_exit([] { CoUninitialize(); });
@@ -714,8 +639,8 @@ HRESULT RunApplicationAsHresult()
         &context)};
     RETURN_LAST_ERROR_IF_NULL(window.get());
     DragAcceptFiles(window.get(), TRUE);
-    DisableIme(window.get());
-    RETURN_IF_FAILED(ApplyDwmFrame(window.get()));
+    util::DisableIme(window.get());
+    RETURN_IF_FAILED(util::ApplyDwmFrame(window.get()));
     RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
         window.get(),
         nullptr,
