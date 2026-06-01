@@ -17,6 +17,12 @@ namespace {
 
 constexpr wchar_t kOpenIcon[] = L"\xE8E5";
 constexpr wchar_t kOpenText[] = L"Open Image";
+constexpr wchar_t kPreviousIcon[] = L"\xE892";
+constexpr wchar_t kNextIcon[] = L"\xE893";
+constexpr wchar_t kZoomInIcon[] = L"\xE8A3";
+constexpr wchar_t kZoomOutIcon[] = L"\xE71F";
+constexpr wchar_t kRotateIcon[] = L"\xE7AD";
+constexpr wchar_t kResetIcon[] = L"\xE777";
 constexpr wchar_t kTopMostIcon[] = L"\xE718";
 constexpr wchar_t kMinimizeIcon[] = L"\xE921";
 constexpr wchar_t kMaximizeIcon[] = L"\xE922";
@@ -79,6 +85,60 @@ constexpr UiElementMetadata kOpenMetadata{
     .automation_id = L"open-image",
     .runtime_id = 6,
 };
+constexpr UiElementMetadata kPreviousMetadata{
+    .id = UiElementId::PreviousImage,
+    .role = UiElementRole::Button,
+    .command = UiCommand::PreviousImage,
+    .name = L"Previous Image",
+    .tooltip = L"Previous image",
+    .automation_id = L"previous-image",
+    .runtime_id = 7,
+};
+constexpr UiElementMetadata kNextMetadata{
+    .id = UiElementId::NextImage,
+    .role = UiElementRole::Button,
+    .command = UiCommand::NextImage,
+    .name = L"Next Image",
+    .tooltip = L"Next image",
+    .automation_id = L"next-image",
+    .runtime_id = 8,
+};
+constexpr UiElementMetadata kZoomInMetadata{
+    .id = UiElementId::ZoomIn,
+    .role = UiElementRole::Button,
+    .command = UiCommand::ZoomIn,
+    .name = L"Zoom In",
+    .tooltip = L"Zoom in",
+    .automation_id = L"zoom-in",
+    .runtime_id = 9,
+};
+constexpr UiElementMetadata kZoomOutMetadata{
+    .id = UiElementId::ZoomOut,
+    .role = UiElementRole::Button,
+    .command = UiCommand::ZoomOut,
+    .name = L"Zoom Out",
+    .tooltip = L"Zoom out",
+    .automation_id = L"zoom-out",
+    .runtime_id = 10,
+};
+constexpr UiElementMetadata kRotateMetadata{
+    .id = UiElementId::RotateClockwise,
+    .role = UiElementRole::Button,
+    .command = UiCommand::RotateClockwise,
+    .name = L"Rotate Clockwise",
+    .tooltip = L"Rotate clockwise",
+    .automation_id = L"rotate-clockwise",
+    .runtime_id = 11,
+};
+constexpr UiElementMetadata kResetMetadata{
+    .id = UiElementId::ResetView,
+    .role = UiElementRole::Button,
+    .command = UiCommand::ResetView,
+    .name = L"Reset View",
+    .tooltip = L"Reset view",
+    .automation_id = L"reset-view",
+    .runtime_id = 12,
+};
 } // namespace
 
 UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
@@ -91,10 +151,34 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMaximizeMetadata, kMaximizeIcon)));
     close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kCloseMetadata, kCloseIcon)));
     open_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kOpenMetadata, kOpenIcon, kOpenText)));
+    previous_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kPreviousMetadata, kPreviousIcon)));
+    next_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kNextMetadata, kNextIcon)));
+    zoom_in_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kZoomInMetadata, kZoomInIcon)));
+    zoom_out_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kZoomOutMetadata, kZoomOutIcon)));
+    rotate_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kRotateMetadata, kRotateIcon)));
+    reset_button_ =
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kResetMetadata, kResetIcon)));
 }
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
 {
+    if (toolbar_dragging_) {
+        toolbar_position_ = D2D1::Point2F(point.x - toolbar_drag_offset_.x, point.y - toolbar_drag_offset_.y);
+        toolbar_rect_ = D2D1::RectF(
+            toolbar_position_.x,
+            toolbar_position_.y,
+            toolbar_position_.x + math::RectWidth(toolbar_rect_),
+            toolbar_position_.y + math::RectHeight(toolbar_rect_));
+        return UiEventResult{
+            .handled = true,
+            .needs_render = true,
+        };
+    }
+
     const UiElementId was_hovered = hovered_button_;
     hovered_button_ = HitTest(point);
 
@@ -107,8 +191,19 @@ UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
 UiEventResult UiController::OnPointerDown(D2D1_POINT_2F point)
 {
     const UiElementId button = HitTest(point);
-    if (button == UiElementId::None) {
+    if (button == UiElementId::None && !HitTestToolbar(point)) {
         return {};
+    }
+
+    if (button == UiElementId::None) {
+        toolbar_dragging_ = true;
+        toolbar_drag_offset_ = D2D1::Point2F(point.x - toolbar_position_.x, point.y - toolbar_position_.y);
+        hovered_button_ = UiElementId::None;
+        pressed_button_ = UiElementId::None;
+        return UiEventResult{
+            .handled = true,
+            .captured = true,
+        };
     }
 
     hovered_button_ = button;
@@ -122,6 +217,15 @@ UiEventResult UiController::OnPointerDown(D2D1_POINT_2F point)
 
 UiEventResult UiController::OnPointerUp(D2D1_POINT_2F point)
 {
+    if (toolbar_dragging_) {
+        toolbar_dragging_ = false;
+        return UiEventResult{
+            .handled = true,
+            .needs_render = true,
+            .released_capture = true,
+        };
+    }
+
     if (pressed_button_ == UiElementId::None) {
         return {};
     }
@@ -202,6 +306,25 @@ void UiController::Draw(
     maximize_button_->Draw(draw_context, ButtonState(UiElementId::MaximizeRestore));
     close_button_->Draw(draw_context, ButtonState(UiElementId::Close, false, true));
     open_button_->Draw(draw_context, ButtonState(UiElementId::OpenImage));
+
+    const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
+        toolbar_rect_,
+        ui_theme::metrics::kToolbarCornerRadius,
+        ui_theme::metrics::kToolbarCornerRadius);
+    draw.FillRoundedRect(
+        toolbar_background,
+        D2D1::ColorF(
+            ui_theme::color::kToolbarBackground.r,
+            ui_theme::color::kToolbarBackground.g,
+            ui_theme::color::kToolbarBackground.b,
+            ui_theme::color::kToolbarBackgroundOpacity));
+    draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, 1.0f);
+    previous_button_->Draw(draw_context, ButtonState(UiElementId::PreviousImage));
+    next_button_->Draw(draw_context, ButtonState(UiElementId::NextImage));
+    zoom_in_button_->Draw(draw_context, ButtonState(UiElementId::ZoomIn));
+    zoom_out_button_->Draw(draw_context, ButtonState(UiElementId::ZoomOut));
+    rotate_button_->Draw(draw_context, ButtonState(UiElementId::RotateClockwise));
+    reset_button_->Draw(draw_context, ButtonState(UiElementId::ResetView));
 }
 
 void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_factory, IDWriteTextFormat* body_text_format)
@@ -241,12 +364,64 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_fact
         ui_theme::metrics::kPrimaryButtonHeight,
         std::vector<float>{open_button_width});
     open_button_->SetRect(primary_buttons[0]);
+
+    constexpr size_t toolbar_button_count = 6;
+    const float toolbar_content_width =
+        ui_theme::metrics::kToolbarButtonSize * static_cast<float>(toolbar_button_count) +
+        ui_theme::metrics::kToolbarButtonGap * static_cast<float>(toolbar_button_count - 1);
+    const float toolbar_width = toolbar_content_width + ui_theme::metrics::kToolbarPadding * 2.0f;
+    const float toolbar_height = ui_theme::metrics::kToolbarButtonSize + ui_theme::metrics::kToolbarPadding * 2.0f;
+    if (!toolbar_position_initialized_) {
+        toolbar_position_ = D2D1::Point2F(
+            (std::max)(0.0f, (viewport_size.width - toolbar_width) * 0.5f),
+            (std::max)(0.0f, viewport_size.height - toolbar_height - ui_theme::metrics::kToolbarBottomMargin));
+        toolbar_position_initialized_ = true;
+    }
+    toolbar_rect_ = D2D1::RectF(
+        toolbar_position_.x,
+        toolbar_position_.y,
+        toolbar_position_.x + toolbar_width,
+        toolbar_position_.y + toolbar_height);
+    ClampToolbarToViewport(viewport_size);
+    toolbar_position_ = D2D1::Point2F(toolbar_rect_.left, toolbar_rect_.top);
+
+    const std::vector<D2D1_RECT_F> toolbar_buttons = ui_layout::PlaceHorizontalRow(
+        D2D1::Point2F(
+            toolbar_rect_.left + ui_theme::metrics::kToolbarPadding,
+            toolbar_rect_.top + ui_theme::metrics::kToolbarPadding),
+        ui_theme::metrics::kToolbarButtonSize,
+        std::vector<float>(
+            toolbar_button_count,
+            ui_theme::metrics::kToolbarButtonSize),
+        ui_theme::metrics::kToolbarButtonGap);
+    previous_button_->SetRect(toolbar_buttons[0]);
+    next_button_->SetRect(toolbar_buttons[1]);
+    zoom_in_button_->SetRect(toolbar_buttons[2]);
+    zoom_out_button_->SetRect(toolbar_buttons[3]);
+    rotate_button_->SetRect(toolbar_buttons[4]);
+    reset_button_->SetRect(toolbar_buttons[5]);
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
 {
     const UiElement* hit_element = root_->HitTest(point);
     return hit_element != nullptr ? hit_element->Id() : UiElementId::None;
+}
+
+bool UiController::HitTestToolbar(D2D1_POINT_2F point) const
+{
+    return math::Contains(toolbar_rect_, point);
+}
+
+void UiController::ClampToolbarToViewport(D2D1_SIZE_F viewport_size)
+{
+    const float toolbar_width = math::RectWidth(toolbar_rect_);
+    const float toolbar_height = math::RectHeight(toolbar_rect_);
+    const float max_left = (std::max)(0.0f, viewport_size.width - toolbar_width);
+    const float max_top = (std::max)(0.0f, viewport_size.height - toolbar_height);
+    const float left = std::clamp(toolbar_rect_.left, 0.0f, max_left);
+    const float top = std::clamp(toolbar_rect_.top, 0.0f, max_top);
+    toolbar_rect_ = D2D1::RectF(left, top, left + toolbar_width, top + toolbar_height);
 }
 
 UiCommand UiController::CommandFor(UiElementId id) const

@@ -34,9 +34,13 @@ public:
     bool OnMouseWheel(float x, float y, int delta, D2D1_SIZE_U viewport_size);
     bool OnKeyDown(UINT virtual_key);
     ImageViewerEventResult OnKeyUp(UINT virtual_key);
+    bool ZoomByStep(int steps, D2D1_SIZE_U viewport_size);
+    bool RotateClockwise();
+    bool ResetView();
 
 private:
     float CurrentImageScale(D2D1_SIZE_U viewport_size) const;
+    bool ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size);
 
     ImageDecoder image_decoder_;
     DecodedImage current_image_;

@@ -62,6 +62,8 @@ AppContext* GetAppContext(HWND hwnd)
     return reinterpret_cast<AppContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
+bool NavigateImageFile(HWND hwnd, AppContext* context, int direction);
+
 HRESULT RenderApplication(AppContext* context)
 {
     if (context == nullptr) {
@@ -158,6 +160,32 @@ void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
 {
     switch (command) {
     case UiCommand::OpenImage:
+        break;
+    case UiCommand::PreviousImage:
+        NavigateImageFile(hwnd, context, -1);
+        break;
+    case UiCommand::NextImage:
+        NavigateImageFile(hwnd, context, 1);
+        break;
+    case UiCommand::ZoomIn:
+        if (context != nullptr && context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize())) {
+            RenderApplication(context);
+        }
+        break;
+    case UiCommand::ZoomOut:
+        if (context != nullptr && context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize())) {
+            RenderApplication(context);
+        }
+        break;
+    case UiCommand::RotateClockwise:
+        if (context != nullptr && context->viewer.RotateClockwise()) {
+            RenderApplication(context);
+        }
+        break;
+    case UiCommand::ResetView:
+        if (context != nullptr && context->viewer.ResetView()) {
+            RenderApplication(context);
+        }
         break;
     case UiCommand::ToggleTopMost: {
         const bool top_most = !util::IsWindowTopMost(hwnd);

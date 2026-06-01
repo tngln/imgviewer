@@ -157,7 +157,16 @@ ImageViewerEventResult ImageViewerController::OnPointerUp(float x, float y, D2D1
 
 bool ImageViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_U viewport_size)
 {
-    if (!current_image_.bitmap || delta == 0 || viewport_size.width == 0 || viewport_size.height == 0) {
+    if (delta == 0) {
+        return false;
+    }
+
+    return ZoomAtPoint(x, y, static_cast<float>(delta) / static_cast<float>(WHEEL_DELTA), viewport_size);
+}
+
+bool ImageViewerController::ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size)
+{
+    if (!current_image_.bitmap || steps == 0.0f || viewport_size.width == 0 || viewport_size.height == 0) {
         return false;
     }
 
@@ -169,9 +178,8 @@ bool ImageViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_
     const float viewport_width = static_cast<float>(viewport_size.width);
     const float viewport_height = static_cast<float>(viewport_size.height);
     const float old_scale = fit_scale * image_zoom_multiplier_;
-    const float wheel_steps = static_cast<float>(delta) / static_cast<float>(WHEEL_DELTA);
     const float new_zoom = std::clamp(
-        image_zoom_multiplier_ * std::pow(kWheelZoomStep, wheel_steps),
+        image_zoom_multiplier_ * std::pow(kWheelZoomStep, steps),
         kMinImageZoomMultiplier,
         kMaxImageZoomMultiplier);
     if (new_zoom == image_zoom_multiplier_) {
@@ -193,6 +201,47 @@ bool ImageViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_
     return true;
 }
 
+bool ImageViewerController::ZoomByStep(int steps, D2D1_SIZE_U viewport_size)
+{
+    if (steps == 0) {
+        return false;
+    }
+
+    return ZoomAtPoint(
+        static_cast<float>(viewport_size.width) * 0.5f,
+        static_cast<float>(viewport_size.height) * 0.5f,
+        static_cast<float>(steps),
+        viewport_size);
+}
+
+bool ImageViewerController::RotateClockwise()
+{
+    if (!current_image_.bitmap) {
+        return false;
+    }
+
+    image_rotation_degrees_ += 90.0f;
+    return true;
+}
+
+bool ImageViewerController::ResetView()
+{
+    if (!current_image_.bitmap) {
+        return false;
+    }
+
+    image_view_center_ = D2D1::Point2F(
+        static_cast<float>(current_image_.pixel_size.width) * 0.5f,
+        static_cast<float>(current_image_.pixel_size.height) * 0.5f);
+    image_zoom_multiplier_ = 1.0f;
+    image_rotation_degrees_ = 0.0f;
+    image_is_panning_ = false;
+    image_is_rotating_ = false;
+    r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
+    return true;
+}
+
 bool ImageViewerController::OnKeyDown(UINT virtual_key)
 {
     if (virtual_key == 'R') {
@@ -211,8 +260,7 @@ ImageViewerEventResult ImageViewerController::OnKeyUp(UINT virtual_key)
         r_key_is_down_ = false;
         image_is_rotating_ = false;
         r_key_started_rotation_ = false;
-        if (should_rotate_clockwise && current_image_.bitmap) {
-            image_rotation_degrees_ += 90.0f;
+        if (should_rotate_clockwise && RotateClockwise()) {
             return ImageViewerEventResult{
                 .handled = true,
                 .needs_render = true,

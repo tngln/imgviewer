@@ -33,6 +33,8 @@ constexpr auto kButtonHovered = COLOR(0xebf2ff);
 constexpr auto kButtonPressed = COLOR(0xdbe7ff);
 constexpr auto kDangerHovered = COLOR(0xffdad6);
 constexpr auto kDangerPressed = COLOR(0xf2b8b5);
+constexpr auto kToolbarBackground = COLOR(0xffffff);
+constexpr float kToolbarBackgroundOpacity = 0.88f;
 
 } // namespace color
 
@@ -50,6 +52,11 @@ constexpr float kPanelPadding = 32.0f;
 constexpr float kPrimaryButtonTop = 128.0f;
 constexpr float kPrimaryButtonHeight = 44.0f;
 constexpr float kOpenButtonWidth = 200.0f;
+constexpr float kToolbarButtonSize = 44.0f;
+constexpr float kToolbarButtonGap = 2.0f;
+constexpr float kToolbarPadding = 8.0f;
+constexpr float kToolbarBottomMargin = 28.0f;
+constexpr float kToolbarCornerRadius = 8.0f;
 constexpr float kBodyTextTop = 58.0f;
 constexpr float kBodyTextBottom = 98.0f;
 constexpr float kIconTextTop = 96.0f;
