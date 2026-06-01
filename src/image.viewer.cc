@@ -50,6 +50,7 @@ HRESULT ImageViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceCon
     image_is_panning_ = false;
     image_is_rotating_ = false;
     r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
     return S_OK;
 }
 
@@ -118,6 +119,7 @@ ImageViewerEventResult ImageViewerController::OnPointerDown(float x, float y, D2
     const D2D1_POINT_2F point = D2D1::Point2F(x, y);
     if (r_key_is_down_) {
         image_is_rotating_ = true;
+        r_key_started_rotation_ = true;
         const D2D1_POINT_2F viewport_center = D2D1::Point2F(
             static_cast<float>(viewport_size.width) * 0.5f,
             static_cast<float>(viewport_size.height) * 0.5f);
@@ -213,16 +215,29 @@ bool ImageViewerController::OnKeyDown(UINT virtual_key)
     return false;
 }
 
-bool ImageViewerController::OnKeyUp(UINT virtual_key)
+ImageViewerEventResult ImageViewerController::OnKeyUp(UINT virtual_key)
 {
     if (virtual_key == 'R') {
-        const bool was_rotating = image_is_rotating_;
+        const bool should_rotate_clockwise = r_key_is_down_ && !r_key_started_rotation_;
+        const bool should_release_capture = image_is_rotating_;
         r_key_is_down_ = false;
         image_is_rotating_ = false;
-        return was_rotating;
+        r_key_started_rotation_ = false;
+        if (should_rotate_clockwise && current_image_.bitmap) {
+            image_rotation_degrees_ += 90.0f;
+            return ImageViewerEventResult{
+                .handled = true,
+                .needs_render = true,
+            };
+        }
+
+        return ImageViewerEventResult{
+            .handled = should_release_capture || should_rotate_clockwise,
+            .released_capture = should_release_capture,
+        };
     }
 
-    return false;
+    return {};
 }
 
 float ImageViewerController::CurrentImageScale(D2D1_SIZE_U viewport_size) const

@@ -618,8 +618,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYUP:
     case WM_SYSKEYUP: {
         AppContext* context = GetAppContext(hwnd);
-        if (context != nullptr && context->viewer.OnKeyUp(static_cast<UINT>(wparam))) {
-            ReleaseCapture();
+        const ImageViewerEventResult viewer_result =
+            context != nullptr ? context->viewer.OnKeyUp(static_cast<UINT>(wparam)) : ImageViewerEventResult{};
+        if (viewer_result.handled) {
+            RenderIfNeeded(context, viewer_result);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
