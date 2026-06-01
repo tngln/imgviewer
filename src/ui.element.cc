@@ -24,9 +24,9 @@ UiElementId UiElement::Id() const
     return metadata_.id;
 }
 
-UiCommand UiElement::Command() const
+AppAction UiElement::Action() const
 {
-    return metadata_.command;
+    return metadata_.action;
 }
 
 bool UiElement::Contains(D2D1_POINT_2F point) const

@@ -4,6 +4,7 @@
 
 #include <d2d1_1.h>
 
+#include "app.action.hpp"
 #include "image.decoder.hpp"
 
 struct ImageViewerEventResult final {
@@ -32,8 +33,8 @@ public:
     ImageViewerEventResult OnPointerDown(float x, float y, D2D1_SIZE_U viewport_size);
     ImageViewerEventResult OnPointerUp(float x, float y, D2D1_SIZE_U viewport_size);
     bool OnMouseWheel(float x, float y, int delta, D2D1_SIZE_U viewport_size);
-    bool OnKeyDown(UINT virtual_key);
-    ImageViewerEventResult OnKeyUp(UINT virtual_key);
+    bool OnActionDown(AppAction action);
+    ImageViewerEventResult OnActionUp(AppAction action);
     bool ZoomByStep(int steps, D2D1_SIZE_U viewport_size);
     bool RotateClockwise();
     bool ResetView();

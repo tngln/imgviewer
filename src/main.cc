@@ -1,4 +1,5 @@
 #include "main.hpp"
+#include "app.action.hpp"
 #include "app.messages.hpp"
 #include "app.config.hpp"
 #include "image.sequence.hpp"
@@ -13,6 +14,7 @@
 #include <windowsx.h>
 
 #include <commctrl.h>
+#include <array>
 #include <cwchar>
 #include <shellapi.h>
 #include <shobjidl.h>
@@ -36,6 +38,7 @@ struct AppContext final {
     ImageViewerController viewer;
     ImageSequence sequence;
     AppConfig config;
+    std::array<AppAction, 256> pressed_key_actions = {};
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
 };
@@ -174,38 +177,62 @@ void SaveWindowSize(HWND hwnd, AppContext* context)
     SaveAppConfig(context->config);
 }
 
-void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
+bool IsKeyDown(int virtual_key)
 {
-    switch (command) {
-    case UiCommand::OpenImage:
+    return (GetKeyState(virtual_key) & 0x8000) != 0;
+}
+
+AppAction ActionForKeyboardMessage(const AppContext* context, WPARAM wparam)
+{
+    if (context == nullptr) {
+        return AppAction::None;
+    }
+
+    return ActionForKey(
+        context->config.action_bindings,
+        static_cast<UINT>(wparam),
+        IsKeyDown(VK_CONTROL),
+        IsKeyDown(VK_SHIFT),
+        IsKeyDown(VK_MENU));
+}
+
+size_t KeyActionIndex(WPARAM wparam)
+{
+    return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
+}
+
+void ExecuteAction(HWND hwnd, AppContext* context, AppAction action)
+{
+    switch (action) {
+    case AppAction::OpenImage:
         break;
-    case UiCommand::PreviousImage:
+    case AppAction::PreviousImage:
         NavigateImageFile(hwnd, context, -1);
         break;
-    case UiCommand::NextImage:
+    case AppAction::NextImage:
         NavigateImageFile(hwnd, context, 1);
         break;
-    case UiCommand::ZoomIn:
+    case AppAction::ZoomIn:
         if (context != nullptr && context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize())) {
             RenderApplication(context);
         }
         break;
-    case UiCommand::ZoomOut:
+    case AppAction::ZoomOut:
         if (context != nullptr && context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize())) {
             RenderApplication(context);
         }
         break;
-    case UiCommand::RotateClockwise:
+    case AppAction::RotateClockwise:
         if (context != nullptr && context->viewer.RotateClockwise()) {
             RenderApplication(context);
         }
         break;
-    case UiCommand::ResetView:
+    case AppAction::ResetView:
         if (context != nullptr && context->viewer.ResetView()) {
             RenderApplication(context);
         }
         break;
-    case UiCommand::ToggleTopMost: {
+    case AppAction::ToggleTopMost: {
         const bool top_most = !util::IsWindowTopMost(hwnd);
         SetWindowPos(
             hwnd,
@@ -221,17 +248,17 @@ void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
         }
         break;
     }
-    case UiCommand::Minimize:
+    case AppAction::Minimize:
         ShowWindow(hwnd, SW_MINIMIZE);
         break;
-    case UiCommand::ToggleMaximize:
+    case AppAction::ToggleMaximize:
         ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
         if (context != nullptr) {
             SyncWindowState(hwnd, &context->ui);
             RenderApplication(context);
         }
         break;
-    case UiCommand::Close:
+    case AppAction::Close:
         PostMessageW(hwnd, WM_CLOSE, 0, 0);
         break;
     default:
@@ -346,10 +373,10 @@ void RenderIfNeeded(HWND hwnd, AppContext* context, UiEventResult result)
         RenderApplication(context);
     }
 
-    if (result.command == UiCommand::OpenImage) {
+    if (result.action == AppAction::OpenImage) {
         HandleOpenImageCommand(hwnd, context);
-    } else if (result.command != UiCommand::None) {
-        ExecuteUiCommand(hwnd, context, result.command);
+    } else if (result.action != AppAction::None) {
+        ExecuteAction(hwnd, context, result.action);
     }
 }
 
@@ -444,8 +471,8 @@ LRESULT CalculateClientArea(HWND hwnd, WPARAM wparam, LPARAM lparam)
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
     switch (message) {
-    case kImgViewerUiCommandMessage: {
-        ExecuteUiCommand(hwnd, GetAppContext(hwnd), static_cast<UiCommand>(wparam));
+    case kImgViewerUiActionMessage: {
+        ExecuteAction(hwnd, GetAppContext(hwnd), static_cast<AppAction>(wparam));
         return 0;
     }
 
@@ -497,7 +524,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_NCLBUTTONDBLCLK:
         if (wparam == HTCAPTION) {
-            ExecuteUiCommand(hwnd, GetAppContext(hwnd), UiCommand::ToggleMaximize);
+            ExecuteAction(hwnd, GetAppContext(hwnd), AppAction::ToggleMaximize);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -576,11 +603,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
         AppContext* context = GetAppContext(hwnd);
-        if (wparam == VK_LEFT || wparam == VK_RIGHT) {
-            NavigateImageFile(hwnd, context, wparam == VK_LEFT ? -1 : 1);
+        const AppAction action = ActionForKeyboardMessage(context, wparam);
+        if (context != nullptr) {
+            context->pressed_key_actions[KeyActionIndex(wparam)] = action;
+        }
+        if (context != nullptr && context->viewer.OnActionDown(action)) {
             return 0;
         }
-        if (context != nullptr && context->viewer.OnKeyDown(static_cast<UINT>(wparam))) {
+        if (action == AppAction::OpenImage) {
+            HandleOpenImageCommand(hwnd, context);
+            return 0;
+        }
+        if (action != AppAction::None) {
+            ExecuteAction(hwnd, context, action);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -589,8 +624,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYUP:
     case WM_SYSKEYUP: {
         AppContext* context = GetAppContext(hwnd);
+        const AppAction action =
+            context != nullptr ? context->pressed_key_actions[KeyActionIndex(wparam)] : AppAction::None;
+        if (context != nullptr) {
+            context->pressed_key_actions[KeyActionIndex(wparam)] = AppAction::None;
+        }
         const ImageViewerEventResult viewer_result =
-            context != nullptr ? context->viewer.OnKeyUp(static_cast<UINT>(wparam)) : ImageViewerEventResult{};
+            context != nullptr ? context->viewer.OnActionUp(action) : ImageViewerEventResult{};
         if (viewer_result.handled) {
             RenderIfNeeded(context, viewer_result);
             return 0;

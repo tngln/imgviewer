@@ -5,22 +5,8 @@
 #include <memory>
 #include <vector>
 
+#include "app.action.hpp"
 #include "ui.draw.hpp"
-
-enum class UiCommand {
-    None,
-    OpenImage,
-    PreviousImage,
-    NextImage,
-    ZoomIn,
-    ZoomOut,
-    RotateClockwise,
-    ResetView,
-    ToggleTopMost,
-    Minimize,
-    ToggleMaximize,
-    Close,
-};
 
 enum class UiElementId {
     None,
@@ -46,7 +32,7 @@ enum class UiElementRole {
 struct UiElementMetadata final {
     UiElementId id = UiElementId::None;
     UiElementRole role = UiElementRole::Button;
-    UiCommand command = UiCommand::None;
+    AppAction action = AppAction::None;
     const wchar_t* name = L"";
     const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
@@ -71,7 +57,7 @@ public:
     D2D1_RECT_F Rect() const;
     const UiElementMetadata& Metadata() const;
     UiElementId Id() const;
-    UiCommand Command() const;
+    AppAction Action() const;
     bool Contains(D2D1_POINT_2F point) const;
     virtual void Draw(const UiDrawContext& context, UiElementState state) const;
     UiElement* AddChild(std::unique_ptr<UiElement> child);

@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.29)
 project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
+    src/app.action.cc
     src/app.config.cc
+    src/app.keybindings.cc
     src/image.decoder.cc
     src/image.sequence.cc
     src/image.viewer.cc

@@ -242,9 +242,9 @@ bool ImageViewerController::ResetView()
     return true;
 }
 
-bool ImageViewerController::OnKeyDown(UINT virtual_key)
+bool ImageViewerController::OnActionDown(AppAction action)
 {
-    if (virtual_key == 'R') {
+    if (action == AppAction::RotateClockwise) {
         r_key_is_down_ = true;
         return true;
     }
@@ -252,9 +252,9 @@ bool ImageViewerController::OnKeyDown(UINT virtual_key)
     return false;
 }
 
-ImageViewerEventResult ImageViewerController::OnKeyUp(UINT virtual_key)
+ImageViewerEventResult ImageViewerController::OnActionUp(AppAction action)
 {
-    if (virtual_key == 'R') {
+    if (action == AppAction::RotateClockwise) {
         const bool should_rotate_clockwise = r_key_is_down_ && !r_key_started_rotation_;
         const bool should_release_capture = image_is_rotating_;
         r_key_is_down_ = false;

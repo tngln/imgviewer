@@ -32,7 +32,7 @@ constexpr wchar_t kCloseIcon[] = L"\xE8BB";
 constexpr UiElementMetadata kRootMetadata{
     .id = UiElementId::None,
     .role = UiElementRole::Pane,
-    .command = UiCommand::None,
+    .action = AppAction::None,
     .name = L"ImgViewer",
     .tooltip = L"",
     .automation_id = L"root",
@@ -43,7 +43,7 @@ constexpr UiElementMetadata kRootMetadata{
 constexpr UiElementMetadata kTopMostMetadata{
     .id = UiElementId::TopMost,
     .role = UiElementRole::Button,
-    .command = UiCommand::ToggleTopMost,
+    .action = AppAction::ToggleTopMost,
     .name = L"Top Most",
     .tooltip = L"Keep window on top",
     .automation_id = L"top-most",
@@ -52,7 +52,7 @@ constexpr UiElementMetadata kTopMostMetadata{
 constexpr UiElementMetadata kMinimizeMetadata{
     .id = UiElementId::Minimize,
     .role = UiElementRole::Button,
-    .command = UiCommand::Minimize,
+    .action = AppAction::Minimize,
     .name = L"Minimize",
     .tooltip = L"Minimize",
     .automation_id = L"minimize",
@@ -61,7 +61,7 @@ constexpr UiElementMetadata kMinimizeMetadata{
 constexpr UiElementMetadata kMaximizeMetadata{
     .id = UiElementId::MaximizeRestore,
     .role = UiElementRole::Button,
-    .command = UiCommand::ToggleMaximize,
+    .action = AppAction::ToggleMaximize,
     .name = L"Maximize or Restore",
     .tooltip = L"Maximize or restore",
     .automation_id = L"maximize-restore",
@@ -70,7 +70,7 @@ constexpr UiElementMetadata kMaximizeMetadata{
 constexpr UiElementMetadata kCloseMetadata{
     .id = UiElementId::Close,
     .role = UiElementRole::Button,
-    .command = UiCommand::Close,
+    .action = AppAction::Close,
     .name = L"Close",
     .tooltip = L"Close",
     .automation_id = L"close",
@@ -79,7 +79,7 @@ constexpr UiElementMetadata kCloseMetadata{
 constexpr UiElementMetadata kOpenMetadata{
     .id = UiElementId::OpenImage,
     .role = UiElementRole::Button,
-    .command = UiCommand::OpenImage,
+    .action = AppAction::OpenImage,
     .name = L"Open Image",
     .tooltip = L"Open image",
     .automation_id = L"open-image",
@@ -88,7 +88,7 @@ constexpr UiElementMetadata kOpenMetadata{
 constexpr UiElementMetadata kPreviousMetadata{
     .id = UiElementId::PreviousImage,
     .role = UiElementRole::Button,
-    .command = UiCommand::PreviousImage,
+    .action = AppAction::PreviousImage,
     .name = L"Previous Image",
     .tooltip = L"Previous image",
     .automation_id = L"previous-image",
@@ -97,7 +97,7 @@ constexpr UiElementMetadata kPreviousMetadata{
 constexpr UiElementMetadata kNextMetadata{
     .id = UiElementId::NextImage,
     .role = UiElementRole::Button,
-    .command = UiCommand::NextImage,
+    .action = AppAction::NextImage,
     .name = L"Next Image",
     .tooltip = L"Next image",
     .automation_id = L"next-image",
@@ -106,7 +106,7 @@ constexpr UiElementMetadata kNextMetadata{
 constexpr UiElementMetadata kZoomInMetadata{
     .id = UiElementId::ZoomIn,
     .role = UiElementRole::Button,
-    .command = UiCommand::ZoomIn,
+    .action = AppAction::ZoomIn,
     .name = L"Zoom In",
     .tooltip = L"Zoom in",
     .automation_id = L"zoom-in",
@@ -115,7 +115,7 @@ constexpr UiElementMetadata kZoomInMetadata{
 constexpr UiElementMetadata kZoomOutMetadata{
     .id = UiElementId::ZoomOut,
     .role = UiElementRole::Button,
-    .command = UiCommand::ZoomOut,
+    .action = AppAction::ZoomOut,
     .name = L"Zoom Out",
     .tooltip = L"Zoom out",
     .automation_id = L"zoom-out",
@@ -124,7 +124,7 @@ constexpr UiElementMetadata kZoomOutMetadata{
 constexpr UiElementMetadata kRotateMetadata{
     .id = UiElementId::RotateClockwise,
     .role = UiElementRole::Button,
-    .command = UiCommand::RotateClockwise,
+    .action = AppAction::RotateClockwise,
     .name = L"Rotate Clockwise",
     .tooltip = L"Rotate clockwise",
     .automation_id = L"rotate-clockwise",
@@ -133,7 +133,7 @@ constexpr UiElementMetadata kRotateMetadata{
 constexpr UiElementMetadata kResetMetadata{
     .id = UiElementId::ResetView,
     .role = UiElementRole::Button,
-    .command = UiCommand::ResetView,
+    .action = AppAction::ResetView,
     .name = L"Reset View",
     .tooltip = L"Reset view",
     .automation_id = L"reset-view",
@@ -234,13 +234,13 @@ UiEventResult UiController::OnPointerUp(D2D1_POINT_2F point)
     hovered_button_ = HitTest(point);
     pressed_button_ = UiElementId::None;
 
-    UiCommand command = hovered_button_ == pressed_button ? CommandFor(pressed_button) : UiCommand::None;
+    AppAction action = hovered_button_ == pressed_button ? ActionFor(pressed_button) : AppAction::None;
 
     return UiEventResult{
         .handled = true,
         .needs_render = true,
         .released_capture = true,
-        .command = command,
+        .action = action,
     };
 }
 
@@ -424,10 +424,10 @@ void UiController::ClampToolbarToViewport(D2D1_SIZE_F viewport_size)
     toolbar_rect_ = D2D1::RectF(left, top, left + toolbar_width, top + toolbar_height);
 }
 
-UiCommand UiController::CommandFor(UiElementId id) const
+AppAction UiController::ActionFor(UiElementId id) const
 {
     const UiElementMetadata* metadata = MetadataForElement(id);
-    return metadata != nullptr ? metadata->command : UiCommand::None;
+    return metadata != nullptr ? metadata->action : AppAction::None;
 }
 
 UiElementState UiController::ButtonState(UiElementId id, bool active, bool danger) const

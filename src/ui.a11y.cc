@@ -397,10 +397,10 @@ public:
     {
         const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
-        if (metadata->command == UiCommand::OpenImage) {
+        if (metadata->action == AppAction::OpenImage) {
             PostMessageW(root_->hwnd(), kImgViewerOpenImageMessage, 0, 0);
-        } else if (metadata->command != UiCommand::None) {
-            PostMessageW(root_->hwnd(), kImgViewerUiCommandMessage, static_cast<WPARAM>(metadata->command), 0);
+        } else if (metadata->action != AppAction::None) {
+            PostMessageW(root_->hwnd(), kImgViewerUiActionMessage, static_cast<WPARAM>(metadata->action), 0);
         } else {
             return E_NOTIMPL;
         }

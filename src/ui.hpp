@@ -13,7 +13,7 @@ struct UiEventResult {
     bool needs_render = false;
     bool captured = false;
     bool released_capture = false;
-    UiCommand command = UiCommand::None;
+    AppAction action = AppAction::None;
 };
 
 class UiController final {
@@ -44,7 +44,7 @@ private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
     bool HitTestToolbar(D2D1_POINT_2F point) const;
     void ClampToolbarToViewport(D2D1_SIZE_F viewport_size);
-    UiCommand CommandFor(UiElementId id) const;
+    AppAction ActionFor(UiElementId id) const;
     UiElementState ButtonState(UiElementId id, bool active = false, bool danger = false) const;
     const UiElementMetadata* MetadataForElement(UiElementId id) const;
 

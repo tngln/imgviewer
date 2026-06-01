@@ -3,4 +3,4 @@
 #include <windows.h>
 
 constexpr UINT kImgViewerOpenImageMessage = WM_APP + 1;
-constexpr UINT kImgViewerUiCommandMessage = WM_APP + 2;
+constexpr UINT kImgViewerUiActionMessage = WM_APP + 2;

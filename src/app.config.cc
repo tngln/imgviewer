@@ -57,6 +57,7 @@ HRESULT LoadAppConfig(AppConfig* config)
     RETURN_HR_IF_NULL(E_POINTER, config);
 
     *config = AppConfig{};
+    config->action_bindings = DefaultActionBindings();
     const std::filesystem::path path = ConfigFilePath();
     std::ifstream input(path, std::ios::binary);
     if (!input) {
@@ -77,6 +78,8 @@ HRESULT LoadAppConfig(AppConfig* config)
             config->window_size.height =
                 ReadClampedInt(*window, "height", kDefaultWindowHeight, kMinimumWindowHeight);
         }
+
+        ApplyKeyBindingsConfig(root, &config->action_bindings);
     } catch (const nlohmann::json::exception&) {
         return S_OK;
     }
@@ -96,10 +99,19 @@ HRESULT SaveAppConfig(const AppConfig& config)
     output << "  \"window\": {\n";
     output << "    \"width\": " << (std::max)(kMinimumWindowWidth, config.window_size.width) << ",\n";
     output << "    \"height\": " << (std::max)(kMinimumWindowHeight, config.window_size.height) << "\n";
+    output << "  },\n";
+    output << "  // Optional keyboard overrides. Missing actions keep their defaults.\n";
+    output << "  \"keyBindings\": {\n";
+    output << "    \"previousImage\": [\"Left\"],\n";
+    output << "    \"nextImage\": [\"Right\"],\n";
+    output << "    \"rotateClockwise\": [\"R\"],\n";
+    output << "    \"zoomIn\": [\"Ctrl+=\"],\n";
+    output << "    \"zoomOut\": [\"Ctrl+-\"],\n";
+    output << "    \"resetView\": [\"Ctrl+0\"],\n";
+    output << "    \"openImage\": [\"Ctrl+O\"]\n";
     output << "  }\n";
     output << "}\n";
 
     RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_WRITE_FAULT), !output);
     return S_OK;
 }
-
