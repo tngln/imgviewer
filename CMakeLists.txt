@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.29)
 project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
+    src/app.config.cc
     src/image.decoder.cc
     src/image.sequence.cc
     src/image.viewer.cc
@@ -21,6 +22,7 @@ add_executable(imgviewer
 
 target_include_directories(imgviewer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/nlohmann_json/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/wil/include"
 )
 

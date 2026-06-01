@@ -1,5 +1,6 @@
 #include "main.hpp"
 #include "app.messages.hpp"
+#include "app.config.hpp"
 #include "image.sequence.hpp"
 #include "image.viewer.hpp"
 #include "math.hpp"
@@ -34,6 +35,7 @@ struct AppContext final {
     UiController ui;
     ImageViewerController viewer;
     ImageSequence sequence;
+    AppConfig config;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
 };
@@ -154,6 +156,22 @@ void SyncWindowState(HWND hwnd, UiController* ui)
     if (ui != nullptr) {
         ui->SetWindowState(util::IsWindowTopMost(hwnd), IsZoomed(hwnd));
     }
+}
+
+void SaveWindowSize(HWND hwnd, AppContext* context)
+{
+    if (context == nullptr || !context->config.remember_window_size || IsIconic(hwnd) || IsZoomed(hwnd)) {
+        return;
+    }
+
+    RECT window_rect = {};
+    if (!GetWindowRect(hwnd, &window_rect)) {
+        return;
+    }
+
+    context->config.window_size.width = static_cast<int>(window_rect.right - window_rect.left);
+    context->config.window_size.height = static_cast<int>(window_rect.bottom - window_rect.top);
+    SaveAppConfig(context->config);
 }
 
 void ExecuteUiCommand(HWND hwnd, AppContext* context, UiCommand command)
@@ -609,6 +627,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_DESTROY:
+        SaveWindowSize(hwnd, GetAppContext(hwnd));
         PostQuitMessage(0);
         return 0;
 
@@ -652,6 +671,9 @@ HRESULT RunApplicationAsHresult()
     RETURN_IF_FAILED(RegisterMainWindowClass(instance));
 
     AppContext context;
+    RETURN_IF_FAILED(LoadAppConfig(&context.config));
+    const WindowSizeConfig initial_window_size =
+        context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
     wil::unique_hwnd window{CreateWindowExW(
         0,
         kWindowClassName,
@@ -659,8 +681,8 @@ HRESULT RunApplicationAsHresult()
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        960,
-        640,
+        initial_window_size.width,
+        initial_window_size.height,
         nullptr,
         nullptr,
         instance,
