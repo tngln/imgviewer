@@ -9,13 +9,6 @@
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
 
-namespace {
-
-constexpr wchar_t kBodyText[] = L"D2D + DirectWrite text rendering";
-constexpr wchar_t kIconText[] = L"\xE921  \xE922  \xE8BB";
-
-} // namespace
-
 HRESULT Renderer::Initialize(HWND hwnd)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, hwnd);
@@ -287,28 +280,9 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
 
     const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd_);
     const D2D1_SIZE_F size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height());
-    const float width = size.width;
     const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
     const D2D1_MATRIX_3X2_F root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y);
     d2d_context_->SetTransform(root_transform);
-    draw.DrawBodyText(
-        kBodyText,
-        ARRAYSIZE(kBodyText) - 1,
-        math::StableRect(
-            ui_theme::metrics::kPanelPadding,
-            ui_theme::metrics::kBodyTextTop,
-            width - ui_theme::metrics::kPanelPadding,
-            ui_theme::metrics::kBodyTextBottom),
-        ui_theme::color::kMutedText);
-    draw.DrawIconText(
-        kIconText,
-        ARRAYSIZE(kIconText) - 1,
-        math::StableRect(
-            ui_theme::metrics::kPanelPadding,
-            ui_theme::metrics::kIconTextTop,
-            width - ui_theme::metrics::kPanelPadding,
-            ui_theme::metrics::kIconTextBottom),
-        ui_theme::color::kAccent);
     ui.Draw(d2d_context_.get(), size, dwrite_factory_.get(), body_text_format_.get(), icon_text_format_.get());
 
     RETURN_IF_FAILED(d2d_context_->EndDraw());
