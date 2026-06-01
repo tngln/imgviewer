@@ -1,5 +1,6 @@
 #include "main.hpp"
 #include "app.messages.hpp"
+#include "image.sequence.hpp"
 #include "image.viewer.hpp"
 #include "math.hpp"
 #include "renderer.hpp"
@@ -15,6 +16,7 @@
 #include <imm.h>
 #include <shellapi.h>
 #include <shobjidl.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -32,6 +34,7 @@ struct AppContext final {
     Renderer renderer;
     UiController ui;
     ImageViewerController viewer;
+    ImageSequence sequence;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
 };
@@ -253,14 +256,40 @@ void LoadImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
         return;
     }
 
+    const HRESULT sequence_hr = context->sequence.SetCurrentPath(path);
+    if (FAILED(sequence_hr)) {
+        MessageBoxW(hwnd, L"Could not read the image folder.", kWindowTitle, MB_OK | MB_ICONWARNING);
+    }
+
     const std::wstring file_name = FileNameFromPath(path);
+    const ImageSequencePosition position = context->sequence.Position();
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
+    wchar_t position_text[64] = {};
+    if (position.total > 0) {
+        swprintf_s(position_text, L" (%zu/%zu)", position.index, position.total);
+    }
+
     wchar_t resolution_text[64] = {};
     swprintf_s(resolution_text, L"  %ux%u", image_size.width, image_size.height);
-    const std::wstring title_text = file_name + resolution_text;
+    const std::wstring title_text = file_name + position_text + resolution_text;
     context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     RenderApplication(context);
+}
+
+bool NavigateImageFile(HWND hwnd, AppContext* context, int direction)
+{
+    if (context == nullptr) {
+        return false;
+    }
+
+    const std::optional<std::wstring> path = direction < 0 ? context->sequence.Previous() : context->sequence.Next();
+    if (!path) {
+        return false;
+    }
+
+    LoadImageFile(hwnd, context, path->c_str());
+    return true;
 }
 
 HRESULT PickImageFile(HWND hwnd, std::wstring* path)
@@ -576,6 +605,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
         AppContext* context = GetAppContext(hwnd);
+        if (wparam == VK_LEFT || wparam == VK_RIGHT) {
+            NavigateImageFile(hwnd, context, wparam == VK_LEFT ? -1 : 1);
+            return 0;
+        }
         if (context != nullptr && context->viewer.OnKeyDown(static_cast<UINT>(wparam))) {
             return 0;
         }

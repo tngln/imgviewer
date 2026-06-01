@@ -4,6 +4,7 @@ project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
     src/image.decoder.cc
+    src/image.sequence.cc
     src/image.viewer.cc
     src/main.cc
     src/renderer.cc
@@ -60,6 +61,7 @@ target_link_libraries(imgviewer PRIVATE
     dxgi
     ole32
     shell32
+    shlwapi
     uiautomationcore
     user32
     windowscodecs
