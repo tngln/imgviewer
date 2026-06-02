@@ -4,7 +4,6 @@
 #include <dwrite.h>
 #include <cstddef>
 #include <memory>
-#include <vector>
 
 #include "ui.element.hpp"
 #include "ui.events.hpp"
@@ -46,8 +45,6 @@ public:
 
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
-    AppAction ActionFor(UiElementId id) const;
-    bool IsActionEnabled(AppAction action) const;
     const UiElementMetadata* MetadataForElement(UiElementId id) const;
     UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
     UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
@@ -59,5 +56,4 @@ private:
     UiElementId pressed_id_ = UiElementId::None;
     UiElementId focused_id_ = UiElementId::None;
     UiElementId captured_id_ = UiElementId::None;
-    std::vector<AppAction> disabled_actions_;
 };

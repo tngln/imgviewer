@@ -7,6 +7,7 @@
 #include <dwrite.h>
 
 #include "ui.button.hpp"
+#include "ui.events.hpp"
 
 struct ImageViewerUiState final {
     UiElementId hovered = UiElementId::None;
@@ -27,16 +28,17 @@ public:
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format,
         ImageViewerUiState state);
+    UiEventResult OnPointerEvent(const UiPointerEvent& event);
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
-    void BeginToolbarDrag(D2D1_POINT_2F point);
-    void DragToolbar(D2D1_POINT_2F point);
-    void EndToolbarDrag();
-    bool IsToolbarDragging() const;
     void SetTitleText(const wchar_t* title);
     void SetWindowState(bool top_most, bool maximized);
 
 private:
     void Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_factory, IDWriteTextFormat* body_text_format);
+    UiEventResult OnToolbarDragHandlePointerEvent(const UiPointerEvent& event);
+    void BeginToolbarDrag(D2D1_POINT_2F point);
+    void DragToolbar(D2D1_POINT_2F point);
+    void EndToolbarDrag();
     void ClampToolbarToViewport(D2D1_SIZE_F viewport_size);
     UiElementState ButtonState(UiElementId id, ImageViewerUiState state, bool active = false, bool danger = false) const;
 

@@ -12,22 +12,8 @@ struct UiEventResult;
 struct UiKeyEvent;
 struct UiPointerEvent;
 
-enum class UiElementId {
-    None,
-    ToolbarDragHandle,
-    OpenImage,
-    PreviousImage,
-    NextImage,
-    ZoomIn,
-    ZoomOut,
-    RotateClockwise,
-    FlipHorizontal,
-    FlipVertical,
-    ResetView,
-    TopMost,
-    Minimize,
-    MaximizeRestore,
-    Close,
+enum class UiElementId : int {
+    None = 0,
 };
 
 enum class UiElementRole {

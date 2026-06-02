@@ -1,18 +1,12 @@
 #include "ui.hpp"
 
-#include <algorithm>
 #include <memory>
-#include <vector>
 
 #include <d2d1helper.h>
 
 #include "image.viewer.ui.hpp"
 
-UiController::UiController() : app_ui_(std::make_unique<ImageViewerUi>())
-{
-    SetActionEnabled(AppAction::PreviousImage, false);
-    SetActionEnabled(AppAction::NextImage, false);
-}
+UiController::UiController() : app_ui_(std::make_unique<ImageViewerUi>()) {}
 
 UiController::~UiController() = default;
 
@@ -100,39 +94,17 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     const UiElementId was_hovered = hovered_id_;
     hovered_id_ = hit_id;
 
-    if (target_id == UiElementId::ToolbarDragHandle) {
-        if (event.type == UiEventType::PointerDown && event.button == UiPointerButton::Left) {
-            app_ui_->BeginToolbarDrag(event.point);
-            return UiEventResult{
-                .handled = true,
-                .capture = UiCaptureRequest::Capture,
-                .focus_target = UiElementId::ToolbarDragHandle,
-            };
-        }
+    UiPointerEvent target_event = event;
+    target_event.target = hit_id;
+    target_event.captured = captured_id_;
 
-        if (event.type == UiEventType::PointerMove && app_ui_->IsToolbarDragging()) {
-            app_ui_->DragToolbar(event.point);
-            return UiEventResult{
-                .handled = true,
-                .needs_render = true,
-            };
-        }
-
-        if (event.type == UiEventType::PointerUp && app_ui_->IsToolbarDragging()) {
-            app_ui_->EndToolbarDrag();
-            return UiEventResult{
-                .handled = true,
-                .needs_render = true,
-                .capture = UiCaptureRequest::Release,
-            };
-        }
+    UiEventResult result = app_ui_->OnPointerEvent(target_event);
+    if (result.handled) {
+        result.needs_render = result.needs_render || was_hovered != hovered_id_;
+        return result;
     }
 
-    UiEventResult result = {};
     if (UiElement* target = app_ui_->Root()->FindById(target_id)) {
-        UiPointerEvent target_event = event;
-        target_event.target = hit_id;
-        target_event.captured = captured_id_;
         result = target->OnPointerEvent(target_event);
     }
 
@@ -205,25 +177,6 @@ UiElementId UiController::HitTest(D2D1_POINT_2F point) const
     return hit_element != nullptr ? hit_element->Id() : UiElementId::None;
 }
 
-AppAction UiController::ActionFor(UiElementId id) const
-{
-    const UiElementMetadata* metadata = MetadataForElement(id);
-    if (metadata == nullptr || !IsActionEnabled(metadata->action)) {
-        return AppAction::None;
-    }
-
-    return metadata->action;
-}
-
-bool UiController::IsActionEnabled(AppAction action) const
-{
-    if (action == AppAction::None) {
-        return false;
-    }
-
-    return std::find(disabled_actions_.begin(), disabled_actions_.end(), action) == disabled_actions_.end();
-}
-
 const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 {
     const UiElement* root = app_ui_->Root();
@@ -275,13 +228,6 @@ void UiController::SetActionEnabled(AppAction action, bool enabled)
 {
     if (action == AppAction::None) {
         return;
-    }
-
-    const auto existing = std::find(disabled_actions_.begin(), disabled_actions_.end(), action);
-    if (enabled && existing != disabled_actions_.end()) {
-        disabled_actions_.erase(existing);
-    } else if (!enabled && existing == disabled_actions_.end()) {
-        disabled_actions_.push_back(action);
     }
 
     SetActionEnabledRecursive(app_ui_->Root(), action, enabled);
