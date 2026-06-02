@@ -1,24 +1,31 @@
-#include "app.dialog.hpp"
+#include "win32.dialog.hpp"
 
 #include <shobjidl.h>
+
+#include <vector>
 
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
-HRESULT PickImageFile(HWND hwnd, std::wstring* path)
+namespace win32 {
+
+HRESULT OpenNativeFileDialog(HWND hwnd, const NativeOpenFileDialogOptions& options, std::wstring* path)
 {
     RETURN_HR_IF_NULL(E_POINTER, path);
 
     wil::com_ptr<IFileOpenDialog> dialog;
     RETURN_IF_FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put())));
 
-    constexpr COMDLG_FILTERSPEC filters[] = {
-        {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.tif;*.tiff;*.webp"},
-        {L"All files", L"*.*"},
-    };
-    RETURN_IF_FAILED(dialog->SetFileTypes(ARRAYSIZE(filters), filters));
-    RETURN_IF_FAILED(dialog->SetFileTypeIndex(1));
+    if (!options.filters.empty()) {
+        std::vector<COMDLG_FILTERSPEC> filters;
+        filters.reserve(options.filters.size());
+        for (const NativeFileDialogFilter& filter : options.filters) {
+            filters.push_back({filter.name, filter.pattern});
+        }
+        RETURN_IF_FAILED(dialog->SetFileTypes(static_cast<UINT>(filters.size()), filters.data()));
+        RETURN_IF_FAILED(dialog->SetFileTypeIndex(options.default_filter_index));
+    }
 
     const HRESULT show_result = dialog->Show(hwnd);
     if (show_result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
@@ -34,3 +41,5 @@ HRESULT PickImageFile(HWND hwnd, std::wstring* path)
     *path = file_path.get();
     return S_OK;
 }
+
+} // namespace win32

@@ -1,14 +1,12 @@
 #include "app.hpp"
 
-#include <cwchar>
 #include <optional>
 #include <string>
 
 #include <wil/result_macros.h>
 
-#include "app.dialog.hpp"
-#include "app.messages.hpp"
 #include "path.util.hpp"
+#include "win32.dialog.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -199,8 +197,13 @@ bool NavigateAppImageFile(HWND hwnd, AppContext* context, int direction)
 
 void HandleOpenImageCommand(HWND hwnd, AppContext* context)
 {
+    constexpr win32::NativeFileDialogFilter filters[] = {
+        {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.tif;*.tiff;*.webp"},
+        {L"All files", L"*.*"},
+    };
+
     std::wstring path;
-    const HRESULT hr = PickImageFile(hwnd, &path);
+    const HRESULT hr = win32::OpenNativeFileDialog(hwnd, {filters, 1}, &path);
     if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
         return;
     }

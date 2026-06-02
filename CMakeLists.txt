@@ -6,7 +6,6 @@ add_executable(imgviewer
     src/app.cc
     src/app.action.cc
     src/app.config.cc
-    src/app.dialog.cc
     src/app.host.cc
     src/app.keybindings.cc
     src/image.decoder.cc
@@ -24,6 +23,7 @@ add_executable(imgviewer
     src/ui.text.cc
     src/ui.tooltip.cc
     src/ui.cc
+    src/win32.dialog.cc
     src/win32.util.cc
 )
 
