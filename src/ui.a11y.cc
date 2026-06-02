@@ -20,7 +20,6 @@
 namespace {
 
 constexpr wchar_t kRootName[] = L"ImgViewer";
-constexpr int kRootRuntimeId = 1;
 
 SAFEARRAY* MakeRuntimeId(int local_id)
 {
@@ -172,7 +171,7 @@ public:
     IFACEMETHODIMP GetRuntimeId(SAFEARRAY** runtime_id) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, runtime_id);
-        *runtime_id = MakeRuntimeId(kRootRuntimeId);
+        *runtime_id = MakeRuntimeId(UiElementRuntimeId(UiElementId::None));
         RETURN_IF_NULL_ALLOC(*runtime_id);
         return S_OK;
     }
@@ -351,7 +350,7 @@ public:
         RETURN_HR_IF_NULL(E_POINTER, runtime_id);
         const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
-        *runtime_id = MakeRuntimeId(metadata->runtime_id);
+        *runtime_id = MakeRuntimeId(UiElementRuntimeId(metadata->id));
         RETURN_IF_NULL_ALLOC(*runtime_id);
         return S_OK;
     }

@@ -27,184 +27,106 @@ constexpr wchar_t kMaximizeIcon[] = L"\xE922";
 constexpr wchar_t kRestoreIcon[] = L"\xE923";
 constexpr wchar_t kCloseIcon[] = L"\xE8BB";
 
-constexpr UiElementId kToolbarDragHandleId = static_cast<UiElementId>(1);
-constexpr UiElementId kTopMostId = static_cast<UiElementId>(2);
-constexpr UiElementId kMinimizeId = static_cast<UiElementId>(3);
-constexpr UiElementId kMaximizeRestoreId = static_cast<UiElementId>(4);
-constexpr UiElementId kCloseId = static_cast<UiElementId>(5);
-constexpr UiElementId kPreviousImageId = static_cast<UiElementId>(6);
-constexpr UiElementId kNextImageId = static_cast<UiElementId>(7);
-constexpr UiElementId kZoomInId = static_cast<UiElementId>(8);
-constexpr UiElementId kZoomOutId = static_cast<UiElementId>(9);
-constexpr UiElementId kRotateClockwiseId = static_cast<UiElementId>(10);
-constexpr UiElementId kResetViewId = static_cast<UiElementId>(11);
-constexpr UiElementId kFlipHorizontalId = static_cast<UiElementId>(12);
-constexpr UiElementId kFlipVerticalId = static_cast<UiElementId>(13);
-
-constexpr UiElementMetadata kRootMetadata{
-    .id = UiElementId::None,
-    .role = UiElementRole::Pane,
-    .action = AppAction::None,
-    .name = L"ImgViewer",
-    .tooltip = L"",
-    .automation_id = L"root",
-    .runtime_id = 1,
-    .is_control = true,
-    .is_content = true,
-};
-constexpr UiElementMetadata kToolbarDragHandleMetadata{
-    .id = kToolbarDragHandleId,
-    .role = UiElementRole::Pane,
-    .action = AppAction::None,
-    .name = L"Toolbar drag handle",
-    .tooltip = L"",
-    .automation_id = L"toolbar-drag-handle",
-    .runtime_id = 6,
-    .is_control = false,
-    .is_content = false,
-};
-constexpr UiElementMetadata kTopMostMetadata{
-    .id = kTopMostId,
-    .role = UiElementRole::Button,
-    .action = AppAction::ToggleTopMost,
-    .name = L"Top Most",
-    .tooltip = L"Keep window on top",
-    .automation_id = L"top-most",
-    .runtime_id = 2,
-};
-constexpr UiElementMetadata kMinimizeMetadata{
-    .id = kMinimizeId,
-    .role = UiElementRole::Button,
-    .action = AppAction::Minimize,
-    .name = L"Minimize",
-    .tooltip = L"Minimize",
-    .automation_id = L"minimize",
-    .runtime_id = 3,
-};
-constexpr UiElementMetadata kMaximizeMetadata{
-    .id = kMaximizeRestoreId,
-    .role = UiElementRole::Button,
-    .action = AppAction::ToggleMaximize,
-    .name = L"Maximize or Restore",
-    .tooltip = L"Maximize or restore",
-    .automation_id = L"maximize-restore",
-    .runtime_id = 4,
-};
-constexpr UiElementMetadata kCloseMetadata{
-    .id = kCloseId,
-    .role = UiElementRole::Button,
-    .action = AppAction::Close,
-    .name = L"Close",
-    .tooltip = L"Close",
-    .automation_id = L"close",
-    .runtime_id = 5,
-};
-constexpr UiElementMetadata kPreviousMetadata{
-    .id = kPreviousImageId,
-    .role = UiElementRole::Button,
-    .action = AppAction::PreviousImage,
-    .name = L"Previous Image",
-    .tooltip = L"Previous image",
-    .automation_id = L"previous-image",
-    .runtime_id = 7,
-};
-constexpr UiElementMetadata kNextMetadata{
-    .id = kNextImageId,
-    .role = UiElementRole::Button,
-    .action = AppAction::NextImage,
-    .name = L"Next Image",
-    .tooltip = L"Next image",
-    .automation_id = L"next-image",
-    .runtime_id = 8,
-};
-constexpr UiElementMetadata kZoomInMetadata{
-    .id = kZoomInId,
-    .role = UiElementRole::Button,
-    .action = AppAction::ZoomIn,
-    .name = L"Zoom In",
-    .tooltip = L"Zoom in",
-    .automation_id = L"zoom-in",
-    .runtime_id = 9,
-};
-constexpr UiElementMetadata kZoomOutMetadata{
-    .id = kZoomOutId,
-    .role = UiElementRole::Button,
-    .action = AppAction::ZoomOut,
-    .name = L"Zoom Out",
-    .tooltip = L"Zoom out",
-    .automation_id = L"zoom-out",
-    .runtime_id = 10,
-};
-constexpr UiElementMetadata kRotateMetadata{
-    .id = kRotateClockwiseId,
-    .role = UiElementRole::Button,
-    .action = AppAction::RotateClockwise,
-    .name = L"Rotate Clockwise",
-    .tooltip = L"Rotate clockwise",
-    .automation_id = L"rotate-clockwise",
-    .runtime_id = 11,
-};
-constexpr UiElementMetadata kResetMetadata{
-    .id = kResetViewId,
-    .role = UiElementRole::Button,
-    .action = AppAction::ResetView,
-    .name = L"Reset View",
-    .tooltip = L"Reset view",
-    .automation_id = L"reset-view",
-    .runtime_id = 12,
-};
-constexpr UiElementMetadata kFlipHorizontalMetadata{
-    .id = kFlipHorizontalId,
-    .role = UiElementRole::Button,
-    .action = AppAction::FlipHorizontal,
-    .name = L"Flip Horizontal",
-    .tooltip = L"Flip horizontal",
-    .automation_id = L"flip-horizontal",
-    .runtime_id = 13,
-};
-constexpr UiElementMetadata kFlipVerticalMetadata{
-    .id = kFlipVerticalId,
-    .role = UiElementRole::Button,
-    .action = AppAction::FlipVertical,
-    .name = L"Flip Vertical",
-    .tooltip = L"Flip vertical",
-    .automation_id = L"flip-vertical",
-    .runtime_id = 14,
-};
+UiElementMetadata Metadata(
+    UiElementId id,
+    UiElementRole role,
+    AppAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control = true,
+    bool is_content = true)
+{
+    return UiElementMetadata{
+        .id = id,
+        .role = role,
+        .action = action,
+        .name = name,
+        .tooltip = tooltip,
+        .automation_id = automation_id,
+        .is_control = is_control,
+        .is_content = is_content,
+    };
+}
 
 } // namespace
 
-ImageViewerUi::ImageViewerUi() : root_(std::make_unique<UiElement>(kRootMetadata))
+ImageViewerUi::ImageViewerUi() :
+    root_(std::make_unique<UiElement>(
+        Metadata(UiElementId::None, UiElementRole::Pane, AppAction::None, L"ImgViewer", L"", L"root")))
 {
+    UiElementIdGenerator ids;
+    top_most_id_ = ids.Next();
+    minimize_id_ = ids.Next();
+    maximize_restore_id_ = ids.Next();
+    close_id_ = ids.Next();
+    previous_image_id_ = ids.Next();
+    next_image_id_ = ids.Next();
+    zoom_in_id_ = ids.Next();
+    zoom_out_id_ = ids.Next();
+    rotate_clockwise_id_ = ids.Next();
+    reset_view_id_ = ids.Next();
+    flip_horizontal_id_ = ids.Next();
+    flip_vertical_id_ = ids.Next();
+    toolbar_drag_handle_id_ = ids.Next();
+
     top_most_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kTopMostMetadata, kTopMostIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(top_most_id_, UiElementRole::Button, AppAction::ToggleTopMost, L"Top Most", L"Keep window on top", L"top-most"),
+            kTopMostIcon)));
     minimize_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMinimizeMetadata, kMinimizeIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(minimize_id_, UiElementRole::Button, AppAction::Minimize, L"Minimize", L"Minimize", L"minimize"),
+            kMinimizeIcon)));
     maximize_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMaximizeMetadata, kMaximizeIcon)));
-    close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kCloseMetadata, kCloseIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(maximize_restore_id_, UiElementRole::Button, AppAction::ToggleMaximize, L"Maximize or Restore", L"Maximize or restore", L"maximize-restore"),
+            kMaximizeIcon)));
+    close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+        Metadata(close_id_, UiElementRole::Button, AppAction::Close, L"Close", L"Close", L"close"),
+        kCloseIcon)));
     previous_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kPreviousMetadata, kPreviousIcon)));
-    next_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kNextMetadata, kNextIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(previous_image_id_, UiElementRole::Button, AppAction::PreviousImage, L"Previous Image", L"Previous image", L"previous-image"),
+            kPreviousIcon)));
+    next_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+        Metadata(next_image_id_, UiElementRole::Button, AppAction::NextImage, L"Next Image", L"Next image", L"next-image"),
+        kNextIcon)));
     zoom_in_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kZoomInMetadata, kZoomInIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(zoom_in_id_, UiElementRole::Button, AppAction::ZoomIn, L"Zoom In", L"Zoom in", L"zoom-in"),
+            kZoomInIcon)));
     zoom_out_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kZoomOutMetadata, kZoomOutIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(zoom_out_id_, UiElementRole::Button, AppAction::ZoomOut, L"Zoom Out", L"Zoom out", L"zoom-out"),
+            kZoomOutIcon)));
     rotate_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kRotateMetadata, kRotateIcon)));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(rotate_clockwise_id_, UiElementRole::Button, AppAction::RotateClockwise, L"Rotate Clockwise", L"Rotate clockwise", L"rotate-clockwise"),
+            kRotateIcon)));
     flip_horizontal_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
-        kFlipHorizontalMetadata,
+        Metadata(flip_horizontal_id_, UiElementRole::Button, AppAction::FlipHorizontal, L"Flip Horizontal", L"Flip horizontal", L"flip-horizontal"),
         icons::kFlipHorizontalIconPath,
         ARRAYSIZE(icons::kFlipHorizontalIconPath),
         icons::kToolbarIconViewport)));
     flip_vertical_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
-        kFlipVerticalMetadata,
+        Metadata(flip_vertical_id_, UiElementRole::Button, AppAction::FlipVertical, L"Flip Vertical", L"Flip vertical", L"flip-vertical"),
         icons::kFlipVerticalIconPath,
         ARRAYSIZE(icons::kFlipVerticalIconPath),
         icons::kToolbarIconViewport)));
     reset_button_ =
-        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kResetMetadata, kResetIcon)));
-    toolbar_drag_handle_ = root_->AddChild(std::make_unique<UiElement>(kToolbarDragHandleMetadata));
+        static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+            Metadata(reset_view_id_, UiElementRole::Button, AppAction::ResetView, L"Reset View", L"Reset view", L"reset-view"),
+            kResetIcon)));
+    toolbar_drag_handle_ = root_->AddChild(std::make_unique<UiElement>(Metadata(
+        toolbar_drag_handle_id_,
+        UiElementRole::Pane,
+        AppAction::None,
+        L"Toolbar drag handle",
+        L"",
+        L"toolbar-drag-handle",
+        false,
+        false)));
     previous_button_->SetEnabled(false);
     next_button_->SetEnabled(false);
 }
@@ -265,10 +187,10 @@ void ImageViewerUi::Draw(
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
 
-    top_most_button_->Draw(draw_context, ButtonState(kTopMostId, state, top_most_));
-    minimize_button_->Draw(draw_context, ButtonState(kMinimizeId, state));
-    maximize_button_->Draw(draw_context, ButtonState(kMaximizeRestoreId, state));
-    close_button_->Draw(draw_context, ButtonState(kCloseId, state, false, true));
+    top_most_button_->Draw(draw_context, ButtonState(top_most_id_, state, top_most_));
+    minimize_button_->Draw(draw_context, ButtonState(minimize_id_, state));
+    maximize_button_->Draw(draw_context, ButtonState(maximize_restore_id_, state));
+    close_button_->Draw(draw_context, ButtonState(close_id_, state, false, true));
 
     const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
         toolbar_rect_,
@@ -282,14 +204,14 @@ void ImageViewerUi::Draw(
             ui_theme::color::kToolbarBackground.b,
             ui_theme::color::kToolbarBackgroundOpacity));
     draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, 1.0f);
-    previous_button_->Draw(draw_context, ButtonState(kPreviousImageId, state));
-    next_button_->Draw(draw_context, ButtonState(kNextImageId, state));
-    zoom_in_button_->Draw(draw_context, ButtonState(kZoomInId, state));
-    zoom_out_button_->Draw(draw_context, ButtonState(kZoomOutId, state));
-    rotate_button_->Draw(draw_context, ButtonState(kRotateClockwiseId, state));
-    flip_horizontal_button_->Draw(draw_context, ButtonState(kFlipHorizontalId, state));
-    flip_vertical_button_->Draw(draw_context, ButtonState(kFlipVerticalId, state));
-    reset_button_->Draw(draw_context, ButtonState(kResetViewId, state));
+    previous_button_->Draw(draw_context, ButtonState(previous_image_id_, state));
+    next_button_->Draw(draw_context, ButtonState(next_image_id_, state));
+    zoom_in_button_->Draw(draw_context, ButtonState(zoom_in_id_, state));
+    zoom_out_button_->Draw(draw_context, ButtonState(zoom_out_id_, state));
+    rotate_button_->Draw(draw_context, ButtonState(rotate_clockwise_id_, state));
+    flip_horizontal_button_->Draw(draw_context, ButtonState(flip_horizontal_id_, state));
+    flip_vertical_button_->Draw(draw_context, ButtonState(flip_vertical_id_, state));
+    reset_button_->Draw(draw_context, ButtonState(reset_view_id_, state));
 }
 
 bool ImageViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
@@ -301,7 +223,7 @@ bool ImageViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 
 UiEventResult ImageViewerUi::OnPointerEvent(const UiPointerEvent& event)
 {
-    if (event.target != kToolbarDragHandleId && event.captured != kToolbarDragHandleId) {
+    if (event.target != toolbar_drag_handle_id_ && event.captured != toolbar_drag_handle_id_) {
         return {};
     }
 
@@ -315,7 +237,7 @@ UiEventResult ImageViewerUi::OnToolbarDragHandlePointerEvent(const UiPointerEven
         return UiEventResult{
             .handled = true,
             .capture = UiCaptureRequest::Capture,
-            .focus_target = kToolbarDragHandleId,
+            .focus_target = toolbar_drag_handle_id_,
         };
     }
 

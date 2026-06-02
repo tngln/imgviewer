@@ -39,7 +39,7 @@ void UpdateUiTooltipRects(HWND hwnd, AppContext* context)
         TTTOOLINFOW tool_info = {};
         tool_info.cbSize = kTooltipToolInfoSize;
         tool_info.hwnd = hwnd;
-        tool_info.uId = static_cast<UINT_PTR>(metadata->runtime_id);
+        tool_info.uId = static_cast<UINT_PTR>(UiElementRuntimeId(metadata->id));
         tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
         SendMessageW(context->tooltip.get(), TTM_NEWTOOLRECTW, 0, reinterpret_cast<LPARAM>(&tool_info));
     }
@@ -87,7 +87,7 @@ HRESULT InitializeUiTooltips(HWND hwnd, AppContext* context)
         tool_info.cbSize = kTooltipToolInfoSize;
         tool_info.uFlags = TTF_SUBCLASS;
         tool_info.hwnd = hwnd;
-        tool_info.uId = static_cast<UINT_PTR>(metadata->runtime_id);
+        tool_info.uId = static_cast<UINT_PTR>(UiElementRuntimeId(metadata->id));
         tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
         tool_info.lpszText = const_cast<LPWSTR>(metadata->tooltip);
         if (SendMessageW(context->tooltip.get(), TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool_info)) == FALSE) {

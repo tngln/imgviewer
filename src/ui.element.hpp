@@ -16,6 +16,24 @@ enum class UiElementId : int {
     None = 0,
 };
 
+constexpr int UiElementIdValue(UiElementId id)
+{
+    return static_cast<int>(id);
+}
+
+constexpr int UiElementRuntimeId(UiElementId id)
+{
+    return UiElementIdValue(id);
+}
+
+class UiElementIdGenerator final {
+public:
+    UiElementId Next();
+
+private:
+    int next_id_ = UiElementIdValue(UiElementId::None) + 1;
+};
+
 enum class UiElementRole {
     Button,
     Text,
@@ -29,7 +47,6 @@ struct UiElementMetadata final {
     const wchar_t* name = L"";
     const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
-    int runtime_id = 0;
     bool is_control = true;
     bool is_content = true;
 };

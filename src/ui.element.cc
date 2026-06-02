@@ -4,6 +4,11 @@
 
 #include "ui.events.hpp"
 
+UiElementId UiElementIdGenerator::Next()
+{
+    return static_cast<UiElementId>(next_id_++);
+}
+
 UiElement::UiElement(UiElementMetadata metadata) : metadata_(metadata) {}
 
 void UiElement::SetRect(D2D1_RECT_F rect)
