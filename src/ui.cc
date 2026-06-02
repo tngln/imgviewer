@@ -15,8 +15,6 @@
 
 namespace {
 
-constexpr wchar_t kOpenIcon[] = L"\xE8E5";
-constexpr wchar_t kOpenText[] = L"Open Image";
 constexpr wchar_t kPreviousIcon[] = L"\xE892";
 constexpr wchar_t kNextIcon[] = L"\xE893";
 constexpr wchar_t kZoomInIcon[] = L"\xE8A3";
@@ -76,15 +74,6 @@ constexpr UiElementMetadata kCloseMetadata{
     .automation_id = L"close",
     .runtime_id = 5,
 };
-constexpr UiElementMetadata kOpenMetadata{
-    .id = UiElementId::OpenImage,
-    .role = UiElementRole::Button,
-    .action = AppAction::OpenImage,
-    .name = L"Open Image",
-    .tooltip = L"Open image",
-    .automation_id = L"open-image",
-    .runtime_id = 6,
-};
 constexpr UiElementMetadata kPreviousMetadata{
     .id = UiElementId::PreviousImage,
     .role = UiElementRole::Button,
@@ -139,6 +128,24 @@ constexpr UiElementMetadata kResetMetadata{
     .automation_id = L"reset-view",
     .runtime_id = 12,
 };
+constexpr UiElementMetadata kFlipHorizontalMetadata{
+    .id = UiElementId::FlipHorizontal,
+    .role = UiElementRole::Button,
+    .action = AppAction::FlipHorizontal,
+    .name = L"Flip Horizontal",
+    .tooltip = L"Flip horizontal",
+    .automation_id = L"flip-horizontal",
+    .runtime_id = 13,
+};
+constexpr UiElementMetadata kFlipVerticalMetadata{
+    .id = UiElementId::FlipVertical,
+    .role = UiElementRole::Button,
+    .action = AppAction::FlipVertical,
+    .name = L"Flip Vertical",
+    .tooltip = L"Flip vertical",
+    .automation_id = L"flip-vertical",
+    .runtime_id = 14,
+};
 } // namespace
 
 UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
@@ -150,7 +157,6 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
     maximize_button_ =
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kMaximizeMetadata, kMaximizeIcon)));
     close_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kCloseMetadata, kCloseIcon)));
-    open_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(kOpenMetadata, kOpenIcon, kOpenText)));
     previous_button_ =
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kPreviousMetadata, kPreviousIcon)));
     next_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kNextMetadata, kNextIcon)));
@@ -160,6 +166,16 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kZoomOutMetadata, kZoomOutIcon)));
     rotate_button_ =
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kRotateMetadata, kRotateIcon)));
+    flip_horizontal_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+        kFlipHorizontalMetadata,
+        icons::kFlipHorizontalIconPath,
+        ARRAYSIZE(icons::kFlipHorizontalIconPath),
+        icons::kToolbarIconViewport)));
+    flip_vertical_button_ = static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(
+        kFlipVerticalMetadata,
+        icons::kFlipVerticalIconPath,
+        ARRAYSIZE(icons::kFlipVerticalIconPath),
+        icons::kToolbarIconViewport)));
     reset_button_ =
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kResetMetadata, kResetIcon)));
 }
@@ -305,7 +321,6 @@ void UiController::Draw(
     minimize_button_->Draw(draw_context, ButtonState(UiElementId::Minimize));
     maximize_button_->Draw(draw_context, ButtonState(UiElementId::MaximizeRestore));
     close_button_->Draw(draw_context, ButtonState(UiElementId::Close, false, true));
-    open_button_->Draw(draw_context, ButtonState(UiElementId::OpenImage));
 
     const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
         toolbar_rect_,
@@ -324,10 +339,12 @@ void UiController::Draw(
     zoom_in_button_->Draw(draw_context, ButtonState(UiElementId::ZoomIn));
     zoom_out_button_->Draw(draw_context, ButtonState(UiElementId::ZoomOut));
     rotate_button_->Draw(draw_context, ButtonState(UiElementId::RotateClockwise));
+    flip_horizontal_button_->Draw(draw_context, ButtonState(UiElementId::FlipHorizontal));
+    flip_vertical_button_->Draw(draw_context, ButtonState(UiElementId::FlipVertical));
     reset_button_->Draw(draw_context, ButtonState(UiElementId::ResetView));
 }
 
-void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_factory, IDWriteTextFormat* body_text_format)
+void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory*, IDWriteTextFormat*)
 {
     const D2D1_RECT_F root_rect = D2D1::RectF(0.0f, 0.0f, viewport_size.width, viewport_size.height);
     root_->SetRect(root_rect);
@@ -357,15 +374,7 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_fact
             top_most_button_->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
         ui_theme::metrics::kTitleBarHeight);
 
-    const float open_button_width =
-        (std::max)(ui_theme::metrics::kOpenButtonWidth, open_button_->PreferredWidth(dwrite_factory, body_text_format));
-    const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceHorizontalRow(
-        D2D1::Point2F(ui_theme::metrics::kPanelPadding, ui_theme::metrics::kPrimaryButtonTop),
-        ui_theme::metrics::kPrimaryButtonHeight,
-        std::vector<float>{open_button_width});
-    open_button_->SetRect(primary_buttons[0]);
-
-    constexpr size_t toolbar_button_count = 6;
+    constexpr size_t toolbar_button_count = 8;
     const float toolbar_content_width =
         ui_theme::metrics::kToolbarButtonSize * static_cast<float>(toolbar_button_count) +
         ui_theme::metrics::kToolbarButtonGap * static_cast<float>(toolbar_button_count - 1);
@@ -401,7 +410,9 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_fact
     zoom_in_button_->SetRect(toolbar_buttons[2]);
     zoom_out_button_->SetRect(toolbar_buttons[3]);
     rotate_button_->SetRect(toolbar_buttons[4]);
-    reset_button_->SetRect(toolbar_buttons[5]);
+    flip_horizontal_button_->SetRect(toolbar_buttons[5]);
+    flip_vertical_button_->SetRect(toolbar_buttons[6]);
+    reset_button_->SetRect(toolbar_buttons[7]);
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const

@@ -130,7 +130,7 @@ ID2D1SolidColorBrush* UiDraw::CreateBrush(D2D1_COLOR_F color, ID2D1SolidColorBru
 }
 
 HRESULT CreatePathGeometryFromIcon(
-    ID2D1Factory1* factory,
+    ID2D1Factory* factory,
     const icons::PathCommand* commands,
     size_t command_count,
     ID2D1PathGeometry** geometry)

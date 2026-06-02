@@ -59,12 +59,13 @@ private:
     IconButton* minimize_button_ = nullptr;
     IconButton* maximize_button_ = nullptr;
     IconButton* close_button_ = nullptr;
-    Button* open_button_ = nullptr;
     IconButton* previous_button_ = nullptr;
     IconButton* next_button_ = nullptr;
     IconButton* zoom_in_button_ = nullptr;
     IconButton* zoom_out_button_ = nullptr;
     IconButton* rotate_button_ = nullptr;
+    IconButton* flip_horizontal_button_ = nullptr;
+    IconButton* flip_vertical_button_ = nullptr;
     IconButton* reset_button_ = nullptr;
     UiElementId hovered_button_ = UiElementId::None;
     UiElementId pressed_button_ = UiElementId::None;

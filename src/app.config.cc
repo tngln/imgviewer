@@ -105,6 +105,8 @@ HRESULT SaveAppConfig(const AppConfig& config)
     output << "    \"previousImage\": [\"Left\"],\n";
     output << "    \"nextImage\": [\"Right\"],\n";
     output << "    \"rotateClockwise\": [\"R\"],\n";
+    output << "    \"flipHorizontal\": [\"H\"],\n";
+    output << "    \"flipVertical\": [\"V\"],\n";
     output << "    \"zoomIn\": [\"Ctrl+=\"],\n";
     output << "    \"zoomOut\": [\"Ctrl+-\"],\n";
     output << "    \"resetView\": [\"Ctrl+0\"],\n";

@@ -8,6 +8,8 @@ enum class AppAction {
     ZoomIn,
     ZoomOut,
     RotateClockwise,
+    FlipHorizontal,
+    FlipVertical,
     ResetView,
     ToggleTopMost,
     Minimize,

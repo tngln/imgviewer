@@ -13,6 +13,7 @@ struct PathCommand {
 };
 
 constexpr float kImageIconViewport = 24.0f;
+constexpr float kToolbarIconViewport = 24.0f;
 
 constexpr PathCommand kImageIconPath[] = {
     {PathVerb::MoveTo, {{3.5f, 5.0f}, {}, {}}},
@@ -33,6 +34,36 @@ constexpr PathCommand kImageIconPath[] = {
     {PathVerb::CubicTo, {{14.8954f, 12.0f}, {14.0f, 11.1046f}, {14.0f, 10.0f}}},
     {PathVerb::CubicTo, {{14.0f, 8.8954f}, {14.8954f, 8.0f}, {16.0f, 8.0f}}},
     {PathVerb::Close, {{}, {}, {}}},
+};
+
+constexpr PathCommand kFlipHorizontalIconPath[] = {
+    {PathVerb::MoveTo, {{4.0f, 5.0f}, {}, {}}},
+    {PathVerb::LineTo, {{10.0f, 12.0f}, {}, {}}},
+    {PathVerb::LineTo, {{4.0f, 19.0f}, {}, {}}},
+    {PathVerb::LineTo, {{4.0f, 5.0f}, {}, {}}},
+
+    {PathVerb::MoveTo, {{20.0f, 5.0f}, {}, {}}},
+    {PathVerb::LineTo, {{14.0f, 12.0f}, {}, {}}},
+    {PathVerb::LineTo, {{20.0f, 19.0f}, {}, {}}},
+    {PathVerb::LineTo, {{20.0f, 5.0f}, {}, {}}},
+
+    {PathVerb::MoveTo, {{12.0f, 3.5f}, {}, {}}},
+    {PathVerb::LineTo, {{12.0f, 20.5f}, {}, {}}},
+};
+
+constexpr PathCommand kFlipVerticalIconPath[] = {
+    {PathVerb::MoveTo, {{5.0f, 4.0f}, {}, {}}},
+    {PathVerb::LineTo, {{12.0f, 10.0f}, {}, {}}},
+    {PathVerb::LineTo, {{19.0f, 4.0f}, {}, {}}},
+    {PathVerb::LineTo, {{5.0f, 4.0f}, {}, {}}},
+
+    {PathVerb::MoveTo, {{5.0f, 20.0f}, {}, {}}},
+    {PathVerb::LineTo, {{12.0f, 14.0f}, {}, {}}},
+    {PathVerb::LineTo, {{19.0f, 20.0f}, {}, {}}},
+    {PathVerb::LineTo, {{5.0f, 20.0f}, {}, {}}},
+
+    {PathVerb::MoveTo, {{3.5f, 12.0f}, {}, {}}},
+    {PathVerb::LineTo, {{20.5f, 12.0f}, {}, {}}},
 };
 
 } // namespace icons

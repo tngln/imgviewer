@@ -37,6 +37,8 @@ HRESULT ImageViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceCon
         static_cast<float>(current_image_.pixel_size.height) * 0.5f);
     image_zoom_multiplier_ = 1.0f;
     image_rotation_degrees_ = 0.0f;
+    image_flipped_horizontal_ = false;
+    image_flipped_vertical_ = false;
     image_is_panning_ = false;
     image_is_rotating_ = false;
     r_key_is_down_ = false;
@@ -57,6 +59,8 @@ ImageViewerSnapshot ImageViewerController::Snapshot() const
         .view_center = image_view_center_,
         .zoom_multiplier = image_zoom_multiplier_,
         .rotation_degrees = image_rotation_degrees_,
+        .flipped_horizontal = image_flipped_horizontal_,
+        .flipped_vertical = image_flipped_vertical_,
     };
 }
 
@@ -86,8 +90,12 @@ ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2
         const D2D1_POINT_2F screen_delta = D2D1::Point2F(
             point.x - image_last_pan_point_.x,
             point.y - image_last_pan_point_.y);
-        const D2D1_POINT_2F image_delta =
-            math::TransformVector(D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_), screen_delta);
+        const float flip_x = image_flipped_horizontal_ ? -1.0f : 1.0f;
+        const float flip_y = image_flipped_vertical_ ? -1.0f : 1.0f;
+        const D2D1_POINT_2F image_delta = math::TransformVector(
+            D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_) *
+                D2D1::Matrix3x2F::Scale(flip_x, flip_y),
+            screen_delta);
         image_view_center_.x -= image_delta.x / image_scale;
         image_view_center_.y -= image_delta.y / image_scale;
         image_last_pan_point_ = point;
@@ -224,6 +232,26 @@ bool ImageViewerController::RotateClockwise()
     return true;
 }
 
+bool ImageViewerController::FlipHorizontal()
+{
+    if (!current_image_.bitmap) {
+        return false;
+    }
+
+    image_flipped_horizontal_ = !image_flipped_horizontal_;
+    return true;
+}
+
+bool ImageViewerController::FlipVertical()
+{
+    if (!current_image_.bitmap) {
+        return false;
+    }
+
+    image_flipped_vertical_ = !image_flipped_vertical_;
+    return true;
+}
+
 bool ImageViewerController::ResetView()
 {
     if (!current_image_.bitmap) {
@@ -235,6 +263,8 @@ bool ImageViewerController::ResetView()
         static_cast<float>(current_image_.pixel_size.height) * 0.5f);
     image_zoom_multiplier_ = 1.0f;
     image_rotation_degrees_ = 0.0f;
+    image_flipped_horizontal_ = false;
+    image_flipped_vertical_ = false;
     image_is_panning_ = false;
     image_is_rotating_ = false;
     r_key_is_down_ = false;

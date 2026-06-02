@@ -227,6 +227,16 @@ void ExecuteAction(HWND hwnd, AppContext* context, AppAction action)
             RenderApplication(context);
         }
         break;
+    case AppAction::FlipHorizontal:
+        if (context != nullptr && context->viewer.FlipHorizontal()) {
+            RenderApplication(context);
+        }
+        break;
+    case AppAction::FlipVertical:
+        if (context != nullptr && context->viewer.FlipVertical()) {
+            RenderApplication(context);
+        }
+        break;
     case AppAction::ResetView:
         if (context != nullptr && context->viewer.ResetView()) {
             RenderApplication(context);

@@ -4,6 +4,7 @@
 #include <cwchar>
 
 #include <d2d1helper.h>
+#include <wil/com.h>
 
 #include "ui.text.hpp"
 #include "ui.theme.hpp"
@@ -76,9 +77,24 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
 
 IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElement(metadata), icon_(icon) {}
 
+IconButton::IconButton(
+    UiElementMetadata metadata,
+    const icons::PathCommand* icon_path,
+    size_t icon_path_count,
+    float icon_viewport) :
+    UiElement(metadata),
+    icon_path_(icon_path),
+    icon_path_count_(icon_path_count),
+    icon_viewport_(icon_viewport)
+{
+}
+
 void IconButton::SetIcon(const wchar_t* icon)
 {
     icon_ = icon;
+    icon_path_ = nullptr;
+    icon_path_count_ = 0;
+    icon_viewport_ = 0.0f;
 }
 
 void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
@@ -86,6 +102,29 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
     const D2D1_RECT_F rect = Rect();
     const UiDraw draw(context);
     draw.FillRect(rect, ButtonFillColor(state));
+    const D2D1_COLOR_F icon_color =
+        state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent;
+    if (icon_path_ != nullptr && icon_path_count_ > 0 && icon_viewport_ > 0.0f && context.d2d_context != nullptr) {
+        wil::com_ptr<ID2D1Factory> factory;
+        context.d2d_context->GetFactory(factory.put());
+        wil::com_ptr<ID2D1PathGeometry> geometry;
+        if (SUCCEEDED(CreatePathGeometryFromIcon(factory.get(), icon_path_, icon_path_count_, geometry.put()))) {
+            const float icon_size = 20.0f;
+            const float scale = icon_size / icon_viewport_;
+            const float left = rect.left + (std::max)(0.0f, (rect.right - rect.left - icon_size) * 0.5f);
+            const float top = rect.top + (std::max)(0.0f, (rect.bottom - rect.top - icon_size) * 0.5f);
+            D2D1_MATRIX_3X2_F old_transform = {};
+            context.d2d_context->GetTransform(&old_transform);
+            context.d2d_context->SetTransform(
+                D2D1::Matrix3x2F::Scale(scale, scale) *
+                D2D1::Matrix3x2F::Translation(left, top) *
+                old_transform);
+            draw.DrawGeometry(geometry.get(), icon_color, ui_theme::metrics::kPathIconStrokeWidth / scale);
+            context.d2d_context->SetTransform(old_transform);
+        }
+        return;
+    }
+
     draw.DrawIconText(
         icon_,
         static_cast<UINT32>(wcslen(icon_)),
@@ -94,5 +133,5 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kCaptionIconTop,
             rect.right,
             rect.bottom),
-        state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent);
+        icon_color);
 }

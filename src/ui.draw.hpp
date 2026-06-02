@@ -53,7 +53,7 @@ private:
 };
 
 HRESULT CreatePathGeometryFromIcon(
-    ID2D1Factory1* factory,
+    ID2D1Factory* factory,
     const icons::PathCommand* commands,
     size_t command_count,
     ID2D1PathGeometry** geometry);

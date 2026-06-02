@@ -17,6 +17,10 @@ const char* AppActionName(AppAction action)
         return "zoomOut";
     case AppAction::RotateClockwise:
         return "rotateClockwise";
+    case AppAction::FlipHorizontal:
+        return "flipHorizontal";
+    case AppAction::FlipVertical:
+        return "flipVertical";
     case AppAction::ResetView:
         return "resetView";
     case AppAction::ToggleTopMost:
@@ -53,6 +57,12 @@ AppAction AppActionFromName(const char* name)
     }
     if (value == "rotateClockwise") {
         return AppAction::RotateClockwise;
+    }
+    if (value == "flipHorizontal") {
+        return AppAction::FlipHorizontal;
+    }
+    if (value == "flipVertical") {
+        return AppAction::FlipVertical;
     }
     if (value == "resetView") {
         return AppAction::ResetView;

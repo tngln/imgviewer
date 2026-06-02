@@ -7,13 +7,15 @@
 
 namespace {
 
-constexpr std::array<AppAction, 7> kConfigurableKeyActions = {
+constexpr std::array<AppAction, 9> kConfigurableKeyActions = {
     AppAction::OpenImage,
     AppAction::PreviousImage,
     AppAction::NextImage,
     AppAction::ZoomIn,
     AppAction::ZoomOut,
     AppAction::RotateClockwise,
+    AppAction::FlipHorizontal,
+    AppAction::FlipVertical,
     AppAction::ResetView,
 };
 
@@ -189,6 +191,8 @@ ActionBindings DefaultActionBindings()
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_LEFT}, AppAction::PreviousImage);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_RIGHT}, AppAction::NextImage);
     SetBinding(&bindings, KeyGesture{.virtual_key = 'R'}, AppAction::RotateClockwise);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'H'}, AppAction::FlipHorizontal);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'V'}, AppAction::FlipVertical);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_PLUS, .ctrl = true}, AppAction::ZoomIn);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_MINUS, .ctrl = true}, AppAction::ZoomOut);
     SetBinding(&bindings, KeyGesture{.virtual_key = '0', .ctrl = true}, AppAction::ResetView);

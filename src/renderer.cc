@@ -214,8 +214,12 @@ HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
             viewport_center.y - image.view_center.y * image_scale,
             viewport_center.x - image.view_center.x * image_scale + draw_width,
             viewport_center.y - image.view_center.y * image_scale + draw_height);
+        const float flip_x = image.flipped_horizontal ? -1.0f : 1.0f;
+        const float flip_y = image.flipped_vertical ? -1.0f : 1.0f;
         d2d_context_->SetTransform(
-            D2D1::Matrix3x2F::Rotation(image.rotation_degrees, viewport_center) * root_transform);
+            D2D1::Matrix3x2F::Scale(flip_x, flip_y, viewport_center) *
+                D2D1::Matrix3x2F::Rotation(image.rotation_degrees, viewport_center) *
+                root_transform);
         d2d_context_->DrawBitmap(
             image.bitmap,
             destination,

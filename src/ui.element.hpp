@@ -16,6 +16,8 @@ enum class UiElementId {
     ZoomIn,
     ZoomOut,
     RotateClockwise,
+    FlipHorizontal,
+    FlipVertical,
     ResetView,
     TopMost,
     Minimize,
