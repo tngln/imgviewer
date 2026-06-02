@@ -55,6 +55,7 @@ constexpr float kOpenButtonWidth = 200.0f;
 constexpr float kToolbarButtonSize = 44.0f;
 constexpr float kToolbarButtonGap = 2.0f;
 constexpr float kToolbarPadding = 8.0f;
+constexpr float kToolbarDragHandleWidth = 18.0f;
 constexpr float kToolbarBottomMargin = 28.0f;
 constexpr float kToolbarCornerRadius = 8.0f;
 constexpr float kBodyTextTop = 58.0f;

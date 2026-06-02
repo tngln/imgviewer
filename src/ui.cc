@@ -369,7 +369,9 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_fact
     const float toolbar_content_width =
         ui_theme::metrics::kToolbarButtonSize * static_cast<float>(toolbar_button_count) +
         ui_theme::metrics::kToolbarButtonGap * static_cast<float>(toolbar_button_count - 1);
-    const float toolbar_width = toolbar_content_width + ui_theme::metrics::kToolbarPadding * 2.0f;
+    const float toolbar_width = toolbar_content_width +
+        ui_theme::metrics::kToolbarPadding * 2.0f +
+        ui_theme::metrics::kToolbarDragHandleWidth;
     const float toolbar_height = ui_theme::metrics::kToolbarButtonSize + ui_theme::metrics::kToolbarPadding * 2.0f;
     if (!toolbar_position_initialized_) {
         toolbar_position_ = D2D1::Point2F(
@@ -387,7 +389,7 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_fact
 
     const std::vector<D2D1_RECT_F> toolbar_buttons = ui_layout::PlaceHorizontalRow(
         D2D1::Point2F(
-            toolbar_rect_.left + ui_theme::metrics::kToolbarPadding,
+            toolbar_rect_.left + ui_theme::metrics::kToolbarPadding + ui_theme::metrics::kToolbarDragHandleWidth,
             toolbar_rect_.top + ui_theme::metrics::kToolbarPadding),
         ui_theme::metrics::kToolbarButtonSize,
         std::vector<float>(
