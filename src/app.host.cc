@@ -1,0 +1,518 @@
+#include "app.host.hpp"
+
+#include "app.hpp"
+#include "app.action.hpp"
+#include "app.config.hpp"
+#include "app.keybindings.hpp"
+#include "app.messages.hpp"
+#include "image.viewer.hpp"
+#include "math.hpp"
+#include "ui.a11y.hpp"
+#include "ui.tooltip.hpp"
+#include "win32.util.hpp"
+
+#include <windows.h>
+#include <windowsx.h>
+
+#include <commctrl.h>
+#include <shellapi.h>
+#include <string>
+#include <vector>
+
+#include <wil/resource.h>
+#include <wil/result_macros.h>
+
+namespace {
+
+constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
+
+D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
+{
+    const POINT point{
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+    };
+    return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+}
+
+D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
+{
+    POINT point{
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+    };
+    ScreenToClient(hwnd, &point);
+    return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+}
+
+AppContext* GetAppContext(HWND hwnd)
+{
+    return reinterpret_cast<AppContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+}
+
+bool IsKeyDown(int virtual_key)
+{
+    return (GetKeyState(virtual_key) & 0x8000) != 0;
+}
+
+UiModifiers CurrentUiModifiers()
+{
+    return UiModifiers{
+        .ctrl = IsKeyDown(VK_CONTROL),
+        .shift = IsKeyDown(VK_SHIFT),
+        .alt = IsKeyDown(VK_MENU),
+    };
+}
+
+AppAction ActionForKeyboardMessage(const AppContext* context, WPARAM wparam)
+{
+    if (context == nullptr) {
+        return AppAction::None;
+    }
+
+    return ActionForKey(
+        context->config.action_bindings,
+        static_cast<UINT>(wparam),
+        IsKeyDown(VK_CONTROL),
+        IsKeyDown(VK_SHIFT),
+        IsKeyDown(VK_MENU));
+}
+
+size_t KeyActionIndex(WPARAM wparam)
+{
+    return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
+}
+
+void RenderIfNeeded(HWND hwnd, AppContext* context, UiEventResult result)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    if (result.capture == UiCaptureRequest::Capture) {
+        SetCapture(hwnd);
+    } else if (result.capture == UiCaptureRequest::Release) {
+        ReleaseCapture();
+    }
+
+    if (result.needs_render) {
+        RenderApplication(context);
+    }
+
+    if (result.action == AppAction::OpenImage) {
+        HandleOpenImageCommand(hwnd, context);
+    } else if (result.action != AppAction::None) {
+        ExecuteAppAction(hwnd, context, result.action);
+    }
+}
+
+void RenderIfNeeded(AppContext* context, ImageViewerEventResult result)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    if (result.released_capture) {
+        ReleaseCapture();
+    }
+
+    if (result.needs_render) {
+        RenderApplication(context);
+    }
+}
+
+LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
+{
+    POINT screen_point{
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+    };
+
+    RECT window_rect = {};
+    GetWindowRect(hwnd, &window_rect);
+    const UINT dpi = GetDpiForWindow(hwnd);
+    const int resize_border = util::ResizeBorderThicknessForDpi(dpi);
+
+    if (!IsZoomed(hwnd)) {
+        const bool left = screen_point.x >= window_rect.left && screen_point.x < window_rect.left + resize_border;
+        const bool right = screen_point.x < window_rect.right && screen_point.x >= window_rect.right - resize_border;
+        const bool top = screen_point.y >= window_rect.top && screen_point.y < window_rect.top + resize_border;
+        const bool bottom = screen_point.y < window_rect.bottom && screen_point.y >= window_rect.bottom - resize_border;
+
+        if (top && left) {
+            return HTTOPLEFT;
+        }
+        if (top && right) {
+            return HTTOPRIGHT;
+        }
+        if (bottom && left) {
+            return HTBOTTOMLEFT;
+        }
+        if (bottom && right) {
+            return HTBOTTOMRIGHT;
+        }
+        if (left) {
+            return HTLEFT;
+        }
+        if (right) {
+            return HTRIGHT;
+        }
+        if (top) {
+            return HTTOP;
+        }
+        if (bottom) {
+            return HTBOTTOM;
+        }
+    }
+
+    POINT client_point = screen_point;
+    ScreenToClient(hwnd, &client_point);
+    const D2D1_POINT_2F render_point = math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
+    AppContext* context = GetAppContext(hwnd);
+    if (context != nullptr && context->ui.IsPointInCaptionDragArea(render_point)) {
+        return HTCAPTION;
+    }
+
+    return HTCLIENT;
+}
+
+LRESULT CalculateClientArea(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+    if (wparam != TRUE) {
+        return DefWindowProcW(hwnd, WM_NCCALCSIZE, wparam, lparam);
+    }
+
+    auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
+    if (IsZoomed(hwnd)) {
+        const int resize_border = util::ResizeBorderThicknessForDpi(GetDpiForWindow(hwnd));
+        params->rgrc[0].left += resize_border;
+        params->rgrc[0].top += resize_border;
+        params->rgrc[0].right -= resize_border;
+        params->rgrc[0].bottom -= resize_border;
+    }
+
+    return 0;
+}
+
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
+{
+    switch (message) {
+    case kImgViewerUiActionMessage: {
+        ExecuteAppAction(hwnd, GetAppContext(hwnd), static_cast<AppAction>(wparam));
+        return 0;
+    }
+
+    case kImgViewerOpenImageMessage: {
+        HandleOpenImageCommand(hwnd, GetAppContext(hwnd));
+        return 0;
+    }
+
+    case WM_NCCALCSIZE:
+        return CalculateClientArea(hwnd, wparam, lparam);
+
+    case WM_NCCREATE: {
+        const auto* create_struct = reinterpret_cast<CREATESTRUCTW*>(lparam);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create_struct->lpCreateParams));
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_CREATE: {
+        AppContext* context = GetAppContext(hwnd);
+        if (context == nullptr ||
+            FAILED(context->renderer.Initialize(hwnd)) ||
+            FAILED(context->viewer.Initialize()) ||
+            FAILED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put())) ||
+            FAILED(RenderApplication(context))) {
+            return -1;
+        }
+
+        return 0;
+    }
+
+    case WM_SIZE: {
+        AppContext* context = GetAppContext(hwnd);
+        if (context != nullptr && FAILED(context->renderer.Resize())) {
+            return -1;
+        }
+        if (context != nullptr) {
+            SyncWindowState(hwnd, &context->ui);
+            if (FAILED(RenderApplication(context))) {
+                return -1;
+            }
+            UpdateUiTooltipRects(hwnd, context);
+        }
+
+        return 0;
+    }
+
+    case WM_NCHITTEST:
+        return HitTestFrame(hwnd, lparam);
+
+    case WM_NCLBUTTONDBLCLK:
+        if (wparam == HTCAPTION) {
+            ExecuteAppAction(hwnd, GetAppContext(hwnd), AppAction::ToggleMaximize);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+
+    case WM_ERASEBKGND:
+        return 1;
+
+    case WM_MOUSEMOVE: {
+        AppContext* context = GetAppContext(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        util::TrackMouseLeave(hwnd);
+        ImageViewerEventResult viewer_result = {};
+        if (context != nullptr) {
+            viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+        }
+        RenderIfNeeded(context, viewer_result);
+        if (context != nullptr && !viewer_result.handled) {
+            RenderIfNeeded(hwnd, context, context->ui.OnPointerMove(point));
+        }
+        return 0;
+    }
+
+    case WM_LBUTTONDOWN: {
+        AppContext* context = GetAppContext(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        UiEventResult ui_result = context != nullptr ? context->ui.OnPointerDown(point) : UiEventResult{};
+        ImageViewerEventResult viewer_result = {};
+        if (context != nullptr && !ui_result.handled) {
+            viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
+        }
+        if (viewer_result.captured) {
+            SetCapture(hwnd);
+        }
+        RenderIfNeeded(hwnd, context, ui_result);
+        RenderIfNeeded(context, viewer_result);
+        return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_LBUTTONUP: {
+        AppContext* context = GetAppContext(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        ImageViewerEventResult viewer_result = {};
+        if (context != nullptr) {
+            viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
+        }
+        RenderIfNeeded(context, viewer_result);
+        UiEventResult ui_result = {};
+        if (context != nullptr && !viewer_result.handled) {
+            ui_result = context->ui.OnPointerUp(point);
+            RenderIfNeeded(hwnd, context, ui_result);
+        }
+        return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_MOUSELEAVE: {
+        AppContext* context = GetAppContext(hwnd);
+        RenderIfNeeded(hwnd, context, context != nullptr ? context->ui.OnPointerLeave() : UiEventResult{});
+        return 0;
+    }
+
+    case WM_MOUSEWHEEL: {
+        AppContext* context = GetAppContext(hwnd);
+        const D2D1_POINT_2F point = GetScreenPointerPoint(hwnd, lparam);
+        if (context != nullptr &&
+            context->viewer.OnMouseWheel(
+                point.x,
+                point.y,
+                GET_WHEEL_DELTA_WPARAM(wparam),
+                context->renderer.ViewportPixelSize())) {
+            RenderApplication(context);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN: {
+        AppContext* context = GetAppContext(hwnd);
+        const UiEventResult ui_result = context != nullptr
+            ? context->ui.OnKeyEvent(UiKeyEvent{
+                  .type = UiEventType::KeyDown,
+                  .virtual_key = static_cast<UINT>(wparam),
+                  .modifiers = CurrentUiModifiers(),
+                  .repeat = (lparam & 0x40000000) != 0,
+              })
+            : UiEventResult{};
+        if (ui_result.handled) {
+            RenderIfNeeded(hwnd, context, ui_result);
+            return 0;
+        }
+
+        const AppAction action = ActionForKeyboardMessage(context, wparam);
+        if (context != nullptr) {
+            context->pressed_key_actions[KeyActionIndex(wparam)] = action;
+        }
+        if (context != nullptr && context->viewer.OnActionDown(action)) {
+            return 0;
+        }
+        if (action == AppAction::OpenImage) {
+            HandleOpenImageCommand(hwnd, context);
+            return 0;
+        }
+        if (action != AppAction::None) {
+            ExecuteAppAction(hwnd, context, action);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_KEYUP:
+    case WM_SYSKEYUP: {
+        AppContext* context = GetAppContext(hwnd);
+        const AppAction action =
+            context != nullptr ? context->pressed_key_actions[KeyActionIndex(wparam)] : AppAction::None;
+        if (context != nullptr) {
+            context->pressed_key_actions[KeyActionIndex(wparam)] = AppAction::None;
+        }
+        const ImageViewerEventResult viewer_result =
+            context != nullptr ? context->viewer.OnActionUp(action) : ImageViewerEventResult{};
+        if (viewer_result.handled) {
+            RenderIfNeeded(context, viewer_result);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_DROPFILES: {
+        AppContext* context = GetAppContext(hwnd);
+        const HDROP drop = reinterpret_cast<HDROP>(wparam);
+        const UINT length = DragQueryFileW(drop, 0, nullptr, 0);
+        if (length > 0) {
+            std::vector<wchar_t> path(static_cast<size_t>(length) + 1);
+            DragQueryFileW(drop, 0, path.data(), static_cast<UINT>(path.size()));
+            LoadAppImageFile(hwnd, context, path.data());
+        }
+        DragFinish(drop);
+        return 0;
+    }
+
+    case WM_GETOBJECT: {
+        if (lparam == UiaRootObjectId) {
+            AppContext* context = GetAppContext(hwnd);
+            if (context != nullptr) {
+                return UiaReturnRawElementProvider(
+                    hwnd,
+                    wparam,
+                    lparam,
+                    context->accessibility_provider.get());
+            }
+        }
+
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_DESTROY:
+        SaveWindowSize(hwnd, GetAppContext(hwnd));
+        PostQuitMessage(0);
+        return 0;
+
+    default:
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+}
+
+HRESULT RegisterMainWindowClass(HINSTANCE instance)
+{
+    WNDCLASSEXW window_class = {};
+    window_class.cbSize = sizeof(window_class);
+    window_class.style = CS_DROPSHADOW;
+    window_class.lpfnWndProc = WindowProc;
+    window_class.hInstance = instance;
+    window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    window_class.lpszClassName = kWindowClassName;
+
+    const ATOM window_class_atom = RegisterClassExW(&window_class);
+    RETURN_LAST_ERROR_IF(window_class_atom == 0);
+
+    return S_OK;
+}
+
+HRESULT RunApplicationAsHresult()
+{
+    INITCOMMONCONTROLSEX common_controls = {
+        .dwSize = sizeof(common_controls),
+        .dwICC = ICC_WIN95_CLASSES,
+    };
+    InitCommonControlsEx(&common_controls);
+
+    RETURN_IF_FAILED(util::InitializeDpiAwareness());
+    const HRESULT co_initialize_result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    RETURN_IF_FAILED(co_initialize_result);
+    auto co_uninitialize = wil::scope_exit([] { CoUninitialize(); });
+
+    HINSTANCE instance = GetModuleHandleW(nullptr);
+    RETURN_LAST_ERROR_IF_NULL(instance);
+
+    RETURN_IF_FAILED(RegisterMainWindowClass(instance));
+
+    AppContext context;
+    RETURN_IF_FAILED(LoadAppConfig(&context.config));
+    const WindowSizeConfig initial_window_size =
+        context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
+    wil::unique_hwnd window{CreateWindowExW(
+        0,
+        kWindowClassName,
+        kAppWindowTitle,
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        initial_window_size.width,
+        initial_window_size.height,
+        nullptr,
+        nullptr,
+        instance,
+        &context)};
+    RETURN_LAST_ERROR_IF_NULL(window.get());
+    DragAcceptFiles(window.get(), TRUE);
+    util::DisableIme(window.get());
+    RETURN_IF_FAILED(util::ApplyDwmFrame(window.get()));
+    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
+        window.get(),
+        nullptr,
+        0,
+        0,
+        0,
+        0,
+        SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+
+    ShowWindow(window.get(), SW_SHOWDEFAULT);
+    RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));
+    InitializeUiTooltips(window.get(), &context);
+
+    int argc = 0;
+    wil::unique_hlocal command_line_args{reinterpret_cast<HLOCAL>(CommandLineToArgvW(GetCommandLineW(), &argc))};
+    RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
+    auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
+    if (argc > 1) {
+        LoadAppImageFile(window.get(), &context, argv[1]);
+    }
+
+    MSG message = {};
+    while (true) {
+        const BOOL result = GetMessageW(&message, nullptr, 0, 0);
+        if (result == -1) {
+            RETURN_LAST_ERROR();
+        }
+
+        if (result == 0) {
+            break;
+        }
+
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
+    }
+
+    return S_OK;
+}
+
+} // namespace
+
+int RunApplication()
+{
+    const HRESULT hr = RunApplicationAsHresult();
+    return SUCCEEDED(hr) ? 0 : 1;
+}

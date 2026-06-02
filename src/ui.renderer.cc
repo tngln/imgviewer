@@ -1,4 +1,4 @@
-#include "renderer.hpp"
+#include "ui.renderer.hpp"
 
 #include <algorithm>
 
@@ -9,7 +9,7 @@
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
 
-HRESULT Renderer::Initialize(HWND hwnd)
+HRESULT UiRenderer::Initialize(HWND hwnd)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, hwnd);
     hwnd_ = hwnd;
@@ -88,7 +88,7 @@ HRESULT Renderer::Initialize(HWND hwnd)
     return S_OK;
 }
 
-HRESULT Renderer::Resize()
+HRESULT UiRenderer::Resize()
 {
     if (!dcomp_device_ || !root_visual_) {
         return S_OK;
@@ -99,7 +99,7 @@ HRESULT Renderer::Resize()
     return S_OK;
 }
 
-HRESULT Renderer::ResizeSurfacesToClient()
+HRESULT UiRenderer::ResizeSurfacesToClient()
 {
     RECT client_rect = {};
     RETURN_IF_WIN32_BOOL_FALSE(GetClientRect(hwnd_, &client_rect));
@@ -112,9 +112,9 @@ HRESULT Renderer::ResizeSurfacesToClient()
     return S_OK;
 }
 
-HRESULT Renderer::Render(const ImageViewerController& viewer, UiController& ui)
+HRESULT UiRenderer::Render(const ImageViewerController& viewer, UiController& ui)
 {
-    if (!surfaces_.Surface(SurfaceLayerId::Image) || !surfaces_.Surface(SurfaceLayerId::UiOverlay)) {
+    if (!surfaces_.Surface(UiSurfaceLayerId::Image) || !surfaces_.Surface(UiSurfaceLayerId::UiOverlay)) {
         return S_OK;
     }
 
@@ -125,17 +125,17 @@ HRESULT Renderer::Render(const ImageViewerController& viewer, UiController& ui)
     return S_OK;
 }
 
-D2D1_SIZE_U Renderer::ViewportPixelSize() const
+D2D1_SIZE_U UiRenderer::ViewportPixelSize() const
 {
     return D2D1::SizeU(surfaces_.Width(), surfaces_.Height());
 }
 
-ID2D1DeviceContext* Renderer::BitmapDeviceContext() const
+ID2D1DeviceContext* UiRenderer::BitmapDeviceContext() const
 {
     return d2d_context_.get();
 }
 
-HRESULT Renderer::BeginDrawLayer(SurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset)
+HRESULT UiRenderer::BeginDrawLayer(UiSurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset)
 {
     RETURN_HR_IF_NULL(E_POINTER, target);
     RETURN_HR_IF_NULL(E_POINTER, offset);
@@ -171,7 +171,7 @@ HRESULT Renderer::BeginDrawLayer(SurfaceLayerId id, ID2D1Bitmap1** target, POINT
     return S_OK;
 }
 
-HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
+HRESULT UiRenderer::RenderImageLayer(const ImageViewerSnapshot& image)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),
@@ -179,7 +179,7 @@ HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
     const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     POINT offset = {};
-    RETURN_IF_FAILED(BeginDrawLayer(SurfaceLayerId::Image, target_bitmap.put(), &offset));
+    RETURN_IF_FAILED(BeginDrawLayer(UiSurfaceLayerId::Image, target_bitmap.put(), &offset));
 
     wil::com_ptr<ID2D1PathGeometry> icon_geometry;
     RETURN_IF_FAILED(CreatePathGeometryFromIcon(
@@ -249,12 +249,12 @@ HRESULT Renderer::RenderImageLayer(const ImageViewerSnapshot& image)
     RETURN_IF_FAILED(d2d_context_->EndDraw());
     d2d_context_->SetTarget(nullptr);
 
-    RETURN_IF_FAILED(surfaces_.Surface(SurfaceLayerId::Image)->EndDraw());
+    RETURN_IF_FAILED(surfaces_.Surface(UiSurfaceLayerId::Image)->EndDraw());
 
     return S_OK;
 }
 
-HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
+HRESULT UiRenderer::RenderUiOverlayLayer(UiController& ui)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),
@@ -264,7 +264,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     POINT offset = {};
-    RETURN_IF_FAILED(BeginDrawLayer(SurfaceLayerId::UiOverlay, target_bitmap.put(), &offset));
+    RETURN_IF_FAILED(BeginDrawLayer(UiSurfaceLayerId::UiOverlay, target_bitmap.put(), &offset));
 
     d2d_context_->SetTarget(target_bitmap.get());
     d2d_context_->BeginDraw();
@@ -280,7 +280,7 @@ HRESULT Renderer::RenderUiOverlayLayer(UiController& ui)
     RETURN_IF_FAILED(d2d_context_->EndDraw());
     d2d_context_->SetTarget(nullptr);
 
-    RETURN_IF_FAILED(surfaces_.Surface(SurfaceLayerId::UiOverlay)->EndDraw());
+    RETURN_IF_FAILED(surfaces_.Surface(UiSurfaceLayerId::UiOverlay)->EndDraw());
 
     return S_OK;
 }

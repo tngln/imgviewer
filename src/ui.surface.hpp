@@ -10,21 +10,21 @@
 
 #include <wil/com.h>
 
-enum class SurfaceLayerId {
+enum class UiSurfaceLayerId {
     Image,
     UiOverlay,
     Count,
 };
 
-constexpr size_t kSurfaceLayerCount = static_cast<size_t>(SurfaceLayerId::Count);
+constexpr size_t kUiSurfaceLayerCount = static_cast<size_t>(UiSurfaceLayerId::Count);
 
-class SurfaceManager final {
+class UiSurfaceManager final {
 public:
     HRESULT Initialize(IDCompositionDevice* device, IDCompositionVisual* root_visual);
     HRESULT Resize(UINT width, UINT height);
 
-    IDCompositionSurface* Surface(SurfaceLayerId id) const;
-    DXGI_ALPHA_MODE AlphaMode(SurfaceLayerId id) const;
+    IDCompositionSurface* Surface(UiSurfaceLayerId id) const;
+    DXGI_ALPHA_MODE AlphaMode(UiSurfaceLayerId id) const;
     UINT Width() const { return width_; }
     UINT Height() const { return height_; }
 
@@ -36,13 +36,13 @@ private:
         UINT allocated_height = 0;
     };
 
-    Layer& LayerFor(SurfaceLayerId id);
-    const Layer& LayerFor(SurfaceLayerId id) const;
-    HRESULT CreateLayerSurface(SurfaceLayerId id, UINT width, UINT height);
+    Layer& LayerFor(UiSurfaceLayerId id);
+    const Layer& LayerFor(UiSurfaceLayerId id) const;
+    HRESULT CreateLayerSurface(UiSurfaceLayerId id, UINT width, UINT height);
 
     wil::com_ptr<IDCompositionDevice> device_;
     wil::com_ptr<IDCompositionVisual> root_visual_;
-    std::array<Layer, kSurfaceLayerCount> layers_;
+    std::array<Layer, kUiSurfaceLayerCount> layers_;
     UINT width_ = 1;
     UINT height_ = 1;
 };

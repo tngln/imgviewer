@@ -1,4 +1,4 @@
-#include "util.hpp"
+#include "win32.util.hpp"
 
 #include <dwmapi.h>
 #include <imm.h>
@@ -6,16 +6,6 @@
 #include <wil/result_macros.h>
 
 namespace util {
-
-RECT UiElementRectToWin32Rect(D2D1_RECT_F rect)
-{
-    return RECT{
-        static_cast<LONG>(rect.left),
-        static_cast<LONG>(rect.top),
-        static_cast<LONG>(rect.right),
-        static_cast<LONG>(rect.bottom),
-    };
-}
 
 bool IsWindowTopMost(HWND hwnd)
 {
@@ -40,21 +30,6 @@ HRESULT ApplyDwmFrame(HWND hwnd)
 void DisableIme(HWND hwnd)
 {
     ImmAssociateContext(hwnd, nullptr);
-}
-
-std::wstring FileNameFromPath(const wchar_t* path, const wchar_t* fallback)
-{
-    if (path == nullptr) {
-        return fallback;
-    }
-
-    std::wstring value(path);
-    const size_t separator = value.find_last_of(L"\\/");
-    if (separator != std::wstring::npos) {
-        value.erase(0, separator + 1);
-    }
-
-    return value.empty() ? std::wstring(fallback) : value;
 }
 
 void TrackMouseLeave(HWND hwnd)

@@ -3,23 +3,28 @@ cmake_minimum_required(VERSION 3.29)
 project(imgviewer LANGUAGES CXX)
 
 add_executable(imgviewer
+    src/app.cc
     src/app.action.cc
     src/app.config.cc
+    src/app.dialog.cc
+    src/app.host.cc
     src/app.keybindings.cc
     src/image.decoder.cc
     src/image.sequence.cc
     src/image.viewer.cc
     src/main.cc
-    src/renderer.cc
-    src/surface.manager.cc
+    src/path.util.cc
     src/ui.a11y.cc
     src/ui.button.cc
     src/ui.draw.cc
     src/ui.element.cc
     src/ui.layout.cc
+    src/ui.renderer.cc
+    src/ui.surface.cc
     src/ui.text.cc
+    src/ui.tooltip.cc
     src/ui.cc
-    src/util.cc
+    src/win32.util.cc
 )
 
 target_include_directories(imgviewer PRIVATE

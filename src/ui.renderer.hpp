@@ -11,10 +11,10 @@
 #include <wil/com.h>
 
 #include "image.viewer.hpp"
-#include "surface.manager.hpp"
+#include "ui.surface.hpp"
 #include "ui.hpp"
 
-class Renderer final {
+class UiRenderer final {
 public:
     HRESULT Initialize(HWND hwnd);
     HRESULT Resize();
@@ -24,7 +24,7 @@ public:
 
 private:
     HRESULT ResizeSurfacesToClient();
-    HRESULT BeginDrawLayer(SurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset);
+    HRESULT BeginDrawLayer(UiSurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset);
     HRESULT RenderImageLayer(const ImageViewerSnapshot& image);
     HRESULT RenderUiOverlayLayer(UiController& ui);
 
@@ -41,5 +41,5 @@ private:
     wil::com_ptr<IDCompositionDevice> dcomp_device_;
     wil::com_ptr<IDCompositionTarget> dcomp_target_;
     wil::com_ptr<IDCompositionVisual> root_visual_;
-    SurfaceManager surfaces_;
+    UiSurfaceManager surfaces_;
 };

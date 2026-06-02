@@ -1,25 +1,25 @@
-#include "surface.manager.hpp"
+#include "ui.surface.hpp"
 
 #include <wil/result_macros.h>
 
 namespace {
 
 struct SurfaceLayerDefinition final {
-    SurfaceLayerId id;
+    UiSurfaceLayerId id;
     DXGI_ALPHA_MODE alpha_mode;
 };
 
 constexpr SurfaceLayerDefinition kSurfaceLayerDefinitions[] = {
-    {SurfaceLayerId::Image, DXGI_ALPHA_MODE_IGNORE},
-    {SurfaceLayerId::UiOverlay, DXGI_ALPHA_MODE_PREMULTIPLIED},
+    {UiSurfaceLayerId::Image, DXGI_ALPHA_MODE_IGNORE},
+    {UiSurfaceLayerId::UiOverlay, DXGI_ALPHA_MODE_PREMULTIPLIED},
 };
 
-constexpr size_t LayerIndex(SurfaceLayerId id)
+constexpr size_t LayerIndex(UiSurfaceLayerId id)
 {
     return static_cast<size_t>(id);
 }
 
-const SurfaceLayerDefinition* FindLayerDefinition(SurfaceLayerId id)
+const SurfaceLayerDefinition* FindLayerDefinition(UiSurfaceLayerId id)
 {
     for (const SurfaceLayerDefinition& definition : kSurfaceLayerDefinitions) {
         if (definition.id == id) {
@@ -32,7 +32,7 @@ const SurfaceLayerDefinition* FindLayerDefinition(SurfaceLayerId id)
 
 } // namespace
 
-HRESULT SurfaceManager::Initialize(IDCompositionDevice* device, IDCompositionVisual* root_visual)
+HRESULT UiSurfaceManager::Initialize(IDCompositionDevice* device, IDCompositionVisual* root_visual)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, device);
     RETURN_HR_IF_NULL(E_INVALIDARG, root_visual);
@@ -51,7 +51,7 @@ HRESULT SurfaceManager::Initialize(IDCompositionDevice* device, IDCompositionVis
     return S_OK;
 }
 
-HRESULT SurfaceManager::Resize(UINT width, UINT height)
+HRESULT UiSurfaceManager::Resize(UINT width, UINT height)
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, device_);
 
@@ -64,30 +64,30 @@ HRESULT SurfaceManager::Resize(UINT width, UINT height)
     return S_OK;
 }
 
-IDCompositionSurface* SurfaceManager::Surface(SurfaceLayerId id) const
+IDCompositionSurface* UiSurfaceManager::Surface(UiSurfaceLayerId id) const
 {
     return LayerFor(id).surface.get();
 }
 
-DXGI_ALPHA_MODE SurfaceManager::AlphaMode(SurfaceLayerId id) const
+DXGI_ALPHA_MODE UiSurfaceManager::AlphaMode(UiSurfaceLayerId id) const
 {
     const SurfaceLayerDefinition* definition = FindLayerDefinition(id);
     return definition != nullptr ? definition->alpha_mode : DXGI_ALPHA_MODE_IGNORE;
 }
 
-SurfaceManager::Layer& SurfaceManager::LayerFor(SurfaceLayerId id)
+UiSurfaceManager::Layer& UiSurfaceManager::LayerFor(UiSurfaceLayerId id)
 {
     FAIL_FAST_IF(LayerIndex(id) >= layers_.size());
     return layers_[LayerIndex(id)];
 }
 
-const SurfaceManager::Layer& SurfaceManager::LayerFor(SurfaceLayerId id) const
+const UiSurfaceManager::Layer& UiSurfaceManager::LayerFor(UiSurfaceLayerId id) const
 {
     FAIL_FAST_IF(LayerIndex(id) >= layers_.size());
     return layers_[LayerIndex(id)];
 }
 
-HRESULT SurfaceManager::CreateLayerSurface(SurfaceLayerId id, UINT width, UINT height)
+HRESULT UiSurfaceManager::CreateLayerSurface(UiSurfaceLayerId id, UINT width, UINT height)
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, device_);
     Layer& layer = LayerFor(id);
