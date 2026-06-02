@@ -48,6 +48,7 @@ struct UiElementState final {
     bool pressed = false;
     bool active = false;
     bool danger = false;
+    bool enabled = true;
 };
 
 class UiElement {

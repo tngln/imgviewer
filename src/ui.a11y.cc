@@ -304,7 +304,7 @@ public:
         }
 
         if (property_id == UIA_IsEnabledPropertyId) {
-            return SetBoolVariant(true, value);
+            return SetBoolVariant(root_->ui()->IsElementEnabled(id_), value);
         }
 
         if (property_id == UIA_IsControlElementPropertyId) {
@@ -397,6 +397,10 @@ public:
     {
         const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
         RETURN_HR_IF_NULL(E_UNEXPECTED, metadata);
+        if (!root_->ui()->IsElementEnabled(id_)) {
+            return UIA_E_ELEMENTNOTENABLED;
+        }
+
         if (metadata->action == AppAction::OpenImage) {
             PostMessageW(root_->hwnd(), kImgViewerOpenImageMessage, 0, 0);
         } else if (metadata->action != AppAction::None) {

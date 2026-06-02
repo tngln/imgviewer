@@ -201,8 +201,41 @@ size_t KeyActionIndex(WPARAM wparam)
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
 }
 
+bool IsActionEnabled(const AppContext* context, AppAction action)
+{
+    if (action == AppAction::None) {
+        return false;
+    }
+
+    if (action == AppAction::PreviousImage) {
+        const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
+        return position.index > 1;
+    }
+
+    if (action == AppAction::NextImage) {
+        const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
+        return position.total > 0 && position.index < position.total;
+    }
+
+    return true;
+}
+
+void SyncActionStates(AppContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    context->ui.SetActionEnabled(AppAction::PreviousImage, IsActionEnabled(context, AppAction::PreviousImage));
+    context->ui.SetActionEnabled(AppAction::NextImage, IsActionEnabled(context, AppAction::NextImage));
+}
+
 void ExecuteAction(HWND hwnd, AppContext* context, AppAction action)
 {
+    if (!IsActionEnabled(context, action)) {
+        return;
+    }
+
     switch (action) {
     case AppAction::OpenImage:
         break;
@@ -292,6 +325,7 @@ void LoadImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
     if (FAILED(sequence_hr)) {
         MessageBoxW(hwnd, L"Could not read the image folder.", kWindowTitle, MB_OK | MB_ICONWARNING);
     }
+    SyncActionStates(context);
 
     const std::wstring file_name = util::FileNameFromPath(path, kWindowTitle);
     const ImageSequencePosition position = context->sequence.Position();

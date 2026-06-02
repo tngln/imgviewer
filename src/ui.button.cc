@@ -13,6 +13,10 @@ namespace {
 
 D2D1_COLOR_F ButtonFillColor(UiElementState state)
 {
+    if (!state.enabled) {
+        return ui_theme::color::kButtonDisabled;
+    }
+
     if (state.danger && (state.hovered || state.pressed)) {
         return state.pressed ? ui_theme::color::kDangerPressed : ui_theme::color::kDangerHovered;
     }
@@ -54,6 +58,10 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
         D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius);
     draw.FillRoundedRect(button, ButtonFillColor(state));
     draw.DrawRoundedRect(button, ui_theme::color::kBorder, 1.0f);
+    const D2D1_COLOR_F content_color =
+        state.enabled ? ui_theme::color::kAccent : ui_theme::color::kButtonDisabledContent;
+    const D2D1_COLOR_F text_color =
+        state.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent;
     draw.DrawIconText(
         icon_,
         static_cast<UINT32>(wcslen(icon_)),
@@ -62,7 +70,7 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kButtonIconTop,
             rect.left + ui_theme::offset::kButtonIconRight,
             rect.bottom),
-        ui_theme::color::kAccent);
+        content_color);
     draw.DrawBodyText(
         text_,
         static_cast<UINT32>(wcslen(text_)),
@@ -71,7 +79,7 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
             rect.top + ui_theme::offset::kButtonTextTop,
             rect.right - ui_theme::offset::kButtonTextRight,
             rect.bottom),
-        ui_theme::color::kBodyText,
+        text_color,
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }
 
@@ -102,8 +110,9 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
     const D2D1_RECT_F rect = Rect();
     const UiDraw draw(context);
     draw.FillRect(rect, ButtonFillColor(state));
-    const D2D1_COLOR_F icon_color =
-        state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent;
+    const D2D1_COLOR_F icon_color = !state.enabled
+        ? ui_theme::color::kButtonDisabledContent
+        : state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent;
     if (icon_path_ != nullptr && icon_path_count_ > 0 && icon_viewport_ > 0.0f && context.d2d_context != nullptr) {
         wil::com_ptr<ID2D1Factory> factory;
         context.d2d_context->GetFactory(factory.put());

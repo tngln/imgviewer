@@ -178,6 +178,8 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         icons::kToolbarIconViewport)));
     reset_button_ =
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kResetMetadata, kResetIcon)));
+    SetActionEnabled(AppAction::PreviousImage, false);
+    SetActionEnabled(AppAction::NextImage, false);
 }
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
@@ -219,6 +221,14 @@ UiEventResult UiController::OnPointerDown(D2D1_POINT_2F point)
         return UiEventResult{
             .handled = true,
             .captured = true,
+        };
+    }
+
+    if (!IsElementEnabled(button)) {
+        hovered_button_ = button;
+        pressed_button_ = UiElementId::None;
+        return UiEventResult{
+            .handled = true,
         };
     }
 
@@ -440,7 +450,20 @@ void UiController::ClampToolbarToViewport(D2D1_SIZE_F viewport_size)
 AppAction UiController::ActionFor(UiElementId id) const
 {
     const UiElementMetadata* metadata = MetadataForElement(id);
-    return metadata != nullptr ? metadata->action : AppAction::None;
+    if (metadata == nullptr || !IsActionEnabled(metadata->action)) {
+        return AppAction::None;
+    }
+
+    return metadata->action;
+}
+
+bool UiController::IsActionEnabled(AppAction action) const
+{
+    if (action == AppAction::None) {
+        return false;
+    }
+
+    return std::find(disabled_actions_.begin(), disabled_actions_.end(), action) == disabled_actions_.end();
 }
 
 UiElementState UiController::ButtonState(UiElementId id, bool active, bool danger) const
@@ -450,6 +473,7 @@ UiElementState UiController::ButtonState(UiElementId id, bool active, bool dange
         .pressed = pressed_button_ == id,
         .active = active,
         .danger = danger,
+        .enabled = IsElementEnabled(id),
     };
 }
 
@@ -481,6 +505,12 @@ D2D1_RECT_F UiController::ElementRect(UiElementId id) const
     return element != nullptr && element != root_.get() ? element->Rect() : D2D1::RectF();
 }
 
+bool UiController::IsElementEnabled(UiElementId id) const
+{
+    const UiElementMetadata* metadata = MetadataForElement(id);
+    return metadata != nullptr && IsActionEnabled(metadata->action);
+}
+
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
     return math::Contains(titlebar_rect_, point) && HitTest(point) == UiElementId::None;
@@ -489,6 +519,20 @@ bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 void UiController::SetTitleText(const wchar_t* title)
 {
     title_text_ = title != nullptr && title[0] != L'\0' ? title : L"ImgViewer";
+}
+
+void UiController::SetActionEnabled(AppAction action, bool enabled)
+{
+    if (action == AppAction::None) {
+        return;
+    }
+
+    const auto existing = std::find(disabled_actions_.begin(), disabled_actions_.end(), action);
+    if (enabled && existing != disabled_actions_.end()) {
+        disabled_actions_.erase(existing);
+    } else if (!enabled && existing == disabled_actions_.end()) {
+        disabled_actions_.push_back(action);
+    }
 }
 
 void UiController::SetWindowState(bool top_most, bool maximized)

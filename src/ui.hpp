@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "ui.button.hpp"
 
@@ -35,8 +36,10 @@ public:
     const UiElementMetadata* ElementMetadataAt(size_t index) const;
     const UiElementMetadata* ElementMetadata(UiElementId id) const;
     D2D1_RECT_F ElementRect(UiElementId id) const;
+    bool IsElementEnabled(UiElementId id) const;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
+    void SetActionEnabled(AppAction action, bool enabled);
     void SetWindowState(bool top_most, bool maximized);
 
 private:
@@ -45,6 +48,7 @@ private:
     bool HitTestToolbar(D2D1_POINT_2F point) const;
     void ClampToolbarToViewport(D2D1_SIZE_F viewport_size);
     AppAction ActionFor(UiElementId id) const;
+    bool IsActionEnabled(AppAction action) const;
     UiElementState ButtonState(UiElementId id, bool active = false, bool danger = false) const;
     const UiElementMetadata* MetadataForElement(UiElementId id) const;
 
@@ -69,6 +73,7 @@ private:
     IconButton* reset_button_ = nullptr;
     UiElementId hovered_button_ = UiElementId::None;
     UiElementId pressed_button_ = UiElementId::None;
+    std::vector<AppAction> disabled_actions_;
     bool toolbar_position_initialized_ = false;
     bool toolbar_dragging_ = false;
     bool top_most_ = false;
