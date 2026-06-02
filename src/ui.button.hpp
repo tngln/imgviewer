@@ -5,6 +5,7 @@
 #include <dwrite.h>
 
 #include "ui.element.hpp"
+#include "ui.events.hpp"
 
 class Button final : public UiElement {
 public:
@@ -12,6 +13,8 @@ public:
 
     float PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const;
     void Draw(const UiDrawContext& context, UiElementState state) const override;
+    UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
+    UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 
 private:
     const wchar_t* icon_ = L"";
@@ -29,6 +32,8 @@ public:
 
     void SetIcon(const wchar_t* icon);
     void Draw(const UiDrawContext& context, UiElementState state) const override;
+    UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
+    UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 
 private:
     const wchar_t* icon_ = L"";

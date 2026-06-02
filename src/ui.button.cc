@@ -6,6 +6,7 @@
 #include <d2d1helper.h>
 #include <wil/com.h>
 
+#include "ui.events.hpp"
 #include "ui.text.hpp"
 #include "ui.theme.hpp"
 
@@ -32,6 +33,53 @@ D2D1_COLOR_F ButtonFillColor(UiElementState state)
     return ui_theme::color::kButtonDefault;
 }
 
+UiEventResult ButtonPointerEvent(UiElement& button, const UiPointerEvent& event)
+{
+    if (event.button != UiPointerButton::Left &&
+        (event.type == UiEventType::PointerDown || event.type == UiEventType::PointerUp)) {
+        return {};
+    }
+
+    if (event.type == UiEventType::PointerDown) {
+        const bool can_activate = button.IsEnabled();
+        return UiEventResult{
+            .handled = true,
+            .needs_render = can_activate,
+            .capture = can_activate ? UiCaptureRequest::Capture : UiCaptureRequest::None,
+            .focus = can_activate && button.IsFocusable() ? UiFocusRequest::FocusTarget : UiFocusRequest::None,
+            .focus_target = can_activate ? button.Id() : UiElementId::None,
+        };
+    }
+
+    if (event.type == UiEventType::PointerUp && event.captured == button.Id()) {
+        return UiEventResult{
+            .handled = true,
+            .needs_render = button.IsEnabled(),
+            .capture = UiCaptureRequest::Release,
+            .action = button.IsEnabled() && event.target == button.Id() ? button.Action() : AppAction::None,
+        };
+    }
+
+    return {};
+}
+
+UiEventResult ButtonKeyEvent(UiElement& button, const UiKeyEvent& event)
+{
+    if (event.type != UiEventType::KeyDown || !button.IsEnabled()) {
+        return {};
+    }
+
+    if (event.virtual_key != VK_RETURN && event.virtual_key != VK_SPACE) {
+        return {};
+    }
+
+    return UiEventResult{
+        .handled = true,
+        .needs_render = true,
+        .action = button.Action(),
+    };
+}
+
 } // namespace
 
 Button::Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* text) :
@@ -39,6 +87,7 @@ Button::Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* t
     icon_(icon),
     text_(text)
 {
+    SetFocusable(true);
 }
 
 float Button::PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const
@@ -83,7 +132,20 @@ void Button::Draw(const UiDrawContext& context, UiElementState state) const
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 }
 
-IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElement(metadata), icon_(icon) {}
+UiEventResult Button::OnPointerEvent(const UiPointerEvent& event)
+{
+    return ButtonPointerEvent(*this, event);
+}
+
+UiEventResult Button::OnKeyEvent(const UiKeyEvent& event)
+{
+    return ButtonKeyEvent(*this, event);
+}
+
+IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElement(metadata), icon_(icon)
+{
+    SetFocusable(true);
+}
 
 IconButton::IconButton(
     UiElementMetadata metadata,
@@ -95,6 +157,7 @@ IconButton::IconButton(
     icon_path_count_(icon_path_count),
     icon_viewport_(icon_viewport)
 {
+    SetFocusable(true);
 }
 
 void IconButton::SetIcon(const wchar_t* icon)
@@ -143,4 +206,14 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
             rect.right,
             rect.bottom),
         icon_color);
+}
+
+UiEventResult IconButton::OnPointerEvent(const UiPointerEvent& event)
+{
+    return ButtonPointerEvent(*this, event);
+}
+
+UiEventResult IconButton::OnKeyEvent(const UiKeyEvent& event)
+{
+    return ButtonKeyEvent(*this, event);
 }

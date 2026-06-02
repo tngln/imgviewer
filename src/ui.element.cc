@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include "ui.events.hpp"
+
 UiElement::UiElement(UiElementMetadata metadata) : metadata_(metadata) {}
 
 void UiElement::SetRect(D2D1_RECT_F rect)
@@ -29,12 +31,52 @@ AppAction UiElement::Action() const
     return metadata_.action;
 }
 
+void UiElement::SetEnabled(bool enabled)
+{
+    enabled_ = enabled;
+}
+
+bool UiElement::IsEnabled() const
+{
+    return enabled_;
+}
+
+void UiElement::SetFocusable(bool focusable)
+{
+    focusable_ = focusable;
+}
+
+bool UiElement::IsFocusable() const
+{
+    return focusable_;
+}
+
+void UiElement::SetHitTestVisible(bool hit_test_visible)
+{
+    hit_test_visible_ = hit_test_visible;
+}
+
+bool UiElement::IsHitTestVisible() const
+{
+    return hit_test_visible_;
+}
+
 bool UiElement::Contains(D2D1_POINT_2F point) const
 {
     return point.x >= rect_.left && point.x < rect_.right && point.y >= rect_.top && point.y < rect_.bottom;
 }
 
 void UiElement::Draw(const UiDrawContext&, UiElementState) const {}
+
+UiEventResult UiElement::OnPointerEvent(const UiPointerEvent&)
+{
+    return {};
+}
+
+UiEventResult UiElement::OnKeyEvent(const UiKeyEvent&)
+{
+    return {};
+}
 
 UiElement* UiElement::AddChild(std::unique_ptr<UiElement> child)
 {
@@ -86,6 +128,10 @@ UiElement* UiElement::HitTest(D2D1_POINT_2F point)
 
 const UiElement* UiElement::HitTest(D2D1_POINT_2F point) const
 {
+    if (!hit_test_visible_) {
+        return nullptr;
+    }
+
     for (auto child = children_.rbegin(); child != children_.rend(); ++child) {
         const UiElement* found = (*child)->HitTest(point);
         if (found != nullptr) {

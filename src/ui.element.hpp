@@ -8,8 +8,13 @@
 #include "app.action.hpp"
 #include "ui.draw.hpp"
 
+struct UiEventResult;
+struct UiKeyEvent;
+struct UiPointerEvent;
+
 enum class UiElementId {
     None,
+    ToolbarDragHandle,
     OpenImage,
     PreviousImage,
     NextImage,
@@ -61,8 +66,16 @@ public:
     const UiElementMetadata& Metadata() const;
     UiElementId Id() const;
     AppAction Action() const;
+    void SetEnabled(bool enabled);
+    bool IsEnabled() const;
+    void SetFocusable(bool focusable);
+    bool IsFocusable() const;
+    void SetHitTestVisible(bool hit_test_visible);
+    bool IsHitTestVisible() const;
     bool Contains(D2D1_POINT_2F point) const;
     virtual void Draw(const UiDrawContext& context, UiElementState state) const;
+    virtual UiEventResult OnPointerEvent(const UiPointerEvent& event);
+    virtual UiEventResult OnKeyEvent(const UiKeyEvent& event);
     UiElement* AddChild(std::unique_ptr<UiElement> child);
     size_t ChildCount() const;
     UiElement* ChildAt(size_t index);
@@ -75,5 +88,8 @@ public:
 private:
     UiElementMetadata metadata_;
     D2D1_RECT_F rect_ = {};
+    bool enabled_ = true;
+    bool focusable_ = false;
+    bool hit_test_visible_ = true;
     std::vector<std::unique_ptr<UiElement>> children_;
 };

@@ -182,6 +182,15 @@ bool IsKeyDown(int virtual_key)
     return (GetKeyState(virtual_key) & 0x8000) != 0;
 }
 
+UiModifiers CurrentUiModifiers()
+{
+    return UiModifiers{
+        .ctrl = IsKeyDown(VK_CONTROL),
+        .shift = IsKeyDown(VK_SHIFT),
+        .alt = IsKeyDown(VK_MENU),
+    };
+}
+
 AppAction ActionForKeyboardMessage(const AppContext* context, WPARAM wparam)
 {
     if (context == nullptr) {
@@ -409,7 +418,9 @@ void RenderIfNeeded(HWND hwnd, AppContext* context, UiEventResult result)
         return;
     }
 
-    if (result.released_capture) {
+    if (result.capture == UiCaptureRequest::Capture) {
+        SetCapture(hwnd);
+    } else if (result.capture == UiCaptureRequest::Release) {
         ReleaseCapture();
     }
 
@@ -599,7 +610,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (context != nullptr && !ui_result.handled) {
             viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
         }
-        if (ui_result.captured || viewer_result.captured) {
+        if (viewer_result.captured) {
             SetCapture(hwnd);
         }
         RenderIfNeeded(hwnd, context, ui_result);
@@ -647,6 +658,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
         AppContext* context = GetAppContext(hwnd);
+        const UiEventResult ui_result = context != nullptr
+            ? context->ui.OnKeyEvent(UiKeyEvent{
+                  .type = UiEventType::KeyDown,
+                  .virtual_key = static_cast<UINT>(wparam),
+                  .modifiers = CurrentUiModifiers(),
+                  .repeat = (lparam & 0x40000000) != 0,
+              })
+            : UiEventResult{};
+        if (ui_result.handled) {
+            RenderIfNeeded(hwnd, context, ui_result);
+            return 0;
+        }
+
         const AppAction action = ActionForKeyboardMessage(context, wparam);
         if (context != nullptr) {
             context->pressed_key_actions[KeyActionIndex(wparam)] = action;

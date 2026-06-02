@@ -38,6 +38,17 @@ constexpr UiElementMetadata kRootMetadata{
     .is_control = true,
     .is_content = true,
 };
+constexpr UiElementMetadata kToolbarDragHandleMetadata{
+    .id = UiElementId::ToolbarDragHandle,
+    .role = UiElementRole::Pane,
+    .action = AppAction::None,
+    .name = L"Toolbar drag handle",
+    .tooltip = L"",
+    .automation_id = L"toolbar-drag-handle",
+    .runtime_id = 6,
+    .is_control = false,
+    .is_content = false,
+};
 constexpr UiElementMetadata kTopMostMetadata{
     .id = UiElementId::TopMost,
     .role = UiElementRole::Button,
@@ -178,109 +189,181 @@ UiController::UiController() : root_(std::make_unique<UiElement>(kRootMetadata))
         icons::kToolbarIconViewport)));
     reset_button_ =
         static_cast<IconButton*>(root_->AddChild(std::make_unique<IconButton>(kResetMetadata, kResetIcon)));
+    toolbar_drag_handle_ = root_->AddChild(std::make_unique<UiElement>(kToolbarDragHandleMetadata));
     SetActionEnabled(AppAction::PreviousImage, false);
     SetActionEnabled(AppAction::NextImage, false);
 }
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
 {
-    if (toolbar_dragging_) {
-        toolbar_position_ = D2D1::Point2F(point.x - toolbar_drag_offset_.x, point.y - toolbar_drag_offset_.y);
-        toolbar_rect_ = D2D1::RectF(
-            toolbar_position_.x,
-            toolbar_position_.y,
-            toolbar_position_.x + math::RectWidth(toolbar_rect_),
-            toolbar_position_.y + math::RectHeight(toolbar_rect_));
-        return UiEventResult{
-            .handled = true,
-            .needs_render = true,
-        };
-    }
-
-    const UiElementId was_hovered = hovered_button_;
-    hovered_button_ = HitTest(point);
-
-    return UiEventResult{
-        .handled = hovered_button_ != UiElementId::None || pressed_button_ != UiElementId::None,
-        .needs_render = was_hovered != hovered_button_,
-    };
+    return OnPointerEvent(UiPointerEvent{
+        .type = UiEventType::PointerMove,
+        .point = point,
+    });
 }
 
 UiEventResult UiController::OnPointerDown(D2D1_POINT_2F point)
 {
-    const UiElementId button = HitTest(point);
-    if (button == UiElementId::None && !HitTestToolbar(point)) {
-        return {};
-    }
-
-    if (button == UiElementId::None) {
-        toolbar_dragging_ = true;
-        toolbar_drag_offset_ = D2D1::Point2F(point.x - toolbar_position_.x, point.y - toolbar_position_.y);
-        hovered_button_ = UiElementId::None;
-        pressed_button_ = UiElementId::None;
-        return UiEventResult{
-            .handled = true,
-            .captured = true,
-        };
-    }
-
-    if (!IsElementEnabled(button)) {
-        hovered_button_ = button;
-        pressed_button_ = UiElementId::None;
-        return UiEventResult{
-            .handled = true,
-        };
-    }
-
-    hovered_button_ = button;
-    pressed_button_ = button;
-    return UiEventResult{
-        .handled = true,
-        .needs_render = true,
-        .captured = true,
-    };
+    return OnPointerEvent(UiPointerEvent{
+        .type = UiEventType::PointerDown,
+        .point = point,
+        .button = UiPointerButton::Left,
+    });
 }
 
 UiEventResult UiController::OnPointerUp(D2D1_POINT_2F point)
 {
-    if (toolbar_dragging_) {
-        toolbar_dragging_ = false;
-        return UiEventResult{
-            .handled = true,
-            .needs_render = true,
-            .released_capture = true,
-        };
-    }
-
-    if (pressed_button_ == UiElementId::None) {
-        return {};
-    }
-
-    const UiElementId pressed_button = pressed_button_;
-    hovered_button_ = HitTest(point);
-    pressed_button_ = UiElementId::None;
-
-    AppAction action = hovered_button_ == pressed_button ? ActionFor(pressed_button) : AppAction::None;
-
-    return UiEventResult{
-        .handled = true,
-        .needs_render = true,
-        .released_capture = true,
-        .action = action,
-    };
+    return OnPointerEvent(UiPointerEvent{
+        .type = UiEventType::PointerUp,
+        .point = point,
+        .button = UiPointerButton::Left,
+    });
 }
 
 UiEventResult UiController::OnPointerLeave()
 {
-    if (hovered_button_ == UiElementId::None) {
+    return OnPointerEvent(UiPointerEvent{
+        .type = UiEventType::PointerLeave,
+    });
+}
+
+UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
+{
+    UiEventResult result = DispatchPointerEvent(event);
+    const UiElementId target = event.captured != UiElementId::None ? event.captured : result.focus_target;
+    ApplyEventResult(result, target != UiElementId::None ? target : event.target);
+    return result;
+}
+
+UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
+{
+    UiEventResult result = DispatchKeyEvent(event);
+    ApplyEventResult(result, event.focused);
+    return result;
+}
+
+UiElementId UiController::HoveredElement() const
+{
+    return hovered_id_;
+}
+
+UiElementId UiController::PressedElement() const
+{
+    return pressed_id_;
+}
+
+UiElementId UiController::FocusedElement() const
+{
+    return focused_id_;
+}
+
+UiElementId UiController::CapturedElement() const
+{
+    return captured_id_;
+}
+
+UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
+{
+    if (event.type == UiEventType::PointerLeave) {
+        const bool had_hover = hovered_id_ != UiElementId::None;
+        hovered_id_ = UiElementId::None;
+        return UiEventResult{
+            .handled = had_hover || captured_id_ != UiElementId::None,
+            .needs_render = had_hover,
+        };
+    }
+
+    const UiElementId hit_id = HitTest(event.point);
+    const UiElementId target_id = captured_id_ != UiElementId::None ? captured_id_ : hit_id;
+    const UiElementId was_hovered = hovered_id_;
+    hovered_id_ = hit_id;
+
+    if (target_id == UiElementId::ToolbarDragHandle) {
+        if (event.type == UiEventType::PointerDown && event.button == UiPointerButton::Left) {
+            toolbar_dragging_ = true;
+            toolbar_drag_offset_ =
+                D2D1::Point2F(event.point.x - toolbar_position_.x, event.point.y - toolbar_position_.y);
+            return UiEventResult{
+                .handled = true,
+                .capture = UiCaptureRequest::Capture,
+                .focus_target = UiElementId::ToolbarDragHandle,
+            };
+        }
+
+        if (event.type == UiEventType::PointerMove && toolbar_dragging_) {
+            toolbar_position_ =
+                D2D1::Point2F(event.point.x - toolbar_drag_offset_.x, event.point.y - toolbar_drag_offset_.y);
+            toolbar_rect_ = D2D1::RectF(
+                toolbar_position_.x,
+                toolbar_position_.y,
+                toolbar_position_.x + math::RectWidth(toolbar_rect_),
+                toolbar_position_.y + math::RectHeight(toolbar_rect_));
+            return UiEventResult{
+                .handled = true,
+                .needs_render = true,
+            };
+        }
+
+        if (event.type == UiEventType::PointerUp && toolbar_dragging_) {
+            toolbar_dragging_ = false;
+            return UiEventResult{
+                .handled = true,
+                .needs_render = true,
+                .capture = UiCaptureRequest::Release,
+            };
+        }
+    }
+
+    UiEventResult result = {};
+    if (UiElement* target = root_->FindById(target_id)) {
+        UiPointerEvent target_event = event;
+        target_event.target = hit_id;
+        target_event.captured = captured_id_;
+        result = target->OnPointerEvent(target_event);
+    }
+
+    if (!result.handled && target_id != UiElementId::None) {
+        result.handled = true;
+    }
+    result.needs_render = result.needs_render || was_hovered != hovered_id_;
+
+    if (event.type == UiEventType::PointerDown && result.capture == UiCaptureRequest::Capture) {
+        result.focus_target = target_id;
+    }
+
+    return result;
+}
+
+UiEventResult UiController::DispatchKeyEvent(const UiKeyEvent& event)
+{
+    if (focused_id_ == UiElementId::None) {
         return {};
     }
 
-    hovered_button_ = UiElementId::None;
-    return UiEventResult{
-        .handled = true,
-        .needs_render = true,
-    };
+    if (UiElement* focused = root_->FindById(focused_id_)) {
+        UiKeyEvent focused_event = event;
+        focused_event.focused = focused_id_;
+        return focused->OnKeyEvent(focused_event);
+    }
+
+    return {};
+}
+
+void UiController::ApplyEventResult(const UiEventResult& result, UiElementId target)
+{
+    if (result.capture == UiCaptureRequest::Capture) {
+        captured_id_ = target;
+        pressed_id_ = target;
+    } else if (result.capture == UiCaptureRequest::Release) {
+        captured_id_ = UiElementId::None;
+        pressed_id_ = UiElementId::None;
+    }
+
+    if (result.focus == UiFocusRequest::FocusTarget) {
+        focused_id_ = result.focus_target != UiElementId::None ? result.focus_target : target;
+    } else if (result.focus == UiFocusRequest::ClearFocus) {
+        focused_id_ = UiElementId::None;
+    }
 }
 
 void UiController::Draw(
@@ -405,6 +488,11 @@ void UiController::Layout(D2D1_SIZE_F viewport_size, IDWriteFactory*, IDWriteTex
         toolbar_position_.y + toolbar_height);
     ClampToolbarToViewport(viewport_size);
     toolbar_position_ = D2D1::Point2F(toolbar_rect_.left, toolbar_rect_.top);
+    toolbar_drag_handle_->SetRect(D2D1::RectF(
+        toolbar_rect_.left,
+        toolbar_rect_.top,
+        toolbar_rect_.left + ui_theme::metrics::kToolbarPadding + ui_theme::metrics::kToolbarDragHandleWidth,
+        toolbar_rect_.bottom));
 
     const std::vector<D2D1_RECT_F> toolbar_buttons = ui_layout::PlaceHorizontalRow(
         D2D1::Point2F(
@@ -469,8 +557,8 @@ bool UiController::IsActionEnabled(AppAction action) const
 UiElementState UiController::ButtonState(UiElementId id, bool active, bool danger) const
 {
     return UiElementState{
-        .hovered = hovered_button_ == id,
-        .pressed = pressed_button_ == id,
+        .hovered = hovered_id_ == id,
+        .pressed = pressed_id_ == id,
         .active = active,
         .danger = danger,
         .enabled = IsElementEnabled(id),
@@ -507,8 +595,8 @@ D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 
 bool UiController::IsElementEnabled(UiElementId id) const
 {
-    const UiElementMetadata* metadata = MetadataForElement(id);
-    return metadata != nullptr && IsActionEnabled(metadata->action);
+    const UiElement* element = root_->FindById(id);
+    return element != nullptr && element != root_.get() && element->IsEnabled();
 }
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
@@ -533,10 +621,27 @@ void UiController::SetActionEnabled(AppAction action, bool enabled)
     } else if (!enabled && existing == disabled_actions_.end()) {
         disabled_actions_.push_back(action);
     }
+
+    SetActionEnabledRecursive(root_.get(), action, enabled);
 }
 
 void UiController::SetWindowState(bool top_most, bool maximized)
 {
     top_most_ = top_most;
     maximized_ = maximized;
+}
+
+void UiController::SetActionEnabledRecursive(UiElement* element, AppAction action, bool enabled)
+{
+    if (element == nullptr) {
+        return;
+    }
+
+    if (element->Action() == action) {
+        element->SetEnabled(enabled);
+    }
+
+    for (size_t index = 0; index < element->ChildCount(); ++index) {
+        SetActionEnabledRecursive(element->ChildAt(index), action, enabled);
+    }
 }

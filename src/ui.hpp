@@ -8,14 +8,7 @@
 #include <vector>
 
 #include "ui.button.hpp"
-
-struct UiEventResult {
-    bool handled = false;
-    bool needs_render = false;
-    bool captured = false;
-    bool released_capture = false;
-    AppAction action = AppAction::None;
-};
+#include "ui.events.hpp"
 
 class UiController final {
 public:
@@ -25,6 +18,13 @@ public:
     UiEventResult OnPointerDown(D2D1_POINT_2F point);
     UiEventResult OnPointerUp(D2D1_POINT_2F point);
     UiEventResult OnPointerLeave();
+    UiEventResult OnPointerEvent(const UiPointerEvent& event);
+    UiEventResult OnKeyEvent(const UiKeyEvent& event);
+
+    UiElementId HoveredElement() const;
+    UiElementId PressedElement() const;
+    UiElementId FocusedElement() const;
+    UiElementId CapturedElement() const;
 
     void Draw(
         ID2D1DeviceContext* d2d_context,
@@ -51,6 +51,10 @@ private:
     bool IsActionEnabled(AppAction action) const;
     UiElementState ButtonState(UiElementId id, bool active = false, bool danger = false) const;
     const UiElementMetadata* MetadataForElement(UiElementId id) const;
+    UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
+    UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
+    void ApplyEventResult(const UiEventResult& result, UiElementId target);
+    void SetActionEnabledRecursive(UiElement* element, AppAction action, bool enabled);
 
     std::wstring title_text_ = L"ImgViewer";
     D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
@@ -71,8 +75,11 @@ private:
     IconButton* flip_horizontal_button_ = nullptr;
     IconButton* flip_vertical_button_ = nullptr;
     IconButton* reset_button_ = nullptr;
-    UiElementId hovered_button_ = UiElementId::None;
-    UiElementId pressed_button_ = UiElementId::None;
+    UiElement* toolbar_drag_handle_ = nullptr;
+    UiElementId hovered_id_ = UiElementId::None;
+    UiElementId pressed_id_ = UiElementId::None;
+    UiElementId focused_id_ = UiElementId::None;
+    UiElementId captured_id_ = UiElementId::None;
     std::vector<AppAction> disabled_actions_;
     bool toolbar_position_initialized_ = false;
     bool toolbar_dragging_ = false;
