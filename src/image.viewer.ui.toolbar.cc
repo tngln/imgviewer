@@ -1,0 +1,327 @@
+#include "image.viewer.ui.toolbar.hpp"
+
+#include "image.viewer.ui.hpp"
+
+#include <algorithm>
+#include <memory>
+#include <vector>
+
+#include <d2d1helper.h>
+
+#include "app.action.hpp"
+#include "math.hpp"
+#include "ui.layout.hpp"
+#include "ui.theme.hpp"
+
+namespace {
+
+constexpr wchar_t kPreviousIcon[] = L"\xE892";
+constexpr wchar_t kNextIcon[] = L"\xE893";
+constexpr wchar_t kZoomInIcon[] = L"\xE8A3";
+constexpr wchar_t kZoomOutIcon[] = L"\xE71F";
+constexpr wchar_t kRotateIcon[] = L"\xE7AD";
+constexpr wchar_t kResetIcon[] = L"\xE777";
+
+enum class ButtonIconKind {
+    Glyph,
+    Path,
+};
+
+struct ButtonIconSpec final {
+    ButtonIconKind kind = ButtonIconKind::Glyph;
+    const wchar_t* glyph = L"";
+    const icons::PathCommand* path = nullptr;
+    size_t path_count = 0;
+    float path_viewport = 0.0f;
+};
+
+struct ButtonSpec final {
+    ImageViewerUiToolbar::ButtonKey button = ImageViewerUiToolbar::ButtonKey::PreviousImage;
+    AppAction action = AppAction::None;
+    const wchar_t* name = L"";
+    const wchar_t* tooltip = L"";
+    const wchar_t* automation_id = L"";
+    ButtonIconSpec icon = {};
+    bool initially_enabled = true;
+    bool danger = false;
+};
+
+constexpr ButtonIconSpec GlyphIcon(const wchar_t* glyph)
+{
+    return ButtonIconSpec{
+        .kind = ButtonIconKind::Glyph,
+        .glyph = glyph,
+    };
+}
+
+template <size_t Count>
+constexpr ButtonIconSpec PathIcon(const icons::PathCommand (&path)[Count], float viewport)
+{
+    return ButtonIconSpec{
+        .kind = ButtonIconKind::Path,
+        .path = path,
+        .path_count = Count,
+        .path_viewport = viewport,
+    };
+}
+
+UiElementMetadata Metadata(
+    UiElementId id,
+    UiElementRole role,
+    AppAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control = true,
+    bool is_content = true)
+{
+    return UiElementMetadata{
+        .id = id,
+        .role = role,
+        .action = action,
+        .name = name,
+        .tooltip = tooltip,
+        .automation_id = automation_id,
+        .is_control = is_control,
+        .is_content = is_content,
+    };
+}
+
+std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
+{
+    const UiElementMetadata metadata =
+        Metadata(id, UiElementRole::Button, spec.action, spec.name, spec.tooltip, spec.automation_id);
+    if (spec.icon.kind == ButtonIconKind::Path) {
+        return std::make_unique<IconButton>(metadata, spec.icon.path, spec.icon.path_count, spec.icon.path_viewport);
+    }
+
+    return std::make_unique<IconButton>(metadata, spec.icon.glyph);
+}
+
+constexpr std::array<ButtonSpec, ImageViewerUiToolbar::kButtonCount> kButtonSpecs{{
+    {ImageViewerUiToolbar::ButtonKey::PreviousImage, AppAction::PreviousImage, L"Previous Image", L"Previous image",
+        L"previous-image", GlyphIcon(kPreviousIcon), false},
+    {ImageViewerUiToolbar::ButtonKey::NextImage, AppAction::NextImage, L"Next Image", L"Next image", L"next-image",
+        GlyphIcon(kNextIcon), false},
+    {ImageViewerUiToolbar::ButtonKey::ZoomIn, AppAction::ZoomIn, L"Zoom In", L"Zoom in", L"zoom-in",
+        GlyphIcon(kZoomInIcon)},
+    {ImageViewerUiToolbar::ButtonKey::ZoomOut, AppAction::ZoomOut, L"Zoom Out", L"Zoom out", L"zoom-out",
+        GlyphIcon(kZoomOutIcon)},
+    {ImageViewerUiToolbar::ButtonKey::RotateClockwise, AppAction::RotateClockwise, L"Rotate Clockwise",
+        L"Rotate clockwise", L"rotate-clockwise", GlyphIcon(kRotateIcon)},
+    {ImageViewerUiToolbar::ButtonKey::FlipHorizontal, AppAction::FlipHorizontal, L"Flip Horizontal", L"Flip horizontal",
+        L"flip-horizontal", PathIcon(icons::kFlipHorizontalIconPath, icons::kToolbarIconViewport)},
+    {ImageViewerUiToolbar::ButtonKey::FlipVertical, AppAction::FlipVertical, L"Flip Vertical", L"Flip vertical",
+        L"flip-vertical", PathIcon(icons::kFlipVerticalIconPath, icons::kToolbarIconViewport)},
+    {ImageViewerUiToolbar::ButtonKey::ResetView, AppAction::ResetView, L"Reset View", L"Reset view", L"reset-view",
+        GlyphIcon(kResetIcon)},
+}};
+
+constexpr bool ButtonSpecsMatchKeys()
+{
+    for (size_t index = 0; index < kButtonSpecs.size(); ++index) {
+        if (static_cast<size_t>(kButtonSpecs[index].button) != index) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static_assert(ButtonSpecsMatchKeys());
+
+} // namespace
+
+constexpr size_t ImageViewerUiToolbar::ButtonIndex(ButtonKey button)
+{
+    return static_cast<size_t>(button);
+}
+
+ImageViewerUiToolbar::ImageViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids)
+{
+    for (const ButtonSpec& spec : kButtonSpecs) {
+        ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
+        button.id = ids.Next();
+        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(spec, button.id)));
+        button.element->SetEnabled(spec.initially_enabled);
+    }
+
+    drag_handle_id_ = ids.Next();
+    drag_handle_ = root.AddChild(std::make_unique<UiElement>(Metadata(
+        drag_handle_id_,
+        UiElementRole::Pane,
+        AppAction::None,
+        L"Toolbar drag handle",
+        L"",
+        L"toolbar-drag-handle",
+        false,
+        false)));
+}
+
+void ImageViewerUiToolbar::Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImageViewerUiState state)
+{
+    const UiDraw draw(draw_context);
+    Layout(viewport_size);
+
+    const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
+        toolbar_rect_,
+        ui_theme::metrics::kToolbarCornerRadius,
+        ui_theme::metrics::kToolbarCornerRadius);
+    draw.FillRoundedRect(
+        toolbar_background,
+        D2D1::ColorF(
+            ui_theme::color::kToolbarBackground.r,
+            ui_theme::color::kToolbarBackground.g,
+            ui_theme::color::kToolbarBackground.b,
+            ui_theme::color::kToolbarBackgroundOpacity));
+    draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, 1.0f);
+
+    for (const ButtonSpec& spec : kButtonSpecs) {
+        DrawButton(spec.button, draw_context, state);
+    }
+}
+
+void ImageViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
+{
+    const float toolbar_content_width =
+        ui_theme::metrics::kToolbarButtonSize * static_cast<float>(kButtonSpecs.size()) +
+        ui_theme::metrics::kToolbarButtonGap * static_cast<float>(kButtonSpecs.size() - 1);
+    const float toolbar_width = toolbar_content_width +
+        ui_theme::metrics::kToolbarPadding * 2.0f +
+        ui_theme::metrics::kToolbarDragHandleWidth;
+    const float toolbar_height = ui_theme::metrics::kToolbarButtonSize + ui_theme::metrics::kToolbarPadding * 2.0f;
+    if (!position_initialized_) {
+        toolbar_position_ = D2D1::Point2F(
+            (std::max)(0.0f, (viewport_size.width - toolbar_width) * 0.5f),
+            (std::max)(0.0f, viewport_size.height - toolbar_height - ui_theme::metrics::kToolbarBottomMargin));
+        position_initialized_ = true;
+    }
+    toolbar_rect_ = D2D1::RectF(
+        toolbar_position_.x,
+        toolbar_position_.y,
+        toolbar_position_.x + toolbar_width,
+        toolbar_position_.y + toolbar_height);
+    ClampToViewport(viewport_size);
+    toolbar_position_ = D2D1::Point2F(toolbar_rect_.left, toolbar_rect_.top);
+    drag_handle_->SetRect(D2D1::RectF(
+        toolbar_rect_.left,
+        toolbar_rect_.top,
+        toolbar_rect_.left + ui_theme::metrics::kToolbarPadding + ui_theme::metrics::kToolbarDragHandleWidth,
+        toolbar_rect_.bottom));
+
+    const std::vector<D2D1_RECT_F> toolbar_buttons = ui_layout::PlaceHorizontalRow(
+        D2D1::Point2F(
+            toolbar_rect_.left + ui_theme::metrics::kToolbarPadding + ui_theme::metrics::kToolbarDragHandleWidth,
+            toolbar_rect_.top + ui_theme::metrics::kToolbarPadding),
+        ui_theme::metrics::kToolbarButtonSize,
+        std::vector<float>(kButtonSpecs.size(), ui_theme::metrics::kToolbarButtonSize),
+        ui_theme::metrics::kToolbarButtonGap);
+    for (const ButtonSpec& spec : kButtonSpecs) {
+        Button(spec.button)->SetRect(toolbar_buttons[ButtonIndex(spec.button)]);
+    }
+}
+
+void ImageViewerUiToolbar::ClampToViewport(D2D1_SIZE_F viewport_size)
+{
+    const float toolbar_width = math::RectWidth(toolbar_rect_);
+    const float toolbar_height = math::RectHeight(toolbar_rect_);
+    const float max_left = (std::max)(0.0f, viewport_size.width - toolbar_width);
+    const float max_top = (std::max)(0.0f, viewport_size.height - toolbar_height);
+    const float left = std::clamp(toolbar_rect_.left, 0.0f, max_left);
+    const float top = std::clamp(toolbar_rect_.top, 0.0f, max_top);
+    toolbar_rect_ = D2D1::RectF(left, top, left + toolbar_width, top + toolbar_height);
+}
+
+UiEventResult ImageViewerUiToolbar::OnPointerEvent(const UiPointerEvent& event)
+{
+    if (event.target != drag_handle_id_ && event.captured != drag_handle_id_) {
+        return {};
+    }
+
+    return OnDragHandlePointerEvent(event);
+}
+
+UiEventResult ImageViewerUiToolbar::OnDragHandlePointerEvent(const UiPointerEvent& event)
+{
+    if (event.type == UiEventType::PointerDown && event.button == UiPointerButton::Left) {
+        BeginDrag(event.point);
+        return UiEventResult{
+            .handled = true,
+            .capture = UiCaptureRequest::Capture,
+            .focus_target = drag_handle_id_,
+        };
+    }
+
+    if (event.type == UiEventType::PointerMove && dragging_) {
+        Drag(event.point);
+        return UiEventResult{
+            .handled = true,
+            .needs_render = true,
+        };
+    }
+
+    if (event.type == UiEventType::PointerUp && dragging_) {
+        EndDrag();
+        return UiEventResult{
+            .handled = true,
+            .needs_render = true,
+            .capture = UiCaptureRequest::Release,
+        };
+    }
+
+    return {};
+}
+
+void ImageViewerUiToolbar::BeginDrag(D2D1_POINT_2F point)
+{
+    dragging_ = true;
+    drag_offset_ = D2D1::Point2F(point.x - toolbar_position_.x, point.y - toolbar_position_.y);
+}
+
+void ImageViewerUiToolbar::Drag(D2D1_POINT_2F point)
+{
+    toolbar_position_ = D2D1::Point2F(point.x - drag_offset_.x, point.y - drag_offset_.y);
+    toolbar_rect_ = D2D1::RectF(
+        toolbar_position_.x,
+        toolbar_position_.y,
+        toolbar_position_.x + math::RectWidth(toolbar_rect_),
+        toolbar_position_.y + math::RectHeight(toolbar_rect_));
+}
+
+void ImageViewerUiToolbar::EndDrag()
+{
+    dragging_ = false;
+}
+
+IconButton* ImageViewerUiToolbar::Button(ButtonKey button)
+{
+    return buttons_[ButtonIndex(button)].element;
+}
+
+const IconButton* ImageViewerUiToolbar::Button(ButtonKey button) const
+{
+    return buttons_[ButtonIndex(button)].element;
+}
+
+UiElementState ImageViewerUiToolbar::ButtonState(ButtonKey button, ImageViewerUiState state, bool active, bool danger) const
+{
+    const ButtonInstance& instance = buttons_[ButtonIndex(button)];
+    return UiElementState{
+        .hovered = state.hovered == instance.id,
+        .pressed = state.pressed == instance.id,
+        .active = active,
+        .danger = danger,
+        .enabled = instance.element != nullptr && instance.element->IsEnabled(),
+    };
+}
+
+void ImageViewerUiToolbar::DrawButton(
+    ButtonKey button,
+    const UiDrawContext& draw_context,
+    ImageViewerUiState state,
+    bool active,
+    bool danger) const
+{
+    const ButtonSpec& spec = kButtonSpecs[ButtonIndex(button)];
+    Button(button)->Draw(draw_context, ButtonState(button, state, active, danger || spec.danger));
+}

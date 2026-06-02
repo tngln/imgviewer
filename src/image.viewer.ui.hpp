@@ -1,18 +1,20 @@
 #pragma once
 
 #include <memory>
-#include <string>
 
 #include <d2d1_1.h>
 #include <dwrite.h>
 
-#include "ui.button.hpp"
+#include "ui.element.hpp"
 #include "ui.events.hpp"
 
 struct ImageViewerUiState final {
     UiElementId hovered = UiElementId::None;
     UiElementId pressed = UiElementId::None;
 };
+
+#include "image.viewer.ui.titlebar.hpp"
+#include "image.viewer.ui.toolbar.hpp"
 
 class ImageViewerUi final {
 public:
@@ -34,49 +36,12 @@ public:
     void SetWindowState(bool top_most, bool maximized);
 
 private:
-    void Layout(D2D1_SIZE_F viewport_size, IDWriteFactory* dwrite_factory, IDWriteTextFormat* body_text_format);
-    UiEventResult OnToolbarDragHandlePointerEvent(const UiPointerEvent& event);
-    void BeginToolbarDrag(D2D1_POINT_2F point);
-    void DragToolbar(D2D1_POINT_2F point);
-    void EndToolbarDrag();
-    void ClampToolbarToViewport(D2D1_SIZE_F viewport_size);
-    UiElementState ButtonState(UiElementId id, ImageViewerUiState state, bool active = false, bool danger = false) const;
+    void Layout(D2D1_SIZE_F viewport_size);
 
-    std::wstring title_text_ = L"ImgViewer";
-    D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
-    D2D1_RECT_F title_text_rect_ = D2D1_RECT_F{16.0f, 0.0f, 720.0f, 48.0f};
-    D2D1_RECT_F toolbar_rect_ = D2D1_RECT_F{};
-    D2D1_POINT_2F toolbar_position_ = D2D1_POINT_2F{};
-    D2D1_POINT_2F toolbar_drag_offset_ = D2D1_POINT_2F{};
     std::unique_ptr<UiElement> root_;
-    IconButton* top_most_button_ = nullptr;
-    IconButton* minimize_button_ = nullptr;
-    IconButton* maximize_button_ = nullptr;
-    IconButton* close_button_ = nullptr;
-    IconButton* previous_button_ = nullptr;
-    IconButton* next_button_ = nullptr;
-    IconButton* zoom_in_button_ = nullptr;
-    IconButton* zoom_out_button_ = nullptr;
-    IconButton* rotate_button_ = nullptr;
-    IconButton* flip_horizontal_button_ = nullptr;
-    IconButton* flip_vertical_button_ = nullptr;
-    IconButton* reset_button_ = nullptr;
-    UiElement* toolbar_drag_handle_ = nullptr;
-    UiElementId toolbar_drag_handle_id_ = UiElementId::None;
-    UiElementId top_most_id_ = UiElementId::None;
-    UiElementId minimize_id_ = UiElementId::None;
-    UiElementId maximize_restore_id_ = UiElementId::None;
-    UiElementId close_id_ = UiElementId::None;
-    UiElementId previous_image_id_ = UiElementId::None;
-    UiElementId next_image_id_ = UiElementId::None;
-    UiElementId zoom_in_id_ = UiElementId::None;
-    UiElementId zoom_out_id_ = UiElementId::None;
-    UiElementId rotate_clockwise_id_ = UiElementId::None;
-    UiElementId reset_view_id_ = UiElementId::None;
-    UiElementId flip_horizontal_id_ = UiElementId::None;
-    UiElementId flip_vertical_id_ = UiElementId::None;
-    bool toolbar_position_initialized_ = false;
-    bool toolbar_dragging_ = false;
+    UiElementIdGenerator ids_;
+    ImageViewerUiTitleBar titlebar_;
+    ImageViewerUiToolbar toolbar_;
     bool top_most_ = false;
     bool maximized_ = false;
 };

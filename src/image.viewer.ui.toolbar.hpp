@@ -1,0 +1,66 @@
+#pragma once
+
+#include <array>
+#include <cstddef>
+
+#include <d2d1_1.h>
+
+#include "ui.button.hpp"
+#include "ui.element.hpp"
+#include "ui.events.hpp"
+
+struct ImageViewerUiState;
+
+class ImageViewerUiToolbar final {
+public:
+    enum class ButtonKey : size_t {
+        PreviousImage,
+        NextImage,
+        ZoomIn,
+        ZoomOut,
+        RotateClockwise,
+        FlipHorizontal,
+        FlipVertical,
+        ResetView,
+        Count,
+    };
+
+    static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
+    static constexpr size_t ButtonIndex(ButtonKey button);
+
+    ImageViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
+
+    void Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImageViewerUiState state);
+    UiEventResult OnPointerEvent(const UiPointerEvent& event);
+
+private:
+    struct ButtonInstance final {
+        UiElementId id = UiElementId::None;
+        IconButton* element = nullptr;
+    };
+
+    void Layout(D2D1_SIZE_F viewport_size);
+    UiEventResult OnDragHandlePointerEvent(const UiPointerEvent& event);
+    void BeginDrag(D2D1_POINT_2F point);
+    void Drag(D2D1_POINT_2F point);
+    void EndDrag();
+    void ClampToViewport(D2D1_SIZE_F viewport_size);
+    IconButton* Button(ButtonKey button);
+    const IconButton* Button(ButtonKey button) const;
+    UiElementState ButtonState(ButtonKey button, ImageViewerUiState state, bool active = false, bool danger = false) const;
+    void DrawButton(
+        ButtonKey button,
+        const UiDrawContext& draw_context,
+        ImageViewerUiState state,
+        bool active = false,
+        bool danger = false) const;
+
+    std::array<ButtonInstance, kButtonCount> buttons_{};
+    UiElement* drag_handle_ = nullptr;
+    UiElementId drag_handle_id_ = UiElementId::None;
+    D2D1_RECT_F toolbar_rect_ = D2D1_RECT_F{};
+    D2D1_POINT_2F toolbar_position_ = D2D1_POINT_2F{};
+    D2D1_POINT_2F drag_offset_ = D2D1_POINT_2F{};
+    bool position_initialized_ = false;
+    bool dragging_ = false;
+};
