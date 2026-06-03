@@ -233,10 +233,10 @@ public:
         DrawElement(*remember_checkbox_, context);
         DrawElement(*remember_radio_, context);
         DrawElement(*default_radio_, context);
-        DrawElement(*action_dropdown_, context);
         DrawElement(*reset_button_, context);
         DrawElement(*save_button_, context);
         DrawElement(*cancel_button_, context);
+        DrawElement(*action_dropdown_, context);
     }
 
     UiEventResult OnPointerMove(D2D1_POINT_2F point)

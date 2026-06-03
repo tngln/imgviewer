@@ -59,6 +59,6 @@ private:
 
     std::vector<DropdownOption> options_;
     size_t selected_index_ = 0;
+    size_t hovered_index_ = 0;
     bool expanded_ = false;
 };
-

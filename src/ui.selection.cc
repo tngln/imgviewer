@@ -197,6 +197,7 @@ bool Dropdown::IsExpanded() const
 void Dropdown::Collapse()
 {
     expanded_ = false;
+    hovered_index_ = options_.size();
 }
 
 void Dropdown::Draw(const UiDrawContext& context, UiElementState state) const
@@ -214,7 +215,9 @@ void Dropdown::Draw(const UiDrawContext& context, UiElementState state) const
 
     for (size_t index = 0; index < options_.size(); ++index) {
         const D2D1_RECT_F option_rect = OptionRect(index);
-        draw.FillRect(option_rect, index == selected_index_ ? ui_theme::color::kButtonHovered : ui_theme::color::kButtonDefault);
+        draw.FillRect(
+            option_rect,
+            index == hovered_index_ || index == selected_index_ ? ui_theme::color::kButtonHovered : ui_theme::color::kButtonDefault);
         draw.DrawBodyText(options_[index].text, static_cast<UINT32>(wcslen(options_[index].text)), D2D1::RectF(option_rect.left + 12.0f, option_rect.top + 3.0f, option_rect.right - 8.0f, option_rect.bottom), ui_theme::color::kBodyText, D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     const D2D1_RECT_F last = OptionRect(options_.empty() ? 0 : options_.size() - 1);
@@ -223,7 +226,20 @@ void Dropdown::Draw(const UiDrawContext& context, UiElementState state) const
 
 UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
 {
-    if (!IsEnabled() || event.button != UiPointerButton::Left) {
+    if (!IsEnabled()) {
+        return {};
+    }
+
+    if (event.type == UiEventType::PointerMove && expanded_ && event.target == Id()) {
+        const size_t previous_hovered = hovered_index_;
+        hovered_index_ = OptionAt(event.point);
+        return UiEventResult{
+            .handled = true,
+            .needs_render = previous_hovered != hovered_index_,
+        };
+    }
+
+    if (event.button != UiPointerButton::Left) {
         return {};
     }
     if (event.type == UiEventType::PointerDown) {
@@ -241,10 +257,16 @@ UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
             const size_t option = OptionAt(event.point);
             if (option < options_.size()) {
                 selected_index_ = option;
+                hovered_index_ = option;
                 action = options_[option].action;
             }
         }
         expanded_ = !expanded_ && event.target == Id();
+        if (expanded_) {
+            hovered_index_ = selected_index_;
+        } else {
+            hovered_index_ = options_.size();
+        }
         return UiEventResult{
             .handled = true,
             .needs_render = true,
@@ -261,11 +283,12 @@ UiEventResult Dropdown::OnKeyEvent(const UiKeyEvent& event)
         return {};
     }
     if (event.virtual_key == VK_ESCAPE) {
-        expanded_ = false;
+        Collapse();
         return UiEventResult{.handled = true, .needs_render = true};
     }
     if (event.virtual_key == VK_RETURN || event.virtual_key == VK_SPACE) {
         expanded_ = !expanded_;
+        hovered_index_ = expanded_ ? selected_index_ : options_.size();
         return UiEventResult{.handled = true, .needs_render = true};
     }
     if ((event.virtual_key == VK_DOWN || event.virtual_key == VK_UP) && !options_.empty()) {
@@ -274,6 +297,7 @@ UiEventResult Dropdown::OnKeyEvent(const UiKeyEvent& event)
         } else {
             selected_index_ = selected_index_ == 0 ? 0 : selected_index_ - 1;
         }
+        hovered_index_ = selected_index_;
         return UiEventResult{.handled = true, .needs_render = true, .action = options_[selected_index_].action};
     }
     return {};
