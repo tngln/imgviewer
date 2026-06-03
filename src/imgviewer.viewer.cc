@@ -1,4 +1,4 @@
-#include "image.viewer.hpp"
+#include "imgviewer.viewer.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -17,13 +17,13 @@ constexpr float kRadiansToDegrees = 57.2957795f;
 
 } // namespace
 
-HRESULT ImageViewerController::Initialize()
+HRESULT ImgViewerController::Initialize()
 {
     RETURN_IF_FAILED(image_decoder_.Initialize());
     return S_OK;
 }
 
-HRESULT ImageViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceContext* d2d_context)
+HRESULT ImgViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceContext* d2d_context)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, path);
     RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
@@ -46,14 +46,14 @@ HRESULT ImageViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceCon
     return S_OK;
 }
 
-D2D1_SIZE_U ImageViewerController::CurrentImagePixelSize() const
+D2D1_SIZE_U ImgViewerController::CurrentImagePixelSize() const
 {
     return current_image_.pixel_size;
 }
 
-ImageViewerSnapshot ImageViewerController::Snapshot() const
+ImgViewerSnapshot ImgViewerController::Snapshot() const
 {
-    return ImageViewerSnapshot{
+    return ImgViewerSnapshot{
         .bitmap = current_image_.bitmap.get(),
         .pixel_size = current_image_.pixel_size,
         .view_center = image_view_center_,
@@ -64,7 +64,7 @@ ImageViewerSnapshot ImageViewerController::Snapshot() const
     };
 }
 
-ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size)
+ImgViewerEventResult ImgViewerController::OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size)
 {
     if (image_is_rotating_) {
         const D2D1_POINT_2F point = D2D1::Point2F(x, y);
@@ -74,7 +74,7 @@ ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2
         const float angle = math::AngleFromCenter(point, viewport_center);
         image_rotation_degrees_ += (angle - image_last_rotation_angle_) * kRadiansToDegrees;
         image_last_rotation_angle_ = angle;
-        return ImageViewerEventResult{
+        return ImgViewerEventResult{
             .handled = true,
             .needs_render = true,
         };
@@ -99,7 +99,7 @@ ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2
         image_view_center_.x -= image_delta.x / image_scale;
         image_view_center_.y -= image_delta.y / image_scale;
         image_last_pan_point_ = point;
-        return ImageViewerEventResult{
+        return ImgViewerEventResult{
             .handled = true,
             .needs_render = true,
         };
@@ -108,7 +108,7 @@ ImageViewerEventResult ImageViewerController::OnPointerMove(float x, float y, D2
     return {};
 }
 
-ImageViewerEventResult ImageViewerController::OnPointerDown(float x, float y, D2D1_SIZE_U viewport_size)
+ImgViewerEventResult ImgViewerController::OnPointerDown(float x, float y, D2D1_SIZE_U viewport_size)
 {
     if (!current_image_.bitmap) {
         return {};
@@ -122,7 +122,7 @@ ImageViewerEventResult ImageViewerController::OnPointerDown(float x, float y, D2
             static_cast<float>(viewport_size.width) * 0.5f,
             static_cast<float>(viewport_size.height) * 0.5f);
         image_last_rotation_angle_ = math::AngleFromCenter(point, viewport_center);
-        return ImageViewerEventResult{
+        return ImgViewerEventResult{
             .handled = true,
             .captured = true,
         };
@@ -130,13 +130,13 @@ ImageViewerEventResult ImageViewerController::OnPointerDown(float x, float y, D2
 
     image_is_panning_ = true;
     image_last_pan_point_ = point;
-    return ImageViewerEventResult{
+    return ImgViewerEventResult{
         .handled = true,
         .captured = true,
     };
 }
 
-ImageViewerEventResult ImageViewerController::OnPointerUp(float x, float y, D2D1_SIZE_U viewport_size)
+ImgViewerEventResult ImgViewerController::OnPointerUp(float x, float y, D2D1_SIZE_U viewport_size)
 {
     if (image_is_rotating_) {
         image_is_rotating_ = false;
@@ -145,7 +145,7 @@ ImageViewerEventResult ImageViewerController::OnPointerUp(float x, float y, D2D1
             D2D1::Point2F(
                 static_cast<float>(viewport_size.width) * 0.5f,
                 static_cast<float>(viewport_size.height) * 0.5f));
-        return ImageViewerEventResult{
+        return ImgViewerEventResult{
             .handled = true,
             .released_capture = true,
         };
@@ -154,7 +154,7 @@ ImageViewerEventResult ImageViewerController::OnPointerUp(float x, float y, D2D1
     if (image_is_panning_) {
         image_is_panning_ = false;
         image_last_pan_point_ = D2D1::Point2F(x, y);
-        return ImageViewerEventResult{
+        return ImgViewerEventResult{
             .handled = true,
             .released_capture = true,
         };
@@ -163,7 +163,7 @@ ImageViewerEventResult ImageViewerController::OnPointerUp(float x, float y, D2D1
     return {};
 }
 
-bool ImageViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_U viewport_size)
+bool ImgViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_U viewport_size)
 {
     if (delta == 0) {
         return false;
@@ -172,7 +172,7 @@ bool ImageViewerController::OnMouseWheel(float x, float y, int delta, D2D1_SIZE_
     return ZoomAtPoint(x, y, static_cast<float>(delta) / static_cast<float>(WHEEL_DELTA), viewport_size);
 }
 
-bool ImageViewerController::ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size)
+bool ImgViewerController::ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size)
 {
     if (!current_image_.bitmap || steps == 0.0f || viewport_size.width == 0 || viewport_size.height == 0) {
         return false;
@@ -209,7 +209,7 @@ bool ImageViewerController::ZoomAtPoint(float x, float y, float steps, D2D1_SIZE
     return true;
 }
 
-bool ImageViewerController::ZoomByStep(int steps, D2D1_SIZE_U viewport_size)
+bool ImgViewerController::ZoomByStep(int steps, D2D1_SIZE_U viewport_size)
 {
     if (steps == 0) {
         return false;
@@ -222,7 +222,7 @@ bool ImageViewerController::ZoomByStep(int steps, D2D1_SIZE_U viewport_size)
         viewport_size);
 }
 
-bool ImageViewerController::RotateClockwise()
+bool ImgViewerController::RotateClockwise()
 {
     if (!current_image_.bitmap) {
         return false;
@@ -232,7 +232,7 @@ bool ImageViewerController::RotateClockwise()
     return true;
 }
 
-bool ImageViewerController::FlipHorizontal()
+bool ImgViewerController::FlipHorizontal()
 {
     if (!current_image_.bitmap) {
         return false;
@@ -242,7 +242,7 @@ bool ImageViewerController::FlipHorizontal()
     return true;
 }
 
-bool ImageViewerController::FlipVertical()
+bool ImgViewerController::FlipVertical()
 {
     if (!current_image_.bitmap) {
         return false;
@@ -252,7 +252,7 @@ bool ImageViewerController::FlipVertical()
     return true;
 }
 
-bool ImageViewerController::ResetView()
+bool ImgViewerController::ResetView()
 {
     if (!current_image_.bitmap) {
         return false;
@@ -272,9 +272,9 @@ bool ImageViewerController::ResetView()
     return true;
 }
 
-bool ImageViewerController::OnActionDown(AppAction action)
+bool ImgViewerController::OnActionDown(ImgViewerAction action)
 {
-    if (action == AppAction::RotateClockwise) {
+    if (action == ImgViewerAction::RotateClockwise) {
         r_key_is_down_ = true;
         return true;
     }
@@ -282,22 +282,22 @@ bool ImageViewerController::OnActionDown(AppAction action)
     return false;
 }
 
-ImageViewerEventResult ImageViewerController::OnActionUp(AppAction action)
+ImgViewerEventResult ImgViewerController::OnActionUp(ImgViewerAction action)
 {
-    if (action == AppAction::RotateClockwise) {
+    if (action == ImgViewerAction::RotateClockwise) {
         const bool should_rotate_clockwise = r_key_is_down_ && !r_key_started_rotation_;
         const bool should_release_capture = image_is_rotating_;
         r_key_is_down_ = false;
         image_is_rotating_ = false;
         r_key_started_rotation_ = false;
         if (should_rotate_clockwise && RotateClockwise()) {
-            return ImageViewerEventResult{
+            return ImgViewerEventResult{
                 .handled = true,
                 .needs_render = true,
             };
         }
 
-        return ImageViewerEventResult{
+        return ImgViewerEventResult{
             .handled = should_release_capture || should_rotate_clockwise,
             .released_capture = should_release_capture,
         };
@@ -306,7 +306,7 @@ ImageViewerEventResult ImageViewerController::OnActionUp(AppAction action)
     return {};
 }
 
-float ImageViewerController::CurrentImageScale(D2D1_SIZE_U viewport_size) const
+float ImgViewerController::CurrentImageScale(D2D1_SIZE_U viewport_size) const
 {
     if (!current_image_.bitmap) {
         return 0.0f;

@@ -1,8 +1,8 @@
 #include "main.hpp"
 
-#include "app.host.hpp"
+#include "imgviewer.host.hpp"
 
 int main()
 {
-    return RunApplication();
+    return RunImgViewerApplication();
 }

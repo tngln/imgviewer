@@ -9,9 +9,9 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
-struct ImageViewerUiState;
+struct ImgViewerUiState;
 
-class ImageViewerUiToolbar final {
+class ImgViewerUiToolbar final {
 public:
     enum class ButtonKey : size_t {
         PreviousImage,
@@ -28,9 +28,9 @@ public:
     static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
     static constexpr size_t ButtonIndex(ButtonKey button);
 
-    ImageViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
+    ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
 
-    void Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImageViewerUiState state);
+    void Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImgViewerUiState state);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
@@ -47,11 +47,11 @@ private:
     void ClampToViewport(D2D1_SIZE_F viewport_size);
     IconButton* Button(ButtonKey button);
     const IconButton* Button(ButtonKey button) const;
-    UiElementState ButtonState(ButtonKey button, ImageViewerUiState state, bool active = false, bool danger = false) const;
+    UiElementState ButtonState(ButtonKey button, ImgViewerUiState state, bool active = false, bool danger = false) const;
     void DrawButton(
         ButtonKey button,
         const UiDrawContext& draw_context,
-        ImageViewerUiState state,
+        ImgViewerUiState state,
         bool active = false,
         bool danger = false) const;
 

@@ -10,9 +10,9 @@
 #include "ui.button.hpp"
 #include "ui.element.hpp"
 
-struct ImageViewerUiState;
+struct ImgViewerUiState;
 
-class ImageViewerUiTitleBar final {
+class ImgViewerUiTitleBar final {
 public:
     enum class ButtonKey : size_t {
         TopMost,
@@ -25,14 +25,14 @@ public:
     static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
     static constexpr size_t ButtonIndex(ButtonKey button);
 
-    ImageViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids);
+    ImgViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids);
 
     void Draw(
         const UiDrawContext& draw_context,
         D2D1_SIZE_F viewport_size,
         IDWriteFactory* dwrite_factory,
         IDWriteTextFormat* body_text_format,
-        ImageViewerUiState state,
+        ImgViewerUiState state,
         bool top_most,
         bool maximized);
     bool IsPointInCaptionDragArea(const UiElement& root, D2D1_POINT_2F point) const;
@@ -47,11 +47,11 @@ private:
     void Layout(D2D1_SIZE_F viewport_size);
     IconButton* Button(ButtonKey button);
     const IconButton* Button(ButtonKey button) const;
-    UiElementState ButtonState(ButtonKey button, ImageViewerUiState state, bool active = false, bool danger = false) const;
+    UiElementState ButtonState(ButtonKey button, ImgViewerUiState state, bool active = false, bool danger = false) const;
     void DrawButton(
         ButtonKey button,
         const UiDrawContext& draw_context,
-        ImageViewerUiState state,
+        ImgViewerUiState state,
         bool active = false,
         bool danger = false) const;
 

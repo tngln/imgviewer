@@ -56,7 +56,7 @@ UiEventResult ButtonPointerEvent(UiElement& button, const UiPointerEvent& event)
             .handled = true,
             .needs_render = button.IsEnabled(),
             .capture = UiCaptureRequest::Release,
-            .action = button.IsEnabled() && event.target == button.Id() ? button.Action() : AppAction::None,
+            .action = button.IsEnabled() && event.target == button.Id() ? button.Action() : ImgViewerAction::None,
         };
     }
 

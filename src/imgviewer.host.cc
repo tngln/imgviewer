@@ -1,11 +1,11 @@
-#include "app.host.hpp"
+#include "imgviewer.host.hpp"
 
-#include "app.hpp"
-#include "app.action.hpp"
-#include "app.config.hpp"
-#include "app.keybindings.hpp"
-#include "app.messages.hpp"
-#include "image.viewer.hpp"
+#include "imgviewer.hpp"
+#include "imgviewer.action.hpp"
+#include "imgviewer.config.hpp"
+#include "imgviewer.keybindings.hpp"
+#include "imgviewer.messages.hpp"
+#include "imgviewer.viewer.hpp"
 #include "math.hpp"
 #include "ui.a11y.hpp"
 #include "ui.tooltip.hpp"
@@ -16,7 +16,6 @@
 
 #include <commctrl.h>
 #include <shellapi.h>
-#include <string>
 #include <vector>
 
 #include <wil/resource.h>
@@ -45,9 +44,9 @@ D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
     return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
 }
 
-AppContext* GetAppContext(HWND hwnd)
+ImgViewerContext* GetImgViewerContext(HWND hwnd)
 {
-    return reinterpret_cast<AppContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    return reinterpret_cast<ImgViewerContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 }
 
 bool IsKeyDown(int virtual_key)
@@ -64,10 +63,10 @@ UiModifiers CurrentUiModifiers()
     };
 }
 
-AppAction ActionForKeyboardMessage(const AppContext* context, WPARAM wparam)
+ImgViewerAction ActionForKeyboardMessage(const ImgViewerContext* context, WPARAM wparam)
 {
     if (context == nullptr) {
-        return AppAction::None;
+        return ImgViewerAction::None;
     }
 
     return ActionForKey(
@@ -83,7 +82,7 @@ size_t KeyActionIndex(WPARAM wparam)
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
 }
 
-void RenderIfNeeded(HWND hwnd, AppContext* context, UiEventResult result)
+void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
 {
     if (context == nullptr) {
         return;
@@ -96,17 +95,17 @@ void RenderIfNeeded(HWND hwnd, AppContext* context, UiEventResult result)
     }
 
     if (result.needs_render) {
-        RenderApplication(context);
+        RenderImgViewer(context);
     }
 
-    if (result.action == AppAction::OpenImage) {
-        HandleOpenImageCommand(hwnd, context);
-    } else if (result.action != AppAction::None) {
-        ExecuteAppAction(hwnd, context, result.action);
+    if (result.action == ImgViewerAction::OpenImage) {
+        HandleImgViewerOpenImageCommand(hwnd, context);
+    } else if (result.action != ImgViewerAction::None) {
+        ExecuteImgViewerAction(hwnd, context, result.action);
     }
 }
 
-void RenderIfNeeded(AppContext* context, ImageViewerEventResult result)
+void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
 {
     if (context == nullptr) {
         return;
@@ -117,7 +116,7 @@ void RenderIfNeeded(AppContext* context, ImageViewerEventResult result)
     }
 
     if (result.needs_render) {
-        RenderApplication(context);
+        RenderImgViewer(context);
     }
 }
 
@@ -168,7 +167,7 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
     POINT client_point = screen_point;
     ScreenToClient(hwnd, &client_point);
     const D2D1_POINT_2F render_point = math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
-    AppContext* context = GetAppContext(hwnd);
+    ImgViewerContext* context = GetImgViewerContext(hwnd);
     if (context != nullptr && context->ui.IsPointInCaptionDragArea(render_point)) {
         return HTCAPTION;
     }
@@ -198,12 +197,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 {
     switch (message) {
     case kImgViewerUiActionMessage: {
-        ExecuteAppAction(hwnd, GetAppContext(hwnd), static_cast<AppAction>(wparam));
+        ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), static_cast<ImgViewerAction>(wparam));
         return 0;
     }
 
     case kImgViewerOpenImageMessage: {
-        HandleOpenImageCommand(hwnd, GetAppContext(hwnd));
+        HandleImgViewerOpenImageCommand(hwnd, GetImgViewerContext(hwnd));
         return 0;
     }
 
@@ -217,12 +216,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_CREATE: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context == nullptr ||
             FAILED(context->renderer.Initialize(hwnd)) ||
             FAILED(context->viewer.Initialize()) ||
             FAILED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put())) ||
-            FAILED(RenderApplication(context))) {
+            FAILED(RenderImgViewer(context))) {
             return -1;
         }
 
@@ -230,13 +229,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_SIZE: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context != nullptr && FAILED(context->renderer.Resize())) {
             return -1;
         }
         if (context != nullptr) {
             SyncWindowState(hwnd, &context->ui);
-            if (FAILED(RenderApplication(context))) {
+            if (FAILED(RenderImgViewer(context))) {
                 return -1;
             }
             UpdateUiTooltipRects(hwnd, context);
@@ -250,7 +249,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_NCLBUTTONDBLCLK:
         if (wparam == HTCAPTION) {
-            ExecuteAppAction(hwnd, GetAppContext(hwnd), AppAction::ToggleMaximize);
+            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerAction::ToggleMaximize);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -259,10 +258,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 1;
 
     case WM_MOUSEMOVE: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         util::TrackMouseLeave(hwnd);
-        ImageViewerEventResult viewer_result = {};
+        ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
             viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
         }
@@ -274,10 +273,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_LBUTTONDOWN: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         UiEventResult ui_result = context != nullptr ? context->ui.OnPointerDown(point) : UiEventResult{};
-        ImageViewerEventResult viewer_result = {};
+        ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
             viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
         }
@@ -290,9 +289,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_LBUTTONUP: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        ImageViewerEventResult viewer_result = {};
+        ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
             viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
         }
@@ -306,13 +305,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_MOUSELEAVE: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         RenderIfNeeded(hwnd, context, context != nullptr ? context->ui.OnPointerLeave() : UiEventResult{});
         return 0;
     }
 
     case WM_MOUSEWHEEL: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetScreenPointerPoint(hwnd, lparam);
         if (context != nullptr &&
             context->viewer.OnMouseWheel(
@@ -320,7 +319,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 point.y,
                 GET_WHEEL_DELTA_WPARAM(wparam),
                 context->renderer.ViewportPixelSize())) {
-            RenderApplication(context);
+            RenderImgViewer(context);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -328,7 +327,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         const UiEventResult ui_result = context != nullptr
             ? context->ui.OnKeyEvent(UiKeyEvent{
                   .type = UiEventType::KeyDown,
@@ -342,19 +341,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return 0;
         }
 
-        const AppAction action = ActionForKeyboardMessage(context, wparam);
+        const ImgViewerAction action = ActionForKeyboardMessage(context, wparam);
         if (context != nullptr) {
             context->pressed_key_actions[KeyActionIndex(wparam)] = action;
         }
         if (context != nullptr && context->viewer.OnActionDown(action)) {
             return 0;
         }
-        if (action == AppAction::OpenImage) {
-            HandleOpenImageCommand(hwnd, context);
+        if (action == ImgViewerAction::OpenImage) {
+            HandleImgViewerOpenImageCommand(hwnd, context);
             return 0;
         }
-        if (action != AppAction::None) {
-            ExecuteAppAction(hwnd, context, action);
+        if (action != ImgViewerAction::None) {
+            ExecuteImgViewerAction(hwnd, context, action);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -362,14 +361,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_KEYUP:
     case WM_SYSKEYUP: {
-        AppContext* context = GetAppContext(hwnd);
-        const AppAction action =
-            context != nullptr ? context->pressed_key_actions[KeyActionIndex(wparam)] : AppAction::None;
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        const ImgViewerAction action =
+            context != nullptr ? context->pressed_key_actions[KeyActionIndex(wparam)] : ImgViewerAction::None;
         if (context != nullptr) {
-            context->pressed_key_actions[KeyActionIndex(wparam)] = AppAction::None;
+            context->pressed_key_actions[KeyActionIndex(wparam)] = ImgViewerAction::None;
         }
-        const ImageViewerEventResult viewer_result =
-            context != nullptr ? context->viewer.OnActionUp(action) : ImageViewerEventResult{};
+        const ImgViewerEventResult viewer_result =
+            context != nullptr ? context->viewer.OnActionUp(action) : ImgViewerEventResult{};
         if (viewer_result.handled) {
             RenderIfNeeded(context, viewer_result);
             return 0;
@@ -378,13 +377,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_DROPFILES: {
-        AppContext* context = GetAppContext(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
         const HDROP drop = reinterpret_cast<HDROP>(wparam);
         const UINT length = DragQueryFileW(drop, 0, nullptr, 0);
         if (length > 0) {
             std::vector<wchar_t> path(static_cast<size_t>(length) + 1);
             DragQueryFileW(drop, 0, path.data(), static_cast<UINT>(path.size()));
-            LoadAppImageFile(hwnd, context, path.data());
+            LoadImgViewerImageFile(hwnd, context, path.data());
         }
         DragFinish(drop);
         return 0;
@@ -392,7 +391,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_GETOBJECT: {
         if (lparam == UiaRootObjectId) {
-            AppContext* context = GetAppContext(hwnd);
+            ImgViewerContext* context = GetImgViewerContext(hwnd);
             if (context != nullptr) {
                 return UiaReturnRawElementProvider(
                     hwnd,
@@ -406,7 +405,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_DESTROY:
-        SaveWindowSize(hwnd, GetAppContext(hwnd));
+        SaveWindowSize(hwnd, GetImgViewerContext(hwnd));
         PostQuitMessage(0);
         return 0;
 
@@ -431,7 +430,7 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
     return S_OK;
 }
 
-HRESULT RunApplicationAsHresult()
+HRESULT RunImgViewerApplicationAsHresult()
 {
     INITCOMMONCONTROLSEX common_controls = {
         .dwSize = sizeof(common_controls),
@@ -449,14 +448,14 @@ HRESULT RunApplicationAsHresult()
 
     RETURN_IF_FAILED(RegisterMainWindowClass(instance));
 
-    AppContext context;
-    RETURN_IF_FAILED(LoadAppConfig(&context.config));
+    ImgViewerContext context;
+    RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
     const WindowSizeConfig initial_window_size =
         context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
     wil::unique_hwnd window{CreateWindowExW(
         0,
         kWindowClassName,
-        kAppWindowTitle,
+        kImgViewerWindowTitle,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -488,7 +487,7 @@ HRESULT RunApplicationAsHresult()
     RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
     auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
     if (argc > 1) {
-        LoadAppImageFile(window.get(), &context, argv[1]);
+        LoadImgViewerImageFile(window.get(), &context, argv[1]);
     }
 
     MSG message = {};
@@ -511,8 +510,8 @@ HRESULT RunApplicationAsHresult()
 
 } // namespace
 
-int RunApplication()
+int RunImgViewerApplication()
 {
-    const HRESULT hr = RunApplicationAsHresult();
+    const HRESULT hr = RunImgViewerApplicationAsHresult();
     return SUCCEEDED(hr) ? 0 : 1;
 }

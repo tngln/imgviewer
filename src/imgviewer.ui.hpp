@@ -8,17 +8,17 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
-struct ImageViewerUiState final {
+struct ImgViewerUiState final {
     UiElementId hovered = UiElementId::None;
     UiElementId pressed = UiElementId::None;
 };
 
-#include "image.viewer.ui.titlebar.hpp"
-#include "image.viewer.ui.toolbar.hpp"
+#include "imgviewer.ui.titlebar.hpp"
+#include "imgviewer.ui.toolbar.hpp"
 
-class ImageViewerUi final {
+class ImgViewerUi final {
 public:
-    ImageViewerUi();
+    ImgViewerUi();
 
     UiElement* Root();
     const UiElement* Root() const;
@@ -29,7 +29,7 @@ public:
         IDWriteFactory* dwrite_factory,
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format,
-        ImageViewerUiState state);
+        ImgViewerUiState state);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
@@ -40,8 +40,8 @@ private:
 
     std::unique_ptr<UiElement> root_;
     UiElementIdGenerator ids_;
-    ImageViewerUiTitleBar titlebar_;
-    ImageViewerUiToolbar toolbar_;
+    ImgViewerUiTitleBar titlebar_;
+    ImgViewerUiToolbar toolbar_;
     bool top_most_ = false;
     bool maximized_ = false;
 };

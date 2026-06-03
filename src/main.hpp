@@ -1,3 +1,3 @@
 #pragma once
 
-int RunApplication();
+int RunImgViewerApplication();

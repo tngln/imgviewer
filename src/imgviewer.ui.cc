@@ -1,4 +1,4 @@
-#include "image.viewer.ui.hpp"
+#include "imgviewer.ui.hpp"
 
 #include <memory>
 
@@ -9,7 +9,7 @@ namespace {
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
-    AppAction action,
+    ImgViewerAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
     const wchar_t* automation_id,
@@ -30,31 +30,31 @@ UiElementMetadata Metadata(
 
 } // namespace
 
-ImageViewerUi::ImageViewerUi() :
+ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
-        Metadata(UiElementId::None, UiElementRole::Pane, AppAction::None, L"ImgViewer", L"", L"root"))),
+        Metadata(UiElementId::None, UiElementRole::Pane, ImgViewerAction::None, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_, ids_),
     toolbar_(*root_, ids_)
 {
 }
 
-UiElement* ImageViewerUi::Root()
+UiElement* ImgViewerUi::Root()
 {
     return root_.get();
 }
 
-const UiElement* ImageViewerUi::Root() const
+const UiElement* ImgViewerUi::Root() const
 {
     return root_.get();
 }
 
-void ImageViewerUi::Draw(
+void ImgViewerUi::Draw(
     ID2D1DeviceContext* d2d_context,
     D2D1_SIZE_F viewport_size,
     IDWriteFactory* dwrite_factory,
     IDWriteTextFormat* body_text_format,
     IDWriteTextFormat* icon_text_format,
-    ImageViewerUiState state)
+    ImgViewerUiState state)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context,
@@ -66,28 +66,28 @@ void ImageViewerUi::Draw(
     toolbar_.Draw(draw_context, viewport_size, state);
 }
 
-UiEventResult ImageViewerUi::OnPointerEvent(const UiPointerEvent& event)
+UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
 {
     return toolbar_.OnPointerEvent(event);
 }
 
-bool ImageViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
+bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
     return titlebar_.IsPointInCaptionDragArea(*root_, point);
 }
 
-void ImageViewerUi::SetTitleText(const wchar_t* title)
+void ImgViewerUi::SetTitleText(const wchar_t* title)
 {
     titlebar_.SetTitleText(title);
 }
 
-void ImageViewerUi::SetWindowState(bool top_most, bool maximized)
+void ImgViewerUi::SetWindowState(bool top_most, bool maximized)
 {
     top_most_ = top_most;
     maximized_ = maximized;
 }
 
-void ImageViewerUi::Layout(D2D1_SIZE_F viewport_size)
+void ImgViewerUi::Layout(D2D1_SIZE_F viewport_size)
 {
     root_->SetRect(D2D1::RectF(0.0f, 0.0f, viewport_size.width, viewport_size.height));
 }

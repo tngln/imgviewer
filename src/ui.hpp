@@ -8,7 +8,7 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
-class ImageViewerUi;
+class ImgViewerUi;
 
 class UiController final {
 public:
@@ -40,7 +40,7 @@ public:
     bool IsElementEnabled(UiElementId id) const;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
-    void SetActionEnabled(AppAction action, bool enabled);
+    void SetActionEnabled(ImgViewerAction action, bool enabled);
     void SetWindowState(bool top_most, bool maximized);
 
 private:
@@ -49,9 +49,9 @@ private:
     UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
     UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
     void ApplyEventResult(const UiEventResult& result, UiElementId target);
-    void SetActionEnabledRecursive(UiElement* element, AppAction action, bool enabled);
+    void SetActionEnabledRecursive(UiElement* element, ImgViewerAction action, bool enabled);
 
-    std::unique_ptr<ImageViewerUi> app_ui_;
+    std::unique_ptr<ImgViewerUi> imgviewer_ui_;
     UiElementId hovered_id_ = UiElementId::None;
     UiElementId pressed_id_ = UiElementId::None;
     UiElementId focused_id_ = UiElementId::None;

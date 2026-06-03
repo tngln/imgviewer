@@ -1,6 +1,6 @@
-#include "image.viewer.ui.toolbar.hpp"
+#include "imgviewer.ui.toolbar.hpp"
 
-#include "image.viewer.ui.hpp"
+#include "imgviewer.ui.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -8,7 +8,7 @@
 
 #include <d2d1helper.h>
 
-#include "app.action.hpp"
+#include "imgviewer.action.hpp"
 #include "math.hpp"
 #include "ui.layout.hpp"
 #include "ui.theme.hpp"
@@ -36,8 +36,8 @@ struct ButtonIconSpec final {
 };
 
 struct ButtonSpec final {
-    ImageViewerUiToolbar::ButtonKey button = ImageViewerUiToolbar::ButtonKey::PreviousImage;
-    AppAction action = AppAction::None;
+    ImgViewerUiToolbar::ButtonKey button = ImgViewerUiToolbar::ButtonKey::PreviousImage;
+    ImgViewerAction action = ImgViewerAction::None;
     const wchar_t* name = L"";
     const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
@@ -68,7 +68,7 @@ constexpr ButtonIconSpec PathIcon(const icons::PathCommand (&path)[Count], float
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
-    AppAction action,
+    ImgViewerAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
     const wchar_t* automation_id,
@@ -98,22 +98,22 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
     return std::make_unique<IconButton>(metadata, spec.icon.glyph);
 }
 
-constexpr std::array<ButtonSpec, ImageViewerUiToolbar::kButtonCount> kButtonSpecs{{
-    {ImageViewerUiToolbar::ButtonKey::PreviousImage, AppAction::PreviousImage, L"Previous Image", L"Previous image",
+constexpr std::array<ButtonSpec, ImgViewerUiToolbar::kButtonCount> kButtonSpecs{{
+    {ImgViewerUiToolbar::ButtonKey::PreviousImage, ImgViewerAction::PreviousImage, L"Previous Image", L"Previous image",
         L"previous-image", GlyphIcon(kPreviousIcon), false},
-    {ImageViewerUiToolbar::ButtonKey::NextImage, AppAction::NextImage, L"Next Image", L"Next image", L"next-image",
+    {ImgViewerUiToolbar::ButtonKey::NextImage, ImgViewerAction::NextImage, L"Next Image", L"Next image", L"next-image",
         GlyphIcon(kNextIcon), false},
-    {ImageViewerUiToolbar::ButtonKey::ZoomIn, AppAction::ZoomIn, L"Zoom In", L"Zoom in", L"zoom-in",
+    {ImgViewerUiToolbar::ButtonKey::ZoomIn, ImgViewerAction::ZoomIn, L"Zoom In", L"Zoom in", L"zoom-in",
         GlyphIcon(kZoomInIcon)},
-    {ImageViewerUiToolbar::ButtonKey::ZoomOut, AppAction::ZoomOut, L"Zoom Out", L"Zoom out", L"zoom-out",
+    {ImgViewerUiToolbar::ButtonKey::ZoomOut, ImgViewerAction::ZoomOut, L"Zoom Out", L"Zoom out", L"zoom-out",
         GlyphIcon(kZoomOutIcon)},
-    {ImageViewerUiToolbar::ButtonKey::RotateClockwise, AppAction::RotateClockwise, L"Rotate Clockwise",
+    {ImgViewerUiToolbar::ButtonKey::RotateClockwise, ImgViewerAction::RotateClockwise, L"Rotate Clockwise",
         L"Rotate clockwise", L"rotate-clockwise", GlyphIcon(kRotateIcon)},
-    {ImageViewerUiToolbar::ButtonKey::FlipHorizontal, AppAction::FlipHorizontal, L"Flip Horizontal", L"Flip horizontal",
+    {ImgViewerUiToolbar::ButtonKey::FlipHorizontal, ImgViewerAction::FlipHorizontal, L"Flip Horizontal", L"Flip horizontal",
         L"flip-horizontal", PathIcon(icons::kFlipHorizontalIconPath, icons::kToolbarIconViewport)},
-    {ImageViewerUiToolbar::ButtonKey::FlipVertical, AppAction::FlipVertical, L"Flip Vertical", L"Flip vertical",
+    {ImgViewerUiToolbar::ButtonKey::FlipVertical, ImgViewerAction::FlipVertical, L"Flip Vertical", L"Flip vertical",
         L"flip-vertical", PathIcon(icons::kFlipVerticalIconPath, icons::kToolbarIconViewport)},
-    {ImageViewerUiToolbar::ButtonKey::ResetView, AppAction::ResetView, L"Reset View", L"Reset view", L"reset-view",
+    {ImgViewerUiToolbar::ButtonKey::ResetView, ImgViewerAction::ResetView, L"Reset View", L"Reset view", L"reset-view",
         GlyphIcon(kResetIcon)},
 }};
 
@@ -132,12 +132,12 @@ static_assert(ButtonSpecsMatchKeys());
 
 } // namespace
 
-constexpr size_t ImageViewerUiToolbar::ButtonIndex(ButtonKey button)
+constexpr size_t ImgViewerUiToolbar::ButtonIndex(ButtonKey button)
 {
     return static_cast<size_t>(button);
 }
 
-ImageViewerUiToolbar::ImageViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids)
+ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids)
 {
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -150,7 +150,7 @@ ImageViewerUiToolbar::ImageViewerUiToolbar(UiElement& root, UiElementIdGenerator
     drag_handle_ = root.AddChild(std::make_unique<UiElement>(Metadata(
         drag_handle_id_,
         UiElementRole::Pane,
-        AppAction::None,
+        ImgViewerAction::None,
         L"Toolbar drag handle",
         L"",
         L"toolbar-drag-handle",
@@ -158,7 +158,7 @@ ImageViewerUiToolbar::ImageViewerUiToolbar(UiElement& root, UiElementIdGenerator
         false)));
 }
 
-void ImageViewerUiToolbar::Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImageViewerUiState state)
+void ImgViewerUiToolbar::Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImgViewerUiState state)
 {
     const UiDraw draw(draw_context);
     Layout(viewport_size);
@@ -181,7 +181,7 @@ void ImageViewerUiToolbar::Draw(const UiDrawContext& draw_context, D2D1_SIZE_F v
     }
 }
 
-void ImageViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
+void ImgViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
 {
     const float toolbar_content_width =
         ui_theme::metrics::kToolbarButtonSize * static_cast<float>(kButtonSpecs.size()) +
@@ -221,7 +221,7 @@ void ImageViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
     }
 }
 
-void ImageViewerUiToolbar::ClampToViewport(D2D1_SIZE_F viewport_size)
+void ImgViewerUiToolbar::ClampToViewport(D2D1_SIZE_F viewport_size)
 {
     const float toolbar_width = math::RectWidth(toolbar_rect_);
     const float toolbar_height = math::RectHeight(toolbar_rect_);
@@ -232,7 +232,7 @@ void ImageViewerUiToolbar::ClampToViewport(D2D1_SIZE_F viewport_size)
     toolbar_rect_ = D2D1::RectF(left, top, left + toolbar_width, top + toolbar_height);
 }
 
-UiEventResult ImageViewerUiToolbar::OnPointerEvent(const UiPointerEvent& event)
+UiEventResult ImgViewerUiToolbar::OnPointerEvent(const UiPointerEvent& event)
 {
     if (event.target != drag_handle_id_ && event.captured != drag_handle_id_) {
         return {};
@@ -241,7 +241,7 @@ UiEventResult ImageViewerUiToolbar::OnPointerEvent(const UiPointerEvent& event)
     return OnDragHandlePointerEvent(event);
 }
 
-UiEventResult ImageViewerUiToolbar::OnDragHandlePointerEvent(const UiPointerEvent& event)
+UiEventResult ImgViewerUiToolbar::OnDragHandlePointerEvent(const UiPointerEvent& event)
 {
     if (event.type == UiEventType::PointerDown && event.button == UiPointerButton::Left) {
         BeginDrag(event.point);
@@ -272,13 +272,13 @@ UiEventResult ImageViewerUiToolbar::OnDragHandlePointerEvent(const UiPointerEven
     return {};
 }
 
-void ImageViewerUiToolbar::BeginDrag(D2D1_POINT_2F point)
+void ImgViewerUiToolbar::BeginDrag(D2D1_POINT_2F point)
 {
     dragging_ = true;
     drag_offset_ = D2D1::Point2F(point.x - toolbar_position_.x, point.y - toolbar_position_.y);
 }
 
-void ImageViewerUiToolbar::Drag(D2D1_POINT_2F point)
+void ImgViewerUiToolbar::Drag(D2D1_POINT_2F point)
 {
     toolbar_position_ = D2D1::Point2F(point.x - drag_offset_.x, point.y - drag_offset_.y);
     toolbar_rect_ = D2D1::RectF(
@@ -288,22 +288,22 @@ void ImageViewerUiToolbar::Drag(D2D1_POINT_2F point)
         toolbar_position_.y + math::RectHeight(toolbar_rect_));
 }
 
-void ImageViewerUiToolbar::EndDrag()
+void ImgViewerUiToolbar::EndDrag()
 {
     dragging_ = false;
 }
 
-IconButton* ImageViewerUiToolbar::Button(ButtonKey button)
+IconButton* ImgViewerUiToolbar::Button(ButtonKey button)
 {
     return buttons_[ButtonIndex(button)].element;
 }
 
-const IconButton* ImageViewerUiToolbar::Button(ButtonKey button) const
+const IconButton* ImgViewerUiToolbar::Button(ButtonKey button) const
 {
     return buttons_[ButtonIndex(button)].element;
 }
 
-UiElementState ImageViewerUiToolbar::ButtonState(ButtonKey button, ImageViewerUiState state, bool active, bool danger) const
+UiElementState ImgViewerUiToolbar::ButtonState(ButtonKey button, ImgViewerUiState state, bool active, bool danger) const
 {
     const ButtonInstance& instance = buttons_[ButtonIndex(button)];
     return UiElementState{
@@ -315,10 +315,10 @@ UiElementState ImageViewerUiToolbar::ButtonState(ButtonKey button, ImageViewerUi
     };
 }
 
-void ImageViewerUiToolbar::DrawButton(
+void ImgViewerUiToolbar::DrawButton(
     ButtonKey button,
     const UiDrawContext& draw_context,
-    ImageViewerUiState state,
+    ImgViewerUiState state,
     bool active,
     bool danger) const
 {

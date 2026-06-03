@@ -112,7 +112,7 @@ HRESULT UiRenderer::ResizeSurfacesToClient()
     return S_OK;
 }
 
-HRESULT UiRenderer::Render(const ImageViewerController& viewer, UiController& ui)
+HRESULT UiRenderer::Render(const ImgViewerController& viewer, UiController& ui)
 {
     if (!surfaces_.Surface(UiSurfaceLayerId::Image) || !surfaces_.Surface(UiSurfaceLayerId::UiOverlay)) {
         return S_OK;
@@ -171,7 +171,7 @@ HRESULT UiRenderer::BeginDrawLayer(UiSurfaceLayerId id, ID2D1Bitmap1** target, P
     return S_OK;
 }
 
-HRESULT UiRenderer::RenderImageLayer(const ImageViewerSnapshot& image)
+HRESULT UiRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),

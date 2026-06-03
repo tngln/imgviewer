@@ -1,4 +1,4 @@
-#include "app.keybindings.hpp"
+#include "imgviewer.keybindings.hpp"
 
 #include <algorithm>
 #include <array>
@@ -7,16 +7,16 @@
 
 namespace {
 
-constexpr std::array<AppAction, 9> kConfigurableKeyActions = {
-    AppAction::OpenImage,
-    AppAction::PreviousImage,
-    AppAction::NextImage,
-    AppAction::ZoomIn,
-    AppAction::ZoomOut,
-    AppAction::RotateClockwise,
-    AppAction::FlipHorizontal,
-    AppAction::FlipVertical,
-    AppAction::ResetView,
+constexpr std::array<ImgViewerAction, 9> kConfigurableKeyActions = {
+    ImgViewerAction::OpenImage,
+    ImgViewerAction::PreviousImage,
+    ImgViewerAction::NextImage,
+    ImgViewerAction::ZoomIn,
+    ImgViewerAction::ZoomOut,
+    ImgViewerAction::RotateClockwise,
+    ImgViewerAction::FlipHorizontal,
+    ImgViewerAction::FlipVertical,
+    ImgViewerAction::ResetView,
 };
 
 std::string ToLowerAscii(std::string_view value)
@@ -134,9 +134,9 @@ bool ParseKeyGesture(std::string_view text, KeyGesture* gesture)
     return true;
 }
 
-void SetBinding(ActionBindings* bindings, KeyGesture gesture, AppAction action)
+void SetBinding(ActionBindings* bindings, KeyGesture gesture, ImgViewerAction action)
 {
-    if (bindings == nullptr || action == AppAction::None) {
+    if (bindings == nullptr || action == ImgViewerAction::None) {
         return;
     }
 
@@ -156,9 +156,9 @@ void SetBinding(ActionBindings* bindings, KeyGesture gesture, AppAction action)
     });
 }
 
-void RemoveBindingsForAction(ActionBindings* bindings, AppAction action)
+void RemoveBindingsForAction(ActionBindings* bindings, ImgViewerAction action)
 {
-    if (bindings == nullptr || action == AppAction::None) {
+    if (bindings == nullptr || action == ImgViewerAction::None) {
         return;
     }
 
@@ -173,9 +173,9 @@ void RemoveBindingsForAction(ActionBindings* bindings, AppAction action)
         key_bindings.end());
 }
 
-bool IsConfigurableKeyAction(AppAction action)
+bool IsConfigurableKeyAction(ImgViewerAction action)
 {
-    for (AppAction configurable_action : kConfigurableKeyActions) {
+    for (ImgViewerAction configurable_action : kConfigurableKeyActions) {
         if (configurable_action == action) {
             return true;
         }
@@ -188,15 +188,15 @@ bool IsConfigurableKeyAction(AppAction action)
 ActionBindings DefaultActionBindings()
 {
     ActionBindings bindings;
-    SetBinding(&bindings, KeyGesture{.virtual_key = VK_LEFT}, AppAction::PreviousImage);
-    SetBinding(&bindings, KeyGesture{.virtual_key = VK_RIGHT}, AppAction::NextImage);
-    SetBinding(&bindings, KeyGesture{.virtual_key = 'R'}, AppAction::RotateClockwise);
-    SetBinding(&bindings, KeyGesture{.virtual_key = 'H'}, AppAction::FlipHorizontal);
-    SetBinding(&bindings, KeyGesture{.virtual_key = 'V'}, AppAction::FlipVertical);
-    SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_PLUS, .ctrl = true}, AppAction::ZoomIn);
-    SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_MINUS, .ctrl = true}, AppAction::ZoomOut);
-    SetBinding(&bindings, KeyGesture{.virtual_key = '0', .ctrl = true}, AppAction::ResetView);
-    SetBinding(&bindings, KeyGesture{.virtual_key = 'O', .ctrl = true}, AppAction::OpenImage);
+    SetBinding(&bindings, KeyGesture{.virtual_key = VK_LEFT}, ImgViewerAction::PreviousImage);
+    SetBinding(&bindings, KeyGesture{.virtual_key = VK_RIGHT}, ImgViewerAction::NextImage);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'R'}, ImgViewerAction::RotateClockwise);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'H'}, ImgViewerAction::FlipHorizontal);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'V'}, ImgViewerAction::FlipVertical);
+    SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_PLUS, .ctrl = true}, ImgViewerAction::ZoomIn);
+    SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_MINUS, .ctrl = true}, ImgViewerAction::ZoomOut);
+    SetBinding(&bindings, KeyGesture{.virtual_key = '0', .ctrl = true}, ImgViewerAction::ResetView);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'O', .ctrl = true}, ImgViewerAction::OpenImage);
     return bindings;
 }
 
@@ -212,7 +212,7 @@ void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings
     }
 
     for (const auto& item : key_bindings->items()) {
-        const AppAction action = AppActionFromName(item.key().c_str());
+        const ImgViewerAction action = ImgViewerActionFromName(item.key().c_str());
         if (!IsConfigurableKeyAction(action) || !item.value().is_array()) {
             continue;
         }
@@ -232,7 +232,7 @@ void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings
     }
 }
 
-AppAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ctrl, bool shift, bool alt)
+ImgViewerAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ctrl, bool shift, bool alt)
 {
     for (const KeyBinding& binding : bindings.key_bindings) {
         if (binding.gesture.virtual_key == virtual_key &&
@@ -243,5 +243,5 @@ AppAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ct
         }
     }
 
-    return AppAction::None;
+    return ImgViewerAction::None;
 }

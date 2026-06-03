@@ -1,21 +1,20 @@
-#include "app.hpp"
+#include "imgviewer.hpp"
 
 #include <optional>
 #include <string>
 
 #include <wil/result_macros.h>
 
-#include "path.util.hpp"
 #include "win32.dialog.hpp"
 #include "win32.util.hpp"
 
 namespace {
 
-bool NavigateImageFile(HWND hwnd, AppContext* context, int direction);
+bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 
 } // namespace
 
-HRESULT RenderApplication(AppContext* context)
+HRESULT RenderImgViewer(ImgViewerContext* context)
 {
     if (context == nullptr) {
         return S_OK;
@@ -32,7 +31,7 @@ void SyncWindowState(HWND hwnd, UiController* ui)
     }
 }
 
-void SaveWindowSize(HWND hwnd, AppContext* context)
+void SaveWindowSize(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr || !context->config.remember_window_size || IsIconic(hwnd) || IsZoomed(hwnd)) {
         return;
@@ -45,21 +44,21 @@ void SaveWindowSize(HWND hwnd, AppContext* context)
 
     context->config.window_size.width = static_cast<int>(window_rect.right - window_rect.left);
     context->config.window_size.height = static_cast<int>(window_rect.bottom - window_rect.top);
-    SaveAppConfig(context->config);
+    SaveImgViewerConfig(context->config);
 }
 
-bool IsAppActionEnabled(const AppContext* context, AppAction action)
+bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action)
 {
-    if (action == AppAction::None) {
+    if (action == ImgViewerAction::None) {
         return false;
     }
 
-    if (action == AppAction::PreviousImage) {
+    if (action == ImgViewerAction::PreviousImage) {
         const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
         return position.index > 1;
     }
 
-    if (action == AppAction::NextImage) {
+    if (action == ImgViewerAction::NextImage) {
         const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
         return position.total > 0 && position.index < position.total;
     }
@@ -67,62 +66,62 @@ bool IsAppActionEnabled(const AppContext* context, AppAction action)
     return true;
 }
 
-void SyncActionStates(AppContext* context)
+void SyncActionStates(ImgViewerContext* context)
 {
     if (context == nullptr) {
         return;
     }
 
-    context->ui.SetActionEnabled(AppAction::PreviousImage, IsAppActionEnabled(context, AppAction::PreviousImage));
-    context->ui.SetActionEnabled(AppAction::NextImage, IsAppActionEnabled(context, AppAction::NextImage));
+    context->ui.SetActionEnabled(ImgViewerAction::PreviousImage, IsImgViewerActionEnabled(context, ImgViewerAction::PreviousImage));
+    context->ui.SetActionEnabled(ImgViewerAction::NextImage, IsImgViewerActionEnabled(context, ImgViewerAction::NextImage));
 }
 
-void ExecuteAppAction(HWND hwnd, AppContext* context, AppAction action)
+void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
 {
-    if (!IsAppActionEnabled(context, action)) {
+    if (!IsImgViewerActionEnabled(context, action)) {
         return;
     }
 
     switch (action) {
-    case AppAction::OpenImage:
+    case ImgViewerAction::OpenImage:
         break;
-    case AppAction::PreviousImage:
+    case ImgViewerAction::PreviousImage:
         NavigateImageFile(hwnd, context, -1);
         break;
-    case AppAction::NextImage:
+    case ImgViewerAction::NextImage:
         NavigateImageFile(hwnd, context, 1);
         break;
-    case AppAction::ZoomIn:
+    case ImgViewerAction::ZoomIn:
         if (context != nullptr && context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize())) {
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::ZoomOut:
+    case ImgViewerAction::ZoomOut:
         if (context != nullptr && context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize())) {
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::RotateClockwise:
+    case ImgViewerAction::RotateClockwise:
         if (context != nullptr && context->viewer.RotateClockwise()) {
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::FlipHorizontal:
+    case ImgViewerAction::FlipHorizontal:
         if (context != nullptr && context->viewer.FlipHorizontal()) {
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::FlipVertical:
+    case ImgViewerAction::FlipVertical:
         if (context != nullptr && context->viewer.FlipVertical()) {
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::ResetView:
+    case ImgViewerAction::ResetView:
         if (context != nullptr && context->viewer.ResetView()) {
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::ToggleTopMost: {
+    case ImgViewerAction::ToggleTopMost: {
         const bool top_most = !util::IsWindowTopMost(hwnd);
         SetWindowPos(
             hwnd,
@@ -134,21 +133,21 @@ void ExecuteAppAction(HWND hwnd, AppContext* context, AppAction action)
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         if (context != nullptr) {
             SyncWindowState(hwnd, &context->ui);
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
     }
-    case AppAction::Minimize:
+    case ImgViewerAction::Minimize:
         ShowWindow(hwnd, SW_MINIMIZE);
         break;
-    case AppAction::ToggleMaximize:
+    case ImgViewerAction::ToggleMaximize:
         ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
         if (context != nullptr) {
             SyncWindowState(hwnd, &context->ui);
-            RenderApplication(context);
+            RenderImgViewer(context);
         }
         break;
-    case AppAction::Close:
+    case ImgViewerAction::Close:
         PostMessageW(hwnd, WM_CLOSE, 0, 0);
         break;
     default:
@@ -156,7 +155,7 @@ void ExecuteAppAction(HWND hwnd, AppContext* context, AppAction action)
     }
 }
 
-void LoadAppImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
+void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path)
 {
     if (context == nullptr || path == nullptr || path[0] == L'\0') {
         return;
@@ -164,17 +163,17 @@ void LoadAppImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
 
     const HRESULT hr = context->viewer.LoadImageFile(path, context->renderer.BitmapDeviceContext());
     if (FAILED(hr)) {
-        MessageBoxW(hwnd, L"Could not open the selected image.", kAppWindowTitle, MB_OK | MB_ICONERROR);
+        MessageBoxW(hwnd, L"Could not open the selected image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
         return;
     }
 
     const HRESULT sequence_hr = context->sequence.SetCurrentPath(path);
     if (FAILED(sequence_hr)) {
-        MessageBoxW(hwnd, L"Could not read the image folder.", kAppWindowTitle, MB_OK | MB_ICONWARNING);
+        MessageBoxW(hwnd, L"Could not read the image folder.", kImgViewerWindowTitle, MB_OK | MB_ICONWARNING);
     }
     SyncActionStates(context);
 
-    const std::wstring file_name = util::FileNameFromPath(path, kAppWindowTitle);
+    const std::wstring file_name = util::FileNameFromPath(path, kImgViewerWindowTitle);
     const ImageSequencePosition position = context->sequence.Position();
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     wchar_t position_text[64] = {};
@@ -187,15 +186,15 @@ void LoadAppImageFile(HWND hwnd, AppContext* context, const wchar_t* path)
     const std::wstring title_text = file_name + position_text + resolution_text;
     context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
-    RenderApplication(context);
+    RenderImgViewer(context);
 }
 
-bool NavigateAppImageFile(HWND hwnd, AppContext* context, int direction)
+bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction)
 {
     return NavigateImageFile(hwnd, context, direction);
 }
 
-void HandleOpenImageCommand(HWND hwnd, AppContext* context)
+void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
 {
     constexpr win32::NativeFileDialogFilter filters[] = {
         {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.tif;*.tiff;*.webp"},
@@ -209,16 +208,16 @@ void HandleOpenImageCommand(HWND hwnd, AppContext* context)
     }
 
     if (FAILED(hr)) {
-        MessageBoxW(hwnd, L"Could not show the image picker.", kAppWindowTitle, MB_OK | MB_ICONERROR);
+        MessageBoxW(hwnd, L"Could not show the image picker.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
         return;
     }
 
-    LoadAppImageFile(hwnd, context, path.c_str());
+    LoadImgViewerImageFile(hwnd, context, path.c_str());
 }
 
 namespace {
 
-bool NavigateImageFile(HWND hwnd, AppContext* context, int direction)
+bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction)
 {
     if (context == nullptr) {
         return false;
@@ -229,7 +228,7 @@ bool NavigateImageFile(HWND hwnd, AppContext* context, int direction)
         return false;
     }
 
-    LoadAppImageFile(hwnd, context, path->c_str());
+    LoadImgViewerImageFile(hwnd, context, path->c_str());
     return true;
 }
 

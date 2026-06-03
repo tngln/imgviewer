@@ -10,7 +10,7 @@
 
 #include <wil/com.h>
 
-#include "image.viewer.hpp"
+#include "imgviewer.viewer.hpp"
 #include "ui.surface.hpp"
 #include "ui.hpp"
 
@@ -18,14 +18,14 @@ class UiRenderer final {
 public:
     HRESULT Initialize(HWND hwnd);
     HRESULT Resize();
-    HRESULT Render(const ImageViewerController& viewer, UiController& ui);
+    HRESULT Render(const ImgViewerController& viewer, UiController& ui);
     D2D1_SIZE_U ViewportPixelSize() const;
     ID2D1DeviceContext* BitmapDeviceContext() const;
 
 private:
     HRESULT ResizeSurfacesToClient();
     HRESULT BeginDrawLayer(UiSurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset);
-    HRESULT RenderImageLayer(const ImageViewerSnapshot& image);
+    HRESULT RenderImageLayer(const ImgViewerSnapshot& image);
     HRESULT RenderUiOverlayLayer(UiController& ui);
 
     HWND hwnd_ = nullptr;

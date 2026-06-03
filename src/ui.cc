@@ -4,9 +4,9 @@
 
 #include <d2d1helper.h>
 
-#include "image.viewer.ui.hpp"
+#include "imgviewer.ui.hpp"
 
-UiController::UiController() : app_ui_(std::make_unique<ImageViewerUi>()) {}
+UiController::UiController() : imgviewer_ui_(std::make_unique<ImgViewerUi>()) {}
 
 UiController::~UiController() = default;
 
@@ -98,13 +98,13 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     target_event.target = hit_id;
     target_event.captured = captured_id_;
 
-    UiEventResult result = app_ui_->OnPointerEvent(target_event);
+    UiEventResult result = imgviewer_ui_->OnPointerEvent(target_event);
     if (result.handled) {
         result.needs_render = result.needs_render || was_hovered != hovered_id_;
         return result;
     }
 
-    if (UiElement* target = app_ui_->Root()->FindById(target_id)) {
+    if (UiElement* target = imgviewer_ui_->Root()->FindById(target_id)) {
         result = target->OnPointerEvent(target_event);
     }
 
@@ -126,7 +126,7 @@ UiEventResult UiController::DispatchKeyEvent(const UiKeyEvent& event)
         return {};
     }
 
-    if (UiElement* focused = app_ui_->Root()->FindById(focused_id_)) {
+    if (UiElement* focused = imgviewer_ui_->Root()->FindById(focused_id_)) {
         UiKeyEvent focused_event = event;
         focused_event.focused = focused_id_;
         return focused->OnKeyEvent(focused_event);
@@ -159,13 +159,13 @@ void UiController::Draw(
     IDWriteTextFormat* body_text_format,
     IDWriteTextFormat* icon_text_format)
 {
-    app_ui_->Draw(
+    imgviewer_ui_->Draw(
         d2d_context,
         viewport_size,
         dwrite_factory,
         body_text_format,
         icon_text_format,
-        ImageViewerUiState{
+        ImgViewerUiState{
             .hovered = hovered_id_,
             .pressed = pressed_id_,
         });
@@ -173,25 +173,25 @@ void UiController::Draw(
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
 {
-    const UiElement* hit_element = app_ui_->Root()->HitTest(point);
+    const UiElement* hit_element = imgviewer_ui_->Root()->HitTest(point);
     return hit_element != nullptr ? hit_element->Id() : UiElementId::None;
 }
 
 const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 {
-    const UiElement* root = app_ui_->Root();
+    const UiElement* root = imgviewer_ui_->Root();
     const UiElement* element = root->FindById(id);
     return element != nullptr && element != root ? &element->Metadata() : nullptr;
 }
 
 size_t UiController::ElementCount() const
 {
-    return app_ui_->Root()->ChildCount();
+    return imgviewer_ui_->Root()->ChildCount();
 }
 
 const UiElementMetadata* UiController::ElementMetadataAt(size_t index) const
 {
-    const UiElement* element = app_ui_->Root()->ChildAt(index);
+    const UiElement* element = imgviewer_ui_->Root()->ChildAt(index);
     return element != nullptr ? &element->Metadata() : nullptr;
 }
 
@@ -202,43 +202,43 @@ const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
 
 D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 {
-    const UiElement* root = app_ui_->Root();
+    const UiElement* root = imgviewer_ui_->Root();
     const UiElement* element = root->FindById(id);
     return element != nullptr && element != root ? element->Rect() : D2D1::RectF();
 }
 
 bool UiController::IsElementEnabled(UiElementId id) const
 {
-    const UiElement* root = app_ui_->Root();
+    const UiElement* root = imgviewer_ui_->Root();
     const UiElement* element = root->FindById(id);
     return element != nullptr && element != root && element->IsEnabled();
 }
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
-    return app_ui_->IsPointInCaptionDragArea(point);
+    return imgviewer_ui_->IsPointInCaptionDragArea(point);
 }
 
 void UiController::SetTitleText(const wchar_t* title)
 {
-    app_ui_->SetTitleText(title);
+    imgviewer_ui_->SetTitleText(title);
 }
 
-void UiController::SetActionEnabled(AppAction action, bool enabled)
+void UiController::SetActionEnabled(ImgViewerAction action, bool enabled)
 {
-    if (action == AppAction::None) {
+    if (action == ImgViewerAction::None) {
         return;
     }
 
-    SetActionEnabledRecursive(app_ui_->Root(), action, enabled);
+    SetActionEnabledRecursive(imgviewer_ui_->Root(), action, enabled);
 }
 
 void UiController::SetWindowState(bool top_most, bool maximized)
 {
-    app_ui_->SetWindowState(top_most, maximized);
+    imgviewer_ui_->SetWindowState(top_most, maximized);
 }
 
-void UiController::SetActionEnabledRecursive(UiElement* element, AppAction action, bool enabled)
+void UiController::SetActionEnabledRecursive(UiElement* element, ImgViewerAction action, bool enabled)
 {
     if (element == nullptr) {
         return;

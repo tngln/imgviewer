@@ -1,6 +1,6 @@
 #pragma once
 
-enum class AppAction {
+enum class ImgViewerAction {
     None,
     OpenImage,
     PreviousImage,
@@ -17,5 +17,5 @@ enum class AppAction {
     Close,
 };
 
-const char* AppActionName(AppAction action);
-AppAction AppActionFromName(const char* name);
+const char* ImgViewerActionName(ImgViewerAction action);
+ImgViewerAction ImgViewerActionFromName(const char* name);

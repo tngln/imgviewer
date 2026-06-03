@@ -6,7 +6,7 @@
 
 #include <wil/resource.h>
 
-#include "app.hpp"
+#include "imgviewer.hpp"
 
 namespace {
 
@@ -24,7 +24,7 @@ RECT UiElementRectToWin32Rect(D2D1_RECT_F rect)
 
 } // namespace
 
-void UpdateUiTooltipRects(HWND hwnd, AppContext* context)
+void UpdateUiTooltipRects(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr || context->tooltip.get() == nullptr) {
         return;
@@ -45,7 +45,7 @@ void UpdateUiTooltipRects(HWND hwnd, AppContext* context)
     }
 }
 
-HRESULT InitializeUiTooltips(HWND hwnd, AppContext* context)
+HRESULT InitializeUiTooltips(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr || context->tooltip.get() != nullptr) {
         return S_OK;

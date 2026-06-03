@@ -1,6 +1,6 @@
-#include "image.viewer.ui.titlebar.hpp"
+#include "imgviewer.ui.titlebar.hpp"
 
-#include "image.viewer.ui.hpp"
+#include "imgviewer.ui.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -22,8 +22,8 @@ constexpr wchar_t kRestoreIcon[] = L"\xE923";
 constexpr wchar_t kCloseIcon[] = L"\xE8BB";
 
 struct ButtonSpec final {
-    ImageViewerUiTitleBar::ButtonKey button = ImageViewerUiTitleBar::ButtonKey::TopMost;
-    AppAction action = AppAction::None;
+    ImgViewerUiTitleBar::ButtonKey button = ImgViewerUiTitleBar::ButtonKey::TopMost;
+    ImgViewerAction action = ImgViewerAction::None;
     const wchar_t* name = L"";
     const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
@@ -34,7 +34,7 @@ struct ButtonSpec final {
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
-    AppAction action,
+    ImgViewerAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
     const wchar_t* automation_id,
@@ -60,14 +60,14 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
         spec.icon);
 }
 
-constexpr std::array<ButtonSpec, ImageViewerUiTitleBar::kButtonCount> kButtonSpecs{{
-    {ImageViewerUiTitleBar::ButtonKey::TopMost, AppAction::ToggleTopMost, L"Top Most", L"Keep window on top",
+constexpr std::array<ButtonSpec, ImgViewerUiTitleBar::kButtonCount> kButtonSpecs{{
+    {ImgViewerUiTitleBar::ButtonKey::TopMost, ImgViewerAction::ToggleTopMost, L"Top Most", L"Keep window on top",
         L"top-most", kTopMostIcon},
-    {ImageViewerUiTitleBar::ButtonKey::Minimize, AppAction::Minimize, L"Minimize", L"Minimize", L"minimize",
+    {ImgViewerUiTitleBar::ButtonKey::Minimize, ImgViewerAction::Minimize, L"Minimize", L"Minimize", L"minimize",
         kMinimizeIcon},
-    {ImageViewerUiTitleBar::ButtonKey::MaximizeRestore, AppAction::ToggleMaximize, L"Maximize or Restore",
+    {ImgViewerUiTitleBar::ButtonKey::MaximizeRestore, ImgViewerAction::ToggleMaximize, L"Maximize or Restore",
         L"Maximize or restore", L"maximize-restore", kMaximizeIcon},
-    {ImageViewerUiTitleBar::ButtonKey::Close, AppAction::Close, L"Close", L"Close", L"close", kCloseIcon, true},
+    {ImgViewerUiTitleBar::ButtonKey::Close, ImgViewerAction::Close, L"Close", L"Close", L"close", kCloseIcon, true},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -83,21 +83,21 @@ constexpr bool ButtonSpecsMatchKeys()
 
 static_assert(ButtonSpecsMatchKeys());
 
-constexpr std::array<ImageViewerUiTitleBar::ButtonKey, 4> kButtonsByPosition{
-    ImageViewerUiTitleBar::ButtonKey::Close,
-    ImageViewerUiTitleBar::ButtonKey::MaximizeRestore,
-    ImageViewerUiTitleBar::ButtonKey::Minimize,
-    ImageViewerUiTitleBar::ButtonKey::TopMost,
+constexpr std::array<ImgViewerUiTitleBar::ButtonKey, 4> kButtonsByPosition{
+    ImgViewerUiTitleBar::ButtonKey::Close,
+    ImgViewerUiTitleBar::ButtonKey::MaximizeRestore,
+    ImgViewerUiTitleBar::ButtonKey::Minimize,
+    ImgViewerUiTitleBar::ButtonKey::TopMost,
 };
 
 } // namespace
 
-constexpr size_t ImageViewerUiTitleBar::ButtonIndex(ButtonKey button)
+constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
 {
     return static_cast<size_t>(button);
 }
 
-ImageViewerUiTitleBar::ImageViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids)
+ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids)
 {
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -106,12 +106,12 @@ ImageViewerUiTitleBar::ImageViewerUiTitleBar(UiElement& root, UiElementIdGenerat
     }
 }
 
-void ImageViewerUiTitleBar::Draw(
+void ImgViewerUiTitleBar::Draw(
     const UiDrawContext& draw_context,
     D2D1_SIZE_F viewport_size,
     IDWriteFactory* dwrite_factory,
     IDWriteTextFormat* body_text_format,
-    ImageViewerUiState state,
+    ImgViewerUiState state,
     bool top_most,
     bool maximized)
 {
@@ -156,19 +156,19 @@ void ImageViewerUiTitleBar::Draw(
     DrawButton(ButtonKey::Close, draw_context, state);
 }
 
-bool ImageViewerUiTitleBar::IsPointInCaptionDragArea(const UiElement& root, D2D1_POINT_2F point) const
+bool ImgViewerUiTitleBar::IsPointInCaptionDragArea(const UiElement& root, D2D1_POINT_2F point) const
 {
     const UiElement* hit_element = root.HitTest(point);
     const UiElementId hit_id = hit_element != nullptr ? hit_element->Id() : UiElementId::None;
     return math::Contains(titlebar_rect_, point) && hit_id == UiElementId::None;
 }
 
-void ImageViewerUiTitleBar::SetTitleText(const wchar_t* title)
+void ImgViewerUiTitleBar::SetTitleText(const wchar_t* title)
 {
     title_text_ = title != nullptr && title[0] != L'\0' ? title : L"ImgViewer";
 }
 
-void ImageViewerUiTitleBar::Layout(D2D1_SIZE_F viewport_size)
+void ImgViewerUiTitleBar::Layout(D2D1_SIZE_F viewport_size)
 {
     titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, viewport_size.width, ui_theme::metrics::kTitleBarHeight);
     const float caption_edge_padding = ui_theme::metrics::kCaptionButtonEdgePadding;
@@ -195,17 +195,17 @@ void ImageViewerUiTitleBar::Layout(D2D1_SIZE_F viewport_size)
         ui_theme::metrics::kTitleBarHeight);
 }
 
-IconButton* ImageViewerUiTitleBar::Button(ButtonKey button)
+IconButton* ImgViewerUiTitleBar::Button(ButtonKey button)
 {
     return buttons_[ButtonIndex(button)].element;
 }
 
-const IconButton* ImageViewerUiTitleBar::Button(ButtonKey button) const
+const IconButton* ImgViewerUiTitleBar::Button(ButtonKey button) const
 {
     return buttons_[ButtonIndex(button)].element;
 }
 
-UiElementState ImageViewerUiTitleBar::ButtonState(ButtonKey button, ImageViewerUiState state, bool active, bool danger) const
+UiElementState ImgViewerUiTitleBar::ButtonState(ButtonKey button, ImgViewerUiState state, bool active, bool danger) const
 {
     const ButtonInstance& instance = buttons_[ButtonIndex(button)];
     return UiElementState{
@@ -217,10 +217,10 @@ UiElementState ImageViewerUiTitleBar::ButtonState(ButtonKey button, ImageViewerU
     };
 }
 
-void ImageViewerUiTitleBar::DrawButton(
+void ImgViewerUiTitleBar::DrawButton(
     ButtonKey button,
     const UiDrawContext& draw_context,
-    ImageViewerUiState state,
+    ImgViewerUiState state,
     bool active,
     bool danger) const
 {

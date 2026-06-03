@@ -1,4 +1,4 @@
-#include "app.config.hpp"
+#include "imgviewer.config.hpp"
 
 #include <algorithm>
 #include <filesystem>
@@ -52,11 +52,11 @@ int ReadClampedInt(const nlohmann::json& object, const char* key, int fallback, 
 
 } // namespace
 
-HRESULT LoadAppConfig(AppConfig* config)
+HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
 {
     RETURN_HR_IF_NULL(E_POINTER, config);
 
-    *config = AppConfig{};
+    *config = ImgViewerConfig{};
     config->action_bindings = DefaultActionBindings();
     const std::filesystem::path path = ConfigFilePath();
     std::ifstream input(path, std::ios::binary);
@@ -87,7 +87,7 @@ HRESULT LoadAppConfig(AppConfig* config)
     return S_OK;
 }
 
-HRESULT SaveAppConfig(const AppConfig& config)
+HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
 {
     const std::filesystem::path path = ConfigFilePath();
     std::ofstream output(path, std::ios::binary | std::ios::trunc);

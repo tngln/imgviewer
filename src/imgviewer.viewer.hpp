@@ -4,17 +4,17 @@
 
 #include <d2d1_1.h>
 
-#include "app.action.hpp"
+#include "imgviewer.action.hpp"
 #include "image.decoder.hpp"
 
-struct ImageViewerEventResult final {
+struct ImgViewerEventResult final {
     bool handled = false;
     bool needs_render = false;
     bool captured = false;
     bool released_capture = false;
 };
 
-struct ImageViewerSnapshot final {
+struct ImgViewerSnapshot final {
     ID2D1Bitmap* bitmap = nullptr;
     D2D1_SIZE_U pixel_size = {};
     D2D1_POINT_2F view_center = {};
@@ -24,19 +24,19 @@ struct ImageViewerSnapshot final {
     bool flipped_vertical = false;
 };
 
-class ImageViewerController final {
+class ImgViewerController final {
 public:
     HRESULT Initialize();
     HRESULT LoadImageFile(const wchar_t* path, ID2D1DeviceContext* d2d_context);
     D2D1_SIZE_U CurrentImagePixelSize() const;
-    ImageViewerSnapshot Snapshot() const;
+    ImgViewerSnapshot Snapshot() const;
 
-    ImageViewerEventResult OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size);
-    ImageViewerEventResult OnPointerDown(float x, float y, D2D1_SIZE_U viewport_size);
-    ImageViewerEventResult OnPointerUp(float x, float y, D2D1_SIZE_U viewport_size);
+    ImgViewerEventResult OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size);
+    ImgViewerEventResult OnPointerDown(float x, float y, D2D1_SIZE_U viewport_size);
+    ImgViewerEventResult OnPointerUp(float x, float y, D2D1_SIZE_U viewport_size);
     bool OnMouseWheel(float x, float y, int delta, D2D1_SIZE_U viewport_size);
-    bool OnActionDown(AppAction action);
-    ImageViewerEventResult OnActionUp(AppAction action);
+    bool OnActionDown(ImgViewerAction action);
+    ImgViewerEventResult OnActionUp(ImgViewerAction action);
     bool ZoomByStep(int steps, D2D1_SIZE_U viewport_size);
     bool RotateClockwise();
     bool FlipHorizontal();

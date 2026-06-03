@@ -13,7 +13,7 @@
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
-#include "app.messages.hpp"
+#include "imgviewer.messages.hpp"
 #include "com.rc.hpp"
 #include "ui.hpp"
 
@@ -400,9 +400,9 @@ public:
             return UIA_E_ELEMENTNOTENABLED;
         }
 
-        if (metadata->action == AppAction::OpenImage) {
+        if (metadata->action == ImgViewerAction::OpenImage) {
             PostMessageW(root_->hwnd(), kImgViewerOpenImageMessage, 0, 0);
-        } else if (metadata->action != AppAction::None) {
+        } else if (metadata->action != ImgViewerAction::None) {
             PostMessageW(root_->hwnd(), kImgViewerUiActionMessage, static_cast<WPARAM>(metadata->action), 0);
         } else {
             return E_NOTIMPL;

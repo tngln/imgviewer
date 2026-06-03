@@ -1,83 +1,83 @@
-#include "app.action.hpp"
+#include "imgviewer.action.hpp"
 
 #include <string_view>
 
-const char* AppActionName(AppAction action)
+const char* ImgViewerActionName(ImgViewerAction action)
 {
     switch (action) {
-    case AppAction::OpenImage:
+    case ImgViewerAction::OpenImage:
         return "openImage";
-    case AppAction::PreviousImage:
+    case ImgViewerAction::PreviousImage:
         return "previousImage";
-    case AppAction::NextImage:
+    case ImgViewerAction::NextImage:
         return "nextImage";
-    case AppAction::ZoomIn:
+    case ImgViewerAction::ZoomIn:
         return "zoomIn";
-    case AppAction::ZoomOut:
+    case ImgViewerAction::ZoomOut:
         return "zoomOut";
-    case AppAction::RotateClockwise:
+    case ImgViewerAction::RotateClockwise:
         return "rotateClockwise";
-    case AppAction::FlipHorizontal:
+    case ImgViewerAction::FlipHorizontal:
         return "flipHorizontal";
-    case AppAction::FlipVertical:
+    case ImgViewerAction::FlipVertical:
         return "flipVertical";
-    case AppAction::ResetView:
+    case ImgViewerAction::ResetView:
         return "resetView";
-    case AppAction::ToggleTopMost:
+    case ImgViewerAction::ToggleTopMost:
         return "toggleTopMost";
-    case AppAction::Minimize:
+    case ImgViewerAction::Minimize:
         return "minimize";
-    case AppAction::ToggleMaximize:
+    case ImgViewerAction::ToggleMaximize:
         return "toggleMaximize";
-    case AppAction::Close:
+    case ImgViewerAction::Close:
         return "close";
-    case AppAction::None:
+    case ImgViewerAction::None:
     default:
         return "";
     }
 }
 
-AppAction AppActionFromName(const char* name)
+ImgViewerAction ImgViewerActionFromName(const char* name)
 {
     const std::string_view value = name != nullptr ? std::string_view(name) : std::string_view();
     if (value == "openImage") {
-        return AppAction::OpenImage;
+        return ImgViewerAction::OpenImage;
     }
     if (value == "previousImage") {
-        return AppAction::PreviousImage;
+        return ImgViewerAction::PreviousImage;
     }
     if (value == "nextImage") {
-        return AppAction::NextImage;
+        return ImgViewerAction::NextImage;
     }
     if (value == "zoomIn") {
-        return AppAction::ZoomIn;
+        return ImgViewerAction::ZoomIn;
     }
     if (value == "zoomOut") {
-        return AppAction::ZoomOut;
+        return ImgViewerAction::ZoomOut;
     }
     if (value == "rotateClockwise") {
-        return AppAction::RotateClockwise;
+        return ImgViewerAction::RotateClockwise;
     }
     if (value == "flipHorizontal") {
-        return AppAction::FlipHorizontal;
+        return ImgViewerAction::FlipHorizontal;
     }
     if (value == "flipVertical") {
-        return AppAction::FlipVertical;
+        return ImgViewerAction::FlipVertical;
     }
     if (value == "resetView") {
-        return AppAction::ResetView;
+        return ImgViewerAction::ResetView;
     }
     if (value == "toggleTopMost") {
-        return AppAction::ToggleTopMost;
+        return ImgViewerAction::ToggleTopMost;
     }
     if (value == "minimize") {
-        return AppAction::Minimize;
+        return ImgViewerAction::Minimize;
     }
     if (value == "toggleMaximize") {
-        return AppAction::ToggleMaximize;
+        return ImgViewerAction::ToggleMaximize;
     }
     if (value == "close") {
-        return AppAction::Close;
+        return ImgViewerAction::Close;
     }
-    return AppAction::None;
+    return ImgViewerAction::None;
 }

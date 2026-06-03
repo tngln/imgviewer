@@ -6,7 +6,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "app.action.hpp"
+#include "imgviewer.action.hpp"
 
 struct KeyGesture final {
     UINT virtual_key = 0;
@@ -17,7 +17,7 @@ struct KeyGesture final {
 
 struct KeyBinding final {
     KeyGesture gesture;
-    AppAction action = AppAction::None;
+    ImgViewerAction action = ImgViewerAction::None;
 };
 
 struct ActionBindings final {
@@ -26,4 +26,4 @@ struct ActionBindings final {
 
 ActionBindings DefaultActionBindings();
 void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings);
-AppAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ctrl, bool shift, bool alt);
+ImgViewerAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ctrl, bool shift, bool alt);

@@ -4,7 +4,7 @@
 
 #include <d2d1_1.h>
 
-#include "app.action.hpp"
+#include "imgviewer.action.hpp"
 #include "ui.element.hpp"
 
 enum class UiEventType {
@@ -68,5 +68,5 @@ struct UiEventResult final {
     UiCaptureRequest capture = UiCaptureRequest::None;
     UiFocusRequest focus = UiFocusRequest::None;
     UiElementId focus_target = UiElementId::None;
-    AppAction action = AppAction::None;
+    ImgViewerAction action = ImgViewerAction::None;
 };

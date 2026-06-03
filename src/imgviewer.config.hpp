@@ -2,18 +2,18 @@
 
 #include <windows.h>
 
-#include "app.keybindings.hpp"
+#include "imgviewer.keybindings.hpp"
 
 struct WindowSizeConfig final {
     int width = 960;
     int height = 640;
 };
 
-struct AppConfig final {
+struct ImgViewerConfig final {
     bool remember_window_size = true;
     WindowSizeConfig window_size;
     ActionBindings action_bindings;
 };
 
-HRESULT LoadAppConfig(AppConfig* config);
-HRESULT SaveAppConfig(const AppConfig& config);
+HRESULT LoadImgViewerConfig(ImgViewerConfig* config);
+HRESULT SaveImgViewerConfig(const ImgViewerConfig& config);
