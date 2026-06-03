@@ -182,11 +182,24 @@ size_t Dropdown::SelectedIndex() const
     return selected_index_;
 }
 
+ImgViewerAction Dropdown::SelectedAction() const
+{
+    return selected_index_ < options_.size() ? options_[selected_index_].action : ImgViewerAction::None;
+}
+
 void Dropdown::SetSelectedIndex(size_t index)
 {
     if (!options_.empty()) {
         selected_index_ = (std::min)(index, options_.size() - 1);
     }
+}
+
+void Dropdown::SetOptions(std::vector<DropdownOption> options)
+{
+    options_ = std::move(options);
+    selected_index_ = options_.empty() ? 0 : (std::min)(selected_index_, options_.size() - 1);
+    hovered_index_ = options_.size();
+    expanded_ = false;
 }
 
 bool Dropdown::IsExpanded() const

@@ -22,6 +22,8 @@ public:
     virtual const UiElementMetadata* ElementMetadata(UiElementId id) const = 0;
     virtual D2D1_RECT_F ElementRect(UiElementId id) const = 0;
     virtual bool IsElementEnabled(UiElementId id) const = 0;
+    virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
+    virtual bool IsElementReadOnly(UiElementId) const { return false; }
 };
 
 HRESULT CreateUiAccessibilityProvider(

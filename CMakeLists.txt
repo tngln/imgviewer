@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.29)
 
 project(imgviewer LANGUAGES CXX)
 
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 add_executable(imgviewer
     src/imgviewer.cc
     src/imgviewer.action.cc
@@ -26,6 +28,7 @@ add_executable(imgviewer
     src/ui.selection.cc
     src/ui.surface.cc
     src/ui.text.cc
+    src/ui.textbox.cc
     src/ui.tooltip.cc
     src/ui.cc
     src/win32.dialog.cc

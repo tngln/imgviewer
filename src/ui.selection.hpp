@@ -46,7 +46,9 @@ public:
     Dropdown(UiElementMetadata metadata, std::vector<DropdownOption> options);
 
     size_t SelectedIndex() const;
+    ImgViewerAction SelectedAction() const;
     void SetSelectedIndex(size_t index);
+    void SetOptions(std::vector<DropdownOption> options);
     bool IsExpanded() const;
     void Collapse();
     void Draw(const UiDrawContext& context, UiElementState state) const override;

@@ -84,6 +84,8 @@ int ControlTypeForRole(UiElementRole role)
         return UIA_CheckBoxControlTypeId;
     case UiElementRole::ComboBox:
         return UIA_ComboBoxControlTypeId;
+    case UiElementRole::Edit:
+        return UIA_EditControlTypeId;
     case UiElementRole::Menu:
         return UIA_MenuControlTypeId;
     case UiElementRole::MenuItem:
@@ -243,7 +245,8 @@ private:
 class UiButtonProvider final :
     public IRawElementProviderSimple,
     public IRawElementProviderFragment,
-    public IInvokeProvider {
+    public IInvokeProvider,
+    public IValueProvider {
 public:
     UiButtonProvider(UiRootProvider* root, UiElementId id) : root_(root), id_(id) {}
 
@@ -260,6 +263,8 @@ public:
             *object = static_cast<IRawElementProviderFragment*>(this);
         } else if (iid == __uuidof(IInvokeProvider)) {
             *object = static_cast<IInvokeProvider*>(this);
+        } else if (iid == __uuidof(IValueProvider)) {
+            *object = static_cast<IValueProvider*>(this);
         } else {
             return E_NOINTERFACE;
         }
@@ -286,6 +291,12 @@ public:
         if (pattern_id == UIA_InvokePatternId) {
             *provider = static_cast<IInvokeProvider*>(this);
             AddRef();
+        } else if (pattern_id == UIA_ValuePatternId) {
+            const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
+            if (metadata != nullptr && metadata->role == UiElementRole::Edit) {
+                *provider = static_cast<IValueProvider*>(this);
+                AddRef();
+            }
         }
 
         return S_OK;
@@ -413,6 +424,26 @@ public:
         } else {
             return E_NOTIMPL;
         }
+        return S_OK;
+    }
+
+    IFACEMETHODIMP SetValue(LPCWSTR) noexcept override
+    {
+        return E_NOTIMPL;
+    }
+
+    IFACEMETHODIMP get_Value(BSTR* value) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, value);
+        *value = SysAllocString(root_->ui()->ElementValue(id_));
+        RETURN_IF_NULL_ALLOC(*value);
+        return S_OK;
+    }
+
+    IFACEMETHODIMP get_IsReadOnly(BOOL* is_read_only) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, is_read_only);
+        *is_read_only = root_->ui()->IsElementReadOnly(id_) ? TRUE : FALSE;
         return S_OK;
     }
 

@@ -33,6 +33,14 @@ const char* ImgViewerActionName(ImgViewerAction action)
         return "saveSettings";
     case ImgViewerAction::ResetKeyBindings:
         return "resetKeyBindings";
+    case ImgViewerAction::TextCopy:
+        return "textCopy";
+    case ImgViewerAction::TextCut:
+        return "textCut";
+    case ImgViewerAction::TextPaste:
+        return "textPaste";
+    case ImgViewerAction::TextSelectAll:
+        return "textSelectAll";
     case ImgViewerAction::ToggleTopMost:
         return "toggleTopMost";
     case ImgViewerAction::Minimize:
@@ -91,6 +99,18 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     }
     if (value == "resetKeyBindings") {
         return ImgViewerAction::ResetKeyBindings;
+    }
+    if (value == "textCopy") {
+        return ImgViewerAction::TextCopy;
+    }
+    if (value == "textCut") {
+        return ImgViewerAction::TextCut;
+    }
+    if (value == "textPaste") {
+        return ImgViewerAction::TextPaste;
+    }
+    if (value == "textSelectAll") {
+        return ImgViewerAction::TextSelectAll;
     }
     if (value == "toggleTopMost") {
         return ImgViewerAction::ToggleTopMost;

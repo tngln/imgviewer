@@ -2,12 +2,14 @@
 
 #include <array>
 #include <cwchar>
+#include <cwctype>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <d2d1helper.h>
 #include <dwrite.h>
+#include <imm.h>
 #include <windowsx.h>
 #include <wil/com.h>
 #include <wil/result_macros.h>
@@ -21,6 +23,7 @@
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
 #include "ui.selection.hpp"
+#include "ui.textbox.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -42,6 +45,7 @@ constexpr std::array<ImgViewerAction, 9> kShownActions{
 constexpr wchar_t kSaveIcon[] = L"\xE105";
 constexpr wchar_t kCancelIcon[] = L"\xE711";
 constexpr wchar_t kResetIcon[] = L"\xE777";
+constexpr UINT_PTR kCaretTimerId = 1;
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -159,14 +163,12 @@ public:
             L"Use default size",
             !draft_.remember_window_size)));
 
-        std::vector<DropdownOption> options;
-        options.reserve(kShownActions.size());
-        for (ImgViewerAction action : kShownActions) {
-            options.push_back(DropdownOption{ActionDisplayName(action), action});
-        }
+        filter_box_ = static_cast<TextBox*>(root_->AddChild(std::make_unique<TextBox>(
+            Metadata(ids_.Next(), UiElementRole::Edit, ImgViewerAction::None, L"Shortcut filter", L"shortcut-filter"),
+            L"Filter actions")));
         action_dropdown_ = static_cast<Dropdown*>(root_->AddChild(std::make_unique<Dropdown>(
             Metadata(ids_.Next(), UiElementRole::ComboBox, ImgViewerAction::None, L"Action shortcuts", L"action-shortcuts"),
-            std::move(options))));
+            BuildDropdownOptions())));
 
         reset_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
             Metadata(ids_.Next(), UiElementRole::Button, ImgViewerAction::ResetKeyBindings, L"Reset Shortcuts", L"reset-shortcuts"),
@@ -182,6 +184,7 @@ public:
             L"Cancel")));
 
         SyncChoiceControls();
+        UpdateFilterResults();
         UpdateShortcutText();
     }
 
@@ -215,6 +218,11 @@ public:
         return element != nullptr && element != root_.get() && element->IsEnabled();
     }
 
+    const wchar_t* ElementValue(UiElementId id) const override
+    {
+        return id == filter_box_->Id() ? filter_box_->Text().c_str() : L"";
+    }
+
     void Draw(const UiDrawContext& context, D2D1_SIZE_F size)
     {
         Layout(size);
@@ -222,11 +230,12 @@ public:
         draw.Clear(ui_theme::color::kWindowBackground);
         draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, 18.0f, size.width - 24.0f, 46.0f), ui_theme::color::kBodyText);
         draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, 88.0f, size.width - 24.0f, 112.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 264.0f, size.width - 24.0f, 288.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, 262.0f, size.width - 24.0f, 288.0f),
+            D2D1::RectF(24.0f, 332.0f, size.width - 24.0f, 358.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -236,6 +245,7 @@ public:
         DrawElement(*reset_button_, context);
         DrawElement(*save_button_, context);
         DrawElement(*cancel_button_, context);
+        DrawElement(*filter_box_, context);
         DrawElement(*action_dropdown_, context);
     }
 
@@ -261,7 +271,7 @@ public:
         return OnPointerEvent(UiPointerEvent{.type = UiEventType::PointerUp, .point = point, .button = UiPointerButton::Left});
     }
 
-    UiEventResult OnKeyDown(UINT virtual_key)
+    UiEventResult OnKeyDown(UINT virtual_key, UiModifiers modifiers)
     {
         if (virtual_key == VK_ESCAPE) {
             if (action_dropdown_->IsExpanded()) {
@@ -275,11 +285,71 @@ public:
         if (focused == nullptr) {
             return {};
         }
-        UiEventResult result = focused->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = virtual_key, .focused = focused_});
+        UiEventResult result = focused->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = virtual_key, .modifiers = modifiers, .focused = focused_});
         if (result.handled) {
             ApplyElementEffect(focused_);
         }
         return result;
+    }
+
+    UiEventResult OnChar(wchar_t ch)
+    {
+        if (focused_ != filter_box_->Id()) {
+            return {};
+        }
+        UiEventResult result = filter_box_->OnChar(ch);
+        if (result.handled) {
+            UpdateFilterResults();
+            UpdateShortcutText();
+        }
+        return result;
+    }
+
+    UiEventResult OnImeComposition(std::wstring composition)
+    {
+        return focused_ == filter_box_->Id() ? filter_box_->OnImeComposition(std::move(composition)) : UiEventResult{};
+    }
+
+    UiEventResult EndImeComposition()
+    {
+        return focused_ == filter_box_->Id() ? filter_box_->EndImeComposition() : UiEventResult{};
+    }
+
+    UiEventResult OnContextMenu(D2D1_POINT_2F point, HWND hwnd)
+    {
+        if (filter_box_->Contains(point)) {
+            focused_ = filter_box_->Id();
+            return filter_box_->OpenContextMenu(point, hwnd);
+        }
+        return {};
+    }
+
+    UiEventResult ExecuteTextAction(ImgViewerAction action, HWND hwnd)
+    {
+        if (focused_ != filter_box_->Id()) {
+            return {};
+        }
+        UiEventResult result = filter_box_->ExecuteEditAction(action, hwnd);
+        if (result.handled) {
+            UpdateFilterResults();
+            UpdateShortcutText();
+        }
+        return result;
+    }
+
+    void SetCaretVisible(bool visible)
+    {
+        filter_box_->SetCaretVisible(visible);
+    }
+
+    bool IsTextBoxFocused() const
+    {
+        return focused_ == filter_box_->Id();
+    }
+
+    D2D1_POINT_2F TextCaretPoint() const
+    {
+        return filter_box_->CaretPoint();
     }
 
 private:
@@ -289,7 +359,8 @@ private:
         remember_checkbox_->SetRect(D2D1::RectF(24.0f, 54.0f, size.width - 24.0f, 84.0f));
         remember_radio_->SetRect(D2D1::RectF(44.0f, 116.0f, size.width - 24.0f, 146.0f));
         default_radio_->SetRect(D2D1::RectF(44.0f, 146.0f, size.width - 24.0f, 176.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 258.0f));
+        filter_box_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 258.0f));
+        action_dropdown_->SetRect(D2D1::RectF(24.0f, 294.0f, size.width - 24.0f, 328.0f));
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
@@ -375,10 +446,48 @@ private:
 
     void UpdateShortcutText()
     {
-        const size_t index = action_dropdown_->SelectedIndex();
-        shortcut_text_ = index < kShownActions.size()
-            ? ShortcutsForAction(draft_.action_bindings, kShownActions[index])
+        const ImgViewerAction action = action_dropdown_->SelectedAction();
+        shortcut_text_ = action != ImgViewerAction::None
+            ? ShortcutsForAction(draft_.action_bindings, action)
             : std::wstring();
+    }
+
+    bool MatchesFilter(ImgViewerAction action) const
+    {
+        const std::wstring& filter = filter_box_->Text();
+        if (filter.empty()) {
+            return true;
+        }
+        std::wstring haystack = ActionDisplayName(action);
+        haystack += L" ";
+        haystack += ShortcutsForAction(draft_.action_bindings, action);
+        std::wstring needle = filter;
+        for (wchar_t& ch : haystack) {
+            ch = static_cast<wchar_t>(towlower(ch));
+        }
+        for (wchar_t& ch : needle) {
+            ch = static_cast<wchar_t>(towlower(ch));
+        }
+        return haystack.find(needle) != std::wstring::npos;
+    }
+
+    std::vector<DropdownOption> BuildDropdownOptions() const
+    {
+        std::vector<DropdownOption> options;
+        for (ImgViewerAction action : kShownActions) {
+            if (MatchesFilter(action)) {
+                options.push_back(DropdownOption{ActionDisplayName(action), action});
+            }
+        }
+        if (options.empty()) {
+            options.push_back(DropdownOption{L"No matches", ImgViewerAction::None});
+        }
+        return options;
+    }
+
+    void UpdateFilterResults()
+    {
+        action_dropdown_->SetOptions(BuildDropdownOptions());
     }
 
     void DrawElement(UiElement& element, const UiDrawContext& context) const
@@ -409,6 +518,7 @@ private:
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
     Dropdown* action_dropdown_ = nullptr;
+    TextBox* filter_box_ = nullptr;
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
@@ -429,6 +539,7 @@ struct SettingsWindowContext final {
     wil::com_ptr<IDWriteTextFormat> body_text_format;
     wil::com_ptr<IDWriteTextFormat> icon_text_format;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
+    bool caret_visible = true;
 
     explicit SettingsWindowContext(ImgViewerConfig config) : ui(std::move(config)) {}
 };
@@ -436,6 +547,20 @@ struct SettingsWindowContext final {
 SettingsWindowContext* GetSettingsContext(HWND hwnd)
 {
     return reinterpret_cast<SettingsWindowContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+}
+
+bool IsKeyDown(int virtual_key)
+{
+    return (GetKeyState(virtual_key) & 0x8000) != 0;
+}
+
+UiModifiers CurrentModifiers()
+{
+    return UiModifiers{
+        .ctrl = IsKeyDown(VK_CONTROL),
+        .shift = IsKeyDown(VK_SHIFT),
+        .alt = IsKeyDown(VK_MENU),
+    };
 }
 
 HRESULT EnsureRenderTarget(HWND hwnd, SettingsWindowContext* context)
@@ -505,6 +630,7 @@ void RenderSettings(HWND hwnd, SettingsWindowContext* context)
         static_cast<float>((std::max)(1L, rect.bottom - rect.top)));
     const UiDrawContext draw_context{
         .d2d_context = context->render_target.get(),
+        .dwrite_factory = context->dwrite_factory.get(),
         .body_text_format = context->body_text_format.get(),
         .icon_text_format = context->icon_text_format.get(),
     };
@@ -524,6 +650,52 @@ void InvalidateForResult(HWND hwnd, UiEventResult result)
     }
 }
 
+void SyncCaretTimer(HWND hwnd, SettingsWindowContext* context)
+{
+    if (context == nullptr || !context->ui.IsTextBoxFocused()) {
+        KillTimer(hwnd, kCaretTimerId);
+        return;
+    }
+
+    const UINT blink_time = GetCaretBlinkTime();
+    SetTimer(hwnd, kCaretTimerId, blink_time == INFINITE ? 530 : blink_time, nullptr);
+}
+
+std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam)
+{
+    if ((lparam & GCS_COMPSTR) == 0) {
+        return {};
+    }
+    HIMC ime = ImmGetContext(hwnd);
+    if (ime == nullptr) {
+        return {};
+    }
+    const LONG bytes = ImmGetCompositionStringW(ime, GCS_COMPSTR, nullptr, 0);
+    std::wstring text(bytes > 0 ? static_cast<size_t>(bytes) / sizeof(wchar_t) : 0, L'\0');
+    if (!text.empty()) {
+        ImmGetCompositionStringW(ime, GCS_COMPSTR, text.data(), bytes);
+    }
+    ImmReleaseContext(hwnd, ime);
+    return text;
+}
+
+void PositionIme(HWND hwnd, SettingsWindowContext* context)
+{
+    if (context == nullptr || !context->ui.IsTextBoxFocused()) {
+        return;
+    }
+    HIMC ime = ImmGetContext(hwnd);
+    if (ime == nullptr) {
+        return;
+    }
+    const D2D1_POINT_2F point = context->ui.TextCaretPoint();
+    COMPOSITIONFORM form = {};
+    form.dwStyle = CFS_POINT;
+    form.ptCurrentPos = POINT{static_cast<LONG>(point.x), static_cast<LONG>(point.y)};
+    ImmSetCompositionWindow(ime, &form);
+    ImmReleaseContext(hwnd, ime);
+}
+
 void SaveSettings(HWND hwnd, SettingsWindowContext* context)
 {
     if (context->app != nullptr) {
@@ -536,6 +708,14 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
 void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, ImgViewerAction action)
 {
     switch (action) {
+    case ImgViewerAction::TextCopy:
+    case ImgViewerAction::TextCut:
+    case ImgViewerAction::TextPaste:
+    case ImgViewerAction::TextSelectAll:
+        if (context != nullptr) {
+            InvalidateForResult(hwnd, context->ui.ExecuteTextAction(action, hwnd));
+        }
+        break;
     case ImgViewerAction::SaveSettings:
         SaveSettings(hwnd, context);
         break;
@@ -597,6 +777,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         TrackMouseEvent(&track);
         if (context != nullptr) {
             InvalidateForResult(hwnd, context->ui.OnPointerMove(D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)))));
+            PositionIme(hwnd, context);
         }
         return 0;
     }
@@ -610,11 +791,14 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_LBUTTONDOWN: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
+            SetFocus(hwnd);
             const UiEventResult result = context->ui.OnPointerDown(D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam))));
             if (result.capture == UiCaptureRequest::Capture) {
                 SetCapture(hwnd);
             }
             InvalidateForResult(hwnd, result);
+            SyncCaretTimer(hwnd, context);
+            PositionIme(hwnd, context);
         }
         return 0;
     }
@@ -627,18 +811,82 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
             }
             InvalidateForResult(hwnd, result);
             ExecuteSettingsAction(hwnd, context, result.action);
+            SyncCaretTimer(hwnd, context);
+            PositionIme(hwnd, context);
         }
         return 0;
     }
     case WM_KEYDOWN: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            const UiEventResult result = context->ui.OnKeyDown(static_cast<UINT>(wparam));
+            const UiEventResult result = context->ui.OnKeyDown(static_cast<UINT>(wparam), CurrentModifiers());
             InvalidateForResult(hwnd, result);
             ExecuteSettingsAction(hwnd, context, result.action);
+            SyncCaretTimer(hwnd, context);
+            PositionIme(hwnd, context);
             if (result.handled) {
                 return 0;
             }
+        }
+        break;
+    }
+    case WM_CHAR: {
+        auto* context = GetSettingsContext(hwnd);
+        if (context != nullptr) {
+            const UiEventResult result = context->ui.OnChar(static_cast<wchar_t>(wparam));
+            InvalidateForResult(hwnd, result);
+            PositionIme(hwnd, context);
+            if (result.handled) {
+                return 0;
+            }
+        }
+        break;
+    }
+    case WM_IME_STARTCOMPOSITION:
+        PositionIme(hwnd, GetSettingsContext(hwnd));
+        return 0;
+    case WM_IME_COMPOSITION: {
+        auto* context = GetSettingsContext(hwnd);
+        if (context != nullptr) {
+            InvalidateForResult(hwnd, context->ui.OnImeComposition(ImeCompositionString(hwnd, lparam)));
+            PositionIme(hwnd, context);
+        }
+        break;
+    }
+    case WM_IME_ENDCOMPOSITION: {
+        auto* context = GetSettingsContext(hwnd);
+        if (context != nullptr) {
+            InvalidateForResult(hwnd, context->ui.EndImeComposition());
+        }
+        return 0;
+    }
+    case WM_CONTEXTMENU: {
+        auto* context = GetSettingsContext(hwnd);
+        if (context != nullptr) {
+            POINT point{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+            if (point.x == -1 && point.y == -1) {
+                point = POINT{32, 224};
+            } else {
+                ScreenToClient(hwnd, &point);
+            }
+            const UiEventResult result = context->ui.OnContextMenu(D2D1::Point2F(static_cast<float>(point.x), static_cast<float>(point.y)), hwnd);
+            InvalidateForResult(hwnd, result);
+            SyncCaretTimer(hwnd, context);
+            if (result.handled) {
+                return 0;
+            }
+        }
+        break;
+    }
+    case WM_TIMER: {
+        if (wparam == kCaretTimerId) {
+            auto* context = GetSettingsContext(hwnd);
+            if (context != nullptr && context->ui.IsTextBoxFocused()) {
+                context->caret_visible = !context->caret_visible;
+                context->ui.SetCaretVisible(context->caret_visible);
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            return 0;
         }
         break;
     }

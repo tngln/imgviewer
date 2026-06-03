@@ -9,6 +9,7 @@
 
 struct UiDrawContext final {
     ID2D1RenderTarget* d2d_context = nullptr;
+    IDWriteFactory* dwrite_factory = nullptr;
     IDWriteTextFormat* body_text_format = nullptr;
     IDWriteTextFormat* icon_text_format = nullptr;
 };

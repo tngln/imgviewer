@@ -38,6 +38,7 @@ enum class UiElementRole {
     Button,
     CheckBox,
     ComboBox,
+    Edit,
     Menu,
     MenuItem,
     RadioButton,

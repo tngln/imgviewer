@@ -175,6 +175,7 @@ HRESULT UiRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),
+        .dwrite_factory = dwrite_factory_.get(),
     };
     const UiDraw draw(draw_context);
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
@@ -258,6 +259,7 @@ HRESULT UiRenderer::RenderUiOverlayLayer(UiController& ui)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context_.get(),
+        .dwrite_factory = dwrite_factory_.get(),
         .body_text_format = body_text_format_.get(),
         .icon_text_format = icon_text_format_.get(),
     };
