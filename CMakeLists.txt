@@ -16,6 +16,7 @@ add_executable(imgviewer
     src/imgviewer.viewer.cc
     src/imgviewer.ui.cc
     src/imgviewer.ui.titlebar.cc
+    src/imgviewer.ui.toast.cc
     src/imgviewer.ui.toolbar.cc
     src/main.cc
     src/ui.a11y.cc

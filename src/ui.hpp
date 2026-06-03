@@ -43,6 +43,8 @@ public:
     bool IsElementEnabled(UiElementId id) const override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
+    void ShowToast(const wchar_t* text);
+    bool HideToast();
     void SetActionEnabled(ImgViewerAction action, bool enabled);
     void SetWindowState(bool top_most, bool maximized);
     void SetColorPickerActive(bool active);

@@ -8,9 +8,12 @@
 
 #include "win32.dialog.hpp"
 #include "win32.util.hpp"
+#include "imgviewer.messages.hpp"
 #include "imgviewer.settings.hpp"
 
 namespace {
+
+constexpr UINT kToastDurationMs = 2000;
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 bool CopyTextToClipboard(HWND hwnd, const wchar_t* text);
@@ -84,6 +87,25 @@ void SyncActionStates(ImgViewerContext* context)
     context->ui.SetActionEnabled(ImgViewerAction::PreviousImage, IsImgViewerActionEnabled(context, ImgViewerAction::PreviousImage));
     context->ui.SetActionEnabled(ImgViewerAction::NextImage, IsImgViewerActionEnabled(context, ImgViewerAction::NextImage));
     context->ui.SetActionEnabled(ImgViewerAction::ToggleColorPicker, IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker));
+}
+
+void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    if (text == nullptr || text[0] == L'\0') {
+        KillTimer(hwnd, kImgViewerToastTimerId);
+        if (context->ui.HideToast()) {
+            RenderImgViewer(context);
+        }
+        return;
+    }
+
+    context->ui.ShowToast(text);
+    SetTimer(hwnd, kImgViewerToastTimerId, kToastDurationMs, nullptr);
+    RenderImgViewer(context);
 }
 
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
@@ -190,9 +212,8 @@ bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2
     swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
     CopyTextToClipboard(hwnd, hex_text);
     SetColorPickerActive(context, false);
-    context->ui.SetTitleText(hex_text);
-    SetWindowTextW(hwnd, hex_text);
-    RenderImgViewer(context);
+    const std::wstring toast_text = std::wstring(L"Copied ") + hex_text;
+    ShowImgViewerToast(hwnd, context, toast_text.c_str());
     return true;
 }
 

@@ -36,6 +36,7 @@ void SyncWindowState(HWND hwnd, UiController* ui);
 void SaveWindowSize(HWND hwnd, ImgViewerContext* context);
 bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action);
 void SyncActionStates(ImgViewerContext* context);
+void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text);
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action);
 bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point);
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);

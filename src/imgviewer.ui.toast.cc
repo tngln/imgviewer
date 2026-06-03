@@ -1,0 +1,103 @@
+#include "imgviewer.ui.toast.hpp"
+
+#include <algorithm>
+
+#include <d2d1helper.h>
+
+#include "math.hpp"
+#include "ui.text.hpp"
+#include "ui.theme.hpp"
+
+namespace {
+
+constexpr float kToastTop = ui_theme::metrics::kTitleBarHeight + 10.0f;
+constexpr float kToastViewportMargin = 16.0f;
+constexpr float kToastMaxWidth = 420.0f;
+constexpr float kToastMinWidth = 120.0f;
+constexpr float kToastPaddingX = 16.0f;
+constexpr float kToastPaddingY = 7.0f;
+constexpr float kToastCornerRadius = 8.0f;
+constexpr float kToastBackgroundOpacity = 0.92f;
+
+D2D1_COLOR_F ToastBackgroundColor()
+{
+    return D2D1::ColorF(
+        ui_theme::color::kToolbarBackground.r,
+        ui_theme::color::kToolbarBackground.g,
+        ui_theme::color::kToolbarBackground.b,
+        kToastBackgroundOpacity);
+}
+
+} // namespace
+
+void ImgViewerUiToast::Draw(
+    const UiDrawContext& draw_context,
+    D2D1_SIZE_F viewport_size,
+    IDWriteFactory* dwrite_factory,
+    IDWriteTextFormat* body_text_format) const
+{
+    if (text_.empty() || viewport_size.width <= kToastViewportMargin * 2.0f) {
+        return;
+    }
+
+    const UINT32 text_length = static_cast<UINT32>(text_.size());
+    const float max_width = (std::min)(kToastMaxWidth, viewport_size.width - kToastViewportMargin * 2.0f);
+    const float max_text_width = (std::max)(1.0f, max_width - kToastPaddingX * 2.0f);
+    const std::wstring display_text =
+        ui_text::TruncateText(dwrite_factory, body_text_format, text_.c_str(), text_length, max_text_width);
+    if (display_text.empty()) {
+        return;
+    }
+
+    const ui_text::TextMetrics text_metrics = ui_text::MeasureText(
+        dwrite_factory,
+        body_text_format,
+        display_text.c_str(),
+        static_cast<UINT32>(display_text.size()));
+    const float width = std::clamp(text_metrics.width + kToastPaddingX * 2.0f, kToastMinWidth, max_width);
+    const float height = text_metrics.height + kToastPaddingY * 2.0f;
+    const float left = (viewport_size.width - width) * 0.5f;
+    const D2D1_RECT_F rect = D2D1::RectF(left, kToastTop, left + width, kToastTop + height);
+    const D2D1_RECT_F text_rect = D2D1::RectF(
+        rect.left + kToastPaddingX,
+        rect.top + kToastPaddingY,
+        rect.right - kToastPaddingX,
+        rect.bottom - kToastPaddingY);
+
+    const UiDraw draw(draw_context);
+    const D2D1_ROUNDED_RECT rounded_rect = D2D1::RoundedRect(rect, kToastCornerRadius, kToastCornerRadius);
+    draw.FillRoundedRect(rounded_rect, ToastBackgroundColor());
+    draw.DrawRoundedRect(rounded_rect, ui_theme::color::kBorder, 1.0f);
+    draw.DrawBodyText(
+        display_text.c_str(),
+        static_cast<UINT32>(display_text.size()),
+        text_rect,
+        ui_theme::color::kBodyText,
+        D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
+        DWRITE_MEASURING_MODE_NATURAL);
+}
+
+void ImgViewerUiToast::Show(const wchar_t* text)
+{
+    if (text == nullptr || text[0] == L'\0') {
+        Hide();
+        return;
+    }
+
+    text_ = text;
+}
+
+bool ImgViewerUiToast::Hide()
+{
+    if (text_.empty()) {
+        return false;
+    }
+
+    text_.clear();
+    return true;
+}
+
+bool ImgViewerUiToast::IsVisible() const
+{
+    return !text_.empty();
+}

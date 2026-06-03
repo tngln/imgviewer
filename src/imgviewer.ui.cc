@@ -68,6 +68,7 @@ void ImgViewerUi::Draw(
     titlebar_.Draw(draw_context, viewport_size, dwrite_factory, body_text_format, state, top_most_, maximized_);
     toolbar_.Draw(draw_context, viewport_size, state, color_picker_active_);
     menu_.Draw(draw_context, UiElementState{});
+    toast_.Draw(draw_context, viewport_size, dwrite_factory, body_text_format);
 }
 
 UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
@@ -126,6 +127,16 @@ bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 void ImgViewerUi::SetTitleText(const wchar_t* title)
 {
     titlebar_.SetTitleText(title);
+}
+
+void ImgViewerUi::ShowToast(const wchar_t* text)
+{
+    toast_.Show(text);
+}
+
+bool ImgViewerUi::HideToast()
+{
+    return toast_.Hide();
 }
 
 void ImgViewerUi::SetWindowState(bool top_most, bool maximized)

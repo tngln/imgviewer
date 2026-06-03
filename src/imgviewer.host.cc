@@ -402,6 +402,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
+    case WM_TIMER: {
+        if (wparam == kImgViewerToastTimerId) {
+            KillTimer(hwnd, kImgViewerToastTimerId);
+            ImgViewerContext* context = GetImgViewerContext(hwnd);
+            if (context != nullptr && context->ui.HideToast()) {
+                RenderImgViewer(context);
+            }
+            return 0;
+        }
+
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
     case WM_DROPFILES: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const HDROP drop = reinterpret_cast<HDROP>(wparam);
@@ -431,6 +444,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 
     case WM_DESTROY:
+        KillTimer(hwnd, kImgViewerToastTimerId);
         SaveWindowSize(hwnd, GetImgViewerContext(hwnd));
         PostQuitMessage(0);
         return 0;

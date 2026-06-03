@@ -14,6 +14,7 @@ struct ImgViewerUiState final {
 };
 
 #include "imgviewer.ui.titlebar.hpp"
+#include "imgviewer.ui.toast.hpp"
 #include "imgviewer.ui.toolbar.hpp"
 #include "ui.menu.hpp"
 
@@ -36,6 +37,8 @@ public:
     bool HandleUiAction(ImgViewerAction action);
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
+    void ShowToast(const wchar_t* text);
+    bool HideToast();
     void SetWindowState(bool top_most, bool maximized);
     void SetColorPickerActive(bool active);
 
@@ -46,6 +49,7 @@ private:
     UiElementIdGenerator ids_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
+    ImgViewerUiToast toast_;
     bool top_most_ = false;
     bool maximized_ = false;
     bool color_picker_active_ = false;

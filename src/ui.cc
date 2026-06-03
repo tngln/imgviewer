@@ -264,6 +264,16 @@ void UiController::SetTitleText(const wchar_t* title)
     imgviewer_ui_->SetTitleText(title);
 }
 
+void UiController::ShowToast(const wchar_t* text)
+{
+    imgviewer_ui_->ShowToast(text);
+}
+
+bool UiController::HideToast()
+{
+    return imgviewer_ui_->HideToast();
+}
+
 void UiController::SetActionEnabled(ImgViewerAction action, bool enabled)
 {
     if (action == ImgViewerAction::None) {
