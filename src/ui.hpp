@@ -7,10 +7,11 @@
 
 #include "ui.element.hpp"
 #include "ui.events.hpp"
+#include "ui.a11y.hpp"
 
 class ImgViewerUi;
 
-class UiController final {
+class UiController final : public UiAccessibilitySource {
 public:
     UiController();
     ~UiController();
@@ -33,11 +34,12 @@ public:
         IDWriteFactory* dwrite_factory,
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format);
-    size_t ElementCount() const;
-    const UiElementMetadata* ElementMetadataAt(size_t index) const;
-    const UiElementMetadata* ElementMetadata(UiElementId id) const;
-    D2D1_RECT_F ElementRect(UiElementId id) const;
-    bool IsElementEnabled(UiElementId id) const;
+    const wchar_t* AccessibilityRootName() const override;
+    size_t ElementCount() const override;
+    const UiElementMetadata* ElementMetadataAt(size_t index) const override;
+    const UiElementMetadata* ElementMetadata(UiElementId id) const override;
+    D2D1_RECT_F ElementRect(UiElementId id) const override;
+    bool IsElementEnabled(UiElementId id) const override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
     void SetActionEnabled(ImgViewerAction action, bool enabled);

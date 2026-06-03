@@ -46,6 +46,11 @@ UiEventResult UiController::OnPointerLeave()
 UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
 {
     UiEventResult result = DispatchPointerEvent(event);
+    if (imgviewer_ui_->HandleUiAction(result.action)) {
+        result.action = ImgViewerAction::None;
+        result.handled = true;
+        result.needs_render = true;
+    }
     const UiElementId target = event.captured != UiElementId::None ? event.captured : result.focus_target;
     ApplyEventResult(result, target != UiElementId::None ? target : event.target);
     return result;
@@ -53,6 +58,10 @@ UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
 
 UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
 {
+    UiEventResult menu_result = imgviewer_ui_->OnKeyEvent(event);
+    if (menu_result.handled) {
+        return menu_result;
+    }
     UiEventResult result = DispatchKeyEvent(event);
     ApplyEventResult(result, event.focused);
     return result;
@@ -169,6 +178,11 @@ void UiController::Draw(
             .hovered = hovered_id_,
             .pressed = pressed_id_,
         });
+}
+
+const wchar_t* UiController::AccessibilityRootName() const
+{
+    return L"ImgViewer";
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const

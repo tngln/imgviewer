@@ -16,6 +16,7 @@
 namespace {
 
 constexpr wchar_t kTopMostIcon[] = L"\xE718";
+constexpr wchar_t kMenuIcon[] = L"\xE700";
 constexpr wchar_t kMinimizeIcon[] = L"\xE921";
 constexpr wchar_t kMaximizeIcon[] = L"\xE922";
 constexpr wchar_t kRestoreIcon[] = L"\xE923";
@@ -61,6 +62,7 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
 }
 
 constexpr std::array<ButtonSpec, ImgViewerUiTitleBar::kButtonCount> kButtonSpecs{{
+    {ImgViewerUiTitleBar::ButtonKey::Menu, ImgViewerAction::OpenMenu, L"Menu", L"Open menu", L"menu", kMenuIcon},
     {ImgViewerUiTitleBar::ButtonKey::TopMost, ImgViewerAction::ToggleTopMost, L"Top Most", L"Keep window on top",
         L"top-most", kTopMostIcon},
     {ImgViewerUiTitleBar::ButtonKey::Minimize, ImgViewerAction::Minimize, L"Minimize", L"Minimize", L"minimize",
@@ -151,6 +153,7 @@ void ImgViewerUiTitleBar::Draw(
         DWRITE_MEASURING_MODE_NATURAL);
 
     DrawButton(ButtonKey::TopMost, draw_context, state, top_most);
+    DrawButton(ButtonKey::Menu, draw_context, state);
     DrawButton(ButtonKey::Minimize, draw_context, state);
     DrawButton(ButtonKey::MaximizeRestore, draw_context, state);
     DrawButton(ButtonKey::Close, draw_context, state);
@@ -186,9 +189,15 @@ void ImgViewerUiTitleBar::Layout(D2D1_SIZE_F viewport_size)
         Button(kButtonsByPosition[index])->SetRect(caption_buttons[index]);
     }
 
-    title_text_rect_ = D2D1::RectF(
-        ui_theme::metrics::kTitleTextLeft,
+    Button(ButtonKey::Menu)->SetRect(D2D1::RectF(
         0.0f,
+        titlebar_rect_.top + caption_edge_padding,
+        ui_theme::metrics::kCaptionButtonWidth,
+        ui_theme::metrics::kTitleBarHeight));
+
+    title_text_rect_ = D2D1::RectF(
+        ui_theme::metrics::kCaptionButtonWidth + ui_theme::metrics::kTitleTextLeft,
+        1.0f,
         (std::max)(
             ui_theme::metrics::kTitleTextLeft + 1.0f,
             Button(ButtonKey::TopMost)->Rect().left - ui_theme::metrics::kTitleTextRightPadding),

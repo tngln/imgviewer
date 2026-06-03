@@ -15,6 +15,7 @@ struct ImgViewerUiState final {
 
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
+#include "ui.menu.hpp"
 
 class ImgViewerUi final {
 public:
@@ -31,6 +32,8 @@ public:
         IDWriteTextFormat* icon_text_format,
         ImgViewerUiState state);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
+    UiEventResult OnKeyEvent(const UiKeyEvent& event);
+    bool HandleUiAction(ImgViewerAction action);
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
     void SetWindowState(bool top_most, bool maximized);
@@ -44,4 +47,5 @@ private:
     ImgViewerUiToolbar toolbar_;
     bool top_most_ = false;
     bool maximized_ = false;
+    MenuOverlay menu_;
 };

@@ -8,6 +8,7 @@ add_executable(imgviewer
     src/imgviewer.config.cc
     src/imgviewer.host.cc
     src/imgviewer.keybindings.cc
+    src/imgviewer.settings.cc
     src/image.decoder.cc
     src/image.sequence.cc
     src/imgviewer.viewer.cc
@@ -20,7 +21,9 @@ add_executable(imgviewer
     src/ui.draw.cc
     src/ui.element.cc
     src/ui.layout.cc
+    src/ui.menu.cc
     src/ui.renderer.cc
+    src/ui.selection.cc
     src/ui.surface.cc
     src/ui.text.cc
     src/ui.tooltip.cc

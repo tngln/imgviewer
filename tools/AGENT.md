@@ -1,41 +1,41 @@
 # WinApp UI Tooling
 
-这个目录放的是给本地 agent 使用的 Windows UI 自动化工具。
+这个目录记录本地 agent 使用 Windows 官方 `winapp ui` 命令行工具的约定。
 
 ## 入口
 
-- 主入口: `python tools/winapp_ui.py`
-- Python CLI 负责窗口选择、鼠标键盘事件和命令编排。
-- `tools/winapp_ui_helper.cs` 会在首次使用时被自动编译到 `tools/.cache/winapp_ui_helper.exe`，负责 UI Automation、截图和图像检查。
+- 主入口: `winapp ui`
+- 截图统一使用 `winapp ui screenshot`。
 
 ## 常用命令
 
-- 查找窗口:
-  - `python tools/winapp_ui.py find-window --class-name ImgViewerWindow`
+- 列出窗口:
+  - `winapp ui list-windows -a imgviewer`
 - 读取 UIA 树:
-  - `python tools/winapp_ui.py tree --class-name ImgViewerWindow`
+  - `winapp ui inspect -w 123456`
+- 搜索元素:
+  - `winapp ui search menu -w 123456`
+- 点击 UIA 元素:
+  - `winapp ui click menu -w 123456`
+- 调用 UIA 元素:
+  - `winapp ui invoke close -w 123456`
 - 截图:
-  - `python tools/winapp_ui.py screenshot --class-name ImgViewerWindow --mode screen --out .\\tmp\\imgviewer.png`
-  - `python tools/winapp_ui.py screenshot --hwnd 123456 --mode printwindow --out .\\tmp\\imgviewer-frame.png`
-- 鼠标移动/点击:
-  - `python tools/winapp_ui.py move 40 20 --window-relative`
-  - `python tools/winapp_ui.py click 120 140 --window-relative`
-- 键盘输入:
-  - `python tools/winapp_ui.py key ctrl o`
-  - `python tools/winapp_ui.py type "hello"`
-- 图像检查:
-  - `python tools/winapp_ui.py image-info .\\tmp\\imgviewer.png`
-  - `python tools/winapp_ui.py image-diff .\\tmp\\before.png .\\tmp\\after.png`
+  - `winapp ui screenshot -w 123456 --output .\\tmp\\imgviewer.png --json`
+  - `winapp ui screenshot -w 123456 --capture-screen --output .\\tmp\\imgviewer-with-popup.png --json`
+- 等待元素:
+  - `winapp ui wait-for menu -w 123456`
+- 查看焦点:
+  - `winapp ui get-focused -w 123456`
 
 ## 约定
 
-- 默认窗口类名是 `ImgViewerWindow`，所以对 imgviewer 做验证时通常不需要额外传类名。
-- `--window-relative` 表示坐标相对目标窗口左上角；不带时使用屏幕绝对坐标。
-- `screen` 模式截图会尝试把目标窗口置前后再抓屏，更接近用户实际看到的结果。
-- `printwindow` 模式更稳定，但对 DirectComposition/分层窗口可能只能抓到宿主窗口内容。
+- 对 imgviewer 先用 `winapp ui list-windows -a imgviewer` 找到目标 HWND。
+- 后续命令优先使用 `-w <HWND>`，避免按标题匹配时受到空标题、动态标题或多窗口影响。
+- 对弹出菜单、浮层、对话框等需要包含屏幕覆盖层的场景，截图必须加 `--capture-screen`。
+- 如果 UIA 树中没有目标项，不要臆造 selector；先截图确认视觉状态，再记录该控件未暴露给 UIA。
 
 ## 注意事项
 
-- 这个工具默认依赖系统自带的 .NET Framework C# 编译器和 UIAutomation 程序集。
-- 如果要做视觉验证，优先使用 `screen` 模式；如果发现抓到的是别的窗口或不完整内容，先确认目标窗口在最前面且没有被遮挡。
-- 这个工具输出尽量使用 JSON，方便后续脚本和 agent 直接消费。
+- `winapp ui click` 输出的坐标是工具内部选择的点击点，不应拿来和其他自定义鼠标工具混用。
+- 自绘菜单项可能不会出现在 `inspect` 或 `search` 结果里；这属于需要记录的可访问性问题。
+- 设置窗口等空标题窗口应通过 `winapp ui list-windows -a imgviewer` 返回的 HWND 定位。

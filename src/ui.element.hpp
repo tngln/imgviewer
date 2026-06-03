@@ -36,6 +36,11 @@ private:
 
 enum class UiElementRole {
     Button,
+    CheckBox,
+    ComboBox,
+    Menu,
+    MenuItem,
+    RadioButton,
     Text,
     Pane,
 };
@@ -57,6 +62,8 @@ struct UiElementState final {
     bool active = false;
     bool danger = false;
     bool enabled = true;
+    bool checked = false;
+    bool expanded = false;
 };
 
 class UiElement {

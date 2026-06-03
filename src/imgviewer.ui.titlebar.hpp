@@ -15,6 +15,7 @@ struct ImgViewerUiState;
 class ImgViewerUiTitleBar final {
 public:
     enum class ButtonKey : size_t {
+        Menu,
         TopMost,
         Minimize,
         MaximizeRestore,

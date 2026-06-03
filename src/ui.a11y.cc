@@ -15,11 +15,7 @@
 
 #include "imgviewer.messages.hpp"
 #include "com.rc.hpp"
-#include "ui.hpp"
-
 namespace {
-
-constexpr wchar_t kRootName[] = L"ImgViewer";
 
 SAFEARRAY* MakeRuntimeId(int local_id)
 {
@@ -84,6 +80,16 @@ int ControlTypeForRole(UiElementRole role)
     switch (role) {
     case UiElementRole::Button:
         return UIA_ButtonControlTypeId;
+    case UiElementRole::CheckBox:
+        return UIA_CheckBoxControlTypeId;
+    case UiElementRole::ComboBox:
+        return UIA_ComboBoxControlTypeId;
+    case UiElementRole::Menu:
+        return UIA_MenuControlTypeId;
+    case UiElementRole::MenuItem:
+        return UIA_MenuItemControlTypeId;
+    case UiElementRole::RadioButton:
+        return UIA_RadioButtonControlTypeId;
     case UiElementRole::Text:
         return UIA_TextControlTypeId;
     case UiElementRole::Pane:
@@ -99,7 +105,7 @@ class UiRootProvider final :
     public IRawElementProviderFragment,
     public IRawElementProviderFragmentRoot {
 public:
-    UiRootProvider(HWND hwnd, UiController* ui) : hwnd_(hwnd), ui_(ui) {}
+    UiRootProvider(HWND hwnd, UiAccessibilitySource* ui) : hwnd_(hwnd), ui_(ui) {}
 
     HRESULT Initialize();
 
@@ -144,7 +150,7 @@ public:
     IFACEMETHODIMP GetPropertyValue(PROPERTYID property_id, VARIANT* value) noexcept override
     {
         if (property_id == UIA_NamePropertyId) {
-            return SetBstrVariant(kRootName, value);
+            return SetBstrVariant(ui_->AccessibilityRootName(), value);
         }
 
         if (property_id == UIA_ControlTypePropertyId) {
@@ -221,7 +227,7 @@ public:
     }
 
     HWND hwnd() const { return hwnd_; }
-    UiController* ui() const { return ui_; }
+    UiAccessibilitySource* ui() const { return ui_; }
     UiButtonProvider* ProviderAt(size_t index) const;
     UiButtonProvider* ProviderFor(UiElementId id) const;
     UiButtonProvider* NextProvider(UiElementId id) const;
@@ -229,7 +235,7 @@ public:
 
 private:
     HWND hwnd_ = nullptr;
-    UiController* ui_ = nullptr;
+    UiAccessibilitySource* ui_ = nullptr;
     ComRc<UiRootProvider> rc_;
     std::vector<wil::com_ptr<UiButtonProvider>> button_providers_;
 };
@@ -514,7 +520,7 @@ IFACEMETHODIMP UiRootProvider::ElementProviderFromPoint(double x, double y, IRaw
 
 HRESULT CreateUiAccessibilityProvider(
     HWND hwnd,
-    UiController* ui,
+    UiAccessibilitySource* ui,
     IRawElementProviderSimple** provider)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, hwnd);

@@ -1,8 +1,11 @@
 #include "imgviewer.ui.hpp"
 
 #include <memory>
+#include <vector>
 
 #include <d2d1helper.h>
+
+#include "ui.theme.hpp"
 
 namespace {
 
@@ -64,11 +67,54 @@ void ImgViewerUi::Draw(
     Layout(viewport_size);
     titlebar_.Draw(draw_context, viewport_size, dwrite_factory, body_text_format, state, top_most_, maximized_);
     toolbar_.Draw(draw_context, viewport_size, state);
+    menu_.Draw(draw_context, UiElementState{});
 }
 
 UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
 {
+    UiEventResult menu_result = menu_.OnPointerEvent(event);
+    if (menu_result.handled) {
+        return menu_result;
+    }
     return toolbar_.OnPointerEvent(event);
+}
+
+UiEventResult ImgViewerUi::OnKeyEvent(const UiKeyEvent& event)
+{
+    return menu_.OnKeyEvent(event);
+}
+
+bool ImgViewerUi::HandleUiAction(ImgViewerAction action)
+{
+    if (action != ImgViewerAction::OpenMenu) {
+        return false;
+    }
+
+    if (menu_.IsOpen()) {
+        menu_.Close();
+        return true;
+    }
+
+    menu_.Open(
+        D2D1::Point2F(6.0f, ui_theme::metrics::kTitleBarHeight + 4.0f),
+        std::vector<MenuItem>{
+            {L"Open Image", ImgViewerAction::OpenImage},
+            {L"Settings", ImgViewerAction::OpenSettings},
+            {L"", ImgViewerAction::None, true},
+            {L"Zoom In", ImgViewerAction::ZoomIn},
+            {L"Zoom Out", ImgViewerAction::ZoomOut},
+            {L"Reset View", ImgViewerAction::ResetView},
+            {L"", ImgViewerAction::None, true},
+            {L"Rotate Clockwise", ImgViewerAction::RotateClockwise},
+            {L"Flip Horizontal", ImgViewerAction::FlipHorizontal},
+            {L"Flip Vertical", ImgViewerAction::FlipVertical},
+            {L"", ImgViewerAction::None, true},
+            {L"Top Most", ImgViewerAction::ToggleTopMost, false, top_most_},
+            {L"Minimize", ImgViewerAction::Minimize},
+            {L"Maximize or Restore", ImgViewerAction::ToggleMaximize},
+            {L"Close", ImgViewerAction::Close},
+        });
+    return true;
 }
 
 bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const

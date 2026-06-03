@@ -23,6 +23,16 @@ const char* ImgViewerActionName(ImgViewerAction action)
         return "flipVertical";
     case ImgViewerAction::ResetView:
         return "resetView";
+    case ImgViewerAction::OpenMenu:
+        return "openMenu";
+    case ImgViewerAction::OpenSettings:
+        return "openSettings";
+    case ImgViewerAction::CloseSettings:
+        return "closeSettings";
+    case ImgViewerAction::SaveSettings:
+        return "saveSettings";
+    case ImgViewerAction::ResetKeyBindings:
+        return "resetKeyBindings";
     case ImgViewerAction::ToggleTopMost:
         return "toggleTopMost";
     case ImgViewerAction::Minimize:
@@ -66,6 +76,21 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     }
     if (value == "resetView") {
         return ImgViewerAction::ResetView;
+    }
+    if (value == "openMenu") {
+        return ImgViewerAction::OpenMenu;
+    }
+    if (value == "openSettings") {
+        return ImgViewerAction::OpenSettings;
+    }
+    if (value == "closeSettings") {
+        return ImgViewerAction::CloseSettings;
+    }
+    if (value == "saveSettings") {
+        return ImgViewerAction::SaveSettings;
+    }
+    if (value == "resetKeyBindings") {
+        return ImgViewerAction::ResetKeyBindings;
     }
     if (value == "toggleTopMost") {
         return ImgViewerAction::ToggleTopMost;

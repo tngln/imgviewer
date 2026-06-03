@@ -7,6 +7,7 @@
 
 #include "win32.dialog.hpp"
 #include "win32.util.hpp"
+#include "imgviewer.settings.hpp"
 
 namespace {
 
@@ -84,6 +85,10 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
 
     switch (action) {
     case ImgViewerAction::OpenImage:
+    case ImgViewerAction::OpenMenu:
+        break;
+    case ImgViewerAction::OpenSettings:
+        OpenImgViewerSettingsWindow(hwnd, context);
         break;
     case ImgViewerAction::PreviousImage:
         NavigateImageFile(hwnd, context, -1);

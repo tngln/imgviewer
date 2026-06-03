@@ -28,6 +28,7 @@ struct ImgViewerContext final {
     std::array<ImgViewerAction, 256> pressed_key_actions = {};
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
+    HWND settings_window = nullptr;
 };
 
 HRESULT RenderImgViewer(ImgViewerContext* context);
@@ -39,3 +40,4 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);
+HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);

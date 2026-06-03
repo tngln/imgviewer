@@ -8,7 +8,7 @@
 #include "icons.inc"
 
 struct UiDrawContext final {
-    ID2D1DeviceContext* d2d_context = nullptr;
+    ID2D1RenderTarget* d2d_context = nullptr;
     IDWriteTextFormat* body_text_format = nullptr;
     IDWriteTextFormat* icon_text_format = nullptr;
 };
