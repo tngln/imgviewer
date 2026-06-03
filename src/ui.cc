@@ -278,6 +278,11 @@ void UiController::SetWindowState(bool top_most, bool maximized)
     imgviewer_ui_->SetWindowState(top_most, maximized);
 }
 
+void UiController::SetColorPickerActive(bool active)
+{
+    imgviewer_ui_->SetColorPickerActive(active);
+}
+
 void UiController::SetActionEnabledRecursive(UiElement* element, ImgViewerAction action, bool enabled)
 {
     if (element == nullptr) {

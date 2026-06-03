@@ -7,6 +7,7 @@
 
 struct DecodedImage final {
     wil::com_ptr<ID2D1Bitmap1> bitmap;
+    wil::com_ptr<IWICBitmapSource> pixel_source;
     D2D1_SIZE_U pixel_size = {};
 };
 

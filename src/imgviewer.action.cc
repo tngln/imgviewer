@@ -23,6 +23,8 @@ const char* ImgViewerActionName(ImgViewerAction action)
         return "flipVertical";
     case ImgViewerAction::ResetView:
         return "resetView";
+    case ImgViewerAction::ToggleColorPicker:
+        return "toggleColorPicker";
     case ImgViewerAction::OpenMenu:
         return "openMenu";
     case ImgViewerAction::OpenSettings:
@@ -84,6 +86,9 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     }
     if (value == "resetView") {
         return ImgViewerAction::ResetView;
+    }
+    if (value == "toggleColorPicker") {
+        return ImgViewerAction::ToggleColorPicker;
     }
     if (value == "openMenu") {
         return ImgViewerAction::OpenMenu;

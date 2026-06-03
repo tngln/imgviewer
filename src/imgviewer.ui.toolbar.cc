@@ -115,6 +115,8 @@ constexpr std::array<ButtonSpec, ImgViewerUiToolbar::kButtonCount> kButtonSpecs{
         L"flip-vertical", PathIcon(icons::kFlipVerticalIconPath, icons::kToolbarIconViewport)},
     {ImgViewerUiToolbar::ButtonKey::ResetView, ImgViewerAction::ResetView, L"Reset View", L"Reset view", L"reset-view",
         GlyphIcon(kResetIcon)},
+    {ImgViewerUiToolbar::ButtonKey::ColorPicker, ImgViewerAction::ToggleColorPicker, L"Color Picker", L"Color picker",
+        L"color-picker", PathIcon(icons::kColorPickerIconPath, icons::kToolbarIconViewport), false},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -158,7 +160,11 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
         false)));
 }
 
-void ImgViewerUiToolbar::Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImgViewerUiState state)
+void ImgViewerUiToolbar::Draw(
+    const UiDrawContext& draw_context,
+    D2D1_SIZE_F viewport_size,
+    ImgViewerUiState state,
+    bool color_picker_active)
 {
     const UiDraw draw(draw_context);
     Layout(viewport_size);
@@ -177,7 +183,7 @@ void ImgViewerUiToolbar::Draw(const UiDrawContext& draw_context, D2D1_SIZE_F vie
     draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, 1.0f);
 
     for (const ButtonSpec& spec : kButtonSpecs) {
-        DrawButton(spec.button, draw_context, state);
+        DrawButton(spec.button, draw_context, state, spec.button == ButtonKey::ColorPicker && color_picker_active);
     }
 }
 

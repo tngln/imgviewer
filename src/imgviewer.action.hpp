@@ -11,6 +11,7 @@ enum class ImgViewerAction {
     FlipHorizontal,
     FlipVertical,
     ResetView,
+    ToggleColorPicker,
     OpenMenu,
     OpenSettings,
     CloseSettings,

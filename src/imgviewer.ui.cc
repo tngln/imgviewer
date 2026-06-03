@@ -66,7 +66,7 @@ void ImgViewerUi::Draw(
     };
     Layout(viewport_size);
     titlebar_.Draw(draw_context, viewport_size, dwrite_factory, body_text_format, state, top_most_, maximized_);
-    toolbar_.Draw(draw_context, viewport_size, state);
+    toolbar_.Draw(draw_context, viewport_size, state, color_picker_active_);
     menu_.Draw(draw_context, UiElementState{});
 }
 
@@ -104,6 +104,7 @@ bool ImgViewerUi::HandleUiAction(ImgViewerAction action)
             {L"Zoom In", ImgViewerAction::ZoomIn},
             {L"Zoom Out", ImgViewerAction::ZoomOut},
             {L"Reset View", ImgViewerAction::ResetView},
+            {L"Color Picker", ImgViewerAction::ToggleColorPicker, false, color_picker_active_},
             {L"", ImgViewerAction::None, true},
             {L"Rotate Clockwise", ImgViewerAction::RotateClockwise},
             {L"Flip Horizontal", ImgViewerAction::FlipHorizontal},
@@ -131,6 +132,11 @@ void ImgViewerUi::SetWindowState(bool top_most, bool maximized)
 {
     top_most_ = top_most;
     maximized_ = maximized;
+}
+
+void ImgViewerUi::SetColorPickerActive(bool active)
+{
+    color_picker_active_ = active;
 }
 
 void ImgViewerUi::Layout(D2D1_SIZE_F viewport_size)

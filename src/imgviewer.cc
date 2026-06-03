@@ -4,6 +4,7 @@
 #include <string>
 
 #include <wil/result_macros.h>
+#include <wil/resource.h>
 
 #include "win32.dialog.hpp"
 #include "win32.util.hpp"
@@ -12,6 +13,8 @@
 namespace {
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
+bool CopyTextToClipboard(HWND hwnd, const wchar_t* text);
+void SetColorPickerActive(ImgViewerContext* context, bool active);
 
 } // namespace
 
@@ -64,6 +67,11 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         return position.total > 0 && position.index < position.total;
     }
 
+    if (action == ImgViewerAction::ToggleColorPicker) {
+        const D2D1_SIZE_U image_size = context != nullptr ? context->viewer.CurrentImagePixelSize() : D2D1_SIZE_U{};
+        return image_size.width > 0 && image_size.height > 0;
+    }
+
     return true;
 }
 
@@ -75,6 +83,7 @@ void SyncActionStates(ImgViewerContext* context)
 
     context->ui.SetActionEnabled(ImgViewerAction::PreviousImage, IsImgViewerActionEnabled(context, ImgViewerAction::PreviousImage));
     context->ui.SetActionEnabled(ImgViewerAction::NextImage, IsImgViewerActionEnabled(context, ImgViewerAction::NextImage));
+    context->ui.SetActionEnabled(ImgViewerAction::ToggleColorPicker, IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker));
 }
 
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
@@ -126,6 +135,12 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             RenderImgViewer(context);
         }
         break;
+    case ImgViewerAction::ToggleColorPicker:
+        if (context != nullptr) {
+            SetColorPickerActive(context, !context->color_picker_active);
+            RenderImgViewer(context);
+        }
+        break;
     case ImgViewerAction::ToggleTopMost: {
         const bool top_most = !util::IsWindowTopMost(hwnd);
         SetWindowPos(
@@ -160,6 +175,27 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     }
 }
 
+bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point)
+{
+    if (context == nullptr || !context->color_picker_active) {
+        return false;
+    }
+
+    ImgViewerColorSample color;
+    if (!context->viewer.SampleColorAt(point.x, point.y, context->renderer.ViewportPixelSize(), &color)) {
+        return true;
+    }
+
+    wchar_t hex_text[8] = {};
+    swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
+    CopyTextToClipboard(hwnd, hex_text);
+    SetColorPickerActive(context, false);
+    context->ui.SetTitleText(hex_text);
+    SetWindowTextW(hwnd, hex_text);
+    RenderImgViewer(context);
+    return true;
+}
+
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path)
 {
     if (context == nullptr || path == nullptr || path[0] == L'\0') {
@@ -177,6 +213,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
         MessageBoxW(hwnd, L"Could not read the image folder.", kImgViewerWindowTitle, MB_OK | MB_ICONWARNING);
     }
     SyncActionStates(context);
+    SetColorPickerActive(context, false);
 
     const std::wstring file_name = util::FileNameFromPath(path, kImgViewerWindowTitle);
     const ImageSequencePosition position = context->sequence.Position();
@@ -235,6 +272,47 @@ bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction)
 
     LoadImgViewerImageFile(hwnd, context, path->c_str());
     return true;
+}
+
+bool CopyTextToClipboard(HWND hwnd, const wchar_t* text)
+{
+    if (text == nullptr || !OpenClipboard(hwnd)) {
+        return false;
+    }
+
+    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
+    EmptyClipboard();
+
+    const size_t byte_count = (wcslen(text) + 1) * sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, byte_count);
+    if (memory == nullptr) {
+        return false;
+    }
+
+    wchar_t* clipboard_text = static_cast<wchar_t*>(GlobalLock(memory));
+    if (clipboard_text == nullptr) {
+        GlobalFree(memory);
+        return false;
+    }
+
+    memcpy(clipboard_text, text, byte_count);
+    GlobalUnlock(memory);
+    if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
+        GlobalFree(memory);
+        return false;
+    }
+
+    return true;
+}
+
+void SetColorPickerActive(ImgViewerContext* context, bool active)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    context->color_picker_active = active && IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker);
+    context->ui.SetColorPickerActive(context->color_picker_active);
 }
 
 } // namespace

@@ -36,9 +36,20 @@ HRESULT ImageDecoder::DecodeFirstFrame(
     RETURN_IF_FAILED(decoder->GetFrame(0, frame.put()));
     RETURN_IF_FAILED(frame->GetSize(&decoded.pixel_size.width, &decoded.pixel_size.height));
 
-    wil::com_ptr<IWICFormatConverter> converter;
-    RETURN_IF_FAILED(wic_factory_->CreateFormatConverter(converter.put()));
-    RETURN_IF_FAILED(converter->Initialize(
+    wil::com_ptr<IWICFormatConverter> bgra_converter;
+    RETURN_IF_FAILED(wic_factory_->CreateFormatConverter(bgra_converter.put()));
+    RETURN_IF_FAILED(bgra_converter->Initialize(
+        frame.get(),
+        GUID_WICPixelFormat32bppBGRA,
+        WICBitmapDitherTypeNone,
+        nullptr,
+        0.0,
+        WICBitmapPaletteTypeMedianCut));
+    decoded.pixel_source = bgra_converter;
+
+    wil::com_ptr<IWICFormatConverter> pbgra_converter;
+    RETURN_IF_FAILED(wic_factory_->CreateFormatConverter(pbgra_converter.put()));
+    RETURN_IF_FAILED(pbgra_converter->Initialize(
         frame.get(),
         GUID_WICPixelFormat32bppPBGRA,
         WICBitmapDitherTypeNone,
@@ -52,7 +63,7 @@ HRESULT ImageDecoder::DecodeFirstFrame(
         96.0f,
         96.0f);
     RETURN_IF_FAILED(d2d_context->CreateBitmapFromWicBitmap(
-        converter.get(),
+        pbgra_converter.get(),
         bitmap_properties,
         decoded.bitmap.put()));
 

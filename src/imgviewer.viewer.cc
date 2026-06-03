@@ -272,6 +272,46 @@ bool ImgViewerController::ResetView()
     return true;
 }
 
+bool ImgViewerController::SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const
+{
+    if (color == nullptr || current_image_.pixel_source == nullptr) {
+        return false;
+    }
+
+    D2D1_POINT_2F image_point = {};
+    if (!ImagePointFromViewportPoint(x, y, viewport_size, &image_point)) {
+        return false;
+    }
+
+    const int pixel_x = static_cast<int>(std::floor(image_point.x));
+    const int pixel_y = static_cast<int>(std::floor(image_point.y));
+    if (pixel_x < 0 ||
+        pixel_y < 0 ||
+        pixel_x >= static_cast<int>(current_image_.pixel_size.width) ||
+        pixel_y >= static_cast<int>(current_image_.pixel_size.height)) {
+        return false;
+    }
+
+    BYTE bgra[4] = {};
+    const WICRect rect{
+        pixel_x,
+        pixel_y,
+        1,
+        1,
+    };
+    if (FAILED(current_image_.pixel_source->CopyPixels(&rect, sizeof(bgra), sizeof(bgra), bgra))) {
+        return false;
+    }
+
+    *color = ImgViewerColorSample{
+        .red = bgra[2],
+        .green = bgra[1],
+        .blue = bgra[0],
+        .alpha = bgra[3],
+    };
+    return true;
+}
+
 bool ImgViewerController::OnActionDown(ImgViewerAction action)
 {
     if (action == ImgViewerAction::RotateClockwise) {
@@ -313,4 +353,35 @@ float ImgViewerController::CurrentImageScale(D2D1_SIZE_U viewport_size) const
     }
 
     return math::FitScale(current_image_.pixel_size, viewport_size) * image_zoom_multiplier_;
+}
+
+bool ImgViewerController::ImagePointFromViewportPoint(
+    float x,
+    float y,
+    D2D1_SIZE_U viewport_size,
+    D2D1_POINT_2F* image_point) const
+{
+    if (image_point == nullptr || !current_image_.bitmap) {
+        return false;
+    }
+
+    const float image_scale = CurrentImageScale(viewport_size);
+    if (image_scale <= 0.0f) {
+        return false;
+    }
+
+    const D2D1_POINT_2F viewport_center = D2D1::Point2F(
+        static_cast<float>(viewport_size.width) * 0.5f,
+        static_cast<float>(viewport_size.height) * 0.5f);
+    const D2D1_POINT_2F screen_delta = D2D1::Point2F(x - viewport_center.x, y - viewport_center.y);
+    const float flip_x = image_flipped_horizontal_ ? -1.0f : 1.0f;
+    const float flip_y = image_flipped_vertical_ ? -1.0f : 1.0f;
+    const D2D1_POINT_2F image_delta = math::TransformVector(
+        D2D1::Matrix3x2F::Rotation(-image_rotation_degrees_) *
+            D2D1::Matrix3x2F::Scale(flip_x, flip_y),
+        screen_delta);
+    *image_point = D2D1::Point2F(
+        image_view_center_.x + image_delta.x / image_scale,
+        image_view_center_.y + image_delta.y / image_scale);
+    return true;
 }

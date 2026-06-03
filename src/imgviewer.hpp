@@ -6,7 +6,6 @@
 #include <UIAutomationCore.h>
 
 #include <array>
-
 #include <wil/com.h>
 #include <wil/resource.h>
 
@@ -29,6 +28,7 @@ struct ImgViewerContext final {
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
+    bool color_picker_active = false;
 };
 
 HRESULT RenderImgViewer(ImgViewerContext* context);
@@ -37,6 +37,7 @@ void SaveWindowSize(HWND hwnd, ImgViewerContext* context);
 bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action);
 void SyncActionStates(ImgViewerContext* context);
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action);
+bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point);
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);

@@ -282,7 +282,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
-            viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
+            if (HandleImgViewerColorPick(hwnd, context, point)) {
+                ui_result.handled = true;
+            } else {
+                viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
+            }
         }
         if (viewer_result.captured) {
             SetCapture(hwnd);

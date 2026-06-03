@@ -37,6 +37,7 @@ public:
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
     void SetWindowState(bool top_most, bool maximized);
+    void SetColorPickerActive(bool active);
 
 private:
     void Layout(D2D1_SIZE_F viewport_size);
@@ -47,5 +48,6 @@ private:
     ImgViewerUiToolbar toolbar_;
     bool top_most_ = false;
     bool maximized_ = false;
+    bool color_picker_active_ = false;
     MenuOverlay menu_;
 };

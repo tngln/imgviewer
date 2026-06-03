@@ -66,4 +66,20 @@ constexpr PathCommand kFlipVerticalIconPath[] = {
     {PathVerb::LineTo, {{20.5f, 12.0f}, {}, {}}},
 };
 
+constexpr PathCommand kColorPickerIconPath[] = {
+    {PathVerb::MoveTo, {{14.5f, 4.5f}, {}, {}}},
+    {PathVerb::LineTo, {{19.5f, 9.5f}, {}, {}}},
+    {PathVerb::LineTo, {{16.6f, 12.4f}, {}, {}}},
+    {PathVerb::LineTo, {{14.8f, 10.6f}, {}, {}}},
+    {PathVerb::LineTo, {{7.2f, 18.2f}, {}, {}}},
+    {PathVerb::LineTo, {{4.0f, 20.0f}, {}, {}}},
+    {PathVerb::LineTo, {{5.8f, 16.8f}, {}, {}}},
+    {PathVerb::LineTo, {{13.4f, 9.2f}, {}, {}}},
+    {PathVerb::LineTo, {{11.6f, 7.4f}, {}, {}}},
+    {PathVerb::LineTo, {{14.5f, 4.5f}, {}, {}}},
+
+    {PathVerb::MoveTo, {{12.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{18.0f, 12.0f}, {}, {}}},
+};
+
 } // namespace icons

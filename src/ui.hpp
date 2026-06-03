@@ -45,6 +45,7 @@ public:
     void SetTitleText(const wchar_t* title);
     void SetActionEnabled(ImgViewerAction action, bool enabled);
     void SetWindowState(bool top_most, bool maximized);
+    void SetColorPickerActive(bool active);
 
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
