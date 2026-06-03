@@ -22,6 +22,7 @@
 #include "ui.a11y.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
+#include "ui.popup.hpp"
 #include "ui.selection.hpp"
 #include "ui.textbox.hpp"
 #include "ui.theme.hpp"
@@ -249,30 +250,49 @@ public:
         DrawElement(*action_dropdown_, context);
     }
 
-    UiEventResult OnPointerMove(D2D1_POINT_2F point)
+    UiEventResult OnInputEvent(const UiInputEvent& event)
     {
-        return OnPointerEvent(UiPointerEvent{.type = UiEventType::PointerMove, .point = point});
+        switch (event.type) {
+        case UiEventType::PointerMove:
+        case UiEventType::PointerDown:
+        case UiEventType::PointerUp:
+        case UiEventType::PointerLeave:
+        case UiEventType::PointerWheel:
+            return OnPointerEvent(event.pointer);
+        case UiEventType::KeyDown:
+        case UiEventType::KeyUp:
+            return OnKeyEvent(event.key);
+        case UiEventType::TextChar:
+            return OnTextChar(event.character);
+        case UiEventType::ImeStartComposition:
+            return IsTextBoxFocused() ? UiEventResult{.handled = true, .wants_ime_position = true} : UiEventResult{};
+        case UiEventType::ImeComposition:
+            return focused_ == filter_box_->Id() ? filter_box_->OnInputEvent(event) : UiEventResult{};
+        case UiEventType::ImeEndComposition:
+            return focused_ == filter_box_->Id() ? filter_box_->OnInputEvent(event) : UiEventResult{};
+        case UiEventType::ContextMenu:
+            return OnContextMenu(event.point, event.hwnd, event.popup_host);
+        case UiEventType::Timer:
+            if (IsTextBoxFocused()) {
+                return filter_box_->OnInputEvent(event);
+            }
+            return {};
+        case UiEventType::Cancel:
+            return OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_});
+        case UiEventType::OwnerDeactivated:
+            action_dropdown_->Collapse();
+            return UiEventResult{.handled = true, .needs_render = true};
+        default:
+            return {};
+        }
     }
 
-    UiEventResult OnPointerLeave()
+    UiEventResult OnKeyEvent(const UiKeyEvent& event)
     {
-        const bool changed = hovered_ != UiElementId::None;
-        hovered_ = UiElementId::None;
-        return UiEventResult{.handled = changed, .needs_render = changed};
-    }
-
-    UiEventResult OnPointerDown(D2D1_POINT_2F point)
-    {
-        return OnPointerEvent(UiPointerEvent{.type = UiEventType::PointerDown, .point = point, .button = UiPointerButton::Left});
-    }
-
-    UiEventResult OnPointerUp(D2D1_POINT_2F point)
-    {
-        return OnPointerEvent(UiPointerEvent{.type = UiEventType::PointerUp, .point = point, .button = UiPointerButton::Left});
-    }
-
-    UiEventResult OnKeyDown(UINT virtual_key, UiModifiers modifiers)
-    {
+        if (event.type != UiEventType::KeyDown) {
+            return {};
+        }
+        const UINT virtual_key = event.virtual_key;
         if (virtual_key == VK_ESCAPE) {
             if (action_dropdown_->IsExpanded()) {
                 action_dropdown_->Collapse();
@@ -285,19 +305,19 @@ public:
         if (focused == nullptr) {
             return {};
         }
-        UiEventResult result = focused->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = virtual_key, .modifiers = modifiers, .focused = focused_});
+        UiEventResult result = focused->OnInputEvent(UiInputEvent{.type = event.type, .key = event});
         if (result.handled) {
             ApplyElementEffect(focused_);
         }
         return result;
     }
 
-    UiEventResult OnChar(wchar_t ch)
+    UiEventResult OnTextChar(wchar_t ch)
     {
         if (focused_ != filter_box_->Id()) {
             return {};
         }
-        UiEventResult result = filter_box_->OnChar(ch);
+        UiEventResult result = filter_box_->OnInputEvent(UiInputEvent{.type = UiEventType::TextChar, .character = ch});
         if (result.handled) {
             UpdateFilterResults();
             UpdateShortcutText();
@@ -305,21 +325,15 @@ public:
         return result;
     }
 
-    UiEventResult OnImeComposition(std::wstring composition)
-    {
-        return focused_ == filter_box_->Id() ? filter_box_->OnImeComposition(std::move(composition)) : UiEventResult{};
-    }
-
-    UiEventResult EndImeComposition()
-    {
-        return focused_ == filter_box_->Id() ? filter_box_->EndImeComposition() : UiEventResult{};
-    }
-
-    UiEventResult OnContextMenu(D2D1_POINT_2F point, HWND hwnd)
+    UiEventResult OnContextMenu(D2D1_POINT_2F point, HWND hwnd, PopupHost* popup_host)
     {
         if (filter_box_->Contains(point)) {
             focused_ = filter_box_->Id();
-            return filter_box_->OpenContextMenu(point, hwnd);
+            SetFocus(hwnd);
+            if (popup_host != nullptr) {
+                popup_host->OpenMenu(point, filter_box_->ContextMenuItems());
+            }
+            return UiEventResult{.handled = true, .needs_render = true, .focus = UiFocusRequest::FocusTarget, .focus_target = filter_box_->Id()};
         }
         return {};
     }
@@ -368,6 +382,12 @@ private:
 
     UiEventResult OnPointerEvent(const UiPointerEvent& event)
     {
+        if (event.type == UiEventType::PointerLeave) {
+            const bool changed = hovered_ != UiElementId::None;
+            hovered_ = UiElementId::None;
+            return UiEventResult{.handled = changed, .needs_render = changed};
+        }
+
         if (event.type == UiEventType::PointerDown && action_dropdown_->IsExpanded() && !DropdownHitTest(event.point)) {
             action_dropdown_->Collapse();
         }
@@ -383,7 +403,7 @@ private:
 
         UiEventResult result;
         if (UiElement* target = root_->FindById(target_id)) {
-            result = target->OnPointerEvent(target_event);
+            result = target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
         }
 
         if (result.capture == UiCaptureRequest::Capture) {
@@ -539,6 +559,7 @@ struct SettingsWindowContext final {
     wil::com_ptr<IDWriteTextFormat> body_text_format;
     wil::com_ptr<IDWriteTextFormat> icon_text_format;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
+    PopupHost popup_host;
     bool caret_visible = true;
 
     explicit SettingsWindowContext(ImgViewerConfig config) : ui(std::move(config)) {}
@@ -614,6 +635,7 @@ HRESULT InitializeRenderer(SettingsWindowContext* context)
         context->icon_text_format.put()));
     RETURN_IF_FAILED(context->body_text_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
     RETURN_IF_FAILED(context->icon_text_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    context->popup_host.SetTextFormats(context->body_text_format.get(), context->icon_text_format.get());
     return S_OK;
 }
 
@@ -637,6 +659,7 @@ void RenderSettings(HWND hwnd, SettingsWindowContext* context)
 
     context->render_target->BeginDraw();
     context->ui.Draw(draw_context, size);
+    context->popup_host.Draw(draw_context);
     const HRESULT hr = context->render_target->EndDraw();
     if (hr == D2DERR_RECREATE_TARGET) {
         context->render_target.reset();
@@ -657,6 +680,8 @@ void SyncCaretTimer(HWND hwnd, SettingsWindowContext* context)
         return;
     }
 
+    context->caret_visible = true;
+    context->ui.SetCaretVisible(true);
     const UINT blink_time = GetCaretBlinkTime();
     SetTimer(hwnd, kCaretTimerId, blink_time == INFINITE ? 530 : blink_time, nullptr);
 }
@@ -735,6 +760,33 @@ void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, ImgViewerA
     }
 }
 
+bool DispatchPopupPointer(
+    HWND hwnd,
+    SettingsWindowContext* context,
+    UiEventType type,
+    D2D1_POINT_2F point,
+    UiPointerButton button = UiPointerButton::None)
+{
+    if (context == nullptr || !context->popup_host.IsOpen()) {
+        return false;
+    }
+
+    UiPointerEvent pointer{
+        .type = type,
+        .point = point,
+        .button = button,
+    };
+    const UiEventResult result = context->popup_host.OnInputEvent(UiInputEvent{
+        .type = type,
+        .pointer = pointer,
+        .point = point,
+        .hwnd = hwnd,
+    });
+    InvalidateForResult(hwnd, result);
+    ExecuteSettingsAction(hwnd, context, result.action);
+    return result.handled;
+}
+
 LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
     switch (message) {
@@ -747,6 +799,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         auto* context = GetSettingsContext(hwnd);
         return context != nullptr &&
                 SUCCEEDED(InitializeRenderer(context)) &&
+                SUCCEEDED(context->popup_host.Initialize(hwnd, context->d2d_factory.get(), context->dwrite_factory.get())) &&
                 SUCCEEDED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put()))
             ? 0
             : -1;
@@ -776,7 +829,12 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         TRACKMOUSEEVENT track = {.cbSize = sizeof(track), .dwFlags = TME_LEAVE, .hwndTrack = hwnd};
         TrackMouseEvent(&track);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.OnPointerMove(D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)))));
+            const D2D1_POINT_2F point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
+            if (DispatchPopupPointer(hwnd, context, UiEventType::PointerMove, point)) {
+                return 0;
+            }
+            UiPointerEvent pointer{.type = UiEventType::PointerMove, .point = point, .modifiers = CurrentModifiers()};
+            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd}));
             PositionIme(hwnd, context);
         }
         return 0;
@@ -784,7 +842,8 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_MOUSELEAVE: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.OnPointerLeave());
+            UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = CurrentModifiers()};
+            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}));
         }
         return 0;
     }
@@ -792,7 +851,12 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
             SetFocus(hwnd);
-            const UiEventResult result = context->ui.OnPointerDown(D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam))));
+            const D2D1_POINT_2F point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
+            if (DispatchPopupPointer(hwnd, context, UiEventType::PointerDown, point, UiPointerButton::Left)) {
+                return 0;
+            }
+            UiPointerEvent pointer{.type = UiEventType::PointerDown, .point = point, .button = UiPointerButton::Left, .modifiers = CurrentModifiers()};
+            const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd});
             if (result.capture == UiCaptureRequest::Capture) {
                 SetCapture(hwnd);
             }
@@ -805,7 +869,12 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_LBUTTONUP: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            const UiEventResult result = context->ui.OnPointerUp(D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam))));
+            const D2D1_POINT_2F point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
+            if (DispatchPopupPointer(hwnd, context, UiEventType::PointerUp, point, UiPointerButton::Left)) {
+                return 0;
+            }
+            UiPointerEvent pointer{.type = UiEventType::PointerUp, .point = point, .button = UiPointerButton::Left, .modifiers = CurrentModifiers()};
+            const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd});
             if (result.capture == UiCaptureRequest::Release) {
                 ReleaseCapture();
             }
@@ -819,7 +888,25 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_KEYDOWN: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            const UiEventResult result = context->ui.OnKeyDown(static_cast<UINT>(wparam), CurrentModifiers());
+            if (context->popup_host.IsOpen()) {
+                UiKeyEvent key{
+                    .type = UiEventType::KeyDown,
+                    .virtual_key = static_cast<UINT>(wparam),
+                    .modifiers = CurrentModifiers(),
+                };
+                const UiEventResult popup_result = context->popup_host.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd});
+                InvalidateForResult(hwnd, popup_result);
+                ExecuteSettingsAction(hwnd, context, popup_result.action);
+                if (popup_result.handled) {
+                    return 0;
+                }
+            }
+            UiKeyEvent key{
+                .type = UiEventType::KeyDown,
+                .virtual_key = static_cast<UINT>(wparam),
+                .modifiers = CurrentModifiers(),
+            };
+            const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd});
             InvalidateForResult(hwnd, result);
             ExecuteSettingsAction(hwnd, context, result.action);
             SyncCaretTimer(hwnd, context);
@@ -833,7 +920,11 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_CHAR: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            const UiEventResult result = context->ui.OnChar(static_cast<wchar_t>(wparam));
+            const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{
+                .type = UiEventType::TextChar,
+                .character = static_cast<wchar_t>(wparam),
+                .hwnd = hwnd,
+            });
             InvalidateForResult(hwnd, result);
             PositionIme(hwnd, context);
             if (result.handled) {
@@ -842,13 +933,22 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         }
         break;
     }
-    case WM_IME_STARTCOMPOSITION:
-        PositionIme(hwnd, GetSettingsContext(hwnd));
+    case WM_IME_STARTCOMPOSITION: {
+        auto* context = GetSettingsContext(hwnd);
+        if (context != nullptr) {
+            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::ImeStartComposition, .hwnd = hwnd}));
+            PositionIme(hwnd, context);
+        }
         return 0;
+    }
     case WM_IME_COMPOSITION: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.OnImeComposition(ImeCompositionString(hwnd, lparam)));
+            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{
+                .type = UiEventType::ImeComposition,
+                .text = ImeCompositionString(hwnd, lparam),
+                .hwnd = hwnd,
+            }));
             PositionIme(hwnd, context);
         }
         break;
@@ -856,7 +956,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_IME_ENDCOMPOSITION: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.EndImeComposition());
+            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::ImeEndComposition, .hwnd = hwnd}));
         }
         return 0;
     }
@@ -869,7 +969,14 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
             } else {
                 ScreenToClient(hwnd, &point);
             }
-            const UiEventResult result = context->ui.OnContextMenu(D2D1::Point2F(static_cast<float>(point.x), static_cast<float>(point.y)), hwnd);
+            const D2D1_POINT_2F client_point = D2D1::Point2F(static_cast<float>(point.x), static_cast<float>(point.y));
+            const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{
+                .type = UiEventType::ContextMenu,
+                .point = client_point,
+                .screen_point = POINT{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)},
+                .hwnd = hwnd,
+                .popup_host = &context->popup_host,
+            });
             InvalidateForResult(hwnd, result);
             SyncCaretTimer(hwnd, context);
             if (result.handled) {
@@ -882,11 +989,24 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         if (wparam == kCaretTimerId) {
             auto* context = GetSettingsContext(hwnd);
             if (context != nullptr && context->ui.IsTextBoxFocused()) {
-                context->caret_visible = !context->caret_visible;
-                context->ui.SetCaretVisible(context->caret_visible);
-                InvalidateRect(hwnd, nullptr, FALSE);
+                const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{
+                    .type = UiEventType::Timer,
+                    .timer_id = static_cast<UINT_PTR>(wparam),
+                    .hwnd = hwnd,
+                });
+                InvalidateForResult(hwnd, result);
             }
             return 0;
+        }
+        break;
+    }
+    case WM_ACTIVATE: {
+        if (LOWORD(wparam) == WA_INACTIVE) {
+            if (auto* context = GetSettingsContext(hwnd)) {
+                InvalidateForResult(hwnd, context->popup_host.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
+                InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
         }
         break;
     }
@@ -904,6 +1024,9 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         break;
     }
     case WM_CLOSE:
+        if (auto* context = GetSettingsContext(hwnd)) {
+            context->popup_host.Close();
+        }
         DestroyWindow(hwnd);
         return 0;
     case WM_DESTROY: {
@@ -912,6 +1035,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
             if (context->app != nullptr) {
                 context->app->settings_window = nullptr;
             }
+            context->popup_host.Close();
             delete context;
         }
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);

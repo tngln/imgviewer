@@ -73,6 +73,23 @@ bool UiElement::Contains(D2D1_POINT_2F point) const
 
 void UiElement::Draw(const UiDrawContext&, UiElementState) const {}
 
+UiEventResult UiElement::OnInputEvent(const UiInputEvent& event)
+{
+    switch (event.type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        return OnPointerEvent(event.pointer);
+    case UiEventType::KeyDown:
+    case UiEventType::KeyUp:
+        return OnKeyEvent(event.key);
+    default:
+        return {};
+    }
+}
+
 UiEventResult UiElement::OnPointerEvent(const UiPointerEvent&)
 {
     return {};

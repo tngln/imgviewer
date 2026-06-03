@@ -18,19 +18,19 @@ public:
     void SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format);
     void SetCaretVisible(bool visible);
     bool IsEditing() const;
-    bool IsContextMenuOpen() const;
     D2D1_POINT_2F CaretPoint() const;
+    std::vector<MenuItem> ContextMenuItems() const;
 
     void Draw(const UiDrawContext& context, UiElementState state) const override;
+    UiEventResult OnInputEvent(const UiInputEvent& event) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
-    UiEventResult OnChar(wchar_t ch);
-    UiEventResult OnImeComposition(std::wstring composition);
-    UiEventResult EndImeComposition();
-    UiEventResult OpenContextMenu(D2D1_POINT_2F point, HWND hwnd);
     UiEventResult ExecuteEditAction(ImgViewerAction action, HWND hwnd);
 
 private:
+    UiEventResult InsertCharacter(wchar_t ch);
+    UiEventResult UpdateImeComposition(std::wstring composition);
+    UiEventResult EndImeComposition();
     bool HasSelection() const;
     size_t SelectionStart() const;
     size_t SelectionEnd() const;
@@ -56,5 +56,4 @@ private:
     D2D1_POINT_2F caret_point_ = {};
     IDWriteFactory* dwrite_factory_ = nullptr;
     IDWriteTextFormat* text_format_ = nullptr;
-    MenuOverlay context_menu_;
 };

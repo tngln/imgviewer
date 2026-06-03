@@ -59,14 +59,22 @@ bool TextBox::IsEditing() const
     return true;
 }
 
-bool TextBox::IsContextMenuOpen() const
-{
-    return context_menu_.IsOpen();
-}
-
 D2D1_POINT_2F TextBox::CaretPoint() const
 {
     return caret_point_;
+}
+
+std::vector<MenuItem> TextBox::ContextMenuItems() const
+{
+    const bool has_selection = HasSelection();
+    const bool can_paste = IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE;
+    return std::vector<MenuItem>{
+        {L"Copy", ImgViewerAction::TextCopy, false, false, has_selection},
+        {L"Cut", ImgViewerAction::TextCut, false, false, has_selection},
+        {L"Paste", ImgViewerAction::TextPaste, false, false, can_paste},
+        {L"", ImgViewerAction::None, true},
+        {L"Select All", ImgViewerAction::TextSelectAll, false, false, !text_.empty()},
+    };
 }
 
 void TextBox::Draw(const UiDrawContext& context, UiElementState state) const
@@ -134,24 +142,42 @@ void TextBox::Draw(const UiDrawContext& context, UiElementState state) const
         const_cast<TextBox*>(this)->caret_point_ = D2D1::Point2F(caret_x, caret_bottom);
         draw.FillRect(D2D1::RectF(caret_x, caret_top, caret_x + 1.5f, caret_bottom), ui_theme::color::kBodyText);
     }
+}
 
-    context_menu_.Draw(context, UiElementState{});
+UiEventResult TextBox::OnInputEvent(const UiInputEvent& event)
+{
+    switch (event.type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        return OnPointerEvent(event.pointer);
+    case UiEventType::KeyDown:
+    case UiEventType::KeyUp:
+        return OnKeyEvent(event.key);
+    case UiEventType::TextChar:
+        return InsertCharacter(event.character);
+    case UiEventType::ImeStartComposition:
+        return UiEventResult{.handled = true, .wants_ime_position = true};
+    case UiEventType::ImeComposition:
+        return UpdateImeComposition(event.text);
+    case UiEventType::ImeEndComposition:
+        return EndImeComposition();
+    case UiEventType::Timer:
+        caret_visible_ = !caret_visible_;
+        return UiEventResult{.handled = true, .needs_render = true};
+    default:
+        return {};
+    }
 }
 
 UiEventResult TextBox::OnPointerEvent(const UiPointerEvent& event)
 {
-    if (context_menu_.IsOpen()) {
-        UiEventResult result = context_menu_.OnPointerEvent(event);
-        if (result.handled) {
-            return result;
-        }
-    }
-
     if (event.type == UiEventType::PointerDown && event.button == UiPointerButton::Left) {
         const size_t index = HitTest(event.point);
         MoveCaret(index, event.modifiers.shift);
         dragging_ = true;
-        context_menu_.Close();
         return UiEventResult{
             .handled = true,
             .needs_render = true,
@@ -226,7 +252,7 @@ UiEventResult TextBox::OnKeyEvent(const UiKeyEvent& event)
     return {};
 }
 
-UiEventResult TextBox::OnChar(wchar_t ch)
+UiEventResult TextBox::InsertCharacter(wchar_t ch)
 {
     if (!IsPrintable(ch)) {
         return {};
@@ -235,7 +261,7 @@ UiEventResult TextBox::OnChar(wchar_t ch)
     return UiEventResult{.handled = true, .needs_render = true};
 }
 
-UiEventResult TextBox::OnImeComposition(std::wstring composition)
+UiEventResult TextBox::UpdateImeComposition(std::wstring composition)
 {
     composition_ = std::move(composition);
     return UiEventResult{.handled = true, .needs_render = true};
@@ -245,23 +271,6 @@ UiEventResult TextBox::EndImeComposition()
 {
     composition_.clear();
     return UiEventResult{.handled = true, .needs_render = true};
-}
-
-UiEventResult TextBox::OpenContextMenu(D2D1_POINT_2F point, HWND hwnd)
-{
-    const bool has_selection = HasSelection();
-    const bool can_paste = IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE;
-    context_menu_.Open(
-        point,
-        std::vector<MenuItem>{
-            {L"Copy", ImgViewerAction::TextCopy, false, false, has_selection},
-            {L"Cut", ImgViewerAction::TextCut, false, false, has_selection},
-            {L"Paste", ImgViewerAction::TextPaste, false, false, can_paste},
-            {L"", ImgViewerAction::None, true},
-            {L"Select All", ImgViewerAction::TextSelectAll, false, false, !text_.empty()},
-        });
-    SetFocus(hwnd);
-    return UiEventResult{.handled = true, .needs_render = true, .focus = UiFocusRequest::FocusTarget, .focus_target = Id()};
 }
 
 UiEventResult TextBox::ExecuteEditAction(ImgViewerAction action, HWND hwnd)

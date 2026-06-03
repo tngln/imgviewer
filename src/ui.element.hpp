@@ -9,6 +9,7 @@
 #include "ui.draw.hpp"
 
 struct UiEventResult;
+struct UiInputEvent;
 struct UiKeyEvent;
 struct UiPointerEvent;
 
@@ -85,6 +86,7 @@ public:
     bool IsHitTestVisible() const;
     bool Contains(D2D1_POINT_2F point) const;
     virtual void Draw(const UiDrawContext& context, UiElementState state) const;
+    virtual UiEventResult OnInputEvent(const UiInputEvent& event);
     virtual UiEventResult OnPointerEvent(const UiPointerEvent& event);
     virtual UiEventResult OnKeyEvent(const UiKeyEvent& event);
     UiElement* AddChild(std::unique_ptr<UiElement> child);

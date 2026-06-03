@@ -267,7 +267,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         RenderIfNeeded(context, viewer_result);
         if (context != nullptr && !viewer_result.handled) {
-            RenderIfNeeded(hwnd, context, context->ui.OnPointerMove(point));
+            UiPointerEvent pointer{.type = UiEventType::PointerMove, .point = point, .modifiers = CurrentUiModifiers()};
+            RenderIfNeeded(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd}));
         }
         return 0;
     }
@@ -275,7 +276,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_LBUTTONDOWN: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        UiEventResult ui_result = context != nullptr ? context->ui.OnPointerDown(point) : UiEventResult{};
+        UiPointerEvent pointer{.type = UiEventType::PointerDown, .point = point, .button = UiPointerButton::Left, .modifiers = CurrentUiModifiers()};
+        UiEventResult ui_result = context != nullptr
+            ? context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd})
+            : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
             viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
@@ -298,7 +302,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         RenderIfNeeded(context, viewer_result);
         UiEventResult ui_result = {};
         if (context != nullptr && !viewer_result.handled) {
-            ui_result = context->ui.OnPointerUp(point);
+            UiPointerEvent pointer{.type = UiEventType::PointerUp, .point = point, .button = UiPointerButton::Left, .modifiers = CurrentUiModifiers()};
+            ui_result = context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd});
             RenderIfNeeded(hwnd, context, ui_result);
         }
         return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
@@ -306,7 +311,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_MOUSELEAVE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
-        RenderIfNeeded(hwnd, context, context != nullptr ? context->ui.OnPointerLeave() : UiEventResult{});
+        UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = CurrentUiModifiers()};
+        RenderIfNeeded(
+            hwnd,
+            context,
+            context != nullptr ? context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}) : UiEventResult{});
         return 0;
     }
 
@@ -328,13 +337,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
+        UiKeyEvent key{
+            .type = UiEventType::KeyDown,
+            .virtual_key = static_cast<UINT>(wparam),
+            .modifiers = CurrentUiModifiers(),
+            .repeat = (lparam & 0x40000000) != 0,
+        };
         const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnKeyEvent(UiKeyEvent{
-                  .type = UiEventType::KeyDown,
-                  .virtual_key = static_cast<UINT>(wparam),
-                  .modifiers = CurrentUiModifiers(),
-                  .repeat = (lparam & 0x40000000) != 0,
-              })
+            ? context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd})
             : UiEventResult{};
         if (ui_result.handled) {
             RenderIfNeeded(hwnd, context, ui_result);
@@ -362,6 +372,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_KEYUP:
     case WM_SYSKEYUP: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
+        UiKeyEvent key{
+            .type = UiEventType::KeyUp,
+            .virtual_key = static_cast<UINT>(wparam),
+            .modifiers = CurrentUiModifiers(),
+        };
+        const UiEventResult ui_result = context != nullptr
+            ? context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd})
+            : UiEventResult{};
+        if (ui_result.handled) {
+            RenderIfNeeded(hwnd, context, ui_result);
+            return 0;
+        }
         const ImgViewerAction action =
             context != nullptr ? context->pressed_key_actions[KeyActionIndex(wparam)] : ImgViewerAction::None;
         if (context != nullptr) {

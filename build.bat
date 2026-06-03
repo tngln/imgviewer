@@ -1,6 +1,8 @@
 @echo off
 setlocal
 
+taskkill /F /IM imgviewer.exe >nul 2>nul
+
 set "ROOT=%~dp0"
 set "CONFIG=%~1"
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"

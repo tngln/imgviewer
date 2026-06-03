@@ -46,6 +46,31 @@ void MenuOverlay::Close()
     selected_ = 0;
 }
 
+D2D1_POINT_2F MenuOverlay::Origin() const
+{
+    return origin_;
+}
+
+D2D1_SIZE_F MenuOverlay::DesiredSize() const
+{
+    float height = kMenuPadding * 2.0f;
+    for (const MenuItem& item : items_) {
+        height += ItemHeight(item);
+    }
+    return D2D1::SizeF(kMenuWidth, height);
+}
+
+D2D1_RECT_F MenuOverlay::Bounds() const
+{
+    const D2D1_SIZE_F size = DesiredSize();
+    return D2D1::RectF(origin_.x, origin_.y, origin_.x + size.width, origin_.y + size.height);
+}
+
+const std::vector<MenuItem>& MenuOverlay::Items() const
+{
+    return items_;
+}
+
 void MenuOverlay::Draw(const UiDrawContext& context, UiElementState) const
 {
     if (!open_) {
@@ -53,11 +78,7 @@ void MenuOverlay::Draw(const UiDrawContext& context, UiElementState) const
     }
 
     const UiDraw draw(context);
-    float height = kMenuPadding * 2.0f;
-    for (const MenuItem& item : items_) {
-        height += ItemHeight(item);
-    }
-    const D2D1_RECT_F menu_rect = D2D1::RectF(origin_.x, origin_.y, origin_.x + kMenuWidth, origin_.y + height);
+    const D2D1_RECT_F menu_rect = Bounds();
     draw.FillRoundedRect(D2D1::RoundedRect(menu_rect, 6.0f, 6.0f), ui_theme::color::kButtonDefault);
     draw.DrawRoundedRect(D2D1::RoundedRect(menu_rect, 6.0f, 6.0f), ui_theme::color::kBorder);
 
@@ -80,6 +101,30 @@ void MenuOverlay::Draw(const UiDrawContext& context, UiElementState) const
         if (!item.children.empty()) {
             draw.DrawBodyText(L">", 1, D2D1::RectF(rect.left + kMenuChildMarkLeft, rect.top + 3.0f, rect.right, rect.bottom), text_color);
         }
+    }
+}
+
+UiEventResult MenuOverlay::OnInputEvent(const UiInputEvent& event)
+{
+    switch (event.type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        return OnPointerEvent(event.pointer);
+    case UiEventType::KeyDown:
+    case UiEventType::KeyUp:
+        return OnKeyEvent(event.key);
+    case UiEventType::Cancel:
+    case UiEventType::OwnerDeactivated:
+        if (open_) {
+            Close();
+            return UiEventResult{.handled = true, .needs_render = true};
+        }
+        return {};
+    default:
+        return {};
     }
 }
 
@@ -140,11 +185,7 @@ bool MenuOverlay::Contains(D2D1_POINT_2F point) const
     if (!open_) {
         return false;
     }
-    float height = kMenuPadding * 2.0f;
-    for (const MenuItem& item : items_) {
-        height += ItemHeight(item);
-    }
-    return math::Contains(D2D1::RectF(origin_.x, origin_.y, origin_.x + kMenuWidth, origin_.y + height), point);
+    return math::Contains(Bounds(), point);
 }
 
 size_t MenuOverlay::ItemAt(D2D1_POINT_2F point) const
@@ -185,4 +226,3 @@ void MenuOverlay::MoveSelection(int delta)
         }
     }
 }
-

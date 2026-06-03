@@ -4,8 +4,12 @@
 
 #include <d2d1_1.h>
 
+#include <string>
+
 #include "imgviewer.action.hpp"
 #include "ui.element.hpp"
+
+class PopupHost;
 
 enum class UiEventType {
     PointerMove,
@@ -15,6 +19,14 @@ enum class UiEventType {
     PointerWheel,
     KeyDown,
     KeyUp,
+    TextChar,
+    ImeStartComposition,
+    ImeComposition,
+    ImeEndComposition,
+    ContextMenu,
+    Timer,
+    Cancel,
+    OwnerDeactivated,
     FocusGained,
     FocusLost,
 };
@@ -50,6 +62,19 @@ struct UiKeyEvent final {
     UiElementId focused = UiElementId::None;
 };
 
+struct UiInputEvent final {
+    UiEventType type = UiEventType::PointerMove;
+    UiPointerEvent pointer;
+    UiKeyEvent key;
+    wchar_t character = L'\0';
+    std::wstring text;
+    D2D1_POINT_2F point = {};
+    POINT screen_point = {};
+    UINT_PTR timer_id = 0;
+    HWND hwnd = nullptr;
+    PopupHost* popup_host = nullptr;
+};
+
 enum class UiCaptureRequest {
     None,
     Capture,
@@ -69,4 +94,5 @@ struct UiEventResult final {
     UiFocusRequest focus = UiFocusRequest::None;
     UiElementId focus_target = UiElementId::None;
     ImgViewerAction action = ImgViewerAction::None;
+    bool wants_ime_position = false;
 };

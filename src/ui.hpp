@@ -20,6 +20,7 @@ public:
     UiEventResult OnPointerDown(D2D1_POINT_2F point);
     UiEventResult OnPointerUp(D2D1_POINT_2F point);
     UiEventResult OnPointerLeave();
+    UiEventResult OnInputEvent(const UiInputEvent& event);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
     UiEventResult OnKeyEvent(const UiKeyEvent& event);
 

@@ -24,7 +24,7 @@ public:
 
 private:
     HRESULT ResizeSurfacesToClient();
-    HRESULT BeginDrawLayer(UiSurfaceLayerId id, ID2D1Bitmap1** target, POINT* offset);
+    HRESULT BeginDrawSurface(UiSurfaceId id, ID2D1Bitmap1** target, POINT* offset);
     HRESULT RenderImageLayer(const ImgViewerSnapshot& image);
     HRESULT RenderUiOverlayLayer(UiController& ui);
 
@@ -42,4 +42,7 @@ private:
     wil::com_ptr<IDCompositionTarget> dcomp_target_;
     wil::com_ptr<IDCompositionVisual> root_visual_;
     UiSurfaceManager surfaces_;
+    UiSurfaceId image_surface_;
+    UiSurfaceId ui_overlay_surface_;
+    UiSurfaceId popup_surface_;
 };

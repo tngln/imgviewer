@@ -12,35 +12,61 @@ UiController::~UiController() = default;
 
 UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
 {
-    return OnPointerEvent(UiPointerEvent{
+    UiPointerEvent pointer{
         .type = UiEventType::PointerMove,
         .point = point,
-    });
+    };
+    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point});
 }
 
 UiEventResult UiController::OnPointerDown(D2D1_POINT_2F point)
 {
-    return OnPointerEvent(UiPointerEvent{
+    UiPointerEvent pointer{
         .type = UiEventType::PointerDown,
         .point = point,
         .button = UiPointerButton::Left,
-    });
+    };
+    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point});
 }
 
 UiEventResult UiController::OnPointerUp(D2D1_POINT_2F point)
 {
-    return OnPointerEvent(UiPointerEvent{
+    UiPointerEvent pointer{
         .type = UiEventType::PointerUp,
         .point = point,
         .button = UiPointerButton::Left,
-    });
+    };
+    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point});
 }
 
 UiEventResult UiController::OnPointerLeave()
 {
-    return OnPointerEvent(UiPointerEvent{
+    UiPointerEvent pointer{
         .type = UiEventType::PointerLeave,
-    });
+    };
+    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer});
+}
+
+UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
+{
+    switch (event.type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        return OnPointerEvent(event.pointer);
+    case UiEventType::KeyDown:
+    case UiEventType::KeyUp:
+        return OnKeyEvent(event.key);
+    case UiEventType::Cancel:
+        return OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
+    case UiEventType::OwnerDeactivated:
+        imgviewer_ui_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE});
+        return UiEventResult{.handled = true, .needs_render = true};
+    default:
+        return {};
+    }
 }
 
 UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
@@ -114,7 +140,7 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     }
 
     if (UiElement* target = imgviewer_ui_->Root()->FindById(target_id)) {
-        result = target->OnPointerEvent(target_event);
+        result = target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
     }
 
     if (!result.handled && target_id != UiElementId::None) {
@@ -138,7 +164,7 @@ UiEventResult UiController::DispatchKeyEvent(const UiKeyEvent& event)
     if (UiElement* focused = imgviewer_ui_->Root()->FindById(focused_id_)) {
         UiKeyEvent focused_event = event;
         focused_event.focused = focused_id_;
-        return focused->OnKeyEvent(focused_event);
+        return focused->OnInputEvent(UiInputEvent{.type = focused_event.type, .key = focused_event});
     }
 
     return {};
