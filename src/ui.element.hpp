@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-#include "imgviewer.action.hpp"
+#include "ui.action.hpp"
 #include "ui.draw.hpp"
 
 struct UiEventResult;
@@ -51,7 +51,7 @@ enum class UiElementRole {
 struct UiElementMetadata final {
     UiElementId id = UiElementId::None;
     UiElementRole role = UiElementRole::Button;
-    ImgViewerAction action = ImgViewerAction::None;
+    UiAction action = kUiActionNone;
     const wchar_t* name = L"";
     const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
@@ -78,7 +78,7 @@ public:
     D2D1_RECT_F Rect() const;
     const UiElementMetadata& Metadata() const;
     UiElementId Id() const;
-    ImgViewerAction Action() const;
+    UiAction Action() const;
     void SetEnabled(bool enabled);
     bool IsEnabled() const;
     void SetFocusable(bool focusable);

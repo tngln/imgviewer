@@ -7,23 +7,20 @@
 
 #include "ui.element.hpp"
 #include "ui.events.hpp"
-
-struct ImgViewerUiState final {
-    UiElementId hovered = UiElementId::None;
-    UiElementId pressed = UiElementId::None;
-};
+#include "ui.root.hpp"
 
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
 #include "ui.toast.hpp"
 #include "ui.menu.hpp"
 
-class ImgViewerUi final {
+class ImgViewerUi final : public UiRoot {
 public:
     ImgViewerUi();
 
-    UiElement* Root();
-    const UiElement* Root() const;
+    UiElement* Root() override;
+    const UiElement* Root() const override;
+    const wchar_t* AccessibilityRootName() const override;
 
     void Draw(
         ID2D1DeviceContext* d2d_context,
@@ -31,16 +28,16 @@ public:
         IDWriteFactory* dwrite_factory,
         IDWriteTextFormat* body_text_format,
         IDWriteTextFormat* icon_text_format,
-        ImgViewerUiState state);
-    UiEventResult OnPointerEvent(const UiPointerEvent& event);
-    UiEventResult OnKeyEvent(const UiKeyEvent& event);
-    bool HandleUiAction(ImgViewerAction action);
-    bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
-    void SetTitleText(const wchar_t* title);
-    void ShowToast(const wchar_t* text);
-    bool HideToast();
-    void SetWindowState(bool top_most, bool maximized);
-    void SetColorPickerActive(bool active);
+        UiRootState state) override;
+    UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
+    UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
+    bool HandleUiAction(UiAction action) override;
+    bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const override;
+    void SetTitleText(const wchar_t* title) override;
+    void ShowToast(const wchar_t* text) override;
+    bool HideToast() override;
+    void SetWindowState(bool top_most, bool maximized) override;
+    void SetColorPickerActive(bool active) override;
 
 private:
     void Layout(D2D1_SIZE_F viewport_size);

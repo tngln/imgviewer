@@ -10,23 +10,38 @@
 
 #include <wil/com.h>
 
-#include "imgviewer.viewer.hpp"
 #include "ui.surface.hpp"
 #include "ui.hpp"
+
+struct UiSurfaceDrawContext final {
+    ID2D1DeviceContext* d2d_context = nullptr;
+    ID2D1Factory1* d2d_factory = nullptr;
+    IDWriteFactory* dwrite_factory = nullptr;
+    IDWriteTextFormat* body_text_format = nullptr;
+    IDWriteTextFormat* icon_text_format = nullptr;
+    D2D1_SIZE_U viewport_pixel_size = {};
+    D2D1_SIZE_F viewport_size = {};
+    D2D1_POINT_2F offset = {};
+    D2D1_MATRIX_3X2_F root_transform = {};
+};
+
+using UiSurfaceDrawCallback = HRESULT (*)(const UiSurfaceDrawContext& context, void* user_data);
 
 class UiRenderer final {
 public:
     HRESULT Initialize(HWND hwnd);
     HRESULT Resize();
-    HRESULT Render(const ImgViewerController& viewer, UiController& ui);
+    HRESULT RegisterSurface(const UiSurfaceDescriptor& descriptor, UiSurfaceId* id);
+    HRESULT DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, void* user_data);
+    HRESULT RenderUiOverlay(UiSurfaceId id, UiController& ui);
+    HRESULT Commit();
+
     D2D1_SIZE_U ViewportPixelSize() const;
     ID2D1DeviceContext* BitmapDeviceContext() const;
 
 private:
     HRESULT ResizeSurfacesToClient();
     HRESULT BeginDrawSurface(UiSurfaceId id, ID2D1Bitmap1** target, POINT* offset);
-    HRESULT RenderImageLayer(const ImgViewerSnapshot& image);
-    HRESULT RenderUiOverlayLayer(UiController& ui);
 
     HWND hwnd_ = nullptr;
     wil::com_ptr<ID2D1Factory1> d2d_factory_;
@@ -42,7 +57,4 @@ private:
     wil::com_ptr<IDCompositionTarget> dcomp_target_;
     wil::com_ptr<IDCompositionVisual> root_visual_;
     UiSurfaceManager surfaces_;
-    UiSurfaceId image_surface_;
-    UiSurfaceId ui_overlay_surface_;
-    UiSurfaceId popup_surface_;
 };

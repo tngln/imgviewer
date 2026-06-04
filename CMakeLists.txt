@@ -10,6 +10,7 @@ add_executable(imgviewer
     src/imgviewer.config.cc
     src/imgviewer.host.cc
     src/imgviewer.keybindings.cc
+    src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
     src/image.decoder.cc
     src/image.sequence.cc

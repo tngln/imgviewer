@@ -12,14 +12,16 @@
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
 #include "image.sequence.hpp"
+#include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
 #include "ui.hpp"
-#include "ui.renderer.hpp"
 
 constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 
 struct ImgViewerContext final {
-    UiRenderer renderer;
+    ImgViewerContext();
+
+    ImgViewerRenderer renderer;
     UiController ui;
     ImgViewerController viewer;
     ImageSequence sequence;

@@ -5,6 +5,7 @@
 
 #include <d2d1helper.h>
 
+#include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -12,7 +13,7 @@ namespace {
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
-    ImgViewerAction action,
+    UiAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
     const wchar_t* automation_id,
@@ -35,7 +36,7 @@ UiElementMetadata Metadata(
 
 ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
-        Metadata(UiElementId::None, UiElementRole::Pane, ImgViewerAction::None, L"ImgViewer", L"", L"root"))),
+        Metadata(UiElementId::None, UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_, ids_),
     toolbar_(*root_, ids_)
 {
@@ -51,13 +52,18 @@ const UiElement* ImgViewerUi::Root() const
     return root_.get();
 }
 
+const wchar_t* ImgViewerUi::AccessibilityRootName() const
+{
+    return L"ImgViewer";
+}
+
 void ImgViewerUi::Draw(
     ID2D1DeviceContext* d2d_context,
     D2D1_SIZE_F viewport_size,
     IDWriteFactory* dwrite_factory,
     IDWriteTextFormat* body_text_format,
     IDWriteTextFormat* icon_text_format,
-    ImgViewerUiState state)
+    UiRootState state)
 {
     const UiDrawContext draw_context{
         .d2d_context = d2d_context,
@@ -85,9 +91,9 @@ UiEventResult ImgViewerUi::OnKeyEvent(const UiKeyEvent& event)
     return menu_.OnKeyEvent(event);
 }
 
-bool ImgViewerUi::HandleUiAction(ImgViewerAction action)
+bool ImgViewerUi::HandleUiAction(UiAction action)
 {
-    if (action != ImgViewerAction::OpenMenu) {
+    if (action != UiActionFromImgViewerAction(ImgViewerAction::OpenMenu)) {
         return false;
     }
 
@@ -99,22 +105,22 @@ bool ImgViewerUi::HandleUiAction(ImgViewerAction action)
     menu_.Open(
         D2D1::Point2F(6.0f, ui_theme::metrics::kTitleBarHeight + 4.0f),
         std::vector<MenuItem>{
-            {L"Open Image", ImgViewerAction::OpenImage},
-            {L"Settings", ImgViewerAction::OpenSettings},
-            {L"", ImgViewerAction::None, true},
-            {L"Zoom In", ImgViewerAction::ZoomIn},
-            {L"Zoom Out", ImgViewerAction::ZoomOut},
-            {L"Reset View", ImgViewerAction::ResetView},
-            {L"Color Picker", ImgViewerAction::ToggleColorPicker, false, color_picker_active_},
-            {L"", ImgViewerAction::None, true},
-            {L"Rotate Clockwise", ImgViewerAction::RotateClockwise},
-            {L"Flip Horizontal", ImgViewerAction::FlipHorizontal},
-            {L"Flip Vertical", ImgViewerAction::FlipVertical},
-            {L"", ImgViewerAction::None, true},
-            {L"Top Most", ImgViewerAction::ToggleTopMost, false, top_most_},
-            {L"Minimize", ImgViewerAction::Minimize},
-            {L"Maximize or Restore", ImgViewerAction::ToggleMaximize},
-            {L"Close", ImgViewerAction::Close},
+            {L"Open Image", UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
+            {L"Settings", UiActionFromImgViewerAction(ImgViewerAction::OpenSettings)},
+            {L"", kUiActionNone, true},
+            {L"Zoom In", UiActionFromImgViewerAction(ImgViewerAction::ZoomIn)},
+            {L"Zoom Out", UiActionFromImgViewerAction(ImgViewerAction::ZoomOut)},
+            {L"Reset View", UiActionFromImgViewerAction(ImgViewerAction::ResetView)},
+            {L"Color Picker", UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker), false, color_picker_active_},
+            {L"", kUiActionNone, true},
+            {L"Rotate Clockwise", UiActionFromImgViewerAction(ImgViewerAction::RotateClockwise)},
+            {L"Flip Horizontal", UiActionFromImgViewerAction(ImgViewerAction::FlipHorizontal)},
+            {L"Flip Vertical", UiActionFromImgViewerAction(ImgViewerAction::FlipVertical)},
+            {L"", kUiActionNone, true},
+            {L"Top Most", UiActionFromImgViewerAction(ImgViewerAction::ToggleTopMost), false, top_most_},
+            {L"Minimize", UiActionFromImgViewerAction(ImgViewerAction::Minimize)},
+            {L"Maximize or Restore", UiActionFromImgViewerAction(ImgViewerAction::ToggleMaximize)},
+            {L"Close", UiActionFromImgViewerAction(ImgViewerAction::Close)},
         });
     return true;
 }

@@ -13,7 +13,6 @@
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
-#include "imgviewer.messages.hpp"
 #include "com.rc.hpp"
 namespace {
 
@@ -109,7 +108,11 @@ class UiRootProvider final :
     public IRawElementProviderFragment,
     public IRawElementProviderFragmentRoot {
 public:
-    UiRootProvider(HWND hwnd, UiAccessibilitySource* ui) : hwnd_(hwnd), ui_(ui) {}
+    UiRootProvider(HWND hwnd, UINT action_message, UiAccessibilitySource* ui) :
+        hwnd_(hwnd),
+        action_message_(action_message),
+        ui_(ui)
+    {}
 
     HRESULT Initialize();
 
@@ -231,6 +234,7 @@ public:
     }
 
     HWND hwnd() const { return hwnd_; }
+    UINT action_message() const { return action_message_; }
     UiAccessibilitySource* ui() const { return ui_; }
     UiButtonProvider* ProviderAt(size_t index) const;
     UiButtonProvider* ProviderFor(UiElementId id) const;
@@ -239,6 +243,7 @@ public:
 
 private:
     HWND hwnd_ = nullptr;
+    UINT action_message_ = 0;
     UiAccessibilitySource* ui_ = nullptr;
     ComRc<UiRootProvider> rc_;
     std::vector<wil::com_ptr<UiButtonProvider>> button_providers_;
@@ -428,10 +433,8 @@ public:
             return UIA_E_ELEMENTNOTENABLED;
         }
 
-        if (metadata->action == ImgViewerAction::OpenImage) {
-            PostMessageW(root_->hwnd(), kImgViewerOpenImageMessage, 0, 0);
-        } else if (metadata->action != ImgViewerAction::None) {
-            PostMessageW(root_->hwnd(), kImgViewerUiActionMessage, static_cast<WPARAM>(metadata->action), 0);
+        if (metadata->action != kUiActionNone) {
+            PostMessageW(root_->hwnd(), root_->action_message(), static_cast<WPARAM>(UiActionValue(metadata->action)), 0);
         } else {
             return E_NOTIMPL;
         }
@@ -602,6 +605,7 @@ IFACEMETHODIMP UiRootProvider::ElementProviderFromPoint(double x, double y, IRaw
 
 HRESULT CreateUiAccessibilityProvider(
     HWND hwnd,
+    UINT action_message,
     UiAccessibilitySource* ui,
     IRawElementProviderSimple** provider)
 {
@@ -610,7 +614,7 @@ HRESULT CreateUiAccessibilityProvider(
     RETURN_HR_IF_NULL(E_POINTER, provider);
 
     *provider = nullptr;
-    auto* root_provider = new (std::nothrow) UiRootProvider(hwnd, ui);
+    auto* root_provider = new (std::nothrow) UiRootProvider(hwnd, action_message, ui);
     RETURN_IF_NULL_ALLOC(root_provider);
 
     wil::com_ptr<UiRootProvider> root_provider_holder;

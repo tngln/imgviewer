@@ -4,9 +4,7 @@
 
 #include <d2d1helper.h>
 
-#include "imgviewer.ui.hpp"
-
-UiController::UiController() : imgviewer_ui_(std::make_unique<ImgViewerUi>()) {}
+UiController::UiController(std::unique_ptr<UiRoot> root) : root_(std::move(root)) {}
 
 UiController::~UiController() = default;
 
@@ -25,7 +23,7 @@ UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
     case UiEventType::Cancel:
         return OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
     case UiEventType::OwnerDeactivated:
-        imgviewer_ui_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE});
+        root_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE});
         return UiEventResult{.handled = true, .needs_render = true};
     default:
         return {};
@@ -35,8 +33,8 @@ UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
 UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
 {
     UiEventResult result = DispatchPointerEvent(event);
-    if (imgviewer_ui_->HandleUiAction(result.action)) {
-        result.action = ImgViewerAction::None;
+    if (root_->HandleUiAction(result.action)) {
+        result.action = kUiActionNone;
         result.handled = true;
         result.needs_render = true;
     }
@@ -47,7 +45,7 @@ UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
 
 UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
 {
-    UiEventResult menu_result = imgviewer_ui_->OnKeyEvent(event);
+    UiEventResult menu_result = root_->OnKeyEvent(event);
     if (menu_result.handled) {
         return menu_result;
     }
@@ -96,13 +94,13 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     target_event.target = hit_id;
     target_event.captured = captured_id_;
 
-    UiEventResult result = imgviewer_ui_->OnPointerEvent(target_event);
+    UiEventResult result = root_->OnPointerEvent(target_event);
     if (result.handled) {
         result.needs_render = result.needs_render || was_hovered != hovered_id_;
         return result;
     }
 
-    if (UiElement* target = imgviewer_ui_->Root()->FindById(target_id)) {
+    if (UiElement* target = root_->Root()->FindById(target_id)) {
         result = target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
     }
 
@@ -124,7 +122,7 @@ UiEventResult UiController::DispatchKeyEvent(const UiKeyEvent& event)
         return {};
     }
 
-    if (UiElement* focused = imgviewer_ui_->Root()->FindById(focused_id_)) {
+    if (UiElement* focused = root_->Root()->FindById(focused_id_)) {
         UiKeyEvent focused_event = event;
         focused_event.focused = focused_id_;
         return focused->OnInputEvent(UiInputEvent{.type = focused_event.type, .key = focused_event});
@@ -157,13 +155,13 @@ void UiController::Draw(
     IDWriteTextFormat* body_text_format,
     IDWriteTextFormat* icon_text_format)
 {
-    imgviewer_ui_->Draw(
+    root_->Draw(
         d2d_context,
         viewport_size,
         dwrite_factory,
         body_text_format,
         icon_text_format,
-        ImgViewerUiState{
+        UiRootState{
             .hovered = hovered_id_,
             .pressed = pressed_id_,
         });
@@ -171,30 +169,30 @@ void UiController::Draw(
 
 const wchar_t* UiController::AccessibilityRootName() const
 {
-    return L"ImgViewer";
+    return root_->AccessibilityRootName();
 }
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
 {
-    const UiElement* hit_element = imgviewer_ui_->Root()->HitTest(point);
+    const UiElement* hit_element = root_->Root()->HitTest(point);
     return hit_element != nullptr ? hit_element->Id() : UiElementId::None;
 }
 
 const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 {
-    const UiElement* root = imgviewer_ui_->Root();
-    const UiElement* element = root->FindById(id);
-    return element != nullptr && element != root ? &element->Metadata() : nullptr;
+    const UiElement* ui_root = root_->Root();
+    const UiElement* element = ui_root->FindById(id);
+    return element != nullptr && element != ui_root ? &element->Metadata() : nullptr;
 }
 
 size_t UiController::ElementCount() const
 {
-    return imgviewer_ui_->Root()->ChildCount();
+    return root_->Root()->ChildCount();
 }
 
 const UiElementMetadata* UiController::ElementMetadataAt(size_t index) const
 {
-    const UiElement* element = imgviewer_ui_->Root()->ChildAt(index);
+    const UiElement* element = root_->Root()->ChildAt(index);
     return element != nullptr ? &element->Metadata() : nullptr;
 }
 
@@ -205,58 +203,58 @@ const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
 
 D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 {
-    const UiElement* root = imgviewer_ui_->Root();
-    const UiElement* element = root->FindById(id);
-    return element != nullptr && element != root ? element->Rect() : D2D1::RectF();
+    const UiElement* ui_root = root_->Root();
+    const UiElement* element = ui_root->FindById(id);
+    return element != nullptr && element != ui_root ? element->Rect() : D2D1::RectF();
 }
 
 bool UiController::IsElementEnabled(UiElementId id) const
 {
-    const UiElement* root = imgviewer_ui_->Root();
-    const UiElement* element = root->FindById(id);
-    return element != nullptr && element != root && element->IsEnabled();
+    const UiElement* ui_root = root_->Root();
+    const UiElement* element = ui_root->FindById(id);
+    return element != nullptr && element != ui_root && element->IsEnabled();
 }
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
-    return imgviewer_ui_->IsPointInCaptionDragArea(point);
+    return root_->IsPointInCaptionDragArea(point);
 }
 
 void UiController::SetTitleText(const wchar_t* title)
 {
-    imgviewer_ui_->SetTitleText(title);
+    root_->SetTitleText(title);
 }
 
 void UiController::ShowToast(const wchar_t* text)
 {
-    imgviewer_ui_->ShowToast(text);
+    root_->ShowToast(text);
 }
 
 bool UiController::HideToast()
 {
-    return imgviewer_ui_->HideToast();
+    return root_->HideToast();
 }
 
-void UiController::SetActionEnabled(ImgViewerAction action, bool enabled)
+void UiController::SetActionEnabled(UiAction action, bool enabled)
 {
-    if (action == ImgViewerAction::None) {
+    if (action == kUiActionNone) {
         return;
     }
 
-    SetActionEnabledRecursive(imgviewer_ui_->Root(), action, enabled);
+    SetActionEnabledRecursive(root_->Root(), action, enabled);
 }
 
 void UiController::SetWindowState(bool top_most, bool maximized)
 {
-    imgviewer_ui_->SetWindowState(top_most, maximized);
+    root_->SetWindowState(top_most, maximized);
 }
 
 void UiController::SetColorPickerActive(bool active)
 {
-    imgviewer_ui_->SetColorPickerActive(active);
+    root_->SetColorPickerActive(active);
 }
 
-void UiController::SetActionEnabledRecursive(UiElement* element, ImgViewerAction action, bool enabled)
+void UiController::SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled)
 {
     if (element == nullptr) {
         return;

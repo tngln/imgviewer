@@ -8,12 +8,11 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 #include "ui.a11y.hpp"
-
-class ImgViewerUi;
+#include "ui.root.hpp"
 
 class UiController final : public UiAccessibilitySource {
 public:
-    UiController();
+    explicit UiController(std::unique_ptr<UiRoot> root);
     ~UiController();
 
     UiEventResult OnInputEvent(const UiInputEvent& event);
@@ -41,7 +40,7 @@ public:
     void SetTitleText(const wchar_t* title);
     void ShowToast(const wchar_t* text);
     bool HideToast();
-    void SetActionEnabled(ImgViewerAction action, bool enabled);
+    void SetActionEnabled(UiAction action, bool enabled);
     void SetWindowState(bool top_most, bool maximized);
     void SetColorPickerActive(bool active);
 
@@ -51,9 +50,9 @@ private:
     UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
     UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
     void ApplyEventResult(const UiEventResult& result, UiElementId target);
-    void SetActionEnabledRecursive(UiElement* element, ImgViewerAction action, bool enabled);
+    void SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled);
 
-    std::unique_ptr<ImgViewerUi> imgviewer_ui_;
+    std::unique_ptr<UiRoot> root_;
     UiElementId hovered_id_ = UiElementId::None;
     UiElementId pressed_id_ = UiElementId::None;
     UiElementId focused_id_ = UiElementId::None;

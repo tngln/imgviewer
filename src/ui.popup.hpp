@@ -12,7 +12,7 @@
 
 class PopupHost final {
 public:
-    HRESULT Initialize(HWND owner, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory);
+    HRESULT Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory);
     void SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextFormat* icon_text_format);
 
     bool IsOpen() const;
@@ -31,9 +31,10 @@ private:
     HRESULT OpenNativePopup(const MenuOverlay& menu);
     HRESULT EnsureNativeRenderTarget();
     void RenderNativePopup();
-    void ForwardAction(ImgViewerAction action);
+    void ForwardAction(UiAction action);
 
     HWND owner_ = nullptr;
+    UINT action_message_ = 0;
     HWND popup_hwnd_ = nullptr;
     MenuOverlay menu_;
     bool native_open_ = false;

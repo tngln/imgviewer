@@ -34,5 +34,6 @@ public:
 
 HRESULT CreateUiAccessibilityProvider(
     HWND hwnd,
+    UINT action_message,
     UiAccessibilitySource* ui,
     IRawElementProviderSimple** provider);

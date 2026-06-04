@@ -2,7 +2,7 @@
 
 #include <windows.h>
 
-struct ImgViewerContext;
+#include "ui.a11y.hpp"
 
-void UpdateUiTooltipRects(HWND hwnd, ImgViewerContext* context);
-HRESULT InitializeUiTooltips(HWND hwnd, ImgViewerContext* context);
+void UpdateUiTooltipRects(HWND hwnd, HWND tooltip, const UiAccessibilitySource& ui);
+HRESULT InitializeUiTooltips(HWND hwnd, HWND* tooltip, const UiAccessibilitySource& ui);

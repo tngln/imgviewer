@@ -8,7 +8,7 @@
 
 #include <d2d1helper.h>
 
-#include "imgviewer.action.hpp"
+#include "imgviewer.ui.action.hpp"
 #include "math.hpp"
 #include "ui.layout.hpp"
 #include "ui.theme.hpp"
@@ -63,7 +63,7 @@ constexpr ButtonIconSpec PathIcon(const icons::PathIcon& icon)
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
-    ImgViewerAction action,
+    UiAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
     const wchar_t* automation_id,
@@ -85,7 +85,13 @@ UiElementMetadata Metadata(
 std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
 {
     const UiElementMetadata metadata =
-        Metadata(id, UiElementRole::Button, spec.action, spec.name, spec.tooltip, spec.automation_id);
+        Metadata(
+            id,
+            UiElementRole::Button,
+            UiActionFromImgViewerAction(spec.action),
+            spec.name,
+            spec.tooltip,
+            spec.automation_id);
     if (spec.icon.kind == ButtonIconKind::Path) {
         return std::make_unique<IconButton>(metadata, *spec.icon.path_icon);
     }
@@ -147,7 +153,7 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
     drag_handle_ = root.AddChild(std::make_unique<UiElement>(Metadata(
         drag_handle_id_,
         UiElementRole::Pane,
-        ImgViewerAction::None,
+        kUiActionNone,
         L"Toolbar drag handle",
         L"",
         L"toolbar-drag-handle",
@@ -158,7 +164,7 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
 void ImgViewerUiToolbar::Draw(
     const UiDrawContext& draw_context,
     D2D1_SIZE_F viewport_size,
-    ImgViewerUiState state,
+    UiRootState state,
     bool color_picker_active)
 {
     const UiDraw draw(draw_context);
@@ -304,7 +310,7 @@ const IconButton* ImgViewerUiToolbar::Button(ButtonKey button) const
     return buttons_[ButtonIndex(button)].element;
 }
 
-UiElementState ImgViewerUiToolbar::ButtonState(ButtonKey button, ImgViewerUiState state, bool active, bool danger) const
+UiElementState ImgViewerUiToolbar::ButtonState(ButtonKey button, UiRootState state, bool active, bool danger) const
 {
     const ButtonInstance& instance = buttons_[ButtonIndex(button)];
     return UiElementState{
@@ -319,7 +325,7 @@ UiElementState ImgViewerUiToolbar::ButtonState(ButtonKey button, ImgViewerUiStat
 void ImgViewerUiToolbar::DrawButton(
     ButtonKey button,
     const UiDrawContext& draw_context,
-    ImgViewerUiState state,
+    UiRootState state,
     bool active,
     bool danger) const
 {

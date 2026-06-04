@@ -69,11 +69,11 @@ std::vector<MenuItem> TextBox::ContextMenuItems() const
     const bool has_selection = HasSelection();
     const bool can_paste = IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE;
     return std::vector<MenuItem>{
-        {L"Copy", ImgViewerAction::TextCopy, false, false, has_selection},
-        {L"Cut", ImgViewerAction::TextCut, false, false, has_selection},
-        {L"Paste", ImgViewerAction::TextPaste, false, false, can_paste},
-        {L"", ImgViewerAction::None, true},
-        {L"Select All", ImgViewerAction::TextSelectAll, false, false, !text_.empty()},
+        {L"Copy", kUiActionTextCopy, false, false, has_selection},
+        {L"Cut", kUiActionTextCut, false, false, has_selection},
+        {L"Paste", kUiActionTextPaste, false, false, can_paste},
+        {L"", kUiActionNone, true},
+        {L"Select All", kUiActionTextSelectAll, false, false, !text_.empty()},
     };
 }
 
@@ -213,7 +213,7 @@ UiEventResult TextBox::OnKeyEvent(const UiKeyEvent& event)
         return UiEventResult{.handled = true, .needs_render = true};
     }
     if (ctrl && (event.virtual_key == 'C' || event.virtual_key == 'X' || event.virtual_key == 'V')) {
-        return UiEventResult{.handled = true, .action = event.virtual_key == 'C' ? ImgViewerAction::TextCopy : event.virtual_key == 'X' ? ImgViewerAction::TextCut : ImgViewerAction::TextPaste};
+        return UiEventResult{.handled = true, .action = event.virtual_key == 'C' ? kUiActionTextCopy : event.virtual_key == 'X' ? kUiActionTextCut : kUiActionTextPaste};
     }
 
     switch (event.virtual_key) {
@@ -273,25 +273,25 @@ UiEventResult TextBox::EndImeComposition()
     return UiEventResult{.handled = true, .needs_render = true};
 }
 
-UiEventResult TextBox::ExecuteEditAction(ImgViewerAction action, HWND hwnd)
+UiEventResult TextBox::ExecuteEditAction(UiAction action, HWND hwnd)
 {
-    switch (action) {
-    case ImgViewerAction::TextCopy:
+    if (action == kUiActionTextCopy) {
         return UiEventResult{.handled = CopySelection(hwnd)};
-    case ImgViewerAction::TextCut:
+    }
+    if (action == kUiActionTextCut) {
         if (CopySelection(hwnd)) {
             DeleteSelection();
             return UiEventResult{.handled = true, .needs_render = true};
         }
-        break;
-    case ImgViewerAction::TextPaste:
+        return {};
+    }
+    if (action == kUiActionTextPaste) {
         return UiEventResult{.handled = PasteClipboard(hwnd), .needs_render = true};
-    case ImgViewerAction::TextSelectAll:
+    }
+    if (action == kUiActionTextSelectAll) {
         anchor_ = 0;
         caret_ = text_.size();
         return UiEventResult{.handled = true, .needs_render = true};
-    default:
-        break;
     }
     return {};
 }

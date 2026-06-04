@@ -31,7 +31,7 @@ UiElementId UiElement::Id() const
     return metadata_.id;
 }
 
-ImgViewerAction UiElement::Action() const
+UiAction UiElement::Action() const
 {
     return metadata_.action;
 }

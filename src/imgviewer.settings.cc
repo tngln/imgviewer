@@ -20,6 +20,7 @@
 #include "imgviewer.config.hpp"
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.messages.hpp"
+#include "imgviewer.ui.action.hpp"
 #include "ui.a11y.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
@@ -414,7 +415,7 @@ public:
         return {};
     }
 
-    UiEventResult ExecuteTextAction(ImgViewerAction action, HWND hwnd)
+    UiEventResult ExecuteTextAction(UiAction action, HWND hwnd)
     {
         if (focused_ != filter_box_->Id()) {
             return {};
@@ -553,7 +554,7 @@ private:
 
     void UpdateShortcutText()
     {
-        const ImgViewerAction action = action_dropdown_->SelectedAction();
+        const ImgViewerAction action = ImgViewerActionFromUiAction(action_dropdown_->SelectedAction());
         shortcut_text_ = action != ImgViewerAction::None
             ? ShortcutsForAction(draft_.action_bindings, action)
             : std::wstring();
@@ -855,17 +856,19 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
     DestroyWindow(hwnd);
 }
 
-void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, ImgViewerAction action)
+void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, UiAction action)
 {
-    switch (action) {
-    case ImgViewerAction::TextCopy:
-    case ImgViewerAction::TextCut:
-    case ImgViewerAction::TextPaste:
-    case ImgViewerAction::TextSelectAll:
+    if (action == kUiActionTextCopy ||
+        action == kUiActionTextCut ||
+        action == kUiActionTextPaste ||
+        action == kUiActionTextSelectAll) {
         if (context != nullptr) {
             InvalidateForResult(hwnd, context->ui.ExecuteTextAction(action, hwnd));
         }
-        break;
+        return;
+    }
+
+    switch (ImgViewerActionFromUiAction(action)) {
     case ImgViewerAction::SaveSettings:
         SaveSettings(hwnd, context);
         break;
@@ -924,13 +927,21 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         auto* context = GetSettingsContext(hwnd);
         return context != nullptr &&
                 SUCCEEDED(InitializeRenderer(context)) &&
-                SUCCEEDED(context->popup_host.Initialize(hwnd, context->d2d_factory.get(), context->dwrite_factory.get())) &&
-                SUCCEEDED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put()))
+                SUCCEEDED(context->popup_host.Initialize(
+                    hwnd,
+                    kImgViewerUiActionMessage,
+                    context->d2d_factory.get(),
+                    context->dwrite_factory.get())) &&
+                SUCCEEDED(CreateUiAccessibilityProvider(
+                    hwnd,
+                    kImgViewerUiActionMessage,
+                    &context->ui,
+                    context->accessibility_provider.put()))
             ? 0
             : -1;
     }
     case kImgViewerUiActionMessage:
-        ExecuteSettingsAction(hwnd, GetSettingsContext(hwnd), static_cast<ImgViewerAction>(wparam));
+        ExecuteSettingsAction(hwnd, GetSettingsContext(hwnd), UiAction(static_cast<int>(wparam)));
         return 0;
     case kImgViewerSettingsOpacityChangedMessage: {
         auto* context = GetSettingsContext(hwnd);

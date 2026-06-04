@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "imgviewer.action.hpp"
 #include "ui.element.hpp"
 
 class PopupHost;
@@ -93,7 +92,7 @@ struct UiEventResult final {
     UiCaptureRequest capture = UiCaptureRequest::None;
     UiFocusRequest focus = UiFocusRequest::None;
     UiElementId focus_target = UiElementId::None;
-    ImgViewerAction action = ImgViewerAction::None;
+    UiAction action = kUiActionNone;
     bool wants_ime_position = false;
     bool value_changed = false;
 };

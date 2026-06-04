@@ -8,7 +8,7 @@
 
 struct DropdownOption final {
     const wchar_t* text = L"";
-    ImgViewerAction action = ImgViewerAction::None;
+    UiAction action = kUiActionNone;
 };
 
 class Checkbox final : public UiElement {
@@ -46,7 +46,7 @@ public:
     Dropdown(UiElementMetadata metadata, std::vector<DropdownOption> options);
 
     size_t SelectedIndex() const;
-    ImgViewerAction SelectedAction() const;
+    UiAction SelectedAction() const;
     void SetSelectedIndex(size_t index);
     void SetOptions(std::vector<DropdownOption> options);
     bool IsExpanded() const;

@@ -6,14 +6,13 @@
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
-#include "imgviewer.messages.hpp"
 #include "ui.draw.hpp"
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
 namespace {
 
-constexpr wchar_t kPopupWindowClassName[] = L"ImgViewerPopupWindow";
+constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
 
 PopupHost* GetPopupHost(HWND hwnd)
 {
@@ -44,13 +43,15 @@ POINT ClientToScreenPoint(HWND hwnd, D2D1_POINT_2F point)
 
 } // namespace
 
-HRESULT PopupHost::Initialize(HWND owner, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory)
+HRESULT PopupHost::Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, owner);
+    RETURN_HR_IF(E_INVALIDARG, action_message == 0);
     RETURN_HR_IF_NULL(E_INVALIDARG, d2d_factory);
     RETURN_HR_IF_NULL(E_INVALIDARG, dwrite_factory);
 
     owner_ = owner;
+    action_message_ = action_message;
     d2d_factory_ = d2d_factory;
     dwrite_factory_ = dwrite_factory;
     return RegisterPopupWindowClass(reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(owner_, GWLP_HINSTANCE)));
@@ -218,10 +219,10 @@ void PopupHost::RenderNativePopup()
     }
 }
 
-void PopupHost::ForwardAction(ImgViewerAction action)
+void PopupHost::ForwardAction(UiAction action)
 {
-    if (action != ImgViewerAction::None) {
-        PostMessageW(owner_, kImgViewerUiActionMessage, static_cast<WPARAM>(action), 0);
+    if (action != kUiActionNone) {
+        PostMessageW(owner_, action_message_, static_cast<WPARAM>(UiActionValue(action)), 0);
     }
 }
 
@@ -263,7 +264,7 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         if (result.needs_render) {
             InvalidateRect(hwnd, nullptr, FALSE);
         }
-        if (result.action != ImgViewerAction::None) {
+        if (result.action != kUiActionNone) {
             host->ForwardAction(result.action);
             host->Close();
         }

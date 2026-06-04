@@ -4,10 +4,6 @@
 
 #include <d2d1_1.h>
 
-#include <wil/resource.h>
-
-#include "imgviewer.hpp"
-
 namespace {
 
 constexpr UINT kTooltipToolInfoSize = TTTOOLINFOW_V2_SIZE;
@@ -24,14 +20,14 @@ RECT UiElementRectToWin32Rect(D2D1_RECT_F rect)
 
 } // namespace
 
-void UpdateUiTooltipRects(HWND hwnd, ImgViewerContext* context)
+void UpdateUiTooltipRects(HWND hwnd, HWND tooltip, const UiAccessibilitySource& ui)
 {
-    if (context == nullptr || context->tooltip.get() == nullptr) {
+    if (tooltip == nullptr) {
         return;
     }
 
-    for (size_t index = 0; index < context->ui.ElementCount(); ++index) {
-        const UiElementMetadata* metadata = context->ui.ElementMetadataAt(index);
+    for (size_t index = 0; index < ui.ElementCount(); ++index) {
+        const UiElementMetadata* metadata = ui.ElementMetadataAt(index);
         if (metadata == nullptr || metadata->tooltip[0] == L'\0') {
             continue;
         }
@@ -40,18 +36,22 @@ void UpdateUiTooltipRects(HWND hwnd, ImgViewerContext* context)
         tool_info.cbSize = kTooltipToolInfoSize;
         tool_info.hwnd = hwnd;
         tool_info.uId = static_cast<UINT_PTR>(UiElementRuntimeId(metadata->id));
-        tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
-        SendMessageW(context->tooltip.get(), TTM_NEWTOOLRECTW, 0, reinterpret_cast<LPARAM>(&tool_info));
+        tool_info.rect = UiElementRectToWin32Rect(ui.ElementRect(metadata->id));
+        SendMessageW(tooltip, TTM_NEWTOOLRECTW, 0, reinterpret_cast<LPARAM>(&tool_info));
     }
 }
 
-HRESULT InitializeUiTooltips(HWND hwnd, ImgViewerContext* context)
+HRESULT InitializeUiTooltips(HWND hwnd, HWND* tooltip, const UiAccessibilitySource& ui)
 {
-    if (context == nullptr || context->tooltip.get() != nullptr) {
+    if (tooltip == nullptr) {
+        return E_POINTER;
+    }
+
+    if (*tooltip != nullptr) {
         return S_OK;
     }
 
-    context->tooltip.reset(CreateWindowExW(
+    *tooltip = CreateWindowExW(
         WS_EX_TOPMOST,
         TOOLTIPS_CLASSW,
         nullptr,
@@ -63,13 +63,13 @@ HRESULT InitializeUiTooltips(HWND hwnd, ImgViewerContext* context)
         hwnd,
         nullptr,
         GetModuleHandleW(nullptr),
-        nullptr));
-    if (context->tooltip.get() == nullptr) {
+        nullptr);
+    if (*tooltip == nullptr) {
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
     SetWindowPos(
-        context->tooltip.get(),
+        *tooltip,
         HWND_TOPMOST,
         0,
         0,
@@ -77,8 +77,8 @@ HRESULT InitializeUiTooltips(HWND hwnd, ImgViewerContext* context)
         0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
-    for (size_t index = 0; index < context->ui.ElementCount(); ++index) {
-        const UiElementMetadata* metadata = context->ui.ElementMetadataAt(index);
+    for (size_t index = 0; index < ui.ElementCount(); ++index) {
+        const UiElementMetadata* metadata = ui.ElementMetadataAt(index);
         if (metadata == nullptr || metadata->tooltip[0] == L'\0') {
             continue;
         }
@@ -88,10 +88,11 @@ HRESULT InitializeUiTooltips(HWND hwnd, ImgViewerContext* context)
         tool_info.uFlags = TTF_SUBCLASS;
         tool_info.hwnd = hwnd;
         tool_info.uId = static_cast<UINT_PTR>(UiElementRuntimeId(metadata->id));
-        tool_info.rect = UiElementRectToWin32Rect(context->ui.ElementRect(metadata->id));
+        tool_info.rect = UiElementRectToWin32Rect(ui.ElementRect(metadata->id));
         tool_info.lpszText = const_cast<LPWSTR>(metadata->tooltip);
-        if (SendMessageW(context->tooltip.get(), TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool_info)) == FALSE) {
-            context->tooltip.reset();
+        if (SendMessageW(*tooltip, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&tool_info)) == FALSE) {
+            DestroyWindow(*tooltip);
+            *tooltip = nullptr;
             return E_FAIL;
         }
     }

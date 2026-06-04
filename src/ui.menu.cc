@@ -148,7 +148,7 @@ UiEventResult MenuOverlay::OnPointerEvent(const UiPointerEvent& event)
     if (event.type == UiEventType::PointerUp && Contains(event.point)) {
         const size_t item = ItemAt(event.point);
         if (item < items_.size() && !items_[item].separator && items_[item].enabled) {
-            const ImgViewerAction action = items_[item].action;
+            const UiAction action = items_[item].action;
             Close();
             return UiEventResult{.handled = true, .needs_render = true, .action = action};
         }
@@ -172,7 +172,7 @@ UiEventResult MenuOverlay::OnKeyEvent(const UiKeyEvent& event)
     }
     if (event.virtual_key == VK_RETURN || event.virtual_key == VK_SPACE) {
         if (selected_ < items_.size() && items_[selected_].enabled && !items_[selected_].separator) {
-            const ImgViewerAction action = items_[selected_].action;
+            const UiAction action = items_[selected_].action;
             Close();
             return UiEventResult{.handled = true, .needs_render = true, .action = action};
         }

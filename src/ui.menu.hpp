@@ -7,7 +7,7 @@
 
 struct MenuItem final {
     const wchar_t* text = L"";
-    ImgViewerAction action = ImgViewerAction::None;
+    UiAction action = kUiActionNone;
     bool separator = false;
     bool checked = false;
     bool enabled = true;

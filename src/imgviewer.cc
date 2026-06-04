@@ -11,6 +11,8 @@
 #include "win32.util.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.settings.hpp"
+#include "imgviewer.ui.action.hpp"
+#include "imgviewer.ui.hpp"
 
 namespace {
 
@@ -21,6 +23,8 @@ bool CopyTextToClipboard(HWND hwnd, const wchar_t* text);
 void SetColorPickerActive(ImgViewerContext* context, bool active);
 
 } // namespace
+
+ImgViewerContext::ImgViewerContext() : ui(std::make_unique<ImgViewerUi>()) {}
 
 HRESULT RenderImgViewer(ImgViewerContext* context)
 {
@@ -85,9 +89,15 @@ void SyncActionStates(ImgViewerContext* context)
         return;
     }
 
-    context->ui.SetActionEnabled(ImgViewerAction::PreviousImage, IsImgViewerActionEnabled(context, ImgViewerAction::PreviousImage));
-    context->ui.SetActionEnabled(ImgViewerAction::NextImage, IsImgViewerActionEnabled(context, ImgViewerAction::NextImage));
-    context->ui.SetActionEnabled(ImgViewerAction::ToggleColorPicker, IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker));
+    context->ui.SetActionEnabled(
+        UiActionFromImgViewerAction(ImgViewerAction::PreviousImage),
+        IsImgViewerActionEnabled(context, ImgViewerAction::PreviousImage));
+    context->ui.SetActionEnabled(
+        UiActionFromImgViewerAction(ImgViewerAction::NextImage),
+        IsImgViewerActionEnabled(context, ImgViewerAction::NextImage));
+    context->ui.SetActionEnabled(
+        UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker),
+        IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker));
 }
 
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text)

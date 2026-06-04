@@ -10,7 +10,7 @@
 #include "ui.button.hpp"
 #include "ui.element.hpp"
 
-struct ImgViewerUiState;
+#include "ui.root.hpp"
 
 class ImgViewerUiTitleBar final {
 public:
@@ -33,7 +33,7 @@ public:
         D2D1_SIZE_F viewport_size,
         IDWriteFactory* dwrite_factory,
         IDWriteTextFormat* body_text_format,
-        ImgViewerUiState state,
+        UiRootState state,
         bool top_most,
         bool maximized);
     bool IsPointInCaptionDragArea(const UiElement& root, D2D1_POINT_2F point) const;
@@ -48,11 +48,11 @@ private:
     void Layout(D2D1_SIZE_F viewport_size);
     IconButton* Button(ButtonKey button);
     const IconButton* Button(ButtonKey button) const;
-    UiElementState ButtonState(ButtonKey button, ImgViewerUiState state, bool active = false, bool danger = false) const;
+    UiElementState ButtonState(ButtonKey button, UiRootState state, bool active = false, bool danger = false) const;
     void DrawButton(
         ButtonKey button,
         const UiDrawContext& draw_context,
-        ImgViewerUiState state,
+        UiRootState state,
         bool active = false,
         bool danger = false) const;
 

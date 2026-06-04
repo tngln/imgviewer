@@ -8,6 +8,7 @@
 
 #include <d2d1helper.h>
 
+#include "imgviewer.ui.action.hpp"
 #include "math.hpp"
 #include "ui.layout.hpp"
 #include "ui.text.hpp"
@@ -35,7 +36,7 @@ struct ButtonSpec final {
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
-    ImgViewerAction action,
+    UiAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
     const wchar_t* automation_id,
@@ -57,7 +58,13 @@ UiElementMetadata Metadata(
 std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
 {
     return std::make_unique<IconButton>(
-        Metadata(id, UiElementRole::Button, spec.action, spec.name, spec.tooltip, spec.automation_id),
+        Metadata(
+            id,
+            UiElementRole::Button,
+            UiActionFromImgViewerAction(spec.action),
+            spec.name,
+            spec.tooltip,
+            spec.automation_id),
         spec.icon);
 }
 
@@ -113,7 +120,7 @@ void ImgViewerUiTitleBar::Draw(
     D2D1_SIZE_F viewport_size,
     IDWriteFactory* dwrite_factory,
     IDWriteTextFormat* body_text_format,
-    ImgViewerUiState state,
+    UiRootState state,
     bool top_most,
     bool maximized)
 {
@@ -214,7 +221,7 @@ const IconButton* ImgViewerUiTitleBar::Button(ButtonKey button) const
     return buttons_[ButtonIndex(button)].element;
 }
 
-UiElementState ImgViewerUiTitleBar::ButtonState(ButtonKey button, ImgViewerUiState state, bool active, bool danger) const
+UiElementState ImgViewerUiTitleBar::ButtonState(ButtonKey button, UiRootState state, bool active, bool danger) const
 {
     const ButtonInstance& instance = buttons_[ButtonIndex(button)];
     return UiElementState{
@@ -229,7 +236,7 @@ UiElementState ImgViewerUiTitleBar::ButtonState(ButtonKey button, ImgViewerUiSta
 void ImgViewerUiTitleBar::DrawButton(
     ButtonKey button,
     const UiDrawContext& draw_context,
-    ImgViewerUiState state,
+    UiRootState state,
     bool active,
     bool danger) const
 {

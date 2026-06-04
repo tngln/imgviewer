@@ -53,7 +53,7 @@ UiEventResult ChoicePointerEvent(UiElement& element, const UiPointerEvent& event
             .handled = true,
             .needs_render = element.IsEnabled(),
             .capture = UiCaptureRequest::Release,
-            .action = element.IsEnabled() && event.target == element.Id() ? element.Action() : ImgViewerAction::None,
+            .action = element.IsEnabled() && event.target == element.Id() ? element.Action() : kUiActionNone,
         };
     }
 
@@ -182,9 +182,9 @@ size_t Dropdown::SelectedIndex() const
     return selected_index_;
 }
 
-ImgViewerAction Dropdown::SelectedAction() const
+UiAction Dropdown::SelectedAction() const
 {
-    return selected_index_ < options_.size() ? options_[selected_index_].action : ImgViewerAction::None;
+    return selected_index_ < options_.size() ? options_[selected_index_].action : kUiActionNone;
 }
 
 void Dropdown::SetSelectedIndex(size_t index)
@@ -265,7 +265,7 @@ UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
         };
     }
     if (event.type == UiEventType::PointerUp && event.captured == Id()) {
-        ImgViewerAction action = ImgViewerAction::None;
+        UiAction action = kUiActionNone;
         if (expanded_ && event.target == Id()) {
             const size_t option = OptionAt(event.point);
             if (option < options_.size()) {

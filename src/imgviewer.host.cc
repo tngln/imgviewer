@@ -5,6 +5,7 @@
 #include "imgviewer.config.hpp"
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.messages.hpp"
+#include "imgviewer.ui.action.hpp"
 #include "imgviewer.viewer.hpp"
 #include "math.hpp"
 #include "ui.a11y.hpp"
@@ -98,10 +99,10 @@ void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
         RenderImgViewer(context);
     }
 
-    if (result.action == ImgViewerAction::OpenImage) {
+    if (ImgViewerActionFromUiAction(result.action) == ImgViewerAction::OpenImage) {
         HandleImgViewerOpenImageCommand(hwnd, context);
-    } else if (result.action != ImgViewerAction::None) {
-        ExecuteImgViewerAction(hwnd, context, result.action);
+    } else if (result.action != kUiActionNone) {
+        ExecuteImgViewerAction(hwnd, context, ImgViewerActionFromUiAction(result.action));
     }
 }
 
@@ -197,7 +198,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 {
     switch (message) {
     case kImgViewerUiActionMessage: {
-        ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), static_cast<ImgViewerAction>(wparam));
+        ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerActionFromUiAction(UiAction(static_cast<int>(wparam))));
         return 0;
     }
 
@@ -220,7 +221,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (context == nullptr ||
             FAILED(context->renderer.Initialize(hwnd)) ||
             FAILED(context->viewer.Initialize()) ||
-            FAILED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put()))) {
+            FAILED(CreateUiAccessibilityProvider(
+                hwnd,
+                kImgViewerUiActionMessage,
+                &context->ui,
+                context->accessibility_provider.put()))) {
             return -1;
         }
         context->viewer.SetPixelatedSampling(context->config.pixelated_sampling);
@@ -242,7 +247,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             if (FAILED(RenderImgViewer(context))) {
                 return -1;
             }
-            UpdateUiTooltipRects(hwnd, context);
+            UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
         }
 
         return 0;
@@ -537,7 +542,11 @@ HRESULT RunImgViewerApplicationAsHresult()
 
     ShowWindow(window.get(), SW_SHOWDEFAULT);
     RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));
-    InitializeUiTooltips(window.get(), &context);
+    HWND tooltip = context.tooltip.get();
+    RETURN_IF_FAILED(InitializeUiTooltips(window.get(), &tooltip, context.ui));
+    if (context.tooltip.get() != tooltip) {
+        context.tooltip.reset(tooltip);
+    }
 
     int argc = 0;
     wil::unique_hlocal command_line_args{reinterpret_cast<HLOCAL>(CommandLineToArgvW(GetCommandLineW(), &argc))};

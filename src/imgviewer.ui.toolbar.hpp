@@ -9,7 +9,7 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
-struct ImgViewerUiState;
+#include "ui.root.hpp"
 
 class ImgViewerUiToolbar final {
 public:
@@ -31,7 +31,7 @@ public:
 
     ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
 
-    void Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, ImgViewerUiState state, bool color_picker_active);
+    void Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, UiRootState state, bool color_picker_active);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
@@ -48,11 +48,11 @@ private:
     void ClampToViewport(D2D1_SIZE_F viewport_size);
     IconButton* Button(ButtonKey button);
     const IconButton* Button(ButtonKey button) const;
-    UiElementState ButtonState(ButtonKey button, ImgViewerUiState state, bool active = false, bool danger = false) const;
+    UiElementState ButtonState(ButtonKey button, UiRootState state, bool active = false, bool danger = false) const;
     void DrawButton(
         ButtonKey button,
         const UiDrawContext& draw_context,
-        ImgViewerUiState state,
+        UiRootState state,
         bool active = false,
         bool danger = false) const;
 

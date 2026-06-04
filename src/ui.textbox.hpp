@@ -25,7 +25,7 @@ public:
     UiEventResult OnInputEvent(const UiInputEvent& event) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
-    UiEventResult ExecuteEditAction(ImgViewerAction action, HWND hwnd);
+    UiEventResult ExecuteEditAction(UiAction action, HWND hwnd);
 
 private:
     UiEventResult InsertCharacter(wchar_t ch);
