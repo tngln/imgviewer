@@ -10,43 +10,6 @@ UiController::UiController() : imgviewer_ui_(std::make_unique<ImgViewerUi>()) {}
 
 UiController::~UiController() = default;
 
-UiEventResult UiController::OnPointerMove(D2D1_POINT_2F point)
-{
-    UiPointerEvent pointer{
-        .type = UiEventType::PointerMove,
-        .point = point,
-    };
-    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point});
-}
-
-UiEventResult UiController::OnPointerDown(D2D1_POINT_2F point)
-{
-    UiPointerEvent pointer{
-        .type = UiEventType::PointerDown,
-        .point = point,
-        .button = UiPointerButton::Left,
-    };
-    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point});
-}
-
-UiEventResult UiController::OnPointerUp(D2D1_POINT_2F point)
-{
-    UiPointerEvent pointer{
-        .type = UiEventType::PointerUp,
-        .point = point,
-        .button = UiPointerButton::Left,
-    };
-    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point});
-}
-
-UiEventResult UiController::OnPointerLeave()
-{
-    UiPointerEvent pointer{
-        .type = UiEventType::PointerLeave,
-    };
-    return OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer});
-}
-
 UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
 {
     switch (event.type) {
