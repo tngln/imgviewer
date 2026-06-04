@@ -479,7 +479,6 @@ HRESULT RegisterMainWindowClass(HINSTANCE instance)
 {
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(window_class);
-    window_class.style = CS_DROPSHADOW;
     window_class.lpfnWndProc = WindowProc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
