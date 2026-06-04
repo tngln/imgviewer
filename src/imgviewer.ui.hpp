@@ -14,8 +14,8 @@ struct ImgViewerUiState final {
 };
 
 #include "imgviewer.ui.titlebar.hpp"
-#include "imgviewer.ui.toast.hpp"
 #include "imgviewer.ui.toolbar.hpp"
+#include "ui.toast.hpp"
 #include "ui.menu.hpp"
 
 class ImgViewerUi final {
@@ -49,7 +49,7 @@ private:
     UiElementIdGenerator ids_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
-    ImgViewerUiToast toast_;
+    UiToast toast_;
     bool top_most_ = false;
     bool maximized_ = false;
     bool color_picker_active_ = false;

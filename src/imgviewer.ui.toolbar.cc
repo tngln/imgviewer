@@ -30,9 +30,7 @@ enum class ButtonIconKind {
 struct ButtonIconSpec final {
     ButtonIconKind kind = ButtonIconKind::Glyph;
     const wchar_t* glyph = L"";
-    const icons::PathCommand* path = nullptr;
-    size_t path_count = 0;
-    float path_viewport = 0.0f;
+    const icons::PathIcon* path_icon = nullptr;
 };
 
 struct ButtonSpec final {
@@ -54,14 +52,11 @@ constexpr ButtonIconSpec GlyphIcon(const wchar_t* glyph)
     };
 }
 
-template <size_t Count>
-constexpr ButtonIconSpec PathIcon(const icons::PathCommand (&path)[Count], float viewport)
+constexpr ButtonIconSpec PathIcon(const icons::PathIcon& icon)
 {
     return ButtonIconSpec{
         .kind = ButtonIconKind::Path,
-        .path = path,
-        .path_count = Count,
-        .path_viewport = viewport,
+        .path_icon = &icon,
     };
 }
 
@@ -92,7 +87,7 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
     const UiElementMetadata metadata =
         Metadata(id, UiElementRole::Button, spec.action, spec.name, spec.tooltip, spec.automation_id);
     if (spec.icon.kind == ButtonIconKind::Path) {
-        return std::make_unique<IconButton>(metadata, spec.icon.path, spec.icon.path_count, spec.icon.path_viewport);
+        return std::make_unique<IconButton>(metadata, *spec.icon.path_icon);
     }
 
     return std::make_unique<IconButton>(metadata, spec.icon.glyph);
@@ -110,13 +105,13 @@ constexpr std::array<ButtonSpec, ImgViewerUiToolbar::kButtonCount> kButtonSpecs{
     {ImgViewerUiToolbar::ButtonKey::RotateClockwise, ImgViewerAction::RotateClockwise, L"Rotate Clockwise",
         L"Rotate clockwise", L"rotate-clockwise", GlyphIcon(kRotateIcon)},
     {ImgViewerUiToolbar::ButtonKey::FlipHorizontal, ImgViewerAction::FlipHorizontal, L"Flip Horizontal", L"Flip horizontal",
-        L"flip-horizontal", PathIcon(icons::kFlipHorizontalIconPath, icons::kToolbarIconViewport)},
+        L"flip-horizontal", PathIcon(icons::kFlipHorizontalIcon)},
     {ImgViewerUiToolbar::ButtonKey::FlipVertical, ImgViewerAction::FlipVertical, L"Flip Vertical", L"Flip vertical",
-        L"flip-vertical", PathIcon(icons::kFlipVerticalIconPath, icons::kToolbarIconViewport)},
+        L"flip-vertical", PathIcon(icons::kFlipVerticalIcon)},
     {ImgViewerUiToolbar::ButtonKey::ResetView, ImgViewerAction::ResetView, L"Reset View", L"Reset view", L"reset-view",
         GlyphIcon(kResetIcon)},
     {ImgViewerUiToolbar::ButtonKey::ColorPicker, ImgViewerAction::ToggleColorPicker, L"Color Picker", L"Color picker",
-        L"color-picker", PathIcon(icons::kColorPickerIconPath, icons::kToolbarIconViewport), false},
+        L"color-picker", PathIcon(icons::kColorPickerIcon), false},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()

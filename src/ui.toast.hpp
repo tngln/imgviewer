@@ -7,7 +7,7 @@
 
 #include "ui.draw.hpp"
 
-class ImgViewerUiToast final {
+class UiToast final {
 public:
     void Draw(
         const UiDrawContext& draw_context,

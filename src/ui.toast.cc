@@ -1,4 +1,4 @@
-#include "imgviewer.ui.toast.hpp"
+#include "ui.toast.hpp"
 
 #include <algorithm>
 
@@ -30,7 +30,7 @@ D2D1_COLOR_F ToastBackgroundColor()
 
 } // namespace
 
-void ImgViewerUiToast::Draw(
+void UiToast::Draw(
     const UiDrawContext& draw_context,
     D2D1_SIZE_F viewport_size,
     IDWriteFactory* dwrite_factory,
@@ -77,7 +77,7 @@ void ImgViewerUiToast::Draw(
         DWRITE_MEASURING_MODE_NATURAL);
 }
 
-void ImgViewerUiToast::Show(const wchar_t* text)
+void UiToast::Show(const wchar_t* text)
 {
     if (text == nullptr || text[0] == L'\0') {
         Hide();
@@ -87,7 +87,7 @@ void ImgViewerUiToast::Show(const wchar_t* text)
     text_ = text;
 }
 
-bool ImgViewerUiToast::Hide()
+bool UiToast::Hide()
 {
     if (text_.empty()) {
         return false;
@@ -97,7 +97,7 @@ bool ImgViewerUiToast::Hide()
     return true;
 }
 
-bool ImgViewerUiToast::IsVisible() const
+bool UiToast::IsVisible() const
 {
     return !text_.empty();
 }

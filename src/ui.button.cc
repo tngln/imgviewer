@@ -149,13 +149,9 @@ IconButton::IconButton(UiElementMetadata metadata, const wchar_t* icon) : UiElem
 
 IconButton::IconButton(
     UiElementMetadata metadata,
-    const icons::PathCommand* icon_path,
-    size_t icon_path_count,
-    float icon_viewport) :
+    const icons::PathIcon& icon) :
     UiElement(metadata),
-    icon_path_(icon_path),
-    icon_path_count_(icon_path_count),
-    icon_viewport_(icon_viewport)
+    path_icon_(&icon)
 {
     SetFocusable(true);
 }
@@ -163,9 +159,7 @@ IconButton::IconButton(
 void IconButton::SetIcon(const wchar_t* icon)
 {
     icon_ = icon;
-    icon_path_ = nullptr;
-    icon_path_count_ = 0;
-    icon_viewport_ = 0.0f;
+    path_icon_ = nullptr;
 }
 
 void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
@@ -176,18 +170,26 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
     const D2D1_COLOR_F icon_color = !state.enabled
         ? ui_theme::color::kButtonDisabledContent
         : state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent;
-    if (icon_path_ != nullptr && icon_path_count_ > 0 && icon_viewport_ > 0.0f && context.d2d_context != nullptr) {
+    if (path_icon_ != nullptr && path_icon_->command_count > 0 && context.d2d_context != nullptr) {
         wil::com_ptr<ID2D1Factory> factory;
         context.d2d_context->GetFactory(factory.put());
         wil::com_ptr<ID2D1PathGeometry> geometry;
-        if (SUCCEEDED(CreatePathGeometryFromIcon(factory.get(), icon_path_, icon_path_count_, geometry.put()))) {
+        if (SUCCEEDED(CreatePathGeometryFromIcon(
+                factory.get(),
+                path_icon_->commands,
+                path_icon_->command_count,
+                geometry.put()))) {
             const float icon_size = 20.0f;
-            const float scale = icon_size / icon_viewport_;
+            const float icon_width = path_icon_->view_box.right - path_icon_->view_box.left;
+            const float icon_height = path_icon_->view_box.bottom - path_icon_->view_box.top;
+            const float icon_viewport = (std::max)(icon_width, icon_height);
+            const float scale = icon_size / icon_viewport;
             const float left = rect.left + (std::max)(0.0f, (rect.right - rect.left - icon_size) * 0.5f);
             const float top = rect.top + (std::max)(0.0f, (rect.bottom - rect.top - icon_size) * 0.5f);
             D2D1_MATRIX_3X2_F old_transform = {};
             context.d2d_context->GetTransform(&old_transform);
             context.d2d_context->SetTransform(
+                D2D1::Matrix3x2F::Translation(-path_icon_->view_box.left, -path_icon_->view_box.top) *
                 D2D1::Matrix3x2F::Scale(scale, scale) *
                 D2D1::Matrix3x2F::Translation(left, top) *
                 old_transform);

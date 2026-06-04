@@ -71,6 +71,11 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
             config->remember_window_size = remember->get<bool>();
         }
 
+        if (const auto pixelated = root.find("pixelatedSampling");
+            pixelated != root.end() && pixelated->is_boolean()) {
+            config->pixelated_sampling = pixelated->get<bool>();
+        }
+
         if (const auto window = root.find("window");
             window != root.end() && window->is_object()) {
             config->window_size.width =
@@ -96,6 +101,8 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "{\n";
     output << "  // When true, ImgViewer restores the last normal window size on startup.\n";
     output << "  \"rememberWindowSize\": " << (config.remember_window_size ? "true" : "false") << ",\n";
+    output << "  // When true, enlarged images use nearest-neighbor sampling for crisp pixel previews.\n";
+    output << "  \"pixelatedSampling\": " << (config.pixelated_sampling ? "true" : "false") << ",\n";
     output << "  \"window\": {\n";
     output << "    \"width\": " << (std::max)(kMinimumWindowWidth, config.window_size.width) << ",\n";
     output << "    \"height\": " << (std::max)(kMinimumWindowHeight, config.window_size.height) << "\n";

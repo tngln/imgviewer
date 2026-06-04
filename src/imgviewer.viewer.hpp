@@ -22,6 +22,7 @@ struct ImgViewerSnapshot final {
     float rotation_degrees = 0.0f;
     bool flipped_horizontal = false;
     bool flipped_vertical = false;
+    bool pixelated_sampling = false;
 };
 
 struct ImgViewerColorSample final {
@@ -49,6 +50,7 @@ public:
     bool FlipHorizontal();
     bool FlipVertical();
     bool ResetView();
+    void SetPixelatedSampling(bool enabled);
     bool SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const;
 
 private:
@@ -63,6 +65,7 @@ private:
     float image_rotation_degrees_ = 0.0f;
     bool image_flipped_horizontal_ = false;
     bool image_flipped_vertical_ = false;
+    bool pixelated_sampling_ = false;
     bool image_is_panning_ = false;
     bool image_is_rotating_ = false;
     bool r_key_is_down_ = false;

@@ -163,6 +163,10 @@ public:
             Metadata(ids_.Next(), UiElementRole::RadioButton, ImgViewerAction::None, L"Use default size", L"use-default-size"),
             L"Use default size",
             !draft_.remember_window_size)));
+        pixelated_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
+            Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Pixelated sampling", L"pixelated-sampling"),
+            L"Pixelated sampling",
+            draft_.pixelated_sampling)));
 
         filter_box_ = static_cast<TextBox*>(root_->AddChild(std::make_unique<TextBox>(
             Metadata(ids_.Next(), UiElementRole::Edit, ImgViewerAction::None, L"Shortcut filter", L"shortcut-filter"),
@@ -231,18 +235,20 @@ public:
         draw.Clear(ui_theme::color::kWindowBackground);
         draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, 18.0f, size.width - 24.0f, 46.0f), ui_theme::color::kBodyText);
         draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, 88.0f, size.width - 24.0f, 112.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 264.0f, size.width - 24.0f, 288.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 278.0f, size.width - 24.0f, 302.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 348.0f, size.width - 24.0f, 372.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, 332.0f, size.width - 24.0f, 358.0f),
+            D2D1::RectF(24.0f, 416.0f, size.width - 24.0f, 442.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
         DrawElement(*remember_checkbox_, context);
         DrawElement(*remember_radio_, context);
         DrawElement(*default_radio_, context);
+        DrawElement(*pixelated_checkbox_, context);
         DrawElement(*reset_button_, context);
         DrawElement(*save_button_, context);
         DrawElement(*cancel_button_, context);
@@ -373,8 +379,9 @@ private:
         remember_checkbox_->SetRect(D2D1::RectF(24.0f, 54.0f, size.width - 24.0f, 84.0f));
         remember_radio_->SetRect(D2D1::RectF(44.0f, 116.0f, size.width - 24.0f, 146.0f));
         default_radio_->SetRect(D2D1::RectF(44.0f, 146.0f, size.width - 24.0f, 176.0f));
-        filter_box_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 258.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, 294.0f, size.width - 24.0f, 328.0f));
+        pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 254.0f));
+        filter_box_->SetRect(D2D1::RectF(24.0f, 308.0f, size.width - 24.0f, 342.0f));
+        action_dropdown_->SetRect(D2D1::RectF(24.0f, 378.0f, size.width - 24.0f, 412.0f));
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
@@ -446,6 +453,9 @@ private:
         if (id == remember_checkbox_->Id()) {
             draft_.remember_window_size = !draft_.remember_window_size;
             SyncChoiceControls();
+        } else if (id == pixelated_checkbox_->Id()) {
+            draft_.pixelated_sampling = !draft_.pixelated_sampling;
+            SyncChoiceControls();
         } else if (id == remember_radio_->Id()) {
             draft_.remember_window_size = true;
             SyncChoiceControls();
@@ -462,6 +472,7 @@ private:
         remember_checkbox_->SetChecked(draft_.remember_window_size);
         remember_radio_->SetSelected(draft_.remember_window_size);
         default_radio_->SetSelected(!draft_.remember_window_size);
+        pixelated_checkbox_->SetChecked(draft_.pixelated_sampling);
     }
 
     void UpdateShortcutText()
@@ -527,6 +538,7 @@ private:
     bool IsCheckedElement(UiElementId id) const
     {
         return (id == remember_checkbox_->Id() && remember_checkbox_->IsChecked()) ||
+            (id == pixelated_checkbox_->Id() && pixelated_checkbox_->IsChecked()) ||
             (id == remember_radio_->Id() && remember_radio_->IsSelected()) ||
             (id == default_radio_->Id() && default_radio_->IsSelected());
     }
@@ -535,6 +547,7 @@ private:
     UiElementIdGenerator ids_;
     std::unique_ptr<UiElement> root_;
     Checkbox* remember_checkbox_ = nullptr;
+    Checkbox* pixelated_checkbox_ = nullptr;
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
     Dropdown* action_dropdown_ = nullptr;
@@ -725,7 +738,9 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
 {
     if (context->app != nullptr) {
         context->app->config = context->ui.Draft();
+        context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         SaveImgViewerConfig(context->app->config);
+        RenderImgViewer(context->app);
     }
     DestroyWindow(hwnd);
 }

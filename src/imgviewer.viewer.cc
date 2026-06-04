@@ -61,6 +61,7 @@ ImgViewerSnapshot ImgViewerController::Snapshot() const
         .rotation_degrees = image_rotation_degrees_,
         .flipped_horizontal = image_flipped_horizontal_,
         .flipped_vertical = image_flipped_vertical_,
+        .pixelated_sampling = pixelated_sampling_,
     };
 }
 
@@ -270,6 +271,11 @@ bool ImgViewerController::ResetView()
     r_key_is_down_ = false;
     r_key_started_rotation_ = false;
     return true;
+}
+
+void ImgViewerController::SetPixelatedSampling(bool enabled)
+{
+    pixelated_sampling_ = enabled;
 }
 
 bool ImgViewerController::SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const

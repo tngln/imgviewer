@@ -26,9 +26,7 @@ public:
     IconButton(UiElementMetadata metadata, const wchar_t* icon);
     IconButton(
         UiElementMetadata metadata,
-        const icons::PathCommand* icon_path,
-        size_t icon_path_count,
-        float icon_viewport);
+        const icons::PathIcon& icon);
 
     void SetIcon(const wchar_t* icon);
     void Draw(const UiDrawContext& context, UiElementState state) const override;
@@ -37,7 +35,5 @@ public:
 
 private:
     const wchar_t* icon_ = L"";
-    const icons::PathCommand* icon_path_ = nullptr;
-    size_t icon_path_count_ = 0;
-    float icon_viewport_ = 0.0f;
+    const icons::PathIcon* path_icon_ = nullptr;
 };

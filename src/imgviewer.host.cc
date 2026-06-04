@@ -220,8 +220,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (context == nullptr ||
             FAILED(context->renderer.Initialize(hwnd)) ||
             FAILED(context->viewer.Initialize()) ||
-            FAILED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put())) ||
-            FAILED(RenderImgViewer(context))) {
+            FAILED(CreateUiAccessibilityProvider(hwnd, &context->ui, context->accessibility_provider.put()))) {
+            return -1;
+        }
+        context->viewer.SetPixelatedSampling(context->config.pixelated_sampling);
+        if (FAILED(RenderImgViewer(context))) {
             return -1;
         }
 

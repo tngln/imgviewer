@@ -11,6 +11,7 @@ struct WindowSizeConfig final {
 
 struct ImgViewerConfig final {
     bool remember_window_size = true;
+    bool pixelated_sampling = false;
     WindowSizeConfig window_size;
     ActionBindings action_bindings;
 };

@@ -204,8 +204,8 @@ HRESULT UiRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
     wil::com_ptr<ID2D1PathGeometry> icon_geometry;
     RETURN_IF_FAILED(CreatePathGeometryFromIcon(
         d2d_factory_.get(),
-        icons::kImageIconPath,
-        ARRAYSIZE(icons::kImageIconPath),
+        icons::kImageIcon.commands,
+        icons::kImageIcon.command_count,
         icon_geometry.put()));
 
     d2d_context_->SetTarget(target_bitmap.get());
@@ -244,18 +244,24 @@ HRESULT UiRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
             image.bitmap,
             destination,
             1.0f,
-            D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC);
+            image.pixelated_sampling
+                ? D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR
+                : D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC);
     } else {
         const float icon_size = (std::max)(
             ui_theme::metrics::kIconPlaceholderMinimumSize,
             (std::min)(
                 ui_theme::metrics::kIconPlaceholderSize,
                 (std::min)(width, height) - ui_theme::metrics::kIconPlaceholderPadding));
-        const float scale = icon_size / icons::kImageIconViewport;
+        const float icon_width = icons::kImageIcon.view_box.right - icons::kImageIcon.view_box.left;
+        const float icon_height = icons::kImageIcon.view_box.bottom - icons::kImageIcon.view_box.top;
+        const float icon_viewport = (std::max)(icon_width, icon_height);
+        const float scale = icon_size / icon_viewport;
         const float left = (width - icon_size) * 0.5f;
         const float top = (height - icon_size) * 0.5f;
 
         const D2D1_MATRIX_3X2_F transform =
+            D2D1::Matrix3x2F::Translation(-icons::kImageIcon.view_box.left, -icons::kImageIcon.view_box.top) *
             D2D1::Matrix3x2F::Scale(scale, scale) *
             D2D1::Matrix3x2F::Translation(left, top) *
             root_transform;
