@@ -426,6 +426,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return 0;
         }
 
+        if (message == WM_KEYDOWN && wparam == 'V' && key.modifiers.ctrl && !key.modifiers.shift && !key.modifiers.alt) {
+            HandleImgViewerPasteClipboard(hwnd, context);
+            return 0;
+        }
+
         const ImgViewerAction action = ActionForKeyboardMessage(context, wparam);
         if (context != nullptr) {
             context->pressed_key_actions[KeyActionIndex(wparam)] = action;

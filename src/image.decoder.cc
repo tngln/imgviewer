@@ -34,12 +34,29 @@ HRESULT ImageDecoder::DecodeFirstFrame(
 
     wil::com_ptr<IWICBitmapFrameDecode> frame;
     RETURN_IF_FAILED(decoder->GetFrame(0, frame.put()));
-    RETURN_IF_FAILED(frame->GetSize(&decoded.pixel_size.width, &decoded.pixel_size.height));
+    RETURN_IF_FAILED(DecodeBitmapSource(frame.get(), d2d_context, &decoded));
+
+    *image = std::move(decoded);
+    return S_OK;
+}
+
+HRESULT ImageDecoder::DecodeBitmapSource(
+    IWICBitmapSource* source,
+    ID2D1DeviceContext* d2d_context,
+    DecodedImage* image)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, source);
+    RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
+    RETURN_HR_IF_NULL(E_POINTER, image);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, wic_factory_);
+
+    DecodedImage decoded;
+    RETURN_IF_FAILED(source->GetSize(&decoded.pixel_size.width, &decoded.pixel_size.height));
 
     wil::com_ptr<IWICFormatConverter> bgra_converter;
     RETURN_IF_FAILED(wic_factory_->CreateFormatConverter(bgra_converter.put()));
     RETURN_IF_FAILED(bgra_converter->Initialize(
-        frame.get(),
+        source,
         GUID_WICPixelFormat32bppBGRA,
         WICBitmapDitherTypeNone,
         nullptr,
@@ -50,7 +67,7 @@ HRESULT ImageDecoder::DecodeFirstFrame(
     wil::com_ptr<IWICFormatConverter> pbgra_converter;
     RETURN_IF_FAILED(wic_factory_->CreateFormatConverter(pbgra_converter.put()));
     RETURN_IF_FAILED(pbgra_converter->Initialize(
-        frame.get(),
+        source,
         GUID_WICPixelFormat32bppPBGRA,
         WICBitmapDitherTypeNone,
         nullptr,
@@ -69,4 +86,9 @@ HRESULT ImageDecoder::DecodeFirstFrame(
 
     *image = std::move(decoded);
     return S_OK;
+}
+
+IWICImagingFactory2* ImageDecoder::WicFactory() const
+{
+    return wic_factory_.get();
 }

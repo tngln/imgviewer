@@ -18,6 +18,11 @@ public:
         const wchar_t* path,
         ID2D1DeviceContext* d2d_context,
         DecodedImage* image);
+    HRESULT DecodeBitmapSource(
+        IWICBitmapSource* source,
+        ID2D1DeviceContext* d2d_context,
+        DecodedImage* image);
+    IWICImagingFactory2* WicFactory() const;
 
 private:
     wil::com_ptr<IWICImagingFactory2> wic_factory_;

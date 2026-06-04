@@ -14,6 +14,7 @@
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
 #include "ui.tooltip.hpp"
+#include "win32.clipboard.hpp"
 
 namespace {
 
@@ -380,6 +381,49 @@ void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     LoadImgViewerImageFile(hwnd, context, path.c_str());
+}
+
+void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    win32::ClipboardContent content;
+    const HRESULT clipboard_hr = win32::ReadClipboardContent(hwnd, context->viewer.WicFactory(), &content);
+    if (FAILED(clipboard_hr)) {
+        ShowImgViewerToast(hwnd, context, L"Clipboard does not contain an image or path.");
+        return;
+    }
+
+    if (!content.path.empty()) {
+        LoadImgViewerImageFile(hwnd, context, content.path.c_str());
+        return;
+    }
+
+    if (!content.bitmap_source) {
+        ShowImgViewerToast(hwnd, context, L"Clipboard does not contain an image or path.");
+        return;
+    }
+
+    const HRESULT load_hr = context->viewer.LoadBitmapSource(
+        content.bitmap_source.get(),
+        context->renderer.BitmapDeviceContext());
+    if (FAILED(load_hr)) {
+        ShowImgViewerToast(hwnd, context, L"Could not paste clipboard image.");
+        return;
+    }
+
+    context->sequence.Clear();
+    SyncActionStates(context);
+    SetColorPickerActive(context, false);
+
+    const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
+    wchar_t title_text[96] = {};
+    swprintf_s(title_text, L"<Clipboard>  %ux%u", image_size.width, image_size.height);
+    context->ui.SetTitleText(title_text);
+    SetWindowTextW(hwnd, title_text);
+    RenderImgViewer(context);
 }
 
 namespace {

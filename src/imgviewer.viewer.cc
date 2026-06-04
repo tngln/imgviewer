@@ -31,6 +31,29 @@ HRESULT ImgViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceConte
     DecodedImage image;
     RETURN_IF_FAILED(image_decoder_.DecodeFirstFrame(path, d2d_context, &image));
 
+    SetCurrentImage(std::move(image));
+    return S_OK;
+}
+
+HRESULT ImgViewerController::LoadBitmapSource(IWICBitmapSource* source, ID2D1DeviceContext* d2d_context)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, source);
+    RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
+
+    DecodedImage image;
+    RETURN_IF_FAILED(image_decoder_.DecodeBitmapSource(source, d2d_context, &image));
+
+    SetCurrentImage(std::move(image));
+    return S_OK;
+}
+
+IWICImagingFactory2* ImgViewerController::WicFactory() const
+{
+    return image_decoder_.WicFactory();
+}
+
+void ImgViewerController::SetCurrentImage(DecodedImage image)
+{
     current_image_ = std::move(image);
     image_view_center_ = D2D1::Point2F(
         static_cast<float>(current_image_.pixel_size.width) * 0.5f,
@@ -43,7 +66,6 @@ HRESULT ImgViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceConte
     image_is_rotating_ = false;
     r_key_is_down_ = false;
     r_key_started_rotation_ = false;
-    return S_OK;
 }
 
 D2D1_SIZE_U ImgViewerController::CurrentImagePixelSize() const

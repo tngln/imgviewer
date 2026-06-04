@@ -36,6 +36,8 @@ class ImgViewerController final {
 public:
     HRESULT Initialize();
     HRESULT LoadImageFile(const wchar_t* path, ID2D1DeviceContext* d2d_context);
+    HRESULT LoadBitmapSource(IWICBitmapSource* source, ID2D1DeviceContext* d2d_context);
+    IWICImagingFactory2* WicFactory() const;
     D2D1_SIZE_U CurrentImagePixelSize() const;
     ImgViewerSnapshot Snapshot() const;
 
@@ -54,6 +56,7 @@ public:
     bool SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const;
 
 private:
+    void SetCurrentImage(DecodedImage image);
     float CurrentImageScale(D2D1_SIZE_U viewport_size) const;
     bool ImagePointFromViewportPoint(float x, float y, D2D1_SIZE_U viewport_size, D2D1_POINT_2F* image_point) const;
     bool ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size);
