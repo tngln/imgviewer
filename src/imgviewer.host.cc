@@ -268,6 +268,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_MOUSEMOVE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr && context->config.borderless_window) {
+            context->renderer.SetUiOverlayVisible(true);
+        }
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         util::TrackMouseLeave(hwnd);
         ImgViewerEventResult viewer_result = {};
@@ -329,6 +332,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             hwnd,
             context,
             context != nullptr ? context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}) : UiEventResult{});
+        if (context != nullptr && context->config.borderless_window && context->ui.CapturedElement() == UiElementId::None) {
+            context->renderer.SetUiOverlayVisible(false);
+        }
         return 0;
     }
 
@@ -517,7 +523,7 @@ HRESULT RunImgViewerApplicationAsHresult()
         0,
         kWindowClassName,
         kImgViewerWindowTitle,
-        WS_OVERLAPPEDWINDOW,
+        ImgViewerWindowStyle(context.config.borderless_window),
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         initial_window_size.width,
@@ -529,15 +535,7 @@ HRESULT RunImgViewerApplicationAsHresult()
     RETURN_LAST_ERROR_IF_NULL(window.get());
     DragAcceptFiles(window.get(), TRUE);
     util::DisableIme(window.get());
-    RETURN_IF_FAILED(util::ApplyDwmFrame(window.get()));
-    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
-        window.get(),
-        nullptr,
-        0,
-        0,
-        0,
-        0,
-        SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+    RETURN_IF_FAILED(ApplyImgViewerWindowFrame(window.get(), &context, false));
 
     ShowWindow(window.get(), SW_SHOWDEFAULT);
     RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));

@@ -12,6 +12,7 @@ struct WindowSizeConfig final {
 struct ImgViewerConfig final {
     bool remember_window_size = true;
     bool pixelated_sampling = false;
+    bool borderless_window = false;
     int window_opacity_percent = 100;
     WindowSizeConfig window_size;
     ActionBindings action_bindings;

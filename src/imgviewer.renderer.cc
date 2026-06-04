@@ -46,6 +46,17 @@ HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, UiControlle
     return ui_renderer_.Commit();
 }
 
+HRESULT ImgViewerRenderer::SetUiOverlayVisible(bool visible)
+{
+    if (ui_overlay_visible_ == visible) {
+        return S_OK;
+    }
+
+    RETURN_IF_FAILED(ui_renderer_.SetSurfaceVisible(ui_overlay_surface_, visible));
+    ui_overlay_visible_ = visible;
+    return S_OK;
+}
+
 D2D1_SIZE_U ImgViewerRenderer::ViewportPixelSize() const
 {
     return ui_renderer_.ViewportPixelSize();

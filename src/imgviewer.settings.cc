@@ -174,6 +174,10 @@ public:
             Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Pixelated sampling", L"pixelated-sampling"),
             L"Pixelated sampling",
             draft_.pixelated_sampling)));
+        borderless_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
+            Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Borderless window", L"borderless-window"),
+            L"Borderless window",
+            draft_.borderless_window)));
         opacity_slider_ = static_cast<Slider*>(root_->AddChild(std::make_unique<Slider>(
             Metadata(ids_.Next(), UiElementRole::Slider, ImgViewerAction::None, L"Opacity", L"window-opacity"),
             kOpacityMinimum,
@@ -299,19 +303,20 @@ public:
         draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, 18.0f, size.width - 24.0f, 46.0f), ui_theme::color::kBodyText);
         draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, 88.0f, size.width - 24.0f, 112.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(24.0f, 272.0f, size.width - 24.0f, 296.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(24.0f, 272.0f, size.width - 24.0f, 296.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(24.0f, 350.0f, size.width - 24.0f, 374.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             opacity_text_.c_str(),
             static_cast<UINT32>(opacity_text_.size()),
-            D2D1::RectF(size.width - 88.0f, 298.0f, size.width - 24.0f, 326.0f),
+            D2D1::RectF(size.width - 88.0f, 376.0f, size.width - 24.0f, 404.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 360.0f, size.width - 24.0f, 384.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 516.0f, size.width - 24.0f, 540.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, 516.0f, size.width - 24.0f, 542.0f),
+            D2D1::RectF(24.0f, 594.0f, size.width - 24.0f, 620.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -319,6 +324,7 @@ public:
         DrawElement(*remember_radio_, context);
         DrawElement(*default_radio_, context);
         DrawElement(*pixelated_checkbox_, context);
+        DrawElement(*borderless_checkbox_, context);
         DrawElement(*opacity_slider_, context);
         DrawElement(*reset_button_, context);
         DrawElement(*save_button_, context);
@@ -451,9 +457,10 @@ private:
         remember_radio_->SetRect(D2D1::RectF(44.0f, 116.0f, size.width - 24.0f, 146.0f));
         default_radio_->SetRect(D2D1::RectF(44.0f, 146.0f, size.width - 24.0f, 176.0f));
         pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 254.0f));
-        opacity_slider_->SetRect(D2D1::RectF(24.0f, 302.0f, size.width - 104.0f, 332.0f));
-        filter_box_->SetRect(D2D1::RectF(24.0f, 390.0f, size.width - 24.0f, 424.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 24.0f, 502.0f));
+        borderless_checkbox_->SetRect(D2D1::RectF(24.0f, 302.0f, size.width - 24.0f, 332.0f));
+        opacity_slider_->SetRect(D2D1::RectF(24.0f, 380.0f, size.width - 104.0f, 410.0f));
+        filter_box_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 24.0f, 502.0f));
+        action_dropdown_->SetRect(D2D1::RectF(24.0f, 546.0f, size.width - 24.0f, 580.0f));
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
@@ -530,6 +537,9 @@ private:
         } else if (id == pixelated_checkbox_->Id()) {
             draft_.pixelated_sampling = !draft_.pixelated_sampling;
             SyncChoiceControls();
+        } else if (id == borderless_checkbox_->Id()) {
+            draft_.borderless_window = !draft_.borderless_window;
+            SyncChoiceControls();
         } else if (id == remember_radio_->Id()) {
             draft_.remember_window_size = true;
             SyncChoiceControls();
@@ -550,6 +560,7 @@ private:
         remember_radio_->SetSelected(draft_.remember_window_size);
         default_radio_->SetSelected(!draft_.remember_window_size);
         pixelated_checkbox_->SetChecked(draft_.pixelated_sampling);
+        borderless_checkbox_->SetChecked(draft_.borderless_window);
     }
 
     void UpdateShortcutText()
@@ -623,6 +634,7 @@ private:
     {
         return (id == remember_checkbox_->Id() && remember_checkbox_->IsChecked()) ||
             (id == pixelated_checkbox_->Id() && pixelated_checkbox_->IsChecked()) ||
+            (id == borderless_checkbox_->Id() && borderless_checkbox_->IsChecked()) ||
             (id == remember_radio_->Id() && remember_radio_->IsSelected()) ||
             (id == default_radio_->Id() && default_radio_->IsSelected());
     }
@@ -632,6 +644,7 @@ private:
     std::unique_ptr<UiElement> root_;
     Checkbox* remember_checkbox_ = nullptr;
     Checkbox* pixelated_checkbox_ = nullptr;
+    Checkbox* borderless_checkbox_ = nullptr;
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
     Slider* opacity_slider_ = nullptr;
@@ -838,6 +851,21 @@ void PositionIme(HWND hwnd, SettingsWindowContext* context)
     ImmReleaseContext(hwnd, ime);
 }
 
+void CaptureCurrentWindowSize(HWND hwnd, ImgViewerConfig* config)
+{
+    if (hwnd == nullptr || config == nullptr || !config->remember_window_size || IsIconic(hwnd) || IsZoomed(hwnd)) {
+        return;
+    }
+
+    RECT window_rect = {};
+    if (!GetWindowRect(hwnd, &window_rect)) {
+        return;
+    }
+
+    config->window_size.width = static_cast<int>(window_rect.right - window_rect.left);
+    config->window_size.height = static_cast<int>(window_rect.bottom - window_rect.top);
+}
+
 void SaveSettings(HWND hwnd, SettingsWindowContext* context)
 {
     if (context == nullptr) {
@@ -846,12 +874,19 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
     }
 
     if (context->app != nullptr) {
-        context->app->config = context->ui.Draft();
+        ImgViewerConfig draft = context->ui.Draft();
+        CaptureCurrentWindowSize(context->owner, &draft);
+        const bool frame_changed = context->app->config.borderless_window != draft.borderless_window;
+        context->app->config = draft;
         context->app->current_window_opacity_percent = context->app->config.window_opacity_percent;
         ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         SaveImgViewerConfig(context->app->config);
-        RenderImgViewer(context->app);
+        if (frame_changed) {
+            ApplyImgViewerWindowFrame(context->owner, context->app, true);
+        } else {
+            RenderImgViewer(context->app);
+        }
     }
     context->saved = true;
     DestroyWindow(hwnd);
@@ -1242,7 +1277,7 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         720,
-        640,
+        720,
         owner,
         nullptr,
         instance,

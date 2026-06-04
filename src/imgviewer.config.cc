@@ -83,6 +83,11 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
             config->pixelated_sampling = pixelated->get<bool>();
         }
 
+        if (const auto borderless = root.find("borderlessWindow");
+            borderless != root.end() && borderless->is_boolean()) {
+            config->borderless_window = borderless->get<bool>();
+        }
+
         if (const auto opacity = root.find("windowOpacity");
             opacity != root.end() && opacity->is_number_integer()) {
             config->window_opacity_percent = ClampWindowOpacityPercent(opacity->get<int>());
@@ -115,6 +120,8 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "  \"rememberWindowSize\": " << (config.remember_window_size ? "true" : "false") << ",\n";
     output << "  // When true, enlarged images use nearest-neighbor sampling for crisp pixel previews.\n";
     output << "  \"pixelatedSampling\": " << (config.pixelated_sampling ? "true" : "false") << ",\n";
+    output << "  // When true, the main viewer window uses no native border or shadow.\n";
+    output << "  \"borderlessWindow\": " << (config.borderless_window ? "true" : "false") << ",\n";
     output << "  // Main viewer window opacity, clamped from 5 to 100 percent.\n";
     output << "  \"windowOpacity\": " << ClampWindowOpacityPercent(config.window_opacity_percent) << ",\n";
     output << "  \"window\": {\n";

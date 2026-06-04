@@ -13,6 +13,7 @@
 #include "imgviewer.settings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
+#include "ui.tooltip.hpp"
 
 namespace {
 
@@ -33,6 +34,58 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
     }
 
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
+    return S_OK;
+}
+
+DWORD ImgViewerWindowStyle(bool borderless)
+{
+    if (borderless) {
+        return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    }
+
+    return WS_OVERLAPPEDWINDOW;
+}
+
+HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hide_for_transition)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, hwnd);
+    RETURN_HR_IF_NULL(E_INVALIDARG, context);
+
+    const bool was_visible = IsWindowVisible(hwnd) != FALSE;
+    const bool was_zoomed = IsZoomed(hwnd) != FALSE;
+    if (hide_for_transition && was_visible) {
+        ShowWindow(hwnd, SW_HIDE);
+    }
+
+    SetLastError(ERROR_SUCCESS);
+    const LONG_PTR previous_style = SetWindowLongPtrW(
+        hwnd,
+        GWL_STYLE,
+        static_cast<LONG_PTR>(ImgViewerWindowStyle(context->config.borderless_window)));
+    if (previous_style == 0 && GetLastError() != ERROR_SUCCESS) {
+        RETURN_LAST_ERROR();
+    }
+
+    RETURN_IF_FAILED(util::ApplyDwmFrame(hwnd, context->config.borderless_window));
+    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
+        hwnd,
+        nullptr,
+        0,
+        0,
+        0,
+        0,
+        SWP_FRAMECHANGED | SWP_NOREDRAW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
+    RETURN_IF_FAILED(context->renderer.Resize());
+    SyncWindowState(hwnd, &context->ui);
+    UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
+    RETURN_IF_FAILED(context->renderer.SetUiOverlayVisible(true));
+    RETURN_IF_FAILED(RenderImgViewer(context));
+
+    if (hide_for_transition && was_visible) {
+        ShowWindow(hwnd, was_zoomed ? SW_SHOWMAXIMIZED : SW_SHOW);
+        UpdateWindow(hwnd);
+    }
+
     return S_OK;
 }
 

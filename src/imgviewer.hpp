@@ -35,6 +35,8 @@ struct ImgViewerContext final {
 };
 
 HRESULT RenderImgViewer(ImgViewerContext* context);
+DWORD ImgViewerWindowStyle(bool borderless);
+HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hide_for_transition);
 void SyncWindowState(HWND hwnd, UiController* ui);
 void SaveWindowSize(HWND hwnd, ImgViewerContext* context);
 bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action);

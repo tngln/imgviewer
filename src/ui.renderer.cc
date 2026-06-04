@@ -149,6 +149,12 @@ HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
         &ui);
 }
 
+HRESULT UiRenderer::SetSurfaceVisible(UiSurfaceId id, bool visible)
+{
+    RETURN_IF_FAILED(surfaces_.SetVisible(id, visible));
+    return Commit();
+}
+
 HRESULT UiRenderer::Commit()
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);

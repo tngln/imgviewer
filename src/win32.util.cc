@@ -34,12 +34,12 @@ std::wstring FileNameFromPath(const wchar_t* path, const wchar_t* fallback)
     return value.empty() ? std::wstring(fallback) : value;
 }
 
-HRESULT ApplyDwmFrame(HWND hwnd)
+HRESULT ApplyDwmFrame(HWND hwnd, bool borderless)
 {
-    DWMNCRENDERINGPOLICY policy = DWMNCRP_ENABLED;
+    DWMNCRENDERINGPOLICY policy = borderless ? DWMNCRP_DISABLED : DWMNCRP_ENABLED;
     RETURN_IF_FAILED(DwmSetWindowAttribute(hwnd, DWMWA_NCRENDERING_POLICY, &policy, sizeof(policy)));
 
-    const MARGINS margins = {0, 0, 0, 1};
+    const MARGINS margins = borderless ? MARGINS{0, 0, 0, 0} : MARGINS{0, 0, 0, 1};
     RETURN_IF_FAILED(DwmExtendFrameIntoClientArea(hwnd, &margins));
     return S_OK;
 }
