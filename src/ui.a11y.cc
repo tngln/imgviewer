@@ -92,6 +92,8 @@ int ControlTypeForRole(UiElementRole role)
         return UIA_MenuItemControlTypeId;
     case UiElementRole::RadioButton:
         return UIA_RadioButtonControlTypeId;
+    case UiElementRole::Slider:
+        return UIA_SliderControlTypeId;
     case UiElementRole::Text:
         return UIA_TextControlTypeId;
     case UiElementRole::Pane:
@@ -246,7 +248,8 @@ class UiButtonProvider final :
     public IRawElementProviderSimple,
     public IRawElementProviderFragment,
     public IInvokeProvider,
-    public IValueProvider {
+    public IValueProvider,
+    public IRangeValueProvider {
 public:
     UiButtonProvider(UiRootProvider* root, UiElementId id) : root_(root), id_(id) {}
 
@@ -265,6 +268,8 @@ public:
             *object = static_cast<IInvokeProvider*>(this);
         } else if (iid == __uuidof(IValueProvider)) {
             *object = static_cast<IValueProvider*>(this);
+        } else if (iid == __uuidof(IRangeValueProvider)) {
+            *object = static_cast<IRangeValueProvider*>(this);
         } else {
             return E_NOINTERFACE;
         }
@@ -295,6 +300,12 @@ public:
             const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
             if (metadata != nullptr && metadata->role == UiElementRole::Edit) {
                 *provider = static_cast<IValueProvider*>(this);
+                AddRef();
+            }
+        } else if (pattern_id == UIA_RangeValuePatternId) {
+            const UiElementMetadata* metadata = root_->ui()->ElementMetadata(id_);
+            if (metadata != nullptr && metadata->role == UiElementRole::Slider) {
+                *provider = static_cast<IRangeValueProvider*>(this);
                 AddRef();
             }
         }
@@ -444,6 +455,46 @@ public:
     {
         RETURN_HR_IF_NULL(E_POINTER, is_read_only);
         *is_read_only = root_->ui()->IsElementReadOnly(id_) ? TRUE : FALSE;
+        return S_OK;
+    }
+
+    IFACEMETHODIMP SetValue(double value) noexcept override
+    {
+        return root_->ui()->SetElementRangeValue(id_, value);
+    }
+
+    IFACEMETHODIMP get_Value(double* value) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, value);
+        *value = root_->ui()->ElementRangeValue(id_);
+        return S_OK;
+    }
+
+    IFACEMETHODIMP get_Maximum(double* maximum) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, maximum);
+        *maximum = root_->ui()->ElementRangeMaximum(id_);
+        return S_OK;
+    }
+
+    IFACEMETHODIMP get_Minimum(double* minimum) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, minimum);
+        *minimum = root_->ui()->ElementRangeMinimum(id_);
+        return S_OK;
+    }
+
+    IFACEMETHODIMP get_LargeChange(double* large_change) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, large_change);
+        *large_change = root_->ui()->ElementRangeLargeChange(id_);
+        return S_OK;
+    }
+
+    IFACEMETHODIMP get_SmallChange(double* small_change) noexcept override
+    {
+        RETURN_HR_IF_NULL(E_POINTER, small_change);
+        *small_change = root_->ui()->ElementRangeSmallChange(id_);
         return S_OK;
     }
 

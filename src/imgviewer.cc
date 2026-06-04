@@ -1,5 +1,6 @@
 #include "imgviewer.hpp"
 
+#include <algorithm>
 #include <optional>
 #include <string>
 
@@ -106,6 +107,46 @@ void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* tex
     context->ui.ShowToast(text);
     SetTimer(hwnd, kImgViewerToastTimerId, kToastDurationMs, nullptr);
     RenderImgViewer(context);
+}
+
+void ApplyWindowOpacity(HWND hwnd, int percent)
+{
+    if (hwnd == nullptr) {
+        return;
+    }
+
+    const int clamped = ClampWindowOpacityPercent(percent);
+    LONG_PTR ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+    if (clamped >= 100) {
+        if ((ex_style & WS_EX_LAYERED) != 0) {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style & ~WS_EX_LAYERED);
+            RedrawWindow(hwnd, nullptr, nullptr, RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN);
+        }
+        return;
+    }
+
+    if ((ex_style & WS_EX_LAYERED) == 0) {
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED);
+    }
+    const BYTE alpha = static_cast<BYTE>((std::max)(1, (clamped * 255 + 50) / 100));
+    SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA);
+}
+
+void SetImgViewerWindowOpacity(HWND hwnd, ImgViewerContext* context, int percent)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    context->current_window_opacity_percent = ClampWindowOpacityPercent(percent);
+    ApplyWindowOpacity(hwnd, context->current_window_opacity_percent);
+    if (context->settings_window != nullptr && IsWindow(context->settings_window)) {
+        PostMessageW(
+            context->settings_window,
+            kImgViewerSettingsOpacityChangedMessage,
+            static_cast<WPARAM>(context->current_window_opacity_percent),
+            0);
+    }
 }
 
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)

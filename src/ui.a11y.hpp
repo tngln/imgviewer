@@ -24,6 +24,12 @@ public:
     virtual bool IsElementEnabled(UiElementId id) const = 0;
     virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
     virtual bool IsElementReadOnly(UiElementId) const { return false; }
+    virtual double ElementRangeValue(UiElementId) const { return 0.0; }
+    virtual double ElementRangeMinimum(UiElementId) const { return 0.0; }
+    virtual double ElementRangeMaximum(UiElementId) const { return 0.0; }
+    virtual double ElementRangeSmallChange(UiElementId) const { return 1.0; }
+    virtual double ElementRangeLargeChange(UiElementId) const { return 10.0; }
+    virtual HRESULT SetElementRangeValue(UiElementId, double) { return E_NOTIMPL; }
 };
 
 HRESULT CreateUiAccessibilityProvider(

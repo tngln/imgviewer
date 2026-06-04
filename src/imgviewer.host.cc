@@ -224,6 +224,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return -1;
         }
         context->viewer.SetPixelatedSampling(context->config.pixelated_sampling);
+        ApplyWindowOpacity(hwnd, context->current_window_opacity_percent);
         if (FAILED(RenderImgViewer(context))) {
             return -1;
         }
@@ -329,6 +330,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_MOUSEWHEEL: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetScreenPointerPoint(hwnd, lparam);
+        if (context != nullptr && IsKeyDown('O')) {
+            constexpr int kOpacityWheelStep = 5;
+            const int wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
+            const int steps = wheel_delta / WHEEL_DELTA;
+            if (steps != 0) {
+                SetImgViewerWindowOpacity(
+                    hwnd,
+                    context,
+                    context->current_window_opacity_percent + steps * kOpacityWheelStep);
+            }
+            return 0;
+        }
         if (context != nullptr &&
             context->viewer.OnMouseWheel(
                 point.x,
@@ -493,6 +506,7 @@ HRESULT RunImgViewerApplicationAsHresult()
 
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
+    context.current_window_opacity_percent = context.config.window_opacity_percent;
     const WindowSizeConfig initial_window_size =
         context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
     wil::unique_hwnd window{CreateWindowExW(

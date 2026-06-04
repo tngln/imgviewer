@@ -14,6 +14,8 @@ constexpr int kDefaultWindowWidth = 960;
 constexpr int kDefaultWindowHeight = 640;
 constexpr int kMinimumWindowWidth = 320;
 constexpr int kMinimumWindowHeight = 240;
+constexpr int kMinimumWindowOpacityPercent = 5;
+constexpr int kMaximumWindowOpacityPercent = 100;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.jsonc";
 
 std::filesystem::path ConfigFilePath()
@@ -52,6 +54,11 @@ int ReadClampedInt(const nlohmann::json& object, const char* key, int fallback, 
 
 } // namespace
 
+int ClampWindowOpacityPercent(int percent)
+{
+    return (std::clamp)(percent, kMinimumWindowOpacityPercent, kMaximumWindowOpacityPercent);
+}
+
 HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
 {
     RETURN_HR_IF_NULL(E_POINTER, config);
@@ -74,6 +81,11 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
         if (const auto pixelated = root.find("pixelatedSampling");
             pixelated != root.end() && pixelated->is_boolean()) {
             config->pixelated_sampling = pixelated->get<bool>();
+        }
+
+        if (const auto opacity = root.find("windowOpacity");
+            opacity != root.end() && opacity->is_number_integer()) {
+            config->window_opacity_percent = ClampWindowOpacityPercent(opacity->get<int>());
         }
 
         if (const auto window = root.find("window");
@@ -103,6 +115,8 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "  \"rememberWindowSize\": " << (config.remember_window_size ? "true" : "false") << ",\n";
     output << "  // When true, enlarged images use nearest-neighbor sampling for crisp pixel previews.\n";
     output << "  \"pixelatedSampling\": " << (config.pixelated_sampling ? "true" : "false") << ",\n";
+    output << "  // Main viewer window opacity, clamped from 5 to 100 percent.\n";
+    output << "  \"windowOpacity\": " << ClampWindowOpacityPercent(config.window_opacity_percent) << ",\n";
     output << "  \"window\": {\n";
     output << "    \"width\": " << (std::max)(kMinimumWindowWidth, config.window_size.width) << ",\n";
     output << "    \"height\": " << (std::max)(kMinimumWindowHeight, config.window_size.height) << "\n";

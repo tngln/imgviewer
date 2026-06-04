@@ -1,5 +1,6 @@
 #include "imgviewer.settings.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cwchar>
 #include <cwctype>
@@ -24,6 +25,7 @@
 #include "ui.draw.hpp"
 #include "ui.popup.hpp"
 #include "ui.selection.hpp"
+#include "ui.slider.hpp"
 #include "ui.textbox.hpp"
 #include "ui.theme.hpp"
 
@@ -47,6 +49,10 @@ constexpr wchar_t kSaveIcon[] = L"\xE105";
 constexpr wchar_t kCancelIcon[] = L"\xE711";
 constexpr wchar_t kResetIcon[] = L"\xE777";
 constexpr UINT_PTR kCaretTimerId = 1;
+constexpr int kOpacityMinimum = 10;
+constexpr int kOpacityMaximum = 100;
+constexpr int kOpacitySmallStep = 1;
+constexpr int kOpacityLargeStep = 5;
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -167,6 +173,13 @@ public:
             Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Pixelated sampling", L"pixelated-sampling"),
             L"Pixelated sampling",
             draft_.pixelated_sampling)));
+        opacity_slider_ = static_cast<Slider*>(root_->AddChild(std::make_unique<Slider>(
+            Metadata(ids_.Next(), UiElementRole::Slider, ImgViewerAction::None, L"Opacity", L"window-opacity"),
+            kOpacityMinimum,
+            kOpacityMaximum,
+            draft_.window_opacity_percent,
+            kOpacitySmallStep,
+            kOpacityLargeStep)));
 
         filter_box_ = static_cast<TextBox*>(root_->AddChild(std::make_unique<TextBox>(
             Metadata(ids_.Next(), UiElementRole::Edit, ImgViewerAction::None, L"Shortcut filter", L"shortcut-filter"),
@@ -189,11 +202,20 @@ public:
             L"Cancel")));
 
         SyncChoiceControls();
+        UpdateOpacityText();
         UpdateFilterResults();
         UpdateShortcutText();
     }
 
     const ImgViewerConfig& Draft() const { return draft_; }
+    int OpacityPercent() const { return draft_.window_opacity_percent; }
+
+    void SetOpacityPercent(int percent)
+    {
+        draft_.window_opacity_percent = ClampWindowOpacityPercent(percent);
+        opacity_slider_->SetValue(draft_.window_opacity_percent);
+        UpdateOpacityText();
+    }
 
     const wchar_t* AccessibilityRootName() const override { return L"Settings"; }
 
@@ -225,7 +247,47 @@ public:
 
     const wchar_t* ElementValue(UiElementId id) const override
     {
-        return id == filter_box_->Id() ? filter_box_->Text().c_str() : L"";
+        if (id == filter_box_->Id()) {
+            return filter_box_->Text().c_str();
+        }
+        if (id == opacity_slider_->Id()) {
+            return opacity_text_.c_str();
+        }
+        return L"";
+    }
+
+    double ElementRangeValue(UiElementId id) const override
+    {
+        return id == opacity_slider_->Id() ? static_cast<double>(opacity_slider_->Value()) : 0.0;
+    }
+
+    double ElementRangeMinimum(UiElementId id) const override
+    {
+        return id == opacity_slider_->Id() ? static_cast<double>(opacity_slider_->Minimum()) : 0.0;
+    }
+
+    double ElementRangeMaximum(UiElementId id) const override
+    {
+        return id == opacity_slider_->Id() ? static_cast<double>(opacity_slider_->Maximum()) : 0.0;
+    }
+
+    double ElementRangeSmallChange(UiElementId id) const override
+    {
+        return id == opacity_slider_->Id() ? static_cast<double>(kOpacitySmallStep) : 1.0;
+    }
+
+    double ElementRangeLargeChange(UiElementId id) const override
+    {
+        return id == opacity_slider_->Id() ? static_cast<double>(kOpacityLargeStep) : 10.0;
+    }
+
+    HRESULT SetElementRangeValue(UiElementId id, double value) override
+    {
+        if (id != opacity_slider_->Id()) {
+            return E_NOTIMPL;
+        }
+        SetOpacityPercent(static_cast<int>(value + 0.5));
+        return S_OK;
     }
 
     void Draw(const UiDrawContext& context, D2D1_SIZE_F size)
@@ -236,12 +298,19 @@ public:
         draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, 18.0f, size.width - 24.0f, 46.0f), ui_theme::color::kBodyText);
         draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, 88.0f, size.width - 24.0f, 112.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 278.0f, size.width - 24.0f, 302.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 348.0f, size.width - 24.0f, 372.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(24.0f, 272.0f, size.width - 24.0f, 296.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(
+            opacity_text_.c_str(),
+            static_cast<UINT32>(opacity_text_.size()),
+            D2D1::RectF(size.width - 88.0f, 298.0f, size.width - 24.0f, 326.0f),
+            ui_theme::color::kBodyText,
+            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 360.0f, size.width - 24.0f, 384.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, 416.0f, size.width - 24.0f, 442.0f),
+            D2D1::RectF(24.0f, 516.0f, size.width - 24.0f, 542.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -249,6 +318,7 @@ public:
         DrawElement(*remember_radio_, context);
         DrawElement(*default_radio_, context);
         DrawElement(*pixelated_checkbox_, context);
+        DrawElement(*opacity_slider_, context);
         DrawElement(*reset_button_, context);
         DrawElement(*save_button_, context);
         DrawElement(*cancel_button_, context);
@@ -380,8 +450,9 @@ private:
         remember_radio_->SetRect(D2D1::RectF(44.0f, 116.0f, size.width - 24.0f, 146.0f));
         default_radio_->SetRect(D2D1::RectF(44.0f, 146.0f, size.width - 24.0f, 176.0f));
         pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 254.0f));
-        filter_box_->SetRect(D2D1::RectF(24.0f, 308.0f, size.width - 24.0f, 342.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, 378.0f, size.width - 24.0f, 412.0f));
+        opacity_slider_->SetRect(D2D1::RectF(24.0f, 302.0f, size.width - 104.0f, 332.0f));
+        filter_box_->SetRect(D2D1::RectF(24.0f, 390.0f, size.width - 24.0f, 424.0f));
+        action_dropdown_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 24.0f, 502.0f));
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
@@ -424,6 +495,8 @@ private:
 
         if (event.type == UiEventType::PointerUp && target_id != UiElementId::None && hit_id == target_id) {
             ApplyElementEffect(target_id);
+        } else if (result.value_changed && target_id != UiElementId::None) {
+            ApplyElementEffect(target_id);
         }
 
         result.needs_render = result.needs_render || previous_hover != hovered_;
@@ -462,6 +535,9 @@ private:
         } else if (id == default_radio_->Id()) {
             draft_.remember_window_size = false;
             SyncChoiceControls();
+        } else if (id == opacity_slider_->Id()) {
+            draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_->Value());
+            UpdateOpacityText();
         } else if (id == action_dropdown_->Id()) {
             UpdateShortcutText();
         }
@@ -521,6 +597,13 @@ private:
         action_dropdown_->SetOptions(BuildDropdownOptions());
     }
 
+    void UpdateOpacityText()
+    {
+        wchar_t text[16] = {};
+        swprintf_s(text, L"%d%%", draft_.window_opacity_percent);
+        opacity_text_ = text;
+    }
+
     void DrawElement(UiElement& element, const UiDrawContext& context) const
     {
         element.Draw(
@@ -550,6 +633,7 @@ private:
     Checkbox* pixelated_checkbox_ = nullptr;
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
+    Slider* opacity_slider_ = nullptr;
     Dropdown* action_dropdown_ = nullptr;
     TextBox* filter_box_ = nullptr;
     Button* reset_button_ = nullptr;
@@ -559,6 +643,7 @@ private:
     UiElementId pressed_ = UiElementId::None;
     UiElementId captured_ = UiElementId::None;
     UiElementId focused_ = UiElementId::None;
+    std::wstring opacity_text_;
     std::wstring shortcut_text_;
 };
 
@@ -574,8 +659,14 @@ struct SettingsWindowContext final {
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     PopupHost popup_host;
     bool caret_visible = true;
+    int original_opacity_percent = 100;
+    bool saved = false;
 
-    explicit SettingsWindowContext(ImgViewerConfig config) : ui(std::move(config)) {}
+    SettingsWindowContext(ImgViewerConfig config, int original_opacity) :
+        ui(std::move(config)),
+        original_opacity_percent(ClampWindowOpacityPercent(original_opacity))
+    {
+    }
 };
 
 SettingsWindowContext* GetSettingsContext(HWND hwnd)
@@ -686,6 +777,17 @@ void InvalidateForResult(HWND hwnd, UiEventResult result)
     }
 }
 
+void HandleSettingsUiResult(HWND hwnd, SettingsWindowContext* context, UiEventResult result)
+{
+    InvalidateForResult(hwnd, result);
+    if (context != nullptr && context->owner != nullptr && result.value_changed) {
+        if (context->app != nullptr) {
+            context->app->current_window_opacity_percent = context->ui.OpacityPercent();
+        }
+        ApplyWindowOpacity(context->owner, context->ui.OpacityPercent());
+    }
+}
+
 void SyncCaretTimer(HWND hwnd, SettingsWindowContext* context)
 {
     if (context == nullptr || !context->ui.IsTextBoxFocused()) {
@@ -736,12 +838,20 @@ void PositionIme(HWND hwnd, SettingsWindowContext* context)
 
 void SaveSettings(HWND hwnd, SettingsWindowContext* context)
 {
+    if (context == nullptr) {
+        DestroyWindow(hwnd);
+        return;
+    }
+
     if (context->app != nullptr) {
         context->app->config = context->ui.Draft();
+        context->app->current_window_opacity_percent = context->app->config.window_opacity_percent;
+        ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         SaveImgViewerConfig(context->app->config);
         RenderImgViewer(context->app);
     }
+    context->saved = true;
     DestroyWindow(hwnd);
 }
 
@@ -822,6 +932,14 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case kImgViewerUiActionMessage:
         ExecuteSettingsAction(hwnd, GetSettingsContext(hwnd), static_cast<ImgViewerAction>(wparam));
         return 0;
+    case kImgViewerSettingsOpacityChangedMessage: {
+        auto* context = GetSettingsContext(hwnd);
+        if (context != nullptr) {
+            context->ui.SetOpacityPercent(static_cast<int>(wparam));
+            InvalidateRect(hwnd, nullptr, FALSE);
+        }
+        return 0;
+    }
     case WM_SIZE: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr && context->render_target != nullptr) {
@@ -849,7 +967,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                 return 0;
             }
             UiPointerEvent pointer{.type = UiEventType::PointerMove, .point = point, .modifiers = CurrentModifiers()};
-            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd}));
+            HandleSettingsUiResult(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd}));
             PositionIme(hwnd, context);
         }
         return 0;
@@ -858,7 +976,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
             UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = CurrentModifiers()};
-            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}));
+            HandleSettingsUiResult(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}));
         }
         return 0;
     }
@@ -875,7 +993,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
             if (result.capture == UiCaptureRequest::Capture) {
                 SetCapture(hwnd);
             }
-            InvalidateForResult(hwnd, result);
+            HandleSettingsUiResult(hwnd, context, result);
             SyncCaretTimer(hwnd, context);
             PositionIme(hwnd, context);
         }
@@ -893,7 +1011,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
             if (result.capture == UiCaptureRequest::Release) {
                 ReleaseCapture();
             }
-            InvalidateForResult(hwnd, result);
+            HandleSettingsUiResult(hwnd, context, result);
             ExecuteSettingsAction(hwnd, context, result.action);
             SyncCaretTimer(hwnd, context);
             PositionIme(hwnd, context);
@@ -922,7 +1040,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                 .modifiers = CurrentModifiers(),
             };
             const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd});
-            InvalidateForResult(hwnd, result);
+            HandleSettingsUiResult(hwnd, context, result);
             ExecuteSettingsAction(hwnd, context, result.action);
             SyncCaretTimer(hwnd, context);
             PositionIme(hwnd, context);
@@ -940,7 +1058,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                 .character = static_cast<wchar_t>(wparam),
                 .hwnd = hwnd,
             });
-            InvalidateForResult(hwnd, result);
+            HandleSettingsUiResult(hwnd, context, result);
             PositionIme(hwnd, context);
             if (result.handled) {
                 return 0;
@@ -951,7 +1069,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_IME_STARTCOMPOSITION: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::ImeStartComposition, .hwnd = hwnd}));
+            HandleSettingsUiResult(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::ImeStartComposition, .hwnd = hwnd}));
             PositionIme(hwnd, context);
         }
         return 0;
@@ -959,7 +1077,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_IME_COMPOSITION: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{
+            HandleSettingsUiResult(hwnd, context, context->ui.OnInputEvent(UiInputEvent{
                 .type = UiEventType::ImeComposition,
                 .text = ImeCompositionString(hwnd, lparam),
                 .hwnd = hwnd,
@@ -971,7 +1089,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
     case WM_IME_ENDCOMPOSITION: {
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
-            InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::ImeEndComposition, .hwnd = hwnd}));
+            HandleSettingsUiResult(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::ImeEndComposition, .hwnd = hwnd}));
         }
         return 0;
     }
@@ -992,7 +1110,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                 .hwnd = hwnd,
                 .popup_host = &context->popup_host,
             });
-            InvalidateForResult(hwnd, result);
+            HandleSettingsUiResult(hwnd, context, result);
             SyncCaretTimer(hwnd, context);
             if (result.handled) {
                 return 0;
@@ -1009,7 +1127,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                     .timer_id = static_cast<UINT_PTR>(wparam),
                     .hwnd = hwnd,
                 });
-                InvalidateForResult(hwnd, result);
+                HandleSettingsUiResult(hwnd, context, result);
             }
             return 0;
         }
@@ -1019,7 +1137,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         if (LOWORD(wparam) == WA_INACTIVE) {
             if (auto* context = GetSettingsContext(hwnd)) {
                 InvalidateForResult(hwnd, context->popup_host.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
-                InvalidateForResult(hwnd, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
+                HandleSettingsUiResult(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
                 InvalidateRect(hwnd, nullptr, FALSE);
             }
         }
@@ -1048,6 +1166,10 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
             if (context->app != nullptr) {
+                if (!context->saved) {
+                    context->app->current_window_opacity_percent = context->original_opacity_percent;
+                    ApplyWindowOpacity(context->owner, context->original_opacity_percent);
+                }
                 context->app->settings_window = nullptr;
             }
             context->popup_host.Close();
@@ -1093,7 +1215,9 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
     RETURN_HR_IF_NULL(E_UNEXPECTED, instance);
     RETURN_IF_FAILED(RegisterSettingsWindowClass(instance));
 
-    auto* settings_context = new (std::nothrow) SettingsWindowContext(context->config);
+    ImgViewerConfig draft = context->config;
+    draft.window_opacity_percent = context->current_window_opacity_percent;
+    auto* settings_context = new (std::nothrow) SettingsWindowContext(std::move(draft), context->current_window_opacity_percent);
     RETURN_IF_NULL_ALLOC(settings_context);
     settings_context->owner = owner;
     settings_context->app = context;
@@ -1106,7 +1230,7 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         720,
-        560,
+        640,
         owner,
         nullptr,
         instance,

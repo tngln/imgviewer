@@ -43,6 +43,7 @@ enum class UiElementRole {
     Menu,
     MenuItem,
     RadioButton,
+    Slider,
     Text,
     Pane,
 };

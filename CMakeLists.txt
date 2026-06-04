@@ -27,6 +27,7 @@ add_executable(imgviewer
     src/ui.popup.cc
     src/ui.renderer.cc
     src/ui.selection.cc
+    src/ui.slider.cc
     src/ui.surface.cc
     src/ui.text.cc
     src/ui.textbox.cc

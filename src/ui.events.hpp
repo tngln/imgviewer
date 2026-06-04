@@ -95,4 +95,5 @@ struct UiEventResult final {
     UiElementId focus_target = UiElementId::None;
     ImgViewerAction action = ImgViewerAction::None;
     bool wants_ime_position = false;
+    bool value_changed = false;
 };
