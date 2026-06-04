@@ -55,6 +55,27 @@ bool IsKeyDown(int virtual_key)
     return (GetKeyState(virtual_key) & 0x8000) != 0;
 }
 
+bool IsCursorInsideWindow(HWND hwnd)
+{
+    POINT cursor = {};
+    RECT window_rect = {};
+    return GetCursorPos(&cursor) &&
+        GetWindowRect(hwnd, &window_rect) &&
+        cursor.x >= window_rect.left &&
+        cursor.x < window_rect.right &&
+        cursor.y >= window_rect.top &&
+        cursor.y < window_rect.bottom;
+}
+
+void TrackNonClientMouseLeave(HWND hwnd)
+{
+    TRACKMOUSEEVENT track_event = {};
+    track_event.cbSize = sizeof(track_event);
+    track_event.dwFlags = TME_LEAVE | TME_NONCLIENT;
+    track_event.hwndTrack = hwnd;
+    TrackMouseEvent(&track_event);
+}
+
 UiModifiers CurrentUiModifiers()
 {
     return UiModifiers{
@@ -263,6 +284,26 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
 
+    case WM_NCMOUSEMOVE: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr && context->config.borderless_window) {
+            context->renderer.SetUiOverlayVisible(true);
+            TrackNonClientMouseLeave(hwnd);
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_NCMOUSELEAVE: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr &&
+            context->config.borderless_window &&
+            context->ui.CapturedElement() == UiElementId::None &&
+            !IsCursorInsideWindow(hwnd)) {
+            context->renderer.SetUiOverlayVisible(false);
+        }
+        return 0;
+    }
+
     case WM_ERASEBKGND:
         return 1;
 
@@ -332,7 +373,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             hwnd,
             context,
             context != nullptr ? context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}) : UiEventResult{});
-        if (context != nullptr && context->config.borderless_window && context->ui.CapturedElement() == UiElementId::None) {
+        if (context != nullptr &&
+            context->config.borderless_window &&
+            context->ui.CapturedElement() == UiElementId::None &&
+            !IsCursorInsideWindow(hwnd)) {
             context->renderer.SetUiOverlayVisible(false);
         }
         return 0;

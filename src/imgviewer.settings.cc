@@ -892,7 +892,7 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
     DestroyWindow(hwnd);
 }
 
-void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, UiAction action)
+bool ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, UiAction action)
 {
     if (action == kUiActionTextCopy ||
         action == kUiActionTextCut ||
@@ -901,16 +901,16 @@ void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, UiAction a
         if (context != nullptr) {
             InvalidateForResult(hwnd, context->ui.ExecuteTextAction(action, hwnd));
         }
-        return;
+        return false;
     }
 
     switch (ImgViewerActionFromUiAction(action)) {
     case ImgViewerAction::SaveSettings:
         SaveSettings(hwnd, context);
-        break;
+        return true;
     case ImgViewerAction::CloseSettings:
         DestroyWindow(hwnd);
-        break;
+        return true;
     case ImgViewerAction::ResetKeyBindings:
         if (context != nullptr) {
             ImgViewerConfig draft = context->ui.Draft();
@@ -922,6 +922,8 @@ void ExecuteSettingsAction(HWND hwnd, SettingsWindowContext* context, UiAction a
     default:
         break;
     }
+
+    return false;
 }
 
 bool DispatchPopupPointer(
@@ -947,7 +949,9 @@ bool DispatchPopupPointer(
         .hwnd = hwnd,
     });
     InvalidateForResult(hwnd, result);
-    ExecuteSettingsAction(hwnd, context, result.action);
+    if (ExecuteSettingsAction(hwnd, context, result.action)) {
+        return true;
+    }
     return result.handled;
 }
 
@@ -1059,7 +1063,9 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                 ReleaseCapture();
             }
             HandleSettingsUiResult(hwnd, context, result);
-            ExecuteSettingsAction(hwnd, context, result.action);
+            if (ExecuteSettingsAction(hwnd, context, result.action)) {
+                return 0;
+            }
             SyncCaretTimer(hwnd, context);
             PositionIme(hwnd, context);
         }
@@ -1076,7 +1082,9 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
                 };
                 const UiEventResult popup_result = context->popup_host.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd});
                 InvalidateForResult(hwnd, popup_result);
-                ExecuteSettingsAction(hwnd, context, popup_result.action);
+                if (ExecuteSettingsAction(hwnd, context, popup_result.action)) {
+                    return 0;
+                }
                 if (popup_result.handled) {
                     return 0;
                 }
@@ -1088,7 +1096,9 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
             };
             const UiEventResult result = context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd});
             HandleSettingsUiResult(hwnd, context, result);
-            ExecuteSettingsAction(hwnd, context, result.action);
+            if (ExecuteSettingsAction(hwnd, context, result.action)) {
+                return 0;
+            }
             SyncCaretTimer(hwnd, context);
             PositionIme(hwnd, context);
             if (result.handled) {
@@ -1210,6 +1220,7 @@ LRESULT CALLBACK SettingsWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPAR
         DestroyWindow(hwnd);
         return 0;
     case WM_DESTROY: {
+        KillTimer(hwnd, kCaretTimerId);
         auto* context = GetSettingsContext(hwnd);
         if (context != nullptr) {
             if (context->app != nullptr) {
