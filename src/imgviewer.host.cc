@@ -430,6 +430,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             HandleImgViewerPasteClipboard(hwnd, context);
             return 0;
         }
+        if (message == WM_KEYDOWN && wparam == 'S' && key.modifiers.ctrl && !key.modifiers.shift && !key.modifiers.alt) {
+            ExecuteImgViewerAction(hwnd, context, ImgViewerAction::SaveImageAs);
+            return 0;
+        }
 
         const ImgViewerAction action = ActionForKeyboardMessage(context, wparam);
         if (context != nullptr) {

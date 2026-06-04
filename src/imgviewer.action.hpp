@@ -3,6 +3,7 @@
 enum class ImgViewerAction {
     None,
     OpenImage,
+    SaveImageAs,
     PreviousImage,
     NextImage,
     ZoomIn,

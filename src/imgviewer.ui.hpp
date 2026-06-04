@@ -34,6 +34,7 @@ public:
     bool HideToast() override;
     void SetWindowState(bool top_most, bool maximized) override;
     void SetColorPickerActive(bool active) override;
+    void SetActionEnabled(UiAction action, bool enabled) override;
 
 private:
     void Layout(D2D1_SIZE_F viewport_size);
@@ -46,5 +47,6 @@ private:
     bool top_most_ = false;
     bool maximized_ = false;
     bool color_picker_active_ = false;
+    bool save_image_as_enabled_ = false;
     MenuOverlay menu_;
 };

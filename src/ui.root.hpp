@@ -29,4 +29,5 @@ public:
     virtual bool HideToast() = 0;
     virtual void SetWindowState(bool top_most, bool maximized) = 0;
     virtual void SetColorPickerActive(bool active) = 0;
+    virtual void SetActionEnabled(UiAction action, bool enabled) = 0;
 };

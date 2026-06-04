@@ -134,6 +134,10 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         return image_size.width > 0 && image_size.height > 0;
     }
 
+    if (action == ImgViewerAction::SaveImageAs) {
+        return context != nullptr && context->viewer.HasCurrentImage();
+    }
+
     return true;
 }
 
@@ -152,6 +156,9 @@ void SyncActionStates(ImgViewerContext* context)
     context->ui.SetActionEnabled(
         UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker),
         IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker));
+    context->ui.SetActionEnabled(
+        UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs),
+        IsImgViewerActionEnabled(context, ImgViewerAction::SaveImageAs));
 }
 
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text)
@@ -222,6 +229,9 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     switch (action) {
     case ImgViewerAction::OpenImage:
     case ImgViewerAction::OpenMenu:
+        break;
+    case ImgViewerAction::SaveImageAs:
+        HandleImgViewerSaveImageAsCommand(hwnd, context);
         break;
     case ImgViewerAction::OpenSettings:
         OpenImgViewerSettingsWindow(hwnd, context);
@@ -381,6 +391,36 @@ void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     LoadImgViewerImageFile(hwnd, context, path.c_str());
+}
+
+void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
+{
+    if (!IsImgViewerActionEnabled(context, ImgViewerAction::SaveImageAs)) {
+        return;
+    }
+
+    constexpr win32::NativeFileDialogFilter filters[] = {
+        {L"PNG image", L"*.png"},
+    };
+
+    std::wstring path;
+    const HRESULT dialog_hr = win32::OpenNativeSaveFileDialog(hwnd, {filters, 1, L"png"}, &path);
+    if (dialog_hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+        return;
+    }
+
+    if (FAILED(dialog_hr)) {
+        MessageBoxW(hwnd, L"Could not show the save dialog.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    const HRESULT save_hr = context->viewer.SaveCurrentImagePng(path.c_str());
+    if (FAILED(save_hr)) {
+        MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    ShowImgViewerToast(hwnd, context, L"Saved image.");
 }
 
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)

@@ -97,6 +97,7 @@ bool ImgViewerUi::HandleUiAction(UiAction action)
         D2D1::Point2F(6.0f, ui_theme::metrics::kTitleBarHeight + 4.0f),
         std::vector<MenuItem>{
             {L"Open Image", UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
+            {L"Save As", UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false, save_image_as_enabled_},
             {L"Settings", UiActionFromImgViewerAction(ImgViewerAction::OpenSettings)},
             {L"", kUiActionNone, true},
             {L"Zoom In", UiActionFromImgViewerAction(ImgViewerAction::ZoomIn)},
@@ -145,6 +146,13 @@ void ImgViewerUi::SetWindowState(bool top_most, bool maximized)
 void ImgViewerUi::SetColorPickerActive(bool active)
 {
     color_picker_active_ = active;
+}
+
+void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
+{
+    if (action == UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs)) {
+        save_image_as_enabled_ = enabled;
+    }
 }
 
 void ImgViewerUi::Layout(D2D1_SIZE_F viewport_size)

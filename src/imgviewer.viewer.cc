@@ -20,6 +20,7 @@ constexpr float kRadiansToDegrees = 57.2957795f;
 HRESULT ImgViewerController::Initialize()
 {
     RETURN_IF_FAILED(image_decoder_.Initialize());
+    RETURN_IF_FAILED(image_encoder_.Initialize(image_decoder_.WicFactory()));
     return S_OK;
 }
 
@@ -47,9 +48,22 @@ HRESULT ImgViewerController::LoadBitmapSource(IWICBitmapSource* source, ID2D1Dev
     return S_OK;
 }
 
+HRESULT ImgViewerController::SaveCurrentImagePng(const wchar_t* path)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, path);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, current_image_.pixel_source);
+    RETURN_IF_FAILED(image_encoder_.SavePngFile(current_image_.pixel_source.get(), path));
+    return S_OK;
+}
+
 IWICImagingFactory2* ImgViewerController::WicFactory() const
 {
     return image_decoder_.WicFactory();
+}
+
+bool ImgViewerController::HasCurrentImage() const
+{
+    return current_image_.bitmap != nullptr && current_image_.pixel_source != nullptr;
 }
 
 void ImgViewerController::SetCurrentImage(DecodedImage image)

@@ -7,6 +7,8 @@ const char* ImgViewerActionName(ImgViewerAction action)
     switch (action) {
     case ImgViewerAction::OpenImage:
         return "openImage";
+    case ImgViewerAction::SaveImageAs:
+        return "saveImageAs";
     case ImgViewerAction::PreviousImage:
         return "previousImage";
     case ImgViewerAction::NextImage:
@@ -62,6 +64,9 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     const std::string_view value = name != nullptr ? std::string_view(name) : std::string_view();
     if (value == "openImage") {
         return ImgViewerAction::OpenImage;
+    }
+    if (value == "saveImageAs") {
+        return ImgViewerAction::SaveImageAs;
     }
     if (value == "previousImage") {
         return ImgViewerAction::PreviousImage;

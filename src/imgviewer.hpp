@@ -49,5 +49,6 @@ bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);
+void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);

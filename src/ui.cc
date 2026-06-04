@@ -232,6 +232,7 @@ void UiController::SetActionEnabled(UiAction action, bool enabled)
         return;
     }
 
+    root_->SetActionEnabled(action, enabled);
     SetActionEnabledRecursive(root_->Root(), action, enabled);
 }
 

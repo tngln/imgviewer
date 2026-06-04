@@ -6,6 +6,7 @@
 
 #include "imgviewer.action.hpp"
 #include "image.decoder.hpp"
+#include "image.encoder.hpp"
 
 struct ImgViewerEventResult final {
     bool handled = false;
@@ -37,7 +38,9 @@ public:
     HRESULT Initialize();
     HRESULT LoadImageFile(const wchar_t* path, ID2D1DeviceContext* d2d_context);
     HRESULT LoadBitmapSource(IWICBitmapSource* source, ID2D1DeviceContext* d2d_context);
+    HRESULT SaveCurrentImagePng(const wchar_t* path);
     IWICImagingFactory2* WicFactory() const;
+    bool HasCurrentImage() const;
     D2D1_SIZE_U CurrentImagePixelSize() const;
     ImgViewerSnapshot Snapshot() const;
 
@@ -62,6 +65,7 @@ private:
     bool ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size);
 
     ImageDecoder image_decoder_;
+    ImageEncoder image_encoder_;
     DecodedImage current_image_;
     D2D1_POINT_2F image_view_center_ = {};
     float image_zoom_multiplier_ = 1.0f;
