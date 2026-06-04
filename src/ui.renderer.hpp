@@ -10,17 +10,14 @@
 
 #include <wil/com.h>
 
+#include "ui.draw.hpp"
 #include "ui.surface.hpp"
 #include "ui.hpp"
 
 struct UiSurfaceDrawContext final {
-    ID2D1DeviceContext* d2d_context = nullptr;
+    UiDrawContext draw = {};
     ID2D1Factory1* d2d_factory = nullptr;
-    IDWriteFactory* dwrite_factory = nullptr;
-    IDWriteTextFormat* body_text_format = nullptr;
-    IDWriteTextFormat* icon_text_format = nullptr;
     D2D1_SIZE_U viewport_pixel_size = {};
-    D2D1_SIZE_F viewport_size = {};
     D2D1_POINT_2F offset = {};
     D2D1_MATRIX_3X2_F root_transform = {};
 };

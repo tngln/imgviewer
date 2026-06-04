@@ -58,23 +58,14 @@ const wchar_t* ImgViewerUi::AccessibilityRootName() const
 }
 
 void ImgViewerUi::Draw(
-    ID2D1DeviceContext* d2d_context,
-    D2D1_SIZE_F viewport_size,
-    IDWriteFactory* dwrite_factory,
-    IDWriteTextFormat* body_text_format,
-    IDWriteTextFormat* icon_text_format,
+    const UiDrawContext& draw_context,
     UiRootState state)
 {
-    const UiDrawContext draw_context{
-        .d2d_context = d2d_context,
-        .body_text_format = body_text_format,
-        .icon_text_format = icon_text_format,
-    };
-    Layout(viewport_size);
-    titlebar_.Draw(draw_context, viewport_size, dwrite_factory, body_text_format, state, top_most_, maximized_);
-    toolbar_.Draw(draw_context, viewport_size, state, color_picker_active_);
+    Layout(draw_context.viewport_size);
+    titlebar_.Draw(draw_context, state, top_most_, maximized_);
+    toolbar_.Draw(draw_context, state, color_picker_active_);
     menu_.Draw(draw_context, UiElementState{});
-    toast_.Draw(draw_context, viewport_size, dwrite_factory, body_text_format);
+    toast_.Draw(draw_context);
 }
 
 UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)

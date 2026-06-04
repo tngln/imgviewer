@@ -12,6 +12,7 @@ struct UiDrawContext final {
     IDWriteFactory* dwrite_factory = nullptr;
     IDWriteTextFormat* body_text_format = nullptr;
     IDWriteTextFormat* icon_text_format = nullptr;
+    D2D1_SIZE_F viewport_size = {};
 };
 
 class UiDraw final {

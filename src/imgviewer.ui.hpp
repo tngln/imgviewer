@@ -23,11 +23,7 @@ public:
     const wchar_t* AccessibilityRootName() const override;
 
     void Draw(
-        ID2D1DeviceContext* d2d_context,
-        D2D1_SIZE_F viewport_size,
-        IDWriteFactory* dwrite_factory,
-        IDWriteTextFormat* body_text_format,
-        IDWriteTextFormat* icon_text_format,
+        const UiDrawContext& context,
         UiRootState state) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;

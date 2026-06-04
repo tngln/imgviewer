@@ -163,12 +163,11 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
 
 void ImgViewerUiToolbar::Draw(
     const UiDrawContext& draw_context,
-    D2D1_SIZE_F viewport_size,
     UiRootState state,
     bool color_picker_active)
 {
     const UiDraw draw(draw_context);
-    Layout(viewport_size);
+    Layout(draw_context.viewport_size);
 
     const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
         toolbar_rect_,

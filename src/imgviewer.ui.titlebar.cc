@@ -117,15 +117,12 @@ ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root, UiElementIdGenerator& 
 
 void ImgViewerUiTitleBar::Draw(
     const UiDrawContext& draw_context,
-    D2D1_SIZE_F viewport_size,
-    IDWriteFactory* dwrite_factory,
-    IDWriteTextFormat* body_text_format,
     UiRootState state,
     bool top_most,
     bool maximized)
 {
     const UiDraw draw(draw_context);
-    Layout(viewport_size);
+    Layout(draw_context.viewport_size);
     Button(ButtonKey::MaximizeRestore)->SetIcon(maximized ? kRestoreIcon : kMaximizeIcon);
 
     draw.FillRect(
@@ -138,16 +135,16 @@ void ImgViewerUiTitleBar::Draw(
                 ui_theme::metrics::kWindowBorderInset,
                 ui_theme::metrics::kWindowBorderInset,
                 (std::max)(ui_theme::metrics::kWindowBorderMinimum,
-                    viewport_size.width - ui_theme::metrics::kWindowBorderInset),
+                    draw_context.viewport_size.width - ui_theme::metrics::kWindowBorderInset),
                 (std::max)(ui_theme::metrics::kWindowBorderMinimum,
-                    viewport_size.height - ui_theme::metrics::kWindowBorderInset)),
+                    draw_context.viewport_size.height - ui_theme::metrics::kWindowBorderInset)),
             ui_theme::color::kBorder,
             1.0f);
     }
 
     const std::wstring title_text = ui_text::TruncateText(
-        dwrite_factory,
-        body_text_format,
+        draw_context.dwrite_factory,
+        draw_context.body_text_format,
         title_text_.c_str(),
         static_cast<UINT32>(title_text_.size()),
         math::RectWidth(title_text_rect_));

@@ -148,19 +148,10 @@ void UiController::ApplyEventResult(const UiEventResult& result, UiElementId tar
     }
 }
 
-void UiController::Draw(
-    ID2D1DeviceContext* d2d_context,
-    D2D1_SIZE_F viewport_size,
-    IDWriteFactory* dwrite_factory,
-    IDWriteTextFormat* body_text_format,
-    IDWriteTextFormat* icon_text_format)
+void UiController::Draw(const UiDrawContext& context)
 {
     root_->Draw(
-        d2d_context,
-        viewport_size,
-        dwrite_factory,
-        body_text_format,
-        icon_text_format,
+        context,
         UiRootState{
             .hovered = hovered_id_,
             .pressed = pressed_id_,

@@ -24,12 +24,7 @@ public:
     UiElementId FocusedElement() const;
     UiElementId CapturedElement() const;
 
-    void Draw(
-        ID2D1DeviceContext* d2d_context,
-        D2D1_SIZE_F viewport_size,
-        IDWriteFactory* dwrite_factory,
-        IDWriteTextFormat* body_text_format,
-        IDWriteTextFormat* icon_text_format);
+    void Draw(const UiDrawContext& context);
     const wchar_t* AccessibilityRootName() const override;
     size_t ElementCount() const override;
     const UiElementMetadata* ElementMetadataAt(size_t index) const override;

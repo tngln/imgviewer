@@ -31,7 +31,7 @@ public:
 
     ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
 
-    void Draw(const UiDrawContext& draw_context, D2D1_SIZE_F viewport_size, UiRootState state, bool color_picker_active);
+    void Draw(const UiDrawContext& draw_context, UiRootState state, bool color_picker_active);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:

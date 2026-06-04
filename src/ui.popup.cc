@@ -202,11 +202,16 @@ void PopupHost::RenderNativePopup()
     if (FAILED(EnsureNativeRenderTarget())) {
         return;
     }
+    RECT rect = {};
+    GetClientRect(popup_hwnd_, &rect);
     const UiDrawContext draw_context{
         .d2d_context = native_render_target_.get(),
         .dwrite_factory = dwrite_factory_.get(),
         .body_text_format = body_text_format_,
         .icon_text_format = icon_text_format_,
+        .viewport_size = D2D1::SizeF(
+            static_cast<float>((std::max)(1L, rect.right - rect.left)),
+            static_cast<float>((std::max)(1L, rect.bottom - rect.top))),
     };
 
     native_render_target_->BeginDraw();

@@ -106,13 +106,15 @@ HRESULT UiRenderer::DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, 
     const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd_);
     const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
     const UiSurfaceDrawContext draw_context{
-        .d2d_context = d2d_context_.get(),
+        .draw = UiDrawContext{
+            .d2d_context = d2d_context_.get(),
+            .dwrite_factory = dwrite_factory_.get(),
+            .body_text_format = body_text_format_.get(),
+            .icon_text_format = icon_text_format_.get(),
+            .viewport_size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height()),
+        },
         .d2d_factory = d2d_factory_.get(),
-        .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = body_text_format_.get(),
-        .icon_text_format = icon_text_format_.get(),
         .viewport_pixel_size = ViewportPixelSize(),
-        .viewport_size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height()),
         .offset = offset_render,
         .root_transform = D2D1::Matrix3x2F::Translation(offset_render.x, offset_render.y),
     };
@@ -138,20 +140,10 @@ HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
             UiController* ui_controller = static_cast<UiController*>(user_data);
             RETURN_HR_IF_NULL(E_INVALIDARG, ui_controller);
 
-            const UiDraw draw(UiDrawContext{
-                .d2d_context = context.d2d_context,
-                .dwrite_factory = context.dwrite_factory,
-                .body_text_format = context.body_text_format,
-                .icon_text_format = context.icon_text_format,
-            });
+            const UiDraw draw(context.draw);
             draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
-            context.d2d_context->SetTransform(context.root_transform);
-            ui_controller->Draw(
-                context.d2d_context,
-                context.viewport_size,
-                context.dwrite_factory,
-                context.body_text_format,
-                context.icon_text_format);
+            context.draw.d2d_context->SetTransform(context.root_transform);
+            ui_controller->Draw(context.draw);
             return S_OK;
         },
         &ui);

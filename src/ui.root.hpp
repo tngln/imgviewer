@@ -3,6 +3,7 @@
 #include <d2d1_1.h>
 #include <dwrite.h>
 
+#include "ui.draw.hpp"
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
@@ -18,13 +19,7 @@ public:
     virtual UiElement* Root() = 0;
     virtual const UiElement* Root() const = 0;
     virtual const wchar_t* AccessibilityRootName() const = 0;
-    virtual void Draw(
-        ID2D1DeviceContext* d2d_context,
-        D2D1_SIZE_F viewport_size,
-        IDWriteFactory* dwrite_factory,
-        IDWriteTextFormat* body_text_format,
-        IDWriteTextFormat* icon_text_format,
-        UiRootState state) = 0;
+    virtual void Draw(const UiDrawContext& context, UiRootState state) = 0;
     virtual UiEventResult OnPointerEvent(const UiPointerEvent& event) = 0;
     virtual UiEventResult OnKeyEvent(const UiKeyEvent& event) = 0;
     virtual bool HandleUiAction(UiAction action) = 0;

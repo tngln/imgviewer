@@ -64,10 +64,8 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
             const auto* image = static_cast<const ImgViewerSnapshot*>(user_data);
             RETURN_HR_IF_NULL(E_INVALIDARG, image);
 
-            const UiDraw draw(UiDrawContext{
-                .d2d_context = context.d2d_context,
-                .dwrite_factory = context.dwrite_factory,
-            });
+            const UiDraw draw(context.draw);
+            auto* d2d_context = static_cast<ID2D1DeviceContext*>(context.draw.d2d_context);
             wil::com_ptr<ID2D1PathGeometry> icon_geometry;
             RETURN_IF_FAILED(CreatePathGeometryFromIcon(
                 context.d2d_factory,
@@ -76,9 +74,9 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
                 icon_geometry.put()));
 
             draw.Clear(ui_theme::color::kWindowBackground);
-            const float width = context.viewport_size.width;
-            const float height = context.viewport_size.height;
-            context.d2d_context->SetTransform(context.root_transform);
+            const float width = context.draw.viewport_size.width;
+            const float height = context.draw.viewport_size.height;
+            d2d_context->SetTransform(context.root_transform);
 
             if (image->bitmap != nullptr) {
                 const float image_width = static_cast<float>(image->pixel_size.width);
@@ -95,11 +93,11 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
                     viewport_center.y - image->view_center.y * image_scale + draw_height);
                 const float flip_x = image->flipped_horizontal ? -1.0f : 1.0f;
                 const float flip_y = image->flipped_vertical ? -1.0f : 1.0f;
-                context.d2d_context->SetTransform(
+                d2d_context->SetTransform(
                     D2D1::Matrix3x2F::Scale(flip_x, flip_y, viewport_center) *
                         D2D1::Matrix3x2F::Rotation(image->rotation_degrees, viewport_center) *
                         context.root_transform);
-                context.d2d_context->DrawBitmap(
+                d2d_context->DrawBitmap(
                     image->bitmap,
                     destination,
                     1.0f,
@@ -125,7 +123,7 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
                 D2D1::Matrix3x2F::Scale(scale, scale) *
                 D2D1::Matrix3x2F::Translation(left, top) *
                 context.root_transform;
-            context.d2d_context->SetTransform(transform);
+            d2d_context->SetTransform(transform);
             draw.DrawGeometry(
                 icon_geometry.get(),
                 ui_theme::color::kAccent,

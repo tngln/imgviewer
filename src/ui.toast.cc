@@ -30,12 +30,9 @@ D2D1_COLOR_F ToastBackgroundColor()
 
 } // namespace
 
-void UiToast::Draw(
-    const UiDrawContext& draw_context,
-    D2D1_SIZE_F viewport_size,
-    IDWriteFactory* dwrite_factory,
-    IDWriteTextFormat* body_text_format) const
+void UiToast::Draw(const UiDrawContext& draw_context) const
 {
+    const D2D1_SIZE_F viewport_size = draw_context.viewport_size;
     if (text_.empty() || viewport_size.width <= kToastViewportMargin * 2.0f) {
         return;
     }
@@ -44,14 +41,19 @@ void UiToast::Draw(
     const float max_width = (std::min)(kToastMaxWidth, viewport_size.width - kToastViewportMargin * 2.0f);
     const float max_text_width = (std::max)(1.0f, max_width - kToastPaddingX * 2.0f);
     const std::wstring display_text =
-        ui_text::TruncateText(dwrite_factory, body_text_format, text_.c_str(), text_length, max_text_width);
+        ui_text::TruncateText(
+            draw_context.dwrite_factory,
+            draw_context.body_text_format,
+            text_.c_str(),
+            text_length,
+            max_text_width);
     if (display_text.empty()) {
         return;
     }
 
     const ui_text::TextMetrics text_metrics = ui_text::MeasureText(
-        dwrite_factory,
-        body_text_format,
+        draw_context.dwrite_factory,
+        draw_context.body_text_format,
         display_text.c_str(),
         static_cast<UINT32>(display_text.size()));
     const float width = std::clamp(text_metrics.width + kToastPaddingX * 2.0f, kToastMinWidth, max_width);

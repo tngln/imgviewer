@@ -30,9 +30,6 @@ public:
 
     void Draw(
         const UiDrawContext& draw_context,
-        D2D1_SIZE_F viewport_size,
-        IDWriteFactory* dwrite_factory,
-        IDWriteTextFormat* body_text_format,
         UiRootState state,
         bool top_most,
         bool maximized);

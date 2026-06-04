@@ -760,6 +760,7 @@ void RenderSettings(HWND hwnd, SettingsWindowContext* context)
         .dwrite_factory = context->dwrite_factory.get(),
         .body_text_format = context->body_text_format.get(),
         .icon_text_format = context->icon_text_format.get(),
+        .viewport_size = size,
     };
 
     context->render_target->BeginDraw();
