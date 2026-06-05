@@ -15,6 +15,9 @@ public:
     explicit UiController(std::unique_ptr<UiRoot> root);
     ~UiController();
 
+    void ResetRoot(std::unique_ptr<UiRoot> root);
+    UiRoot* Root();
+    const UiRoot* Root() const;
     UiEventResult OnInputEvent(const UiInputEvent& event);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
     UiEventResult OnKeyEvent(const UiKeyEvent& event);
@@ -31,6 +34,13 @@ public:
     const UiElementMetadata* ElementMetadata(UiElementId id) const override;
     D2D1_RECT_F ElementRect(UiElementId id) const override;
     bool IsElementEnabled(UiElementId id) const override;
+    const wchar_t* ElementValue(UiElementId id) const override;
+    double ElementRangeValue(UiElementId id) const override;
+    double ElementRangeMinimum(UiElementId id) const override;
+    double ElementRangeMaximum(UiElementId id) const override;
+    double ElementRangeSmallChange(UiElementId id) const override;
+    double ElementRangeLargeChange(UiElementId id) const override;
+    HRESULT SetElementRangeValue(UiElementId id, double value) override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
     void ShowToast(const wchar_t* text);

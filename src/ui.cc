@@ -8,6 +8,25 @@ UiController::UiController(std::unique_ptr<UiRoot> root) : root_(std::move(root)
 
 UiController::~UiController() = default;
 
+void UiController::ResetRoot(std::unique_ptr<UiRoot> root)
+{
+    root_ = std::move(root);
+    hovered_id_ = UiElementId::None;
+    pressed_id_ = UiElementId::None;
+    focused_id_ = UiElementId::None;
+    captured_id_ = UiElementId::None;
+}
+
+UiRoot* UiController::Root()
+{
+    return root_.get();
+}
+
+const UiRoot* UiController::Root() const
+{
+    return root_.get();
+}
+
 UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
 {
     switch (event.type) {
@@ -18,15 +37,24 @@ UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
     case UiEventType::PointerWheel:
         return OnPointerEvent(event.pointer);
     case UiEventType::KeyDown:
-    case UiEventType::KeyUp:
-        return OnKeyEvent(event.key);
+    case UiEventType::KeyUp: {
+        UiKeyEvent key = event.key;
+        if (key.focused == UiElementId::None) {
+            key.focused = focused_id_;
+        }
+        return OnKeyEvent(key);
+    }
     case UiEventType::Cancel:
         return OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
     case UiEventType::OwnerDeactivated:
-        root_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE});
+        root_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
         return UiEventResult{.handled = true, .needs_render = true};
     default:
-        return {};
+        UiInputEvent root_event = event;
+        root_event.focused = focused_id_;
+        UiEventResult result = root_->OnInputEvent(root_event);
+        ApplyEventResult(result, result.focus_target != UiElementId::None ? result.focus_target : focused_id_);
+        return result;
     }
 }
 
@@ -51,6 +79,9 @@ UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
     }
     UiEventResult result = DispatchKeyEvent(event);
     ApplyEventResult(result, event.focused);
+    if (result.handled && event.focused != UiElementId::None) {
+        root_->ApplyElementEffect(event.focused);
+    }
     return result;
 }
 
@@ -94,14 +125,16 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     target_event.target = hit_id;
     target_event.captured = captured_id_;
 
-    UiEventResult result = root_->OnPointerEvent(target_event);
-    if (result.handled) {
-        result.needs_render = result.needs_render || was_hovered != hovered_id_;
-        return result;
+    UiEventResult root_result = root_->OnPointerEvent(target_event);
+    if (root_result.handled) {
+        root_result.needs_render = root_result.needs_render || was_hovered != hovered_id_;
+        return root_result;
     }
 
+    UiEventResult result = root_result;
     if (UiElement* target = root_->Root()->FindById(target_id)) {
         result = target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
+        result.needs_render = result.needs_render || root_result.needs_render;
     }
 
     if (!result.handled && target_id != UiElementId::None) {
@@ -111,6 +144,12 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
 
     if (event.type == UiEventType::PointerDown && result.capture == UiCaptureRequest::Capture) {
         result.focus_target = target_id;
+    }
+
+    if (event.type == UiEventType::PointerUp && target_id != UiElementId::None && hit_id == target_id) {
+        root_->ApplyElementEffect(target_id);
+    } else if (result.value_changed && target_id != UiElementId::None) {
+        root_->ApplyElementEffect(target_id);
     }
 
     return result;
@@ -155,6 +194,7 @@ void UiController::Draw(const UiDrawContext& context)
         UiRootState{
             .hovered = hovered_id_,
             .pressed = pressed_id_,
+            .focused = focused_id_,
         });
 }
 
@@ -165,8 +205,7 @@ const wchar_t* UiController::AccessibilityRootName() const
 
 UiElementId UiController::HitTest(D2D1_POINT_2F point) const
 {
-    const UiElement* hit_element = root_->Root()->HitTest(point);
-    return hit_element != nullptr ? hit_element->Id() : UiElementId::None;
+    return root_->HitTest(point);
 }
 
 const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
@@ -234,6 +273,41 @@ void UiController::SetActionEnabled(UiAction action, bool enabled)
 
     root_->SetActionEnabled(action, enabled);
     SetActionEnabledRecursive(root_->Root(), action, enabled);
+}
+
+const wchar_t* UiController::ElementValue(UiElementId id) const
+{
+    return root_->ElementValue(id);
+}
+
+double UiController::ElementRangeValue(UiElementId id) const
+{
+    return root_->ElementRangeValue(id);
+}
+
+double UiController::ElementRangeMinimum(UiElementId id) const
+{
+    return root_->ElementRangeMinimum(id);
+}
+
+double UiController::ElementRangeMaximum(UiElementId id) const
+{
+    return root_->ElementRangeMaximum(id);
+}
+
+double UiController::ElementRangeSmallChange(UiElementId id) const
+{
+    return root_->ElementRangeSmallChange(id);
+}
+
+double UiController::ElementRangeLargeChange(UiElementId id) const
+{
+    return root_->ElementRangeLargeChange(id);
+}
+
+HRESULT UiController::SetElementRangeValue(UiElementId id, double value)
+{
+    return root_->SetElementRangeValue(id, value);
 }
 
 void UiController::SetWindowState(bool top_most, bool maximized)

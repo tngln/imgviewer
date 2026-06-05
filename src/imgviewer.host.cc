@@ -10,6 +10,7 @@
 #include "math.hpp"
 #include "ui.a11y.hpp"
 #include "ui.tooltip.hpp"
+#include "win32.window.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
@@ -47,7 +48,7 @@ D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
 
 ImgViewerContext* GetImgViewerContext(HWND hwnd)
 {
-    return reinterpret_cast<ImgViewerContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    return static_cast<ImgViewerContext*>(win32::NativeWindow::UserData(hwnd));
 }
 
 bool IsKeyDown(int virtual_key)
@@ -581,20 +582,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     }
 }
 
-HRESULT RegisterMainWindowClass(HINSTANCE instance)
-{
-    WNDCLASSEXW window_class = {};
-    window_class.cbSize = sizeof(window_class);
-    window_class.lpfnWndProc = WindowProc;
-    window_class.hInstance = instance;
-    window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    window_class.lpszClassName = kWindowClassName;
-
-    const ATOM window_class_atom = RegisterClassExW(&window_class);
-    RETURN_LAST_ERROR_IF(window_class_atom == 0);
-
-    return S_OK;
-}
+class ImgViewerWindowDelegate final : public win32::NativeWindowDelegate {
+public:
+    win32::WindowMessageResult OnWindowMessage(
+        win32::NativeWindow& window,
+        UINT message,
+        WPARAM wparam,
+        LPARAM lparam) override
+    {
+        return win32::WindowMessageResult::Handled(WindowProc(window.Hwnd(), message, wparam, lparam));
+    }
+};
 
 HRESULT RunImgViewerApplicationAsHresult()
 {
@@ -612,35 +610,31 @@ HRESULT RunImgViewerApplicationAsHresult()
     HINSTANCE instance = GetModuleHandleW(nullptr);
     RETURN_LAST_ERROR_IF_NULL(instance);
 
-    RETURN_IF_FAILED(RegisterMainWindowClass(instance));
-
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
     context.current_window_opacity_percent = context.config.window_opacity_percent;
     const WindowSizeConfig initial_window_size =
         context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
-    wil::unique_hwnd window{CreateWindowExW(
-        0,
-        kWindowClassName,
-        kImgViewerWindowTitle,
-        ImgViewerWindowStyle(context.config.borderless_window),
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        initial_window_size.width,
-        initial_window_size.height,
-        nullptr,
-        nullptr,
-        instance,
-        &context)};
-    RETURN_LAST_ERROR_IF_NULL(window.get());
-    DragAcceptFiles(window.get(), TRUE);
-    util::DisableIme(window.get());
-    RETURN_IF_FAILED(ApplyImgViewerWindowFrame(window.get(), &context, false));
+    ImgViewerWindowDelegate window_delegate;
+    win32::NativeWindow window;
+    RETURN_IF_FAILED(window.Create(
+        win32::NativeWindowOptions{
+            .instance = instance,
+            .class_name = kWindowClassName,
+            .title = kImgViewerWindowTitle,
+            .style = ImgViewerWindowStyle(context.config.borderless_window),
+            .width = initial_window_size.width,
+            .height = initial_window_size.height,
+            .user_data = &context,
+        },
+        &window_delegate));
+    DragAcceptFiles(window.Hwnd(), TRUE);
+    util::DisableIme(window.Hwnd());
+    RETURN_IF_FAILED(ApplyImgViewerWindowFrame(window.Hwnd(), &context, false));
 
-    ShowWindow(window.get(), SW_SHOWDEFAULT);
-    RETURN_IF_WIN32_BOOL_FALSE(UpdateWindow(window.get()));
+    window.Show(SW_SHOWDEFAULT);
     HWND tooltip = context.tooltip.get();
-    RETURN_IF_FAILED(InitializeUiTooltips(window.get(), &tooltip, context.ui));
+    RETURN_IF_FAILED(InitializeUiTooltips(window.Hwnd(), &tooltip, context.ui));
     if (context.tooltip.get() != tooltip) {
         context.tooltip.reset(tooltip);
     }
@@ -650,7 +644,7 @@ HRESULT RunImgViewerApplicationAsHresult()
     RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
     auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
     if (argc > 1) {
-        LoadImgViewerImageFile(window.get(), &context, argv[1]);
+        LoadImgViewerImageFile(window.Hwnd(), &context, argv[1]);
     }
 
     MSG message = {};

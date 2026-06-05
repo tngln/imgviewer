@@ -10,6 +10,7 @@
 struct UiRootState final {
     UiElementId hovered = UiElementId::None;
     UiElementId pressed = UiElementId::None;
+    UiElementId focused = UiElementId::None;
 };
 
 class UiRoot {
@@ -20,14 +21,28 @@ public:
     virtual const UiElement* Root() const = 0;
     virtual const wchar_t* AccessibilityRootName() const = 0;
     virtual void Draw(const UiDrawContext& context, UiRootState state) = 0;
-    virtual UiEventResult OnPointerEvent(const UiPointerEvent& event) = 0;
-    virtual UiEventResult OnKeyEvent(const UiKeyEvent& event) = 0;
-    virtual bool HandleUiAction(UiAction action) = 0;
-    virtual bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const = 0;
-    virtual void SetTitleText(const wchar_t* title) = 0;
-    virtual void ShowToast(const wchar_t* text) = 0;
-    virtual bool HideToast() = 0;
-    virtual void SetWindowState(bool top_most, bool maximized) = 0;
-    virtual void SetColorPickerActive(bool active) = 0;
-    virtual void SetActionEnabled(UiAction action, bool enabled) = 0;
+    virtual UiEventResult OnInputEvent(const UiInputEvent&) { return {}; }
+    virtual UiEventResult OnPointerEvent(const UiPointerEvent&) { return {}; }
+    virtual UiEventResult OnKeyEvent(const UiKeyEvent&) { return {}; }
+    virtual bool HandleUiAction(UiAction) { return false; }
+    virtual void ApplyElementEffect(UiElementId) {}
+    virtual UiElementId HitTest(D2D1_POINT_2F point) const
+    {
+        const UiElement* element = Root()->HitTest(point);
+        return element != nullptr ? element->Id() : UiElementId::None;
+    }
+    virtual bool IsPointInCaptionDragArea(D2D1_POINT_2F) const { return false; }
+    virtual void SetTitleText(const wchar_t*) {}
+    virtual void ShowToast(const wchar_t*) {}
+    virtual bool HideToast() { return false; }
+    virtual void SetWindowState(bool, bool) {}
+    virtual void SetColorPickerActive(bool) {}
+    virtual void SetActionEnabled(UiAction, bool) {}
+    virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
+    virtual double ElementRangeValue(UiElementId) const { return 0.0; }
+    virtual double ElementRangeMinimum(UiElementId) const { return 0.0; }
+    virtual double ElementRangeMaximum(UiElementId) const { return 0.0; }
+    virtual double ElementRangeSmallChange(UiElementId) const { return 1.0; }
+    virtual double ElementRangeLargeChange(UiElementId) const { return 10.0; }
+    virtual HRESULT SetElementRangeValue(UiElementId, double) { return E_NOTIMPL; }
 };

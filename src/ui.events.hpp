@@ -65,6 +65,7 @@ struct UiInputEvent final {
     UiEventType type = UiEventType::PointerMove;
     UiPointerEvent pointer;
     UiKeyEvent key;
+    UiElementId focused = UiElementId::None;
     wchar_t character = L'\0';
     std::wstring text;
     D2D1_POINT_2F point = {};
