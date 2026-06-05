@@ -142,6 +142,32 @@ void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
     }
 }
 
+void ShowWindowSizeToast(HWND hwnd, ImgViewerContext* context)
+{
+    if (context == nullptr || IsIconic(hwnd)) {
+        return;
+    }
+
+    RECT window_rect = {};
+    if (!GetWindowRect(hwnd, &window_rect)) {
+        return;
+    }
+
+    const int width = static_cast<int>(window_rect.right - window_rect.left);
+    const int height = static_cast<int>(window_rect.bottom - window_rect.top);
+    if (width <= 0 || height <= 0 ||
+        (width == context->last_window_size_toast_width && height == context->last_window_size_toast_height)) {
+        return;
+    }
+
+    context->last_window_size_toast_width = width;
+    context->last_window_size_toast_height = height;
+
+    wchar_t toast_text[64] = {};
+    swprintf_s(toast_text, L"Window %dx%d", width, height);
+    ShowImgViewerToast(hwnd, context, toast_text);
+}
+
 LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
 {
     POINT screen_point{
@@ -258,6 +284,24 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 0;
     }
 
+    case WM_ENTERSIZEMOVE: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr) {
+            context->interactive_size_move_active = true;
+            context->last_window_size_toast_width = 0;
+            context->last_window_size_toast_height = 0;
+        }
+        return 0;
+    }
+
+    case WM_EXITSIZEMOVE: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr) {
+            context->interactive_size_move_active = false;
+        }
+        return 0;
+    }
+
     case WM_SIZE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context != nullptr && FAILED(context->renderer.Resize())) {
@@ -269,6 +313,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 return -1;
             }
             UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
+            if (context->interactive_size_move_active) {
+                ShowWindowSizeToast(hwnd, context);
+            }
         }
 
         return 0;

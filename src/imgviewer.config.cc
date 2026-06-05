@@ -14,7 +14,7 @@ constexpr int kDefaultWindowWidth = 960;
 constexpr int kDefaultWindowHeight = 640;
 constexpr int kMinimumWindowWidth = 320;
 constexpr int kMinimumWindowHeight = 240;
-constexpr int kMinimumWindowOpacityPercent = 5;
+constexpr int kMinimumWindowOpacityPercent = 10;
 constexpr int kMaximumWindowOpacityPercent = 100;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.jsonc";
 

@@ -32,6 +32,9 @@ struct ImgViewerContext final {
     wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
     bool color_picker_active = false;
+    bool interactive_size_move_active = false;
+    int last_window_size_toast_width = 0;
+    int last_window_size_toast_height = 0;
 };
 
 HRESULT RenderImgViewer(ImgViewerContext* context);

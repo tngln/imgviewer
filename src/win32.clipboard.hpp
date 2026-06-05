@@ -14,6 +14,9 @@ struct ClipboardContent final {
     wil::com_ptr<IWICBitmapSource> bitmap_source;
 };
 
+bool IsClipboardTextAvailable();
+bool CopyTextToClipboard(HWND hwnd, const wchar_t* text);
+bool ReadClipboardText(HWND hwnd, std::wstring* text);
 HRESULT ReadClipboardContent(HWND hwnd, IWICImagingFactory2* wic_factory, ClipboardContent* content);
 
 } // namespace win32

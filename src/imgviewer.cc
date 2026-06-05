@@ -21,7 +21,6 @@ namespace {
 constexpr UINT kToastDurationMs = 2000;
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
-bool CopyTextToClipboard(HWND hwnd, const wchar_t* text);
 void SetColorPickerActive(ImgViewerContext* context, bool active);
 
 } // namespace
@@ -325,7 +324,7 @@ bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2
 
     wchar_t hex_text[8] = {};
     swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
-    CopyTextToClipboard(hwnd, hex_text);
+    win32::CopyTextToClipboard(hwnd, hex_text);
     SetColorPickerActive(context, false);
     const std::wstring toast_text = std::wstring(L"Copied ") + hex_text;
     ShowImgViewerToast(hwnd, context, toast_text.c_str());
@@ -480,37 +479,6 @@ bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction)
     }
 
     LoadImgViewerImageFile(hwnd, context, path->c_str());
-    return true;
-}
-
-bool CopyTextToClipboard(HWND hwnd, const wchar_t* text)
-{
-    if (text == nullptr || !OpenClipboard(hwnd)) {
-        return false;
-    }
-
-    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
-    EmptyClipboard();
-
-    const size_t byte_count = (wcslen(text) + 1) * sizeof(wchar_t);
-    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, byte_count);
-    if (memory == nullptr) {
-        return false;
-    }
-
-    wchar_t* clipboard_text = static_cast<wchar_t*>(GlobalLock(memory));
-    if (clipboard_text == nullptr) {
-        GlobalFree(memory);
-        return false;
-    }
-
-    memcpy(clipboard_text, text, byte_count);
-    GlobalUnlock(memory);
-    if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
-        GlobalFree(memory);
-        return false;
-    }
-
     return true;
 }
 

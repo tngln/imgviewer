@@ -302,6 +302,64 @@ HRESULT ReadClipboardBitmap(IWICImagingFactory2* wic_factory, IWICBitmapSource**
 
 } // namespace
 
+bool IsClipboardTextAvailable()
+{
+    return IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE;
+}
+
+bool CopyTextToClipboard(HWND hwnd, const wchar_t* text)
+{
+    if (text == nullptr || !OpenClipboard(hwnd)) {
+        return false;
+    }
+
+    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
+    EmptyClipboard();
+
+    const size_t byte_count = (wcslen(text) + 1) * sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, byte_count);
+    if (memory == nullptr) {
+        return false;
+    }
+
+    wchar_t* clipboard_text = static_cast<wchar_t*>(GlobalLock(memory));
+    if (clipboard_text == nullptr) {
+        GlobalFree(memory);
+        return false;
+    }
+
+    memcpy(clipboard_text, text, byte_count);
+    GlobalUnlock(memory);
+    if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
+        GlobalFree(memory);
+        return false;
+    }
+
+    return true;
+}
+
+bool ReadClipboardText(HWND hwnd, std::wstring* text)
+{
+    if (text == nullptr || !IsClipboardTextAvailable() || !OpenClipboard(hwnd)) {
+        return false;
+    }
+
+    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
+    HGLOBAL memory = GetClipboardData(CF_UNICODETEXT);
+    if (memory == nullptr) {
+        return false;
+    }
+
+    const wchar_t* source = static_cast<const wchar_t*>(GlobalLock(memory));
+    if (source == nullptr) {
+        return false;
+    }
+    auto unlock = wil::scope_exit([memory] { GlobalUnlock(memory); });
+
+    *text = source;
+    return true;
+}
+
 HRESULT ReadClipboardContent(HWND hwnd, IWICImagingFactory2* wic_factory, ClipboardContent* content)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, content);

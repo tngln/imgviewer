@@ -1,16 +1,15 @@
 #include "ui.textbox.hpp"
 
 #include <algorithm>
-#include <cstring>
 #include <cwchar>
 #include <utility>
 #include <vector>
 
 #include <d2d1helper.h>
-#include <wil/resource.h>
 
 #include "math.hpp"
 #include "ui.theme.hpp"
+#include "win32.clipboard.hpp"
 
 namespace {
 
@@ -67,7 +66,7 @@ D2D1_POINT_2F TextBox::CaretPoint() const
 std::vector<MenuItem> TextBox::ContextMenuItems() const
 {
     const bool has_selection = HasSelection();
-    const bool can_paste = IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE;
+    const bool can_paste = win32::IsClipboardTextAvailable();
     return std::vector<MenuItem>{
         {L"Copy", kUiActionTextCopy, false, false, has_selection},
         {L"Cut", kUiActionTextCut, false, false, has_selection},
@@ -409,45 +408,15 @@ std::wstring TextBox::SelectedText() const
 bool TextBox::CopySelection(HWND hwnd) const
 {
     const std::wstring selected = SelectedText();
-    if (selected.empty() || !OpenClipboard(hwnd)) {
-        return false;
-    }
-    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
-    EmptyClipboard();
-    const size_t bytes = (selected.size() + 1) * sizeof(wchar_t);
-    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
-    if (memory == nullptr) {
-        return false;
-    }
-    void* target = GlobalLock(memory);
-    if (target == nullptr) {
-        GlobalFree(memory);
-        return false;
-    }
-    memcpy(target, selected.c_str(), bytes);
-    GlobalUnlock(memory);
-    if (SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
-        GlobalFree(memory);
-        return false;
-    }
-    return true;
+    return !selected.empty() && win32::CopyTextToClipboard(hwnd, selected.c_str());
 }
 
 bool TextBox::PasteClipboard(HWND hwnd)
 {
-    if (!IsClipboardFormatAvailable(CF_UNICODETEXT) || !OpenClipboard(hwnd)) {
+    std::wstring text;
+    if (!win32::ReadClipboardText(hwnd, &text)) {
         return false;
     }
-    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
-    HGLOBAL memory = GetClipboardData(CF_UNICODETEXT);
-    if (memory == nullptr) {
-        return false;
-    }
-    const wchar_t* source = static_cast<const wchar_t*>(GlobalLock(memory));
-    if (source == nullptr) {
-        return false;
-    }
-    InsertText(source);
-    GlobalUnlock(memory);
+    InsertText(text);
     return true;
 }
