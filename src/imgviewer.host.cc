@@ -255,6 +255,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 0;
     }
 
+    case kImgViewerSettingsDestroyedMessage: {
+        CleanupImgViewerSettingsWindow(
+            GetImgViewerContext(hwnd),
+            reinterpret_cast<void*>(lparam));
+        return 0;
+    }
+
     case WM_NCCALCSIZE:
         return CalculateClientArea(hwnd, wparam, lparam);
 

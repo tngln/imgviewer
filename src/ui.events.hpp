@@ -51,6 +51,7 @@ struct UiPointerEvent final {
     UiModifiers modifiers;
     UiElementId target = UiElementId::None;
     UiElementId captured = UiElementId::None;
+    PopupHost* popup_host = nullptr;
 };
 
 struct UiKeyEvent final {
@@ -59,6 +60,7 @@ struct UiKeyEvent final {
     UiModifiers modifiers;
     bool repeat = false;
     UiElementId focused = UiElementId::None;
+    PopupHost* popup_host = nullptr;
 };
 
 struct UiInputEvent final {
@@ -96,4 +98,6 @@ struct UiEventResult final {
     UiAction action = kUiActionNone;
     bool wants_ime_position = false;
     bool value_changed = false;
+    bool close_popup = false;
+    UiElementId effect_target = UiElementId::None;
 };

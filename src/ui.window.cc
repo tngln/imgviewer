@@ -47,6 +47,9 @@ HRESULT UiWindowHost::Create(UiWindowOptions options, std::unique_ptr<UiRoot> ro
 
 void UiWindowHost::ResetRoot(std::unique_ptr<UiRoot> root)
 {
+    if (options_.enable_popup) {
+        popup_.Close();
+    }
     ui_.ResetRoot(std::move(root));
     if (accessibility_provider_ != nullptr && window_.Hwnd() != nullptr && options_.enable_accessibility) {
         accessibility_provider_.reset();
@@ -113,6 +116,11 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     LPARAM lparam)
 {
     if (message == options_.action_message) {
+        const UiElementId effect_target = static_cast<UiElementId>(static_cast<int>(lparam));
+        if (effect_target != UiElementId::None && ui_.Root() != nullptr) {
+            ui_.Root()->ApplyElementEffect(effect_target);
+            Invalidate();
+        }
         ExecuteAction(UiAction(static_cast<int>(wparam)));
         return win32::WindowMessageResult::Handled();
     }
@@ -157,15 +165,31 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         const D2D1_POINT_2F point =
             D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
         if (options_.enable_popup && popup_.IsOpen()) {
-            UiPointerEvent pointer{.type = UiEventType::PointerMove, .point = point, .modifiers = CurrentModifiers()};
+            UiPointerEvent pointer{
+                .type = UiEventType::PointerMove,
+                .point = point,
+                .modifiers = CurrentModifiers(),
+                .popup_host = &popup_,
+            };
             UiEventResult result = popup_.OnInputEvent(
-                UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()});
+                UiInputEvent{
+                    .type = pointer.type,
+                    .pointer = pointer,
+                    .point = point,
+                    .hwnd = window_.Hwnd(),
+                    .popup_host = &popup_,
+                });
             HandleUiResult(result);
             if (result.handled) {
                 return win32::WindowMessageResult::Handled();
             }
         }
-        UiPointerEvent pointer{.type = UiEventType::PointerMove, .point = point, .modifiers = CurrentModifiers()};
+        UiPointerEvent pointer{
+            .type = UiEventType::PointerMove,
+            .point = point,
+            .modifiers = CurrentModifiers(),
+            .popup_host = options_.enable_popup ? &popup_ : nullptr,
+        };
         HandleUiResult(ui_.OnInputEvent(
             UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()}));
         PositionIme();
@@ -187,10 +211,17 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .point = point,
             .button = UiPointerButton::Left,
             .modifiers = CurrentModifiers(),
+            .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
         if (options_.enable_popup && popup_.IsOpen()) {
             UiEventResult popup_result = popup_.OnInputEvent(
-                UiInputEvent{.type = type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()});
+                UiInputEvent{
+                    .type = type,
+                    .pointer = pointer,
+                    .point = point,
+                    .hwnd = window_.Hwnd(),
+                    .popup_host = &popup_,
+                });
             HandleUiResult(popup_result);
             if (popup_result.handled) {
                 SyncCaretTimer();
@@ -209,10 +240,16 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .type = UiEventType::KeyDown,
             .virtual_key = static_cast<UINT>(wparam),
             .modifiers = CurrentModifiers(),
+            .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
         if (options_.enable_popup && popup_.IsOpen()) {
             UiEventResult popup_result =
-                popup_.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = window_.Hwnd()});
+                popup_.OnInputEvent(UiInputEvent{
+                    .type = key.type,
+                    .key = key,
+                    .hwnd = window_.Hwnd(),
+                    .popup_host = &popup_,
+                });
             HandleUiResult(popup_result);
             if (popup_result.handled) {
                 return win32::WindowMessageResult::Handled();
@@ -406,6 +443,13 @@ void UiWindowHost::HandleUiResult(UiEventResult result)
     }
     if (result.value_changed) {
         delegate_->OnUiValueChanged(*this, result);
+    }
+    if (result.effect_target != UiElementId::None && ui_.Root() != nullptr) {
+        ui_.Root()->ApplyElementEffect(result.effect_target);
+        Invalidate();
+    }
+    if (result.close_popup && options_.enable_popup) {
+        popup_.Close();
     }
     ExecuteAction(result.action);
 }

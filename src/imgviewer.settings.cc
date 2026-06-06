@@ -322,8 +322,6 @@ public:
             return event.focused == filter_box_->Id() ? filter_box_->OnInputEvent(event) : UiEventResult{};
         case UiEventType::ImeEndComposition:
             return event.focused == filter_box_->Id() ? filter_box_->OnInputEvent(event) : UiEventResult{};
-        case UiEventType::ContextMenu:
-            return OnContextMenu(event.point, event.hwnd, event.popup_host);
         case UiEventType::Timer:
             if (event.focused == filter_box_->Id()) {
                 return filter_box_->OnInputEvent(event);
@@ -366,18 +364,6 @@ public:
         return result;
     }
 
-    UiEventResult OnContextMenu(D2D1_POINT_2F point, HWND hwnd, PopupHost* popup_host)
-    {
-        if (filter_box_->Contains(point)) {
-            SetFocus(hwnd);
-            if (popup_host != nullptr) {
-                popup_host->OpenMenu(point, filter_box_->ContextMenuItems());
-            }
-            return UiEventResult{.handled = true, .needs_render = true, .focus = UiFocusRequest::FocusTarget, .focus_target = filter_box_->Id()};
-        }
-        return {};
-    }
-
     UiEventResult ExecuteTextAction(UiAction action, HWND hwnd)
     {
         UiEventResult result = filter_box_->ExecuteEditAction(action, hwnd);
@@ -403,32 +389,6 @@ private:
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override
-    {
-        if (event.type == UiEventType::PointerDown && action_dropdown_->IsExpanded() && !DropdownHitTest(event.point)) {
-            action_dropdown_->Collapse();
-            return UiEventResult{.needs_render = true};
-        }
-        return {};
-    }
-
-    UiElementId HitTest(D2D1_POINT_2F point) const override
-    {
-        if (DropdownHitTest(point)) {
-            return action_dropdown_->Id();
-        }
-        return UiRoot::HitTest(point);
-    }
-
-    bool DropdownHitTest(D2D1_POINT_2F point) const
-    {
-        if (!action_dropdown_->IsExpanded()) {
-            return false;
-        }
-        const D2D1_RECT_F rect = action_dropdown_->Rect();
-        return point.x >= rect.left && point.x < rect.right && point.y >= rect.top && point.y < rect.bottom + 32.0f * static_cast<float>(kShownActions.size());
     }
 
     void ApplyElementEffect(UiElementId id) override
@@ -588,8 +548,8 @@ struct SettingsWindowContext final : public UiWindowDelegate {
                 ApplyWindowOpacity(owner, original_opacity_percent);
             }
             app->settings_window = nullptr;
+            PostMessageW(owner, kImgViewerSettingsDestroyedMessage, 0, reinterpret_cast<LPARAM>(this));
         }
-        delete this;
     }
 
     bool OnUiAction(UiWindowHost& window_host, UiAction action) override;
@@ -731,6 +691,7 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
     RETURN_IF_NULL_ALLOC(settings_context);
     settings_context->owner = owner;
     settings_context->app = context;
+    context->settings_context = settings_context;
 
     auto root = std::make_unique<SettingsUi>(std::move(draft));
     settings_context->ui = root.get();
@@ -753,10 +714,19 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
         std::move(root),
         settings_context);
     if (FAILED(create_hr)) {
+        context->settings_context = nullptr;
         delete settings_context;
         RETURN_IF_FAILED(create_hr);
     }
 
     settings_context->host.Window().Show(SW_SHOWNORMAL);
     return S_OK;
+}
+
+void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_context)
+{
+    if (context != nullptr && context->settings_context == settings_context) {
+        context->settings_context = nullptr;
+    }
+    delete static_cast<SettingsWindowContext*>(settings_context);
 }

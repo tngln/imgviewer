@@ -8,6 +8,7 @@
 #include <d2d1helper.h>
 
 #include "math.hpp"
+#include "ui.popup.hpp"
 #include "ui.theme.hpp"
 #include "win32.clipboard.hpp"
 
@@ -163,6 +164,17 @@ UiEventResult TextBox::OnInputEvent(const UiInputEvent& event)
         return UpdateImeComposition(event.text);
     case UiEventType::ImeEndComposition:
         return EndImeComposition();
+    case UiEventType::ContextMenu:
+        if (event.popup_host != nullptr) {
+            SetFocus(event.hwnd);
+            event.popup_host->OpenMenu(event.point, ContextMenuItems());
+        }
+        return UiEventResult{
+            .handled = true,
+            .needs_render = true,
+            .focus = UiFocusRequest::FocusTarget,
+            .focus_target = Id(),
+        };
     case UiEventType::Timer:
         caret_visible_ = !caret_visible_;
         return UiEventResult{.handled = true, .needs_render = true};

@@ -1,6 +1,9 @@
 #include "ui.popup.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <memory>
+#include <utility>
 
 #include <d2d1helper.h>
 #include <windowsx.h>
@@ -13,6 +16,7 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
 namespace {
 
 constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
+constexpr float kMenuCornerRadius = 6.0f;
 
 PopupHost* GetPopupHost(HWND hwnd)
 {
@@ -41,6 +45,41 @@ POINT ClientToScreenPoint(HWND hwnd, D2D1_POINT_2F point)
     return screen_point;
 }
 
+class MenuPopupContent final : public UiPopupContent {
+public:
+    explicit MenuPopupContent(std::vector<MenuItem> items)
+    {
+        menu_.Open(D2D1::Point2F(0.0f, 0.0f), std::move(items));
+    }
+
+    D2D1_SIZE_F DesiredSize() const override
+    {
+        return menu_.DesiredSize();
+    }
+
+    float CornerRadius() const override
+    {
+        return kMenuCornerRadius;
+    }
+
+    void Draw(const UiDrawContext& context) const override
+    {
+        menu_.Draw(context, UiElementState{});
+    }
+
+    UiEventResult OnInputEvent(const UiInputEvent& event) override
+    {
+        UiEventResult result = menu_.OnInputEvent(event);
+        if (result.action != kUiActionNone || !menu_.IsOpen()) {
+            result.close_popup = true;
+        }
+        return result;
+    }
+
+private:
+    MenuOverlay menu_;
+};
+
 } // namespace
 
 HRESULT PopupHost::Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory)
@@ -65,12 +104,15 @@ void PopupHost::SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextF
 
 bool PopupHost::IsOpen() const
 {
-    return native_open_ || menu_.IsOpen();
+    return native_open_;
 }
 
 void PopupHost::Close()
 {
-    menu_.Close();
+    if (content_ != nullptr) {
+        content_->OnClosed();
+        content_.reset();
+    }
     native_open_ = false;
     native_render_target_.reset();
     if (popup_hwnd_ != nullptr) {
@@ -79,38 +121,52 @@ void PopupHost::Close()
     }
 }
 
-HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
+HRESULT PopupHost::Open(D2D1_POINT_2F origin, std::unique_ptr<UiPopupContent> content)
 {
+    RETURN_HR_IF_NULL(E_INVALIDARG, content);
     Close();
 
-    MenuOverlay menu;
-    menu.Open(origin, std::move(items));
-    if (ShouldUseNativeWindow(menu.Bounds())) {
-        return OpenNativePopup(menu);
-    }
+    const D2D1_SIZE_F size = content->DesiredSize();
+    content_ = std::move(content);
+    return OpenNativePopup(origin, size);
+}
 
-    menu_ = std::move(menu);
-    return S_OK;
+HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
+{
+    return Open(origin, std::make_unique<MenuPopupContent>(std::move(items)));
 }
 
 void PopupHost::Draw(const UiDrawContext& context) const
 {
-    if (!native_open_) {
-        menu_.Draw(context, UiElementState{});
-    }
+    UNREFERENCED_PARAMETER(context);
 }
 
 UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
 {
-    if (native_open_) {
-        if (event.type == UiEventType::Cancel || event.type == UiEventType::OwnerDeactivated ||
-            (event.type == UiEventType::KeyDown && event.key.virtual_key == VK_ESCAPE)) {
-            Close();
-            return UiEventResult{.handled = true, .needs_render = true};
-        }
+    if (!native_open_) {
         return {};
     }
-    return menu_.OnInputEvent(event);
+
+    if (event.type == UiEventType::Cancel || event.type == UiEventType::OwnerDeactivated ||
+        (event.type == UiEventType::KeyDown && event.key.virtual_key == VK_ESCAPE)) {
+        Close();
+        return UiEventResult{.handled = true, .needs_render = true};
+    }
+
+    if (event.type == UiEventType::PointerDown && event.hwnd == owner_) {
+        Close();
+        return UiEventResult{.needs_render = true};
+    }
+
+    if (content_ != nullptr) {
+        UiEventResult result = content_->OnInputEvent(event);
+        if (result.needs_render && popup_hwnd_ != nullptr) {
+            InvalidateRect(popup_hwnd_, nullptr, FALSE);
+        }
+        return result;
+    }
+
+    return {};
 }
 
 UiEventResult PopupHost::OnPointerEvent(const UiPointerEvent& event)
@@ -123,53 +179,52 @@ UiEventResult PopupHost::OnKeyEvent(const UiKeyEvent& event)
     return OnInputEvent(UiInputEvent{.type = event.type, .key = event});
 }
 
-bool PopupHost::Contains(D2D1_POINT_2F point) const
+bool PopupHost::Contains(D2D1_POINT_2F) const
 {
-    return !native_open_ && menu_.Contains(point);
+    return false;
 }
 
-bool PopupHost::ShouldUseNativeWindow(D2D1_RECT_F bounds) const
+HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
 {
-    RECT client = {};
-    if (!GetClientRect(owner_, &client)) {
-        return true;
-    }
-    return bounds.left < 0.0f || bounds.top < 0.0f ||
-        bounds.right > static_cast<float>(client.right - client.left) ||
-        bounds.bottom > static_cast<float>(client.bottom - client.top);
-}
-
-HRESULT PopupHost::OpenNativePopup(const MenuOverlay& menu)
-{
-    const D2D1_SIZE_F size = menu.DesiredSize();
-    POINT screen_origin = ClientToScreenPoint(owner_, menu.Origin());
+    POINT screen_origin = ClientToScreenPoint(owner_, origin);
+    const int width = static_cast<int>(std::ceil(size.width));
+    const int height = static_cast<int>(std::ceil(size.height));
 
     RECT work_area = {};
     HMONITOR monitor = MonitorFromPoint(screen_origin, MONITOR_DEFAULTTONEAREST);
     MONITORINFO monitor_info = {.cbSize = sizeof(monitor_info)};
     if (GetMonitorInfoW(monitor, &monitor_info)) {
         work_area = monitor_info.rcWork;
-        screen_origin.x = (std::min)(screen_origin.x, work_area.right - static_cast<LONG>(size.width));
-        screen_origin.y = (std::min)(screen_origin.y, work_area.bottom - static_cast<LONG>(size.height));
+        screen_origin.x = (std::min)(screen_origin.x, work_area.right - width);
+        screen_origin.y = (std::min)(screen_origin.y, work_area.bottom - height);
         screen_origin.x = (std::max)(screen_origin.x, work_area.left);
         screen_origin.y = (std::max)(screen_origin.y, work_area.top);
     }
 
-    menu_.Open(D2D1::Point2F(0.0f, 0.0f), menu.Items());
     popup_hwnd_ = CreateWindowExW(
-        WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+        WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
         kPopupWindowClassName,
         L"",
         WS_POPUP,
         screen_origin.x,
         screen_origin.y,
-        static_cast<int>(size.width),
-        static_cast<int>(size.height),
+        width,
+        height,
         owner_,
         nullptr,
         reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(owner_, GWLP_HINSTANCE)),
         this);
     RETURN_LAST_ERROR_IF_NULL(popup_hwnd_);
+
+    if (content_ != nullptr && content_->CornerRadius() > 0.0f) {
+        const int diameter = static_cast<int>(std::ceil(content_->CornerRadius() * 2.0f));
+        HRGN region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+        RETURN_LAST_ERROR_IF_NULL(region);
+        if (SetWindowRgn(popup_hwnd_, region, FALSE) == 0) {
+            DeleteObject(region);
+            RETURN_LAST_ERROR();
+        }
+    }
 
     native_open_ = true;
     ShowWindow(popup_hwnd_, SW_SHOWNOACTIVATE);
@@ -187,7 +242,11 @@ HRESULT PopupHost::EnsureNativeRenderTarget()
     RECT rect = {};
     RETURN_IF_WIN32_BOOL_FALSE(GetClientRect(popup_hwnd_, &rect));
     RETURN_IF_FAILED(d2d_factory_->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(),
+        D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            D2D1::PixelFormat(),
+            96.0f,
+            96.0f),
         D2D1::HwndRenderTargetProperties(
             popup_hwnd_,
             D2D1::SizeU(
@@ -217,17 +276,38 @@ void PopupHost::RenderNativePopup()
     native_render_target_->BeginDraw();
     native_render_target_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
 
-    menu_.Draw(draw_context, UiElementState{});
+    if (content_ != nullptr) {
+        content_->Draw(draw_context);
+    }
 
     if (native_render_target_->EndDraw() == D2DERR_RECREATE_TARGET) {
         native_render_target_.reset();
     }
 }
 
-void PopupHost::ForwardAction(UiAction action)
+void PopupHost::HandlePopupResult(UiEventResult result)
+{
+    if (result.needs_render && popup_hwnd_ != nullptr) {
+        InvalidateRect(popup_hwnd_, nullptr, FALSE);
+    }
+    if (result.action != kUiActionNone) {
+        ForwardAction(result.action, result.effect_target);
+    } else if (result.effect_target != UiElementId::None) {
+        PostMessageW(owner_, action_message_, 0, static_cast<LPARAM>(UiElementIdValue(result.effect_target)));
+    }
+    if (result.close_popup) {
+        Close();
+    }
+}
+
+void PopupHost::ForwardAction(UiAction action, UiElementId effect_target)
 {
     if (action != kUiActionNone) {
-        PostMessageW(owner_, action_message_, static_cast<WPARAM>(UiActionValue(action)), 0);
+        PostMessageW(
+            owner_,
+            action_message_,
+            static_cast<WPARAM>(UiActionValue(action)),
+            static_cast<LPARAM>(UiElementIdValue(effect_target)));
     }
 }
 
@@ -250,6 +330,8 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
     }
     case WM_ERASEBKGND:
         return 1;
+    case WM_MOUSEACTIVATE:
+        return MA_NOACTIVATE;
     case WM_MOUSEMOVE:
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP: {
@@ -264,15 +346,19 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
             .type = type,
             .point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam))),
             .button = message == WM_MOUSEMOVE ? UiPointerButton::None : UiPointerButton::Left,
+            .popup_host = host,
         };
-        UiEventResult result = host->menu_.OnInputEvent(UiInputEvent{.type = type, .pointer = pointer, .point = pointer.point});
-        if (result.needs_render) {
-            InvalidateRect(hwnd, nullptr, FALSE);
+        UiEventResult result = {};
+        if (host->content_ != nullptr) {
+            result = host->content_->OnInputEvent(UiInputEvent{
+                    .type = type,
+                    .pointer = pointer,
+                    .point = pointer.point,
+                    .hwnd = hwnd,
+                    .popup_host = host,
+                });
         }
-        if (result.action != kUiActionNone) {
-            host->ForwardAction(result.action);
-            host->Close();
-        }
+        host->HandlePopupResult(result);
         return 0;
     }
     case WM_KEYDOWN: {
@@ -280,11 +366,14 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         if (host != nullptr) {
             const UiEventResult result = host->OnInputEvent(UiInputEvent{
                 .type = UiEventType::KeyDown,
-                .key = UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = static_cast<UINT>(wparam)},
+                .key = UiKeyEvent{
+                    .type = UiEventType::KeyDown,
+                    .virtual_key = static_cast<UINT>(wparam),
+                    .popup_host = host,
+                },
+                .hwnd = hwnd,
+                .popup_host = host,
             });
-            if (result.needs_render) {
-                InvalidateRect(hwnd, nullptr, FALSE);
-            }
             if (result.handled) {
                 return 0;
             }

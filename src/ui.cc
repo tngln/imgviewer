@@ -49,6 +49,23 @@ UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
     case UiEventType::OwnerDeactivated:
         root_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
         return UiEventResult{.handled = true, .needs_render = true};
+    case UiEventType::ContextMenu: {
+        UiInputEvent root_event = event;
+        root_event.focused = focused_id_;
+        UiEventResult result = root_->OnInputEvent(root_event);
+        if (!result.handled) {
+            const UiElementId target_id = HitTest(event.point);
+            if (UiElement* target = root_->Root()->FindById(target_id)) {
+                UiInputEvent target_event = event;
+                target_event.focused = focused_id_;
+                result = target->OnInputEvent(target_event);
+                ApplyEventResult(result, result.focus_target != UiElementId::None ? result.focus_target : target_id);
+                return result;
+            }
+        }
+        ApplyEventResult(result, result.focus_target != UiElementId::None ? result.focus_target : focused_id_);
+        return result;
+    }
     default:
         UiInputEvent root_event = event;
         root_event.focused = focused_id_;

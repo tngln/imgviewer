@@ -31,6 +31,7 @@ struct ImgViewerContext final {
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
+    void* settings_context = nullptr;
     bool color_picker_active = false;
     bool interactive_size_move_active = false;
     int last_window_size_toast_width = 0;
@@ -55,3 +56,4 @@ void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);
+void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_context);
