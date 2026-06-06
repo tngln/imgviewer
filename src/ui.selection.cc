@@ -12,10 +12,10 @@
 
 namespace {
 
-constexpr float kChoiceMarkSize = 18.0f;
-constexpr float kChoiceGap = 10.0f;
-constexpr float kChoiceTextTop = 4.0f;
-constexpr float kDropdownItemHeight = 32.0f;
+constexpr float kChoiceMarkSize = 22.0f;
+constexpr float kChoiceGap = 12.0f;
+constexpr float kChoiceTextTop = 5.0f;
+constexpr float kDropdownItemHeight = 40.0f;
 
 D2D1_COLOR_F ControlFill(UiElementState state)
 {
@@ -114,7 +114,7 @@ public:
             draw.DrawBodyText(
                 dropdown_->options_[index].text,
                 static_cast<UINT32>(wcslen(dropdown_->options_[index].text)),
-                D2D1::RectF(option_rect.left + 12.0f, option_rect.top + 3.0f, option_rect.right - 8.0f, option_rect.bottom),
+                D2D1::RectF(option_rect.left + 14.0f, option_rect.top + 7.0f, option_rect.right - 8.0f, option_rect.bottom),
                 ui_theme::color::kBodyText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP);
         }
@@ -250,11 +250,11 @@ void Checkbox::Draw(const UiDrawContext& context, UiElementState state) const
 {
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
-    const D2D1_RECT_F box = D2D1::RectF(rect.left, rect.top + 5.0f, rect.left + kChoiceMarkSize, rect.top + 5.0f + kChoiceMarkSize);
+    const D2D1_RECT_F box = D2D1::RectF(rect.left, rect.top + 6.0f, rect.left + kChoiceMarkSize, rect.top + 6.0f + kChoiceMarkSize);
     draw.FillRoundedRect(D2D1::RoundedRect(box, 3.0f, 3.0f), checked_ ? ui_theme::color::kAccent : ControlFill(state));
     draw.DrawRoundedRect(D2D1::RoundedRect(box, 3.0f, 3.0f), ui_theme::color::kBorder);
     if (checked_) {
-        draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(box.left + 2.0f, box.top - 4.0f, box.right, box.bottom), ui_theme::color::kButtonDefault);
+        draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(box.left + 3.0f, box.top - 3.0f, box.right, box.bottom), ui_theme::color::kButtonDefault);
     }
     draw.DrawBodyText(
         text_,
@@ -296,12 +296,12 @@ void RadioButton::Draw(const UiDrawContext& context, UiElementState state) const
 {
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
-    const D2D1_RECT_F outer = D2D1::RectF(rect.left, rect.top + 5.0f, rect.left + kChoiceMarkSize, rect.top + 5.0f + kChoiceMarkSize);
-    draw.FillRoundedRect(D2D1::RoundedRect(outer, 9.0f, 9.0f), ControlFill(state));
-    draw.DrawRoundedRect(D2D1::RoundedRect(outer, 9.0f, 9.0f), selected_ ? ui_theme::color::kAccent : ui_theme::color::kBorder, 1.5f);
+    const D2D1_RECT_F outer = D2D1::RectF(rect.left, rect.top + 6.0f, rect.left + kChoiceMarkSize, rect.top + 6.0f + kChoiceMarkSize);
+    draw.FillRoundedRect(D2D1::RoundedRect(outer, 11.0f, 11.0f), ControlFill(state));
+    draw.DrawRoundedRect(D2D1::RoundedRect(outer, 11.0f, 11.0f), selected_ ? ui_theme::color::kAccent : ui_theme::color::kBorder, 1.5f);
     if (selected_) {
-        const D2D1_RECT_F inner = D2D1::RectF(outer.left + 5.0f, outer.top + 5.0f, outer.right - 5.0f, outer.bottom - 5.0f);
-        draw.FillRoundedRect(D2D1::RoundedRect(inner, 4.0f, 4.0f), ui_theme::color::kAccent);
+        const D2D1_RECT_F inner = D2D1::RectF(outer.left + 6.0f, outer.top + 6.0f, outer.right - 6.0f, outer.bottom - 6.0f);
+        draw.FillRoundedRect(D2D1::RoundedRect(inner, 5.0f, 5.0f), ui_theme::color::kAccent);
     }
     draw.DrawBodyText(
         text_,
@@ -371,8 +371,8 @@ void Dropdown::Draw(const UiDrawContext& context, UiElementState state) const
     draw.FillRoundedRect(D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius), ControlFill(state));
     draw.DrawRoundedRect(D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius), ui_theme::color::kBorder);
     const wchar_t* text = options_.empty() ? L"" : options_[selected_index_].text;
-    draw.DrawBodyText(text, static_cast<UINT32>(wcslen(text)), D2D1::RectF(rect.left + 12.0f, rect.top + 5.0f, rect.right - 34.0f, rect.bottom), ui_theme::color::kBodyText, D2D1_DRAW_TEXT_OPTIONS_CLIP);
-    draw.DrawBodyText(expanded_ ? L"\x2303" : L"\x2304", 1, D2D1::RectF(rect.right - 26.0f, rect.top + 1.0f, rect.right, rect.bottom), ui_theme::color::kMutedText);
+    draw.DrawBodyText(text, static_cast<UINT32>(wcslen(text)), D2D1::RectF(rect.left + 14.0f, rect.top + 8.0f, rect.right - 38.0f, rect.bottom), ui_theme::color::kBodyText, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    draw.DrawBodyText(expanded_ ? L"\x2303" : L"\x2304", 1, D2D1::RectF(rect.right - 30.0f, rect.top + 5.0f, rect.right, rect.bottom), ui_theme::color::kMutedText);
 }
 
 UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)

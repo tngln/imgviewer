@@ -61,10 +61,10 @@ constexpr int kToolbarScaleMinimum = 80;
 constexpr int kToolbarScaleMaximum = 160;
 constexpr int kToolbarScaleSmallStep = 5;
 constexpr int kToolbarScaleLargeStep = 10;
-constexpr int kSettingsInitialWidth = 720;
-constexpr int kSettingsInitialHeight = 780;
-constexpr int kSettingsMinClientWidth = 520;
-constexpr int kSettingsMinClientHeight = 720;
+constexpr int kSettingsInitialWidth = 820;
+constexpr int kSettingsInitialHeight = 900;
+constexpr int kSettingsMinClientWidth = 620;
+constexpr int kSettingsMinClientHeight = 872;
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -345,30 +345,30 @@ public:
         Layout(size);
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, 18.0f, size.width - 24.0f, 46.0f), ui_theme::color::kBodyText);
-        draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, 88.0f, size.width - 24.0f, 112.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(24.0f, 272.0f, size.width - 24.0f, 296.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(24.0f, 350.0f, size.width - 24.0f, 374.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Settings", 8, D2D1::RectF(28.0f, 18.0f, size.width - 28.0f, 52.0f), ui_theme::color::kBodyText);
+        draw.DrawBodyText(L"Window size", 11, D2D1::RectF(28.0f, 104.0f, size.width - 28.0f, 130.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(28.0f, 224.0f, size.width - 28.0f, 250.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(28.0f, 308.0f, size.width - 28.0f, 334.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(28.0f, 392.0f, size.width - 28.0f, 418.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             opacity_text_.c_str(),
             static_cast<UINT32>(opacity_text_.size()),
-            D2D1::RectF(size.width - 88.0f, 376.0f, size.width - 24.0f, 404.0f),
+            D2D1::RectF(size.width - 100.0f, 422.0f, size.width - 28.0f, 454.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Toolbar size", 12, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Toolbar size", 12, D2D1::RectF(28.0f, 478.0f, size.width - 28.0f, 504.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             toolbar_scale_text_.c_str(),
             static_cast<UINT32>(toolbar_scale_text_.size()),
-            D2D1::RectF(size.width - 88.0f, 464.0f, size.width - 24.0f, 492.0f),
+            D2D1::RectF(size.width - 100.0f, 508.0f, size.width - 28.0f, 540.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 526.0f, size.width - 24.0f, 550.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 604.0f, size.width - 24.0f, 628.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(28.0f, 564.0f, size.width - 28.0f, 590.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(28.0f, 656.0f, size.width - 28.0f, 682.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, 682.0f, size.width - 24.0f, 708.0f),
+            D2D1::RectF(28.0f, 750.0f, size.width - 28.0f, 780.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -453,18 +453,18 @@ private:
     void Layout(D2D1_SIZE_F size)
     {
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-        remember_checkbox_->SetRect(D2D1::RectF(24.0f, 54.0f, size.width - 24.0f, 84.0f));
-        remember_radio_->SetRect(D2D1::RectF(44.0f, 116.0f, size.width - 24.0f, 146.0f));
-        default_radio_->SetRect(D2D1::RectF(44.0f, 146.0f, size.width - 24.0f, 176.0f));
-        pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 254.0f));
-        borderless_checkbox_->SetRect(D2D1::RectF(24.0f, 302.0f, size.width - 24.0f, 332.0f));
-        opacity_slider_->SetRect(D2D1::RectF(24.0f, 380.0f, size.width - 104.0f, 410.0f));
-        toolbar_scale_slider_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 104.0f, 498.0f));
-        filter_box_->SetRect(D2D1::RectF(24.0f, 556.0f, size.width - 24.0f, 590.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, 634.0f, size.width - 24.0f, 668.0f));
-        reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
-        cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
-        save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
+        remember_checkbox_->SetRect(D2D1::RectF(28.0f, 60.0f, size.width - 28.0f, 96.0f));
+        remember_radio_->SetRect(D2D1::RectF(52.0f, 136.0f, size.width - 28.0f, 172.0f));
+        default_radio_->SetRect(D2D1::RectF(52.0f, 172.0f, size.width - 28.0f, 208.0f));
+        pixelated_checkbox_->SetRect(D2D1::RectF(28.0f, 256.0f, size.width - 28.0f, 292.0f));
+        borderless_checkbox_->SetRect(D2D1::RectF(28.0f, 340.0f, size.width - 28.0f, 376.0f));
+        opacity_slider_->SetRect(D2D1::RectF(28.0f, 426.0f, size.width - 116.0f, 462.0f));
+        toolbar_scale_slider_->SetRect(D2D1::RectF(28.0f, 512.0f, size.width - 116.0f, 548.0f));
+        filter_box_->SetRect(D2D1::RectF(28.0f, 598.0f, size.width - 28.0f, 640.0f));
+        action_dropdown_->SetRect(D2D1::RectF(28.0f, 690.0f, size.width - 28.0f, 732.0f));
+        reset_button_->SetRect(D2D1::RectF(28.0f, size.height - 68.0f, 166.0f, size.height - 20.0f));
+        cancel_button_->SetRect(D2D1::RectF(size.width - 148.0f, size.height - 68.0f, size.width - 20.0f, size.height - 20.0f));
+        save_button_->SetRect(D2D1::RectF(size.width - 284.0f, size.height - 68.0f, size.width - 158.0f, size.height - 20.0f));
     }
 
     void ApplyElementEffect(UiElementId id) override
@@ -818,6 +818,8 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
             },
             .action_message = kImgViewerUiActionMessage,
             .caret_timer_id = kCaretTimerId,
+            .body_font_size = 19.0f,
+            .icon_font_size = 22.0f,
         },
         std::move(root),
         settings_context);

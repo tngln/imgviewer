@@ -9,8 +9,8 @@
 
 namespace {
 
-constexpr float kSliderTrackHeight = 6.0f;
-constexpr float kSliderThumbSize = 18.0f;
+constexpr float kSliderTrackHeight = 8.0f;
+constexpr float kSliderThumbSize = 22.0f;
 
 } // namespace
 
