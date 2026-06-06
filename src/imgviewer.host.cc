@@ -159,6 +159,13 @@ void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
     }
 }
 
+void ClosePopup(ImgViewerContext* context)
+{
+    if (context != nullptr && context->popup.IsOpen()) {
+        context->popup.Close();
+    }
+}
+
 void ShowWindowSizeToast(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr || IsIconic(hwnd)) {
@@ -327,6 +334,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_ENTERSIZEMOVE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context != nullptr) {
+            ClosePopup(context);
             context->interactive_size_move_active = true;
             context->last_window_size_toast_width = 0;
             context->last_window_size_toast_height = 0;
@@ -344,6 +352,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_SIZE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
+        ClosePopup(context);
         if (context != nullptr && FAILED(context->renderer.Resize())) {
             return -1;
         }
@@ -360,6 +369,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
         return 0;
     }
+
+    case WM_MOVE:
+        ClosePopup(GetImgViewerContext(hwnd));
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+
+    case WM_ACTIVATE:
+        if (LOWORD(wparam) == WA_INACTIVE) {
+            ImgViewerContext* context = GetImgViewerContext(hwnd);
+            ClosePopup(context);
+            if (context != nullptr) {
+                RenderIfNeeded(
+                    hwnd,
+                    context,
+                    context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
+            }
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+
+    case WM_ACTIVATEAPP:
+        if (wparam == FALSE) {
+            ClosePopup(GetImgViewerContext(hwnd));
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
 
     case WM_NCHITTEST:
         return HitTestFrame(hwnd, lparam);

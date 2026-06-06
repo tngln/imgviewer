@@ -144,7 +144,16 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             return win32::WindowMessageResult::Handled(-1);
         }
         return win32::WindowMessageResult::Handled();
+    case WM_ENTERSIZEMOVE:
+    case WM_MOVE:
+        if (options_.enable_popup && popup_.IsOpen()) {
+            popup_.Close();
+        }
+        break;
     case WM_SIZE:
+        if (options_.enable_popup && popup_.IsOpen()) {
+            popup_.Close();
+        }
         if (render_target_ != nullptr) {
             render_target_->Resize(ClientPixelSize(window_.Hwnd()));
         }
@@ -331,6 +340,11 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             }
             HandleUiResult(ui_.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = window_.Hwnd()}));
             Invalidate();
+        }
+        break;
+    case WM_ACTIVATEAPP:
+        if (wparam == FALSE && options_.enable_popup && popup_.IsOpen()) {
+            popup_.Close();
         }
         break;
     case WM_GETOBJECT:

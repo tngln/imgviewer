@@ -17,6 +17,8 @@ namespace {
 
 constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
 constexpr float kMenuCornerRadius = 6.0f;
+constexpr float kMenuBodyFontSize = 17.0f;
+constexpr float kMenuIconFontSize = 20.0f;
 
 PopupHost* GetPopupHost(HWND hwnd)
 {
@@ -47,10 +49,16 @@ POINT ClientToScreenPoint(HWND hwnd, D2D1_POINT_2F point)
 
 class MenuPopupContent final : public UiPopupContent {
 public:
-    MenuPopupContent(std::vector<MenuItem> items, const UiDrawContext& context)
+    MenuPopupContent(
+        std::vector<MenuItem> items,
+        const UiDrawContext& context,
+        IDWriteTextFormat* body_text_format,
+        IDWriteTextFormat* icon_text_format) :
+        body_text_format_(body_text_format),
+        icon_text_format_(icon_text_format)
     {
         menu_.Open(D2D1::Point2F(0.0f, 0.0f), std::move(items));
-        menu_.UpdatePreferredWidth(context);
+        menu_.UpdatePreferredWidth(MenuTextContext(context));
     }
 
     D2D1_SIZE_F DesiredSize() const override
@@ -65,7 +73,7 @@ public:
 
     void Draw(const UiDrawContext& context) const override
     {
-        menu_.Draw(context, UiElementState{});
+        menu_.Draw(MenuTextContext(context), UiElementState{});
     }
 
     UiEventResult OnInputEvent(const UiInputEvent& event) override
@@ -78,7 +86,17 @@ public:
     }
 
 private:
+    UiDrawContext MenuTextContext(const UiDrawContext& context) const
+    {
+        UiDrawContext menu_context = context;
+        menu_context.body_text_format = body_text_format_;
+        menu_context.icon_text_format = icon_text_format_;
+        return menu_context;
+    }
+
     MenuOverlay menu_;
+    IDWriteTextFormat* body_text_format_ = nullptr;
+    IDWriteTextFormat* icon_text_format_ = nullptr;
 };
 
 } // namespace
@@ -94,6 +112,26 @@ HRESULT PopupHost::Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d
     action_message_ = action_message;
     d2d_factory_ = d2d_factory;
     dwrite_factory_ = dwrite_factory;
+    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
+        L"Segoe UI",
+        nullptr,
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        kMenuBodyFontSize,
+        L"",
+        menu_body_text_format_.put()));
+    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
+        L"Segoe MDL2 Assets",
+        nullptr,
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        kMenuIconFontSize,
+        L"",
+        menu_icon_text_format_.put()));
+    RETURN_IF_FAILED(menu_body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    RETURN_IF_FAILED(menu_icon_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
     return RegisterPopupWindowClass(reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(owner_, GWLP_HINSTANCE)));
 }
 
@@ -136,10 +174,16 @@ HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
 {
     const UiDrawContext measure_context{
         .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = body_text_format_,
-        .icon_text_format = icon_text_format_,
+        .body_text_format = MenuBodyTextFormat(),
+        .icon_text_format = MenuIconTextFormat(),
     };
-    return Open(origin, std::make_unique<MenuPopupContent>(std::move(items), measure_context));
+    return Open(
+        origin,
+        std::make_unique<MenuPopupContent>(
+            std::move(items),
+            measure_context,
+            MenuBodyTextFormat(),
+            MenuIconTextFormat()));
 }
 
 void PopupHost::Draw(const UiDrawContext& context) const
@@ -315,6 +359,16 @@ void PopupHost::ForwardAction(UiAction action, UiElementId effect_target)
             static_cast<WPARAM>(UiActionValue(action)),
             static_cast<LPARAM>(UiElementIdValue(effect_target)));
     }
+}
+
+IDWriteTextFormat* PopupHost::MenuBodyTextFormat() const
+{
+    return menu_body_text_format_ != nullptr ? menu_body_text_format_.get() : body_text_format_;
+}
+
+IDWriteTextFormat* PopupHost::MenuIconTextFormat() const
+{
+    return menu_icon_text_format_ != nullptr ? menu_icon_text_format_.get() : icon_text_format_;
 }
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)

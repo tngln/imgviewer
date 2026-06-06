@@ -45,6 +45,8 @@ private:
     void RenderNativePopup();
     void HandlePopupResult(UiEventResult result);
     void ForwardAction(UiAction action, UiElementId effect_target);
+    IDWriteTextFormat* MenuBodyTextFormat() const;
+    IDWriteTextFormat* MenuIconTextFormat() const;
 
     HWND owner_ = nullptr;
     UINT action_message_ = 0;
@@ -54,6 +56,8 @@ private:
     wil::com_ptr<ID2D1Factory> d2d_factory_;
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
     wil::com_ptr<ID2D1HwndRenderTarget> native_render_target_;
+    wil::com_ptr<IDWriteTextFormat> menu_body_text_format_;
+    wil::com_ptr<IDWriteTextFormat> menu_icon_text_format_;
     IDWriteTextFormat* body_text_format_ = nullptr;
     IDWriteTextFormat* icon_text_format_ = nullptr;
 };
