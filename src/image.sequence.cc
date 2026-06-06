@@ -23,8 +23,10 @@ bool IsImageExtension(std::wstring extension)
         extension == L".jpeg" ||
         extension == L".jpe" ||
         extension == L".png" ||
+        extension == L".psd" ||
         extension == L".tif" ||
         extension == L".tiff" ||
+        extension == L".tga" ||
         extension == L".webp";
 }
 

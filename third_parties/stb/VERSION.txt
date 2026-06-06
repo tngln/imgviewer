@@ -1,0 +1,2 @@
+stb_image.h v2.30 from https://github.com/nothings/stb master
+Downloaded for TGA/PSD import support.

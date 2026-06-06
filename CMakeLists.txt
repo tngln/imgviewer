@@ -15,6 +15,7 @@ add_executable(imgviewer
     src/image.decoder.cc
     src/image.encoder.cc
     src/image.sequence.cc
+    src/image.stb_decoder.cc
     src/imgviewer.viewer.cc
     src/imgviewer.ui.cc
     src/imgviewer.ui.titlebar.cc
@@ -46,6 +47,7 @@ add_executable(imgviewer
 target_include_directories(imgviewer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/nlohmann_json/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/stb"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/wil/include"
 )
 

@@ -403,7 +403,7 @@ bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direct
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
 {
     constexpr win32::NativeFileDialogFilter filters[] = {
-        {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.tif;*.tiff;*.webp"},
+        {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.psd;*.tif;*.tiff;*.tga;*.webp"},
         {L"All files", L"*.*"},
     };
 

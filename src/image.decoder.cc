@@ -1,6 +1,29 @@
 #include "image.decoder.hpp"
 
+#include <algorithm>
+#include <cwctype>
+#include <filesystem>
+
 #include <wil/result_macros.h>
+
+#include "image.stb_decoder.hpp"
+
+namespace {
+
+bool IsStbFallbackExtension(const wchar_t* path)
+{
+    if (path == nullptr) {
+        return false;
+    }
+
+    std::wstring extension = std::filesystem::path(path).extension().wstring();
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t value) {
+        return static_cast<wchar_t>(std::towlower(value));
+    });
+    return extension == L".tga" || extension == L".psd";
+}
+
+} // namespace
 
 HRESULT ImageDecoder::Initialize()
 {
@@ -25,12 +48,24 @@ HRESULT ImageDecoder::DecodeFirstFrame(
 
     DecodedImage decoded;
     wil::com_ptr<IWICBitmapDecoder> decoder;
-    RETURN_IF_FAILED(wic_factory_->CreateDecoderFromFilename(
+    const HRESULT wic_hr = wic_factory_->CreateDecoderFromFilename(
         path,
         nullptr,
         GENERIC_READ,
         WICDecodeMetadataCacheOnDemand,
-        decoder.put()));
+        decoder.put());
+
+    if (FAILED(wic_hr)) {
+        if (!IsStbFallbackExtension(path)) {
+            RETURN_IF_FAILED(wic_hr);
+        }
+
+        wil::com_ptr<IWICBitmapSource> stb_source;
+        RETURN_IF_FAILED(DecodeStbImageFile(wic_factory_.get(), path, stb_source.put()));
+        RETURN_IF_FAILED(DecodeBitmapSource(stb_source.get(), d2d_context, &decoded));
+        *image = std::move(decoded);
+        return S_OK;
+    }
 
     wil::com_ptr<IWICBitmapFrameDecode> frame;
     RETURN_IF_FAILED(decoder->GetFrame(0, frame.put()));
