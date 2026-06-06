@@ -24,6 +24,7 @@
 #include "ui.a11y.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
+#include "ui.layout.hpp"
 #include "ui.popup.hpp"
 #include "ui.selection.hpp"
 #include "ui.slider.hpp"
@@ -65,6 +66,56 @@ constexpr int kSettingsInitialWidth = 820;
 constexpr int kSettingsInitialHeight = 944;
 constexpr int kSettingsMinClientWidth = 620;
 constexpr int kSettingsMinClientHeight = 916;
+
+constexpr float kSettingsSidePadding = 28.0f;
+constexpr float kSettingsFooterBottomPadding = 20.0f;
+constexpr float kSettingsFooterButtonHeight = 48.0f;
+constexpr float kSettingsFooterButtonGap = 10.0f;
+constexpr float kSettingsResetButtonWidth = 138.0f;
+constexpr float kSettingsSaveButtonWidth = 126.0f;
+constexpr float kSettingsCancelButtonWidth = 128.0f;
+constexpr float kSettingsLabelHeight = 26.0f;
+constexpr float kSettingsChoiceHeight = 36.0f;
+constexpr float kSettingsFieldHeight = 42.0f;
+constexpr float kSettingsValueWidth = 72.0f;
+
+struct SettingsLayoutRects final {
+    D2D1_RECT_F title = {};
+    D2D1_RECT_F window_size_label = {};
+    D2D1_RECT_F image_rendering_label = {};
+    D2D1_RECT_F window_frame_label = {};
+    D2D1_RECT_F opacity_label = {};
+    D2D1_RECT_F opacity_value = {};
+    D2D1_RECT_F toolbar_scale_label = {};
+    D2D1_RECT_F toolbar_scale_value = {};
+    D2D1_RECT_F shortcut_filter_label = {};
+    D2D1_RECT_F action_shortcuts_label = {};
+    D2D1_RECT_F shortcut_text = {};
+    D2D1_RECT_F remember_checkbox = {};
+    D2D1_RECT_F remember_radio = {};
+    D2D1_RECT_F default_radio = {};
+    D2D1_RECT_F pixelated_checkbox = {};
+    D2D1_RECT_F checkerboard_checkbox = {};
+    D2D1_RECT_F borderless_checkbox = {};
+    D2D1_RECT_F opacity_slider = {};
+    D2D1_RECT_F toolbar_scale_slider = {};
+    D2D1_RECT_F filter_box = {};
+    D2D1_RECT_F action_dropdown = {};
+    D2D1_RECT_F reset_button = {};
+    D2D1_RECT_F save_button = {};
+    D2D1_RECT_F cancel_button = {};
+};
+
+D2D1_RECT_F FullWidthRect(float left, float top, float right, float height)
+{
+    return D2D1::RectF(left, top, right, top + height);
+}
+
+D2D1_RECT_F BelowFullWidth(D2D1_RECT_F anchor, float gap, float left, float right, float height)
+{
+    const D2D1_RECT_F rect = ui_layout::Below(anchor, gap, right - left, height);
+    return D2D1::RectF(left, rect.top, right, rect.bottom);
+}
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -164,6 +215,69 @@ UiElementMetadata Metadata(
         .tooltip = name,
         .automation_id = automation_id,
     };
+}
+
+SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
+{
+    SettingsLayoutRects layout;
+    const float left = kSettingsSidePadding;
+    const float right = size.width - kSettingsSidePadding;
+    const float radio_left = left + 24.0f;
+    const float value_left = size.width - kSettingsSidePadding - kSettingsValueWidth;
+    const D2D1_RECT_F root = D2D1::RectF(0.0f, 0.0f, size.width, size.height);
+
+    layout.title = FullWidthRect(left, 18.0f, right, 34.0f);
+    layout.remember_checkbox = BelowFullWidth(layout.title, 8.0f, left, right, kSettingsChoiceHeight);
+    layout.window_size_label = BelowFullWidth(layout.remember_checkbox, 8.0f, left, right, kSettingsLabelHeight);
+
+    const std::vector<D2D1_RECT_F> size_choices = ui_layout::PlaceVerticalStack(
+        D2D1::RectF(radio_left, layout.window_size_label.bottom + 10.0f, right, 0.0f),
+        std::vector<float>{kSettingsChoiceHeight, kSettingsChoiceHeight});
+    layout.remember_radio = size_choices[0];
+    layout.default_radio = size_choices[1];
+
+    layout.image_rendering_label = BelowFullWidth(layout.default_radio, 16.0f, left, right, kSettingsLabelHeight);
+    const std::vector<D2D1_RECT_F> rendering_choices = ui_layout::PlaceVerticalStack(
+        D2D1::RectF(left, layout.image_rendering_label.bottom + 6.0f, right, 0.0f),
+        std::vector<float>{kSettingsChoiceHeight, kSettingsChoiceHeight});
+    layout.pixelated_checkbox = rendering_choices[0];
+    layout.checkerboard_checkbox = rendering_choices[1];
+
+    layout.window_frame_label = BelowFullWidth(layout.checkerboard_checkbox, 24.0f, left, right, kSettingsLabelHeight);
+    layout.borderless_checkbox = BelowFullWidth(layout.window_frame_label, 6.0f, left, right, kSettingsChoiceHeight);
+
+    layout.opacity_label = BelowFullWidth(layout.borderless_checkbox, 16.0f, left, right, kSettingsLabelHeight);
+    layout.opacity_slider = BelowFullWidth(layout.opacity_label, 8.0f, left, value_left - 16.0f, kSettingsChoiceHeight);
+    layout.opacity_value = D2D1::RectF(value_left, layout.opacity_slider.top - 4.0f, right, layout.opacity_slider.bottom - 4.0f);
+
+    layout.toolbar_scale_label = BelowFullWidth(layout.opacity_slider, 16.0f, left, right, kSettingsLabelHeight);
+    layout.toolbar_scale_slider =
+        BelowFullWidth(layout.toolbar_scale_label, 8.0f, left, value_left - 16.0f, kSettingsChoiceHeight);
+    layout.toolbar_scale_value =
+        D2D1::RectF(value_left, layout.toolbar_scale_slider.top - 4.0f, right, layout.toolbar_scale_slider.bottom - 4.0f);
+
+    layout.shortcut_filter_label =
+        BelowFullWidth(layout.toolbar_scale_slider, 16.0f, left, right, kSettingsLabelHeight);
+    layout.filter_box = BelowFullWidth(layout.shortcut_filter_label, 8.0f, left, right, kSettingsFieldHeight);
+    layout.action_shortcuts_label = BelowFullWidth(layout.filter_box, 24.0f, left, right, kSettingsLabelHeight);
+    layout.action_dropdown = BelowFullWidth(layout.action_shortcuts_label, 8.0f, left, right, kSettingsFieldHeight);
+    layout.shortcut_text = BelowFullWidth(layout.action_dropdown, 18.0f, left, right, 30.0f);
+
+    layout.reset_button = D2D1::RectF(
+        left,
+        size.height - kSettingsFooterBottomPadding - kSettingsFooterButtonHeight,
+        left + kSettingsResetButtonWidth,
+        size.height - kSettingsFooterBottomPadding);
+    const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
+        root,
+        std::vector<float>{kSettingsSaveButtonWidth, kSettingsCancelButtonWidth},
+        kSettingsFooterButtonHeight,
+        kSettingsSidePadding - 8.0f,
+        kSettingsFooterBottomPadding,
+        kSettingsFooterButtonGap);
+    layout.save_button = primary_buttons[0];
+    layout.cancel_button = primary_buttons[1];
+    return layout;
 }
 
 class SettingsUi final : public UiRoot {
@@ -349,30 +463,30 @@ public:
         Layout(size);
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(L"Settings", 8, D2D1::RectF(28.0f, 18.0f, size.width - 28.0f, 52.0f), ui_theme::color::kBodyText);
-        draw.DrawBodyText(L"Window size", 11, D2D1::RectF(28.0f, 104.0f, size.width - 28.0f, 130.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(28.0f, 224.0f, size.width - 28.0f, 250.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(28.0f, 352.0f, size.width - 28.0f, 378.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(28.0f, 436.0f, size.width - 28.0f, 462.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Settings", 8, layout_.title, ui_theme::color::kBodyText);
+        draw.DrawBodyText(L"Window size", 11, layout_.window_size_label, ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Image rendering", 15, layout_.image_rendering_label, ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Window frame", 12, layout_.window_frame_label, ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Opacity", 7, layout_.opacity_label, ui_theme::color::kMutedText);
         draw.DrawBodyText(
             opacity_text_.c_str(),
             static_cast<UINT32>(opacity_text_.size()),
-            D2D1::RectF(size.width - 100.0f, 466.0f, size.width - 28.0f, 498.0f),
+            layout_.opacity_value,
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Toolbar size", 12, D2D1::RectF(28.0f, 522.0f, size.width - 28.0f, 548.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Toolbar size", 12, layout_.toolbar_scale_label, ui_theme::color::kMutedText);
         draw.DrawBodyText(
             toolbar_scale_text_.c_str(),
             static_cast<UINT32>(toolbar_scale_text_.size()),
-            D2D1::RectF(size.width - 100.0f, 552.0f, size.width - 28.0f, 584.0f),
+            layout_.toolbar_scale_value,
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(28.0f, 608.0f, size.width - 28.0f, 634.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(28.0f, 700.0f, size.width - 28.0f, 726.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, layout_.shortcut_filter_label, ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, layout_.action_shortcuts_label, ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(28.0f, 794.0f, size.width - 28.0f, 824.0f),
+            layout_.shortcut_text,
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -458,19 +572,20 @@ private:
     void Layout(D2D1_SIZE_F size)
     {
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-        remember_checkbox_->SetRect(D2D1::RectF(28.0f, 60.0f, size.width - 28.0f, 96.0f));
-        remember_radio_->SetRect(D2D1::RectF(52.0f, 136.0f, size.width - 28.0f, 172.0f));
-        default_radio_->SetRect(D2D1::RectF(52.0f, 172.0f, size.width - 28.0f, 208.0f));
-        pixelated_checkbox_->SetRect(D2D1::RectF(28.0f, 256.0f, size.width - 28.0f, 292.0f));
-        checkerboard_checkbox_->SetRect(D2D1::RectF(28.0f, 292.0f, size.width - 28.0f, 328.0f));
-        borderless_checkbox_->SetRect(D2D1::RectF(28.0f, 384.0f, size.width - 28.0f, 420.0f));
-        opacity_slider_->SetRect(D2D1::RectF(28.0f, 470.0f, size.width - 116.0f, 506.0f));
-        toolbar_scale_slider_->SetRect(D2D1::RectF(28.0f, 556.0f, size.width - 116.0f, 592.0f));
-        filter_box_->SetRect(D2D1::RectF(28.0f, 642.0f, size.width - 28.0f, 684.0f));
-        action_dropdown_->SetRect(D2D1::RectF(28.0f, 734.0f, size.width - 28.0f, 776.0f));
-        reset_button_->SetRect(D2D1::RectF(28.0f, size.height - 68.0f, 166.0f, size.height - 20.0f));
-        cancel_button_->SetRect(D2D1::RectF(size.width - 148.0f, size.height - 68.0f, size.width - 20.0f, size.height - 20.0f));
-        save_button_->SetRect(D2D1::RectF(size.width - 284.0f, size.height - 68.0f, size.width - 158.0f, size.height - 20.0f));
+        layout_ = CalculateSettingsLayout(size);
+        remember_checkbox_->SetRect(layout_.remember_checkbox);
+        remember_radio_->SetRect(layout_.remember_radio);
+        default_radio_->SetRect(layout_.default_radio);
+        pixelated_checkbox_->SetRect(layout_.pixelated_checkbox);
+        checkerboard_checkbox_->SetRect(layout_.checkerboard_checkbox);
+        borderless_checkbox_->SetRect(layout_.borderless_checkbox);
+        opacity_slider_->SetRect(layout_.opacity_slider);
+        toolbar_scale_slider_->SetRect(layout_.toolbar_scale_slider);
+        filter_box_->SetRect(layout_.filter_box);
+        action_dropdown_->SetRect(layout_.action_dropdown);
+        reset_button_->SetRect(layout_.reset_button);
+        save_button_->SetRect(layout_.save_button);
+        cancel_button_->SetRect(layout_.cancel_button);
     }
 
     void ApplyElementEffect(UiElementId id) override
@@ -617,6 +732,7 @@ private:
     std::wstring opacity_text_;
     std::wstring toolbar_scale_text_;
     std::wstring shortcut_text_;
+    SettingsLayoutRects layout_;
 };
 
 struct SettingsWindowContext final : public UiWindowDelegate {

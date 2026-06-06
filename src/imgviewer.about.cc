@@ -4,6 +4,7 @@
 #include <cwchar>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
@@ -14,6 +15,7 @@
 #include "imgviewer.ui.action.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
+#include "ui.layout.hpp"
 #include "ui.theme.hpp"
 #include "ui.window.hpp"
 #include "win32.clipboard.hpp"
@@ -27,6 +29,11 @@ constexpr int kAboutInitialWidth = 560;
 constexpr int kAboutInitialHeight = 520;
 constexpr int kAboutMinClientWidth = 480;
 constexpr int kAboutMinClientHeight = 420;
+constexpr float kAboutSidePadding = 28.0f;
+constexpr float kAboutFooterBottomPadding = 20.0f;
+constexpr float kAboutFooterButtonHeight = 48.0f;
+constexpr float kAboutCopyButtonWidth = 162.0f;
+constexpr float kAboutCloseButtonWidth = 128.0f;
 
 struct NoticeLine final {
     const wchar_t* name;
@@ -164,8 +171,18 @@ private:
     void Layout(D2D1_SIZE_F size)
     {
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-        copy_button_->SetRect(D2D1::RectF(28.0f, size.height - 68.0f, 190.0f, size.height - 20.0f));
-        close_button_->SetRect(D2D1::RectF(size.width - 148.0f, size.height - 68.0f, size.width - 20.0f, size.height - 20.0f));
+        copy_button_->SetRect(D2D1::RectF(
+            kAboutSidePadding,
+            size.height - kAboutFooterBottomPadding - kAboutFooterButtonHeight,
+            kAboutSidePadding + kAboutCopyButtonWidth,
+            size.height - kAboutFooterBottomPadding));
+        const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
+            root_->Rect(),
+            std::vector<float>{kAboutCloseButtonWidth},
+            kAboutFooterButtonHeight,
+            kAboutFooterBottomPadding,
+            kAboutFooterBottomPadding);
+        close_button_->SetRect(primary_buttons[0]);
     }
 
     void DrawElement(UiElement& element, const UiDrawContext& context, UiRootState state) const
