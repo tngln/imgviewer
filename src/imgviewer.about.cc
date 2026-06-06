@@ -47,15 +47,14 @@ constexpr std::array<NoticeLine, 3> kNoticeLines{{
     {L"Windows Implementation Libraries", L"Microsoft Corporation - MIT License", L"third_parties/wil/LICENSE"},
 }};
 
-UiElementMetadata Metadata(
-    UiElementId id,
+UiElementMetadata RootMetadata(
     UiElementRole role,
     ImgViewerAction action,
     const wchar_t* name,
     const wchar_t* automation_id)
 {
     return UiElementMetadata{
-        .id = id,
+        .id = UiElementId::None,
         .role = role,
         .action = action,
         .name = name,
@@ -89,13 +88,13 @@ public:
     AboutUi()
     {
         root_ = std::make_unique<UiElement>(
-            Metadata(UiElementId::None, UiElementRole::Pane, ImgViewerAction::None, L"About ImgViewer", L"about-root"));
+            RootMetadata(UiElementRole::Pane, ImgViewerAction::None, L"About ImgViewer", L"about-root"));
         copy_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            Metadata(ids_.Next(), UiElementRole::Button, ImgViewerAction::CopyAboutNotices, L"Copy Notices", L"copy-about-notices"),
+            Metadata(UiElementRole::Button, ImgViewerAction::CopyAboutNotices, L"Copy Notices", L"copy-about-notices"),
             kCopyIcon,
             L"Copy Notices")));
         close_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            Metadata(ids_.Next(), UiElementRole::Button, ImgViewerAction::CloseAbout, L"Close", L"close-about"),
+            Metadata(UiElementRole::Button, ImgViewerAction::CloseAbout, L"Close", L"close-about"),
             kCloseIcon,
             L"Close")));
     }
@@ -168,6 +167,22 @@ public:
     }
 
 private:
+    UiElementMetadata Metadata(
+        UiElementRole role,
+        ImgViewerAction action,
+        const wchar_t* name,
+        const wchar_t* automation_id)
+    {
+        return UiElementMetadata{
+            .id = ids_.Next(),
+            .role = role,
+            .action = action,
+            .name = name,
+            .tooltip = name,
+            .automation_id = automation_id,
+        };
+    }
+
     void Layout(D2D1_SIZE_F size)
     {
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));

@@ -33,38 +33,10 @@ struct ButtonSpec final {
     bool danger = false;
 };
 
-UiElementMetadata Metadata(
-    UiElementId id,
-    UiElementRole role,
-    UiAction action,
-    const wchar_t* name,
-    const wchar_t* tooltip,
-    const wchar_t* automation_id,
-    bool is_control = true,
-    bool is_content = true)
-{
-    return UiElementMetadata{
-        .id = id,
-        .role = role,
-        .action = action,
-        .name = name,
-        .tooltip = tooltip,
-        .automation_id = automation_id,
-        .is_control = is_control,
-        .is_content = is_content,
-    };
-}
-
-std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
+std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementMetadata metadata)
 {
     return std::make_unique<IconButton>(
-        Metadata(
-            id,
-            UiElementRole::Button,
-            UiActionFromImgViewerAction(spec.action),
-            spec.name,
-            spec.tooltip,
-            spec.automation_id),
+        metadata,
         spec.icon);
 }
 
@@ -108,10 +80,37 @@ constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids)
 {
+    const auto metadata = [&ids](
+                              UiElementRole role,
+                              UiAction action,
+                              const wchar_t* name,
+                              const wchar_t* tooltip,
+                              const wchar_t* automation_id,
+                              bool is_control = true,
+                              bool is_content = true) {
+        return UiElementMetadata{
+            .id = ids.Next(),
+            .role = role,
+            .action = action,
+            .name = name,
+            .tooltip = tooltip,
+            .automation_id = automation_id,
+            .is_control = is_control,
+            .is_content = is_content,
+        };
+    };
+
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        button.id = ids.Next();
-        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(spec, button.id)));
+        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(
+            spec,
+            metadata(
+                UiElementRole::Button,
+                UiActionFromImgViewerAction(spec.action),
+                spec.name,
+                spec.tooltip,
+                spec.automation_id))));
+        button.id = button.element->Id();
     }
 }
 

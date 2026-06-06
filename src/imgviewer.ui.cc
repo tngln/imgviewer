@@ -11,8 +11,7 @@
 
 namespace {
 
-UiElementMetadata Metadata(
-    UiElementId id,
+UiElementMetadata RootMetadata(
     UiElementRole role,
     UiAction action,
     const wchar_t* name,
@@ -22,7 +21,7 @@ UiElementMetadata Metadata(
     bool is_content = true)
 {
     return UiElementMetadata{
-        .id = id,
+        .id = UiElementId::None,
         .role = role,
         .action = action,
         .name = name,
@@ -37,7 +36,7 @@ UiElementMetadata Metadata(
 
 ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
-        Metadata(UiElementId::None, UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
+        RootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_, ids_),
     toolbar_(*root_, ids_),
     info_panel_(*root_, ids_)

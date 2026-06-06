@@ -31,24 +31,6 @@ constexpr float kSectionHeaderHeight = 40.0f;
 constexpr float kScrollStep = 72.0f;
 constexpr float kMinimumPanelHeight = 360.0f;
 
-UiElementMetadata Metadata(
-    UiElementId id,
-    UiElementRole role,
-    const wchar_t* name,
-    const wchar_t* automation_id,
-    bool is_control = true,
-    bool is_content = true)
-{
-    return UiElementMetadata{
-        .id = id,
-        .role = role,
-        .name = name,
-        .automation_id = automation_id,
-        .is_control = is_control,
-        .is_content = is_content,
-    };
-}
-
 D2D1_COLOR_F WithOpacity(D2D1_COLOR_F color, float opacity)
 {
     color.a = opacity;
@@ -122,14 +104,29 @@ std::wstring HexColor(ImageColorSample color)
 
 ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root, UiElementIdGenerator& ids)
 {
-    panel_id_ = ids.Next();
-    panel_ = root.AddChild(std::make_unique<UiElement>(Metadata(
-        panel_id_,
+    const auto metadata = [&ids](
+                              UiElementRole role,
+                              const wchar_t* name,
+                              const wchar_t* automation_id,
+                              bool is_control = true,
+                              bool is_content = true) {
+        return UiElementMetadata{
+            .id = ids.Next(),
+            .role = role,
+            .name = name,
+            .automation_id = automation_id,
+            .is_control = is_control,
+            .is_content = is_content,
+        };
+    };
+
+    panel_ = root.AddChild(std::make_unique<UiElement>(metadata(
         UiElementRole::Pane,
         L"Info Panel",
         L"info-panel",
         false,
         true)));
+    panel_id_ = panel_->Id();
     panel_->SetHitTestVisible(false);
 }
 

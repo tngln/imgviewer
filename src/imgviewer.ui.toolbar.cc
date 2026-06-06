@@ -83,38 +83,8 @@ constexpr ButtonIconSpec PathIcon(const icons::PathIcon& icon)
     };
 }
 
-UiElementMetadata Metadata(
-    UiElementId id,
-    UiElementRole role,
-    UiAction action,
-    const wchar_t* name,
-    const wchar_t* tooltip,
-    const wchar_t* automation_id,
-    bool is_control = true,
-    bool is_content = true)
+std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementMetadata metadata)
 {
-    return UiElementMetadata{
-        .id = id,
-        .role = role,
-        .action = action,
-        .name = name,
-        .tooltip = tooltip,
-        .automation_id = automation_id,
-        .is_control = is_control,
-        .is_content = is_content,
-    };
-}
-
-std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementId id)
-{
-    const UiElementMetadata metadata =
-        Metadata(
-            id,
-            UiElementRole::Button,
-            UiActionFromImgViewerAction(spec.action),
-            spec.name,
-            spec.tooltip,
-            spec.automation_id);
     if (spec.icon.kind == ButtonIconKind::Path) {
         return std::make_unique<IconButton>(metadata, *spec.icon.path_icon);
     }
@@ -169,16 +139,41 @@ constexpr size_t ImgViewerUiToolbar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids)
 {
+    const auto metadata = [&ids](
+                              UiElementRole role,
+                              UiAction action,
+                              const wchar_t* name,
+                              const wchar_t* tooltip,
+                              const wchar_t* automation_id,
+                              bool is_control = true,
+                              bool is_content = true) {
+        return UiElementMetadata{
+            .id = ids.Next(),
+            .role = role,
+            .action = action,
+            .name = name,
+            .tooltip = tooltip,
+            .automation_id = automation_id,
+            .is_control = is_control,
+            .is_content = is_content,
+        };
+    };
+
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        button.id = ids.Next();
-        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(spec, button.id)));
+        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(
+            spec,
+            metadata(
+                UiElementRole::Button,
+                UiActionFromImgViewerAction(spec.action),
+                spec.name,
+                spec.tooltip,
+                spec.automation_id))));
+        button.id = button.element->Id();
         button.element->SetEnabled(spec.initially_enabled);
     }
 
-    drag_handle_id_ = ids.Next();
-    drag_handle_ = root.AddChild(std::make_unique<UiElement>(Metadata(
-        drag_handle_id_,
+    drag_handle_ = root.AddChild(std::make_unique<UiElement>(metadata(
         UiElementRole::Pane,
         kUiActionNone,
         L"Toolbar drag handle",
@@ -186,6 +181,7 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
         L"toolbar-drag-handle",
         false,
         false)));
+    drag_handle_id_ = drag_handle_->Id();
     SetScalePercent(scale_percent_);
 }
 
