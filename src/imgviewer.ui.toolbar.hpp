@@ -8,6 +8,7 @@
 #include "ui.button.hpp"
 #include "ui.element.hpp"
 #include "ui.events.hpp"
+#include "ui.panel.hpp"
 
 #include "ui.root.hpp"
 
@@ -34,7 +35,9 @@ public:
     explicit ImgViewerUiToolbar(UiElement& root);
 
     void SetScalePercent(int percent);
-    void Draw(const UiDrawContext& draw_context, UiRootState state, bool color_picker_active);
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
+    void Arrange(D2D1_RECT_F final_rect);
+    void Render(const UiDrawContext& draw_context, UiRootState state, bool color_picker_active);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
@@ -43,7 +46,6 @@ private:
         IconButton* element = nullptr;
     };
 
-    void Layout(D2D1_SIZE_F viewport_size);
     UiEventResult OnDragHandlePointerEvent(const UiPointerEvent& event);
     void BeginDrag(D2D1_POINT_2F point);
     void Drag(D2D1_POINT_2F point);
@@ -51,15 +53,15 @@ private:
     void ClampToViewport(D2D1_SIZE_F viewport_size);
     IconButton* Button(ButtonKey button);
     const IconButton* Button(ButtonKey button) const;
-    UiElementState ButtonState(ButtonKey button, UiRootState state, bool active = false, bool danger = false) const;
-    void DrawButton(
+    void RenderButton(
         ButtonKey button,
         const UiDrawContext& draw_context,
         UiRootState state,
         bool active = false,
-        bool danger = false) const;
+        bool danger = false);
 
     std::array<ButtonInstance, kButtonCount> buttons_{};
+    StackPanel* button_panel_ = nullptr;
     UiElement* drag_handle_ = nullptr;
     UiElementId drag_handle_id_ = UiElementId::None;
     D2D1_RECT_F toolbar_rect_ = D2D1_RECT_F{};

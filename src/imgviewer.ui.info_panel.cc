@@ -130,13 +130,31 @@ bool ImgViewerUiInfoPanel::IsVisible() const
     return state_.visible;
 }
 
-void ImgViewerUiInfoPanel::Draw(const UiDrawContext& draw_context) const
+D2D1_SIZE_F ImgViewerUiInfoPanel::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
+{
+    const float width = (std::min)(kPanelWidth, (std::max)(180.0f, available_size.width - kPanelMargin * 2.0f));
+    const float top = ui_theme::metrics::kTitleBarHeight + kPanelMargin;
+    const float bottom = (std::max)(top + kMinimumPanelHeight, available_size.height - kPanelMargin);
+    return D2D1::SizeF(width, bottom - top);
+}
+
+void ImgViewerUiInfoPanel::Arrange(D2D1_RECT_F final_rect) const
+{
+    if (panel_ == nullptr) {
+        return;
+    }
+
+    const D2D1_SIZE_F size = Measure(UiDrawContext{}, D2D1::SizeF(final_rect.right - final_rect.left, final_rect.bottom - final_rect.top));
+    const float left = (std::max)(kPanelMargin, final_rect.right - size.width - kPanelMargin);
+    const float top = ui_theme::metrics::kTitleBarHeight + kPanelMargin;
+    panel_->Arrange(D2D1::RectF(left, top, left + size.width, top + size.height));
+}
+
+void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
 {
     if (!state_.visible || panel_ == nullptr) {
         return;
     }
-
-    Layout(draw_context.viewport_size);
 
     const UiDraw draw(draw_context);
     const D2D1_RECT_F rect = panel_->Rect();
@@ -220,19 +238,6 @@ UiEventResult ImgViewerUiInfoPanel::OnPointerEvent(const UiPointerEvent& event)
     }
 
     return UiEventResult{.handled = true};
-}
-
-void ImgViewerUiInfoPanel::Layout(D2D1_SIZE_F viewport_size) const
-{
-    if (panel_ == nullptr) {
-        return;
-    }
-
-    const float width = (std::min)(kPanelWidth, (std::max)(180.0f, viewport_size.width - kPanelMargin * 2.0f));
-    const float left = (std::max)(kPanelMargin, viewport_size.width - width - kPanelMargin);
-    const float top = ui_theme::metrics::kTitleBarHeight + kPanelMargin;
-    const float bottom = (std::max)(top + kMinimumPanelHeight, viewport_size.height - kPanelMargin);
-    panel_->SetRect(D2D1::RectF(left, top, left + width, bottom));
 }
 
 void ImgViewerUiInfoPanel::DrawRow(

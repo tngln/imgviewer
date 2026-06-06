@@ -100,10 +100,22 @@ public:
     const UiElement* Root() const override { return root_.get(); }
     const wchar_t* AccessibilityRootName() const override { return L"About ImgViewer"; }
 
-    void Draw(const UiDrawContext& context, UiRootState state) override
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
+    {
+        copy_button_width_ = copy_button_->PreferredWidth(context);
+        close_button_width_ = close_button_->PreferredWidth(context);
+        return available_size;
+    }
+
+    void Arrange(D2D1_RECT_F final_rect) override
+    {
+        root_->Arrange(final_rect);
+        Layout(D2D1::SizeF(final_rect.right - final_rect.left, final_rect.bottom - final_rect.top));
+    }
+
+    void Render(const UiDrawContext& context, UiRootState state) override
     {
         const D2D1_SIZE_F size = context.viewport_size;
-        Layout(context);
 
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
@@ -164,39 +176,32 @@ public:
     }
 
 private:
-    void Layout(const UiDrawContext& context)
+    void Layout(D2D1_SIZE_F size)
     {
-        const D2D1_SIZE_F size = context.viewport_size;
-        root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-        copy_button_->SetRect(D2D1::RectF(
+        copy_button_->Arrange(D2D1::RectF(
             kAboutSidePadding,
             size.height - kAboutFooterBottomPadding - kAboutFooterButtonHeight,
-            kAboutSidePadding + copy_button_->PreferredWidth(context),
+            kAboutSidePadding + copy_button_width_,
             size.height - kAboutFooterBottomPadding));
         const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
             root_->Rect(),
-            std::vector<float>{close_button_->PreferredWidth(context)},
+            std::vector<float>{close_button_width_},
             kAboutFooterButtonHeight,
             kAboutFooterBottomPadding,
             kAboutFooterBottomPadding);
-        close_button_->SetRect(primary_buttons[0]);
+        close_button_->Arrange(primary_buttons[0]);
     }
 
     void DrawElement(UiElement& element, const UiDrawContext& context, UiRootState state) const
     {
-        element.Draw(
-            context,
-            UiElementState{
-                .hovered = state.hovered == element.Id(),
-                .pressed = state.pressed == element.Id(),
-                .active = state.focused == element.Id(),
-                .enabled = element.IsEnabled(),
-            });
+        element.Render(context, state);
     }
 
     std::unique_ptr<UiElement> root_;
     Button* copy_button_ = nullptr;
     Button* close_button_ = nullptr;
+    float copy_button_width_ = 162.0f;
+    float close_button_width_ = 112.0f;
 };
 
 struct AboutWindowContext final : public UiWindowDelegate {

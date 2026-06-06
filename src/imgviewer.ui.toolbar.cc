@@ -139,16 +139,22 @@ constexpr size_t ImgViewerUiToolbar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
 {
+    button_panel_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
+        UiMetadata(UiElementRole::Pane, kUiActionNone, L"Toolbar buttons", L"", L"toolbar-buttons", false, false),
+        ui_layout::StackDirection::Horizontal)));
+    button_panel_->SetGap(ui_theme::metrics::kToolbarButtonGap);
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(
+        std::unique_ptr<IconButton> element = CreateButton(
             spec,
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
                 spec.name,
                 spec.tooltip,
-                spec.automation_id))));
+                spec.automation_id));
+        element->SetVisualDanger(spec.danger);
+        button.element = button_panel_->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
         button.id = button.element->Id();
         button.element->SetEnabled(spec.initially_enabled);
     }
@@ -176,13 +182,61 @@ void ImgViewerUiToolbar::SetScalePercent(int percent)
     }
 }
 
-void ImgViewerUiToolbar::Draw(
+D2D1_SIZE_F ImgViewerUiToolbar::Measure(const UiDrawContext&, D2D1_SIZE_F) const
+{
+    const ToolbarMetrics metrics = MetricsForScale(scale_percent_);
+    const float toolbar_content_width =
+        metrics.button_size * static_cast<float>(kButtonSpecs.size()) +
+        metrics.button_gap * static_cast<float>(kButtonSpecs.size() - 1);
+    return D2D1::SizeF(
+        toolbar_content_width + metrics.padding * 2.0f + metrics.drag_handle_width,
+        metrics.button_size + metrics.padding * 2.0f);
+}
+
+void ImgViewerUiToolbar::Arrange(D2D1_RECT_F final_rect)
+{
+    const ToolbarMetrics metrics = MetricsForScale(scale_percent_);
+    const D2D1_SIZE_F toolbar_size = Measure(UiDrawContext{}, D2D1::SizeF());
+    if (!position_initialized_) {
+        toolbar_position_ = D2D1::Point2F(
+            (std::max)(0.0f, (final_rect.right - final_rect.left - toolbar_size.width) * 0.5f),
+            (std::max)(0.0f, final_rect.bottom - toolbar_size.height - metrics.bottom_margin));
+        position_initialized_ = true;
+    }
+    toolbar_rect_ = D2D1::RectF(
+        toolbar_position_.x,
+        toolbar_position_.y,
+        toolbar_position_.x + toolbar_size.width,
+        toolbar_position_.y + toolbar_size.height);
+    ClampToViewport(D2D1::SizeF(final_rect.right - final_rect.left, final_rect.bottom - final_rect.top));
+    toolbar_position_ = D2D1::Point2F(toolbar_rect_.left, toolbar_rect_.top);
+    drag_handle_->Arrange(D2D1::RectF(
+        toolbar_rect_.left,
+        toolbar_rect_.top,
+        toolbar_rect_.left + metrics.padding + metrics.drag_handle_width,
+        toolbar_rect_.bottom));
+
+    button_panel_->SetGap(metrics.button_gap);
+    for (size_t index = 0; index < kButtonSpecs.size(); ++index) {
+        button_panel_->SetItemFixedMainSize(index, metrics.button_size);
+    }
+    button_panel_->Measure(UiDrawContext{}, D2D1::SizeF(
+        metrics.button_size * static_cast<float>(kButtonSpecs.size()) +
+            metrics.button_gap * static_cast<float>(kButtonSpecs.size() - 1),
+        metrics.button_size));
+    button_panel_->Arrange(D2D1::RectF(
+        toolbar_rect_.left + metrics.padding + metrics.drag_handle_width,
+        toolbar_rect_.top + metrics.padding,
+        toolbar_rect_.right - metrics.padding,
+        toolbar_rect_.top + metrics.padding + metrics.button_size));
+}
+
+void ImgViewerUiToolbar::Render(
     const UiDrawContext& draw_context,
     UiRootState state,
     bool color_picker_active)
 {
     const UiDraw draw(draw_context);
-    Layout(draw_context.viewport_size);
     const ToolbarMetrics metrics = MetricsForScale(scale_percent_);
 
     const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
@@ -198,50 +252,8 @@ void ImgViewerUiToolbar::Draw(
             ui_theme::color::kToolbarBackgroundOpacity));
     draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, 1.0f);
 
-    for (const ButtonSpec& spec : kButtonSpecs) {
-        DrawButton(spec.button, draw_context, state, spec.button == ButtonKey::ColorPicker && color_picker_active);
-    }
-}
-
-void ImgViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
-{
-    const ToolbarMetrics metrics = MetricsForScale(scale_percent_);
-    const float toolbar_content_width =
-        metrics.button_size * static_cast<float>(kButtonSpecs.size()) +
-        metrics.button_gap * static_cast<float>(kButtonSpecs.size() - 1);
-    const float toolbar_width = toolbar_content_width +
-        metrics.padding * 2.0f +
-        metrics.drag_handle_width;
-    const float toolbar_height = metrics.button_size + metrics.padding * 2.0f;
-    if (!position_initialized_) {
-        toolbar_position_ = D2D1::Point2F(
-            (std::max)(0.0f, (viewport_size.width - toolbar_width) * 0.5f),
-            (std::max)(0.0f, viewport_size.height - toolbar_height - metrics.bottom_margin));
-        position_initialized_ = true;
-    }
-    toolbar_rect_ = D2D1::RectF(
-        toolbar_position_.x,
-        toolbar_position_.y,
-        toolbar_position_.x + toolbar_width,
-        toolbar_position_.y + toolbar_height);
-    ClampToViewport(viewport_size);
-    toolbar_position_ = D2D1::Point2F(toolbar_rect_.left, toolbar_rect_.top);
-    drag_handle_->SetRect(D2D1::RectF(
-        toolbar_rect_.left,
-        toolbar_rect_.top,
-        toolbar_rect_.left + metrics.padding + metrics.drag_handle_width,
-        toolbar_rect_.bottom));
-
-    const std::vector<D2D1_RECT_F> toolbar_buttons = ui_layout::PlaceHorizontalRow(
-        D2D1::Point2F(
-            toolbar_rect_.left + metrics.padding + metrics.drag_handle_width,
-            toolbar_rect_.top + metrics.padding),
-        metrics.button_size,
-        std::vector<float>(kButtonSpecs.size(), metrics.button_size),
-        metrics.button_gap);
-    for (const ButtonSpec& spec : kButtonSpecs) {
-        Button(spec.button)->SetRect(toolbar_buttons[ButtonIndex(spec.button)]);
-    }
+    Button(ButtonKey::ColorPicker)->SetVisualActive(color_picker_active);
+    button_panel_->Render(draw_context, state);
 }
 
 void ImgViewerUiToolbar::ClampToViewport(D2D1_SIZE_F viewport_size)
@@ -326,25 +338,15 @@ const IconButton* ImgViewerUiToolbar::Button(ButtonKey button) const
     return buttons_[ButtonIndex(button)].element;
 }
 
-UiElementState ImgViewerUiToolbar::ButtonState(ButtonKey button, UiRootState state, bool active, bool danger) const
-{
-    const ButtonInstance& instance = buttons_[ButtonIndex(button)];
-    return UiElementState{
-        .hovered = state.hovered == instance.id,
-        .pressed = state.pressed == instance.id,
-        .active = active,
-        .danger = danger,
-        .enabled = instance.element != nullptr && instance.element->IsEnabled(),
-    };
-}
-
-void ImgViewerUiToolbar::DrawButton(
+void ImgViewerUiToolbar::RenderButton(
     ButtonKey button,
     const UiDrawContext& draw_context,
     UiRootState state,
     bool active,
-    bool danger) const
+    bool danger)
 {
     const ButtonSpec& spec = kButtonSpecs[ButtonIndex(button)];
-    Button(button)->Draw(draw_context, ButtonState(button, state, active, danger || spec.danger));
+    Button(button)->SetVisualActive(active);
+    Button(button)->SetVisualDanger(danger || spec.danger);
+    Button(button)->Render(draw_context, state);
 }

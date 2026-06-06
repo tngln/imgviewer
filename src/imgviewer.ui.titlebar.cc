@@ -64,11 +64,11 @@ constexpr bool ButtonSpecsMatchKeys()
 
 static_assert(ButtonSpecsMatchKeys());
 
-constexpr std::array<ImgViewerUiTitleBar::ButtonKey, 4> kButtonsByPosition{
-    ImgViewerUiTitleBar::ButtonKey::Close,
-    ImgViewerUiTitleBar::ButtonKey::MaximizeRestore,
-    ImgViewerUiTitleBar::ButtonKey::Minimize,
+constexpr std::array<ImgViewerUiTitleBar::ButtonKey, 4> kCaptionButtonsLeftToRight{
     ImgViewerUiTitleBar::ButtonKey::TopMost,
+    ImgViewerUiTitleBar::ButtonKey::Minimize,
+    ImgViewerUiTitleBar::ButtonKey::MaximizeRestore,
+    ImgViewerUiTitleBar::ButtonKey::Close,
 };
 
 } // namespace
@@ -80,29 +80,73 @@ constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
 {
+    caption_buttons_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
+        UiMetadata(UiElementRole::Pane, kUiActionNone, L"Caption buttons", L"", L"caption-buttons", false, false),
+        ui_layout::StackDirection::Horizontal)));
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        button.element = static_cast<IconButton*>(root.AddChild(CreateButton(
+        std::unique_ptr<IconButton> element = CreateButton(
             spec,
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
                 spec.name,
                 spec.tooltip,
-                spec.automation_id))));
+                spec.automation_id));
+        element->SetVisualDanger(spec.danger);
+        button.element = spec.button == ButtonKey::Menu
+            ? static_cast<IconButton*>(root.AddChild(std::move(element)))
+            : caption_buttons_->AddItem(std::move(element), ui_theme::metrics::kCaptionButtonWidth);
         button.id = button.element->Id();
     }
 }
 
-void ImgViewerUiTitleBar::Draw(
+D2D1_SIZE_F ImgViewerUiTitleBar::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
+{
+    return D2D1::SizeF(available_size.width, ui_theme::metrics::kTitleBarHeight);
+}
+
+void ImgViewerUiTitleBar::Arrange(D2D1_RECT_F final_rect)
+{
+    titlebar_rect_ = final_rect;
+    const float caption_edge_padding = ui_theme::metrics::kCaptionButtonEdgePadding;
+    const D2D1_RECT_F caption_button_area = D2D1::RectF(
+        titlebar_rect_.left,
+        titlebar_rect_.top + caption_edge_padding,
+        titlebar_rect_.right - caption_edge_padding,
+        titlebar_rect_.bottom);
+    const float caption_button_width = ui_theme::metrics::kCaptionButtonWidth * static_cast<float>(kCaptionButtonsLeftToRight.size());
+    caption_buttons_->Measure(UiDrawContext{}, D2D1::SizeF(caption_button_width, ui_theme::metrics::kTitleBarHeight));
+    caption_buttons_->Arrange(D2D1::RectF(
+        caption_button_area.right - caption_button_width,
+        caption_button_area.top,
+        caption_button_area.right,
+        caption_button_area.bottom));
+
+    Button(ButtonKey::Menu)->Arrange(D2D1::RectF(
+        caption_edge_padding,
+        titlebar_rect_.top + caption_edge_padding,
+        ui_theme::metrics::kCaptionButtonWidth + caption_edge_padding,
+        ui_theme::metrics::kTitleBarHeight));
+
+    title_text_rect_ = D2D1::RectF(
+        ui_theme::metrics::kCaptionButtonWidth + ui_theme::metrics::kTitleTextLeft,
+        1.0f,
+        (std::max)(
+            ui_theme::metrics::kTitleTextLeft + 1.0f,
+            Button(ButtonKey::TopMost)->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
+        ui_theme::metrics::kTitleBarHeight);
+}
+
+void ImgViewerUiTitleBar::Render(
     const UiDrawContext& draw_context,
     UiRootState state,
     bool top_most,
     bool maximized)
 {
     const UiDraw draw(draw_context);
-    Layout(draw_context.viewport_size);
     Button(ButtonKey::MaximizeRestore)->SetIcon(maximized ? kRestoreIcon : kMaximizeIcon);
+    Button(ButtonKey::TopMost)->SetVisualActive(top_most);
 
     draw.FillRect(
         titlebar_rect_,
@@ -135,11 +179,8 @@ void ImgViewerUiTitleBar::Draw(
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE_NATURAL);
 
-    DrawButton(ButtonKey::TopMost, draw_context, state, top_most);
-    DrawButton(ButtonKey::Menu, draw_context, state);
-    DrawButton(ButtonKey::Minimize, draw_context, state);
-    DrawButton(ButtonKey::MaximizeRestore, draw_context, state);
-    DrawButton(ButtonKey::Close, draw_context, state);
+    RenderButton(ButtonKey::Menu, draw_context, state);
+    caption_buttons_->Render(draw_context, state);
 }
 
 bool ImgViewerUiTitleBar::IsPointInCaptionDragArea(const UiElement& root, D2D1_POINT_2F point) const
@@ -154,39 +195,6 @@ void ImgViewerUiTitleBar::SetTitleText(const wchar_t* title)
     title_text_ = title != nullptr && title[0] != L'\0' ? title : L"ImgViewer";
 }
 
-void ImgViewerUiTitleBar::Layout(D2D1_SIZE_F viewport_size)
-{
-    titlebar_rect_ = D2D1::RectF(0.0f, 0.0f, viewport_size.width, ui_theme::metrics::kTitleBarHeight);
-    const float caption_edge_padding = ui_theme::metrics::kCaptionButtonEdgePadding;
-    const D2D1_RECT_F caption_button_area = D2D1::RectF(
-        titlebar_rect_.left,
-        titlebar_rect_.top + caption_edge_padding,
-        titlebar_rect_.right - caption_edge_padding,
-        titlebar_rect_.bottom);
-    const std::vector<D2D1_RECT_F> caption_buttons = ui_layout::PlaceRightAlignedRow(
-        caption_button_area,
-        ui_theme::metrics::kCaptionButtonWidth,
-        ui_theme::metrics::kTitleBarHeight - caption_edge_padding,
-        kButtonsByPosition.size());
-    for (size_t index = 0; index < kButtonsByPosition.size(); ++index) {
-        Button(kButtonsByPosition[index])->SetRect(caption_buttons[index]);
-    }
-
-    Button(ButtonKey::Menu)->SetRect(D2D1::RectF(
-        caption_edge_padding,
-        titlebar_rect_.top + caption_edge_padding,
-        ui_theme::metrics::kCaptionButtonWidth + caption_edge_padding,
-        ui_theme::metrics::kTitleBarHeight));
-
-    title_text_rect_ = D2D1::RectF(
-        ui_theme::metrics::kCaptionButtonWidth + ui_theme::metrics::kTitleTextLeft,
-        1.0f,
-        (std::max)(
-            ui_theme::metrics::kTitleTextLeft + 1.0f,
-            Button(ButtonKey::TopMost)->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
-        ui_theme::metrics::kTitleBarHeight);
-}
-
 IconButton* ImgViewerUiTitleBar::Button(ButtonKey button)
 {
     return buttons_[ButtonIndex(button)].element;
@@ -197,25 +205,13 @@ const IconButton* ImgViewerUiTitleBar::Button(ButtonKey button) const
     return buttons_[ButtonIndex(button)].element;
 }
 
-UiElementState ImgViewerUiTitleBar::ButtonState(ButtonKey button, UiRootState state, bool active, bool danger) const
-{
-    const ButtonInstance& instance = buttons_[ButtonIndex(button)];
-    return UiElementState{
-        .hovered = state.hovered == instance.id,
-        .pressed = state.pressed == instance.id,
-        .active = active,
-        .danger = danger,
-        .enabled = instance.element != nullptr && instance.element->IsEnabled(),
-    };
-}
-
-void ImgViewerUiTitleBar::DrawButton(
+void ImgViewerUiTitleBar::RenderButton(
     ButtonKey button,
     const UiDrawContext& draw_context,
     UiRootState state,
-    bool active,
-    bool danger) const
+    bool danger)
 {
     const ButtonSpec& spec = kButtonSpecs[ButtonIndex(button)];
-    Button(button)->Draw(draw_context, ButtonState(button, state, active, danger || spec.danger));
+    Button(button)->SetVisualDanger(danger || spec.danger);
+    Button(button)->Render(draw_context, state);
 }

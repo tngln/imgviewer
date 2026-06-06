@@ -143,7 +143,7 @@ HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
             const UiDraw draw(context.draw);
             draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
             context.draw.d2d_context->SetTransform(context.root_transform);
-            ui_controller->Draw(context.draw);
+            ui_controller->Render(context.draw);
             return S_OK;
         },
         &ui);

@@ -74,7 +74,7 @@ D2D1_POINT_2F MenuOverlay::Origin() const
     return origin_;
 }
 
-D2D1_SIZE_F MenuOverlay::DesiredSize() const
+D2D1_SIZE_F MenuOverlay::MeasuredSize() const
 {
     float height = kMenuPadding * 2.0f;
     for (const MenuItem& item : items_) {
@@ -83,9 +83,15 @@ D2D1_SIZE_F MenuOverlay::DesiredSize() const
     return D2D1::SizeF(PreferredWidth(), height);
 }
 
+D2D1_SIZE_F MenuOverlay::Measure(const UiDrawContext& context, D2D1_SIZE_F) const
+{
+    UpdatePreferredWidth(context);
+    return MeasuredSize();
+}
+
 D2D1_RECT_F MenuOverlay::Bounds() const
 {
-    const D2D1_SIZE_F size = DesiredSize();
+    const D2D1_SIZE_F size = MeasuredSize();
     return D2D1::RectF(origin_.x, origin_.y, origin_.x + size.width, origin_.y + size.height);
 }
 
@@ -108,13 +114,13 @@ float MenuOverlay::PreferredWidth() const
     return preferred_width_ > 0.0f ? preferred_width_ : kMenuMinWidth;
 }
 
-void MenuOverlay::Draw(const UiDrawContext& context, UiElementState) const
+void MenuOverlay::Render(const UiDrawContext& context, UiRootState) const
 {
     if (!open_) {
         return;
     }
 
-    UpdatePreferredWidth(context);
+    Measure(context, context.viewport_size);
     const UiDraw draw(context);
     const D2D1_RECT_F menu_rect = Bounds();
     draw.FillRoundedRect(D2D1::RoundedRect(menu_rect, 6.0f, 6.0f), ui_theme::color::kButtonDefault);

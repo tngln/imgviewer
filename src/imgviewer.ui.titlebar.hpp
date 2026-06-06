@@ -9,6 +9,7 @@
 
 #include "ui.button.hpp"
 #include "ui.element.hpp"
+#include "ui.panel.hpp"
 
 #include "ui.root.hpp"
 
@@ -28,7 +29,9 @@ public:
 
     explicit ImgViewerUiTitleBar(UiElement& root);
 
-    void Draw(
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
+    void Arrange(D2D1_RECT_F final_rect);
+    void Render(
         const UiDrawContext& draw_context,
         UiRootState state,
         bool top_most,
@@ -42,18 +45,16 @@ private:
         IconButton* element = nullptr;
     };
 
-    void Layout(D2D1_SIZE_F viewport_size);
     IconButton* Button(ButtonKey button);
     const IconButton* Button(ButtonKey button) const;
-    UiElementState ButtonState(ButtonKey button, UiRootState state, bool active = false, bool danger = false) const;
-    void DrawButton(
+    void RenderButton(
         ButtonKey button,
         const UiDrawContext& draw_context,
         UiRootState state,
-        bool active = false,
-        bool danger = false) const;
+        bool danger = false);
 
     std::array<ButtonInstance, kButtonCount> buttons_{};
+    StackPanel* caption_buttons_ = nullptr;
     std::wstring title_text_ = L"ImgViewer";
     D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
     D2D1_RECT_F title_text_rect_ = D2D1_RECT_F{16.0f, 0.0f, 720.0f, 48.0f};

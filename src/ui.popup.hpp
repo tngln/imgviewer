@@ -15,9 +15,9 @@ class UiPopupContent {
 public:
     virtual ~UiPopupContent() = default;
 
-    virtual D2D1_SIZE_F DesiredSize() const = 0;
+    virtual D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const = 0;
     virtual float CornerRadius() const { return 0.0f; }
-    virtual void Draw(const UiDrawContext& context) const = 0;
+    virtual void Render(const UiDrawContext& context) const = 0;
     virtual UiEventResult OnInputEvent(const UiInputEvent& event) = 0;
     virtual void OnClosed() {}
 };
@@ -31,7 +31,7 @@ public:
     void Close();
     HRESULT Open(D2D1_POINT_2F origin, std::unique_ptr<UiPopupContent> content);
     HRESULT OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items);
-    void Draw(const UiDrawContext& context) const;
+    void Render(const UiDrawContext& context) const;
     UiEventResult OnInputEvent(const UiInputEvent& event);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
     UiEventResult OnKeyEvent(const UiKeyEvent& event);

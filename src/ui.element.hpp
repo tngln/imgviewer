@@ -86,13 +86,20 @@ struct UiElementState final {
     bool expanded = false;
 };
 
+struct UiRootState final {
+    UiElementId hovered = UiElementId::None;
+    UiElementId pressed = UiElementId::None;
+    UiElementId focused = UiElementId::None;
+};
+
 class UiElement {
 public:
     explicit UiElement(UiElementMetadata metadata);
     virtual ~UiElement() = default;
 
-    void SetRect(D2D1_RECT_F rect);
     D2D1_RECT_F Rect() const;
+    virtual D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
+    virtual void Arrange(D2D1_RECT_F final_rect);
     const UiElementMetadata& Metadata() const;
     UiElementId Id() const;
     UiAction Action() const;
@@ -102,8 +109,13 @@ public:
     bool IsFocusable() const;
     void SetHitTestVisible(bool hit_test_visible);
     bool IsHitTestVisible() const;
+    void SetVisualActive(bool active);
+    bool IsVisualActive() const;
+    void SetVisualDanger(bool danger);
+    bool IsVisualDanger() const;
+    UiElementState VisualState(UiRootState state) const;
     bool Contains(D2D1_POINT_2F point) const;
-    virtual void Draw(const UiDrawContext& context, UiElementState state) const;
+    virtual void Render(const UiDrawContext& context, UiRootState state) const;
     virtual UiEventResult OnInputEvent(const UiInputEvent& event);
     virtual UiEventResult OnPointerEvent(const UiPointerEvent& event);
     virtual UiEventResult OnKeyEvent(const UiKeyEvent& event);
@@ -122,5 +134,7 @@ private:
     bool enabled_ = true;
     bool focusable_ = false;
     bool hit_test_visible_ = true;
+    bool visual_active_ = false;
+    bool visual_danger_ = false;
     std::vector<std::unique_ptr<UiElement>> children_;
 };

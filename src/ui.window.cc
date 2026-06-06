@@ -436,9 +436,9 @@ void UiWindowHost::Render()
         .viewport_size = ClientRenderSize(window_.Hwnd()),
     };
     render_target_->BeginDraw();
-    ui_.Draw(draw_context);
+    ui_.Render(draw_context);
     if (options_.enable_popup) {
-        popup_.Draw(draw_context);
+        popup_.Render(draw_context);
     }
     if (render_target_->EndDraw() == D2DERR_RECREATE_TARGET) {
         render_target_.reset();

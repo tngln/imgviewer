@@ -1,8 +1,41 @@
 #include "ui.hpp"
 
 #include <memory>
+#include <vector>
 
 #include <d2d1helper.h>
+
+namespace {
+
+void CollectAccessibleElements(const UiElement* element, std::vector<const UiElement*>* elements)
+{
+    if (element == nullptr || elements == nullptr) {
+        return;
+    }
+
+    for (size_t index = 0; index < element->ChildCount(); ++index) {
+        const UiElement* child = element->ChildAt(index);
+        if (child == nullptr) {
+            continue;
+        }
+        const UiElementMetadata& metadata = child->Metadata();
+        if (metadata.is_control || metadata.is_content) {
+            elements->push_back(child);
+        }
+        CollectAccessibleElements(child, elements);
+    }
+}
+
+std::vector<const UiElement*> AccessibleElements(const UiRoot* root)
+{
+    std::vector<const UiElement*> elements;
+    if (root != nullptr) {
+        CollectAccessibleElements(root->Root(), &elements);
+    }
+    return elements;
+}
+
+} // namespace
 
 UiController::UiController(std::unique_ptr<UiRoot> root) : root_(std::move(root)) {}
 
@@ -209,15 +242,11 @@ void UiController::ApplyEventResult(const UiEventResult& result, UiElementId tar
     }
 }
 
-void UiController::Draw(const UiDrawContext& context)
+void UiController::Render(const UiDrawContext& context)
 {
-    root_->Draw(
-        context,
-        UiRootState{
-            .hovered = hovered_id_,
-            .pressed = pressed_id_,
-            .focused = focused_id_,
-        });
+    root_->Measure(context, context.viewport_size);
+    root_->Arrange(D2D1::RectF(0.0f, 0.0f, context.viewport_size.width, context.viewport_size.height));
+    root_->Render(context, UiRootState{.hovered = hovered_id_, .pressed = pressed_id_, .focused = focused_id_});
 }
 
 const wchar_t* UiController::AccessibilityRootName() const
@@ -239,12 +268,13 @@ const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 
 size_t UiController::ElementCount() const
 {
-    return root_->Root()->ChildCount();
+    return AccessibleElements(root_.get()).size();
 }
 
 const UiElementMetadata* UiController::ElementMetadataAt(size_t index) const
 {
-    const UiElement* element = root_->Root()->ChildAt(index);
+    const std::vector<const UiElement*> elements = AccessibleElements(root_.get());
+    const UiElement* element = index < elements.size() ? elements[index] : nullptr;
     return element != nullptr ? &element->Metadata() : nullptr;
 }
 

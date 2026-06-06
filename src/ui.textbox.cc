@@ -77,8 +77,14 @@ std::vector<MenuItem> TextBox::ContextMenuItems() const
     };
 }
 
-void TextBox::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F TextBox::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 42.0f);
+}
+
+void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    const UiElementState state = VisualState(root_state);
     const_cast<TextBox*>(this)->SetTextServices(context.dwrite_factory, context.body_text_format);
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();

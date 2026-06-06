@@ -27,7 +27,7 @@ public:
     UiElementId FocusedElement() const;
     UiElementId CapturedElement() const;
 
-    void Draw(const UiDrawContext& context);
+    void Render(const UiDrawContext& context);
     const wchar_t* AccessibilityRootName() const override;
     size_t ElementCount() const override;
     const UiElementMetadata* ElementMetadataAt(size_t index) const override;

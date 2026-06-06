@@ -50,8 +50,14 @@ bool Slider::SetValue(int value)
     return true;
 }
 
-void Slider::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F Slider::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 36.0f);
+}
+
+void Slider::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    const UiElementState state = VisualState(root_state);
     const UiDraw draw(context);
     const D2D1_RECT_F track = TrackRect();
     const D2D1_RECT_F thumb = ThumbRect();

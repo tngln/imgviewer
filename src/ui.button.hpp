@@ -13,7 +13,8 @@ public:
 
     float PreferredWidth(const UiDrawContext& context) const;
     float PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const;
-    void Draw(const UiDrawContext& context, UiElementState state) const override;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 
@@ -31,7 +32,8 @@ public:
 
     void SetIcon(const wchar_t* icon);
     void SetIconScale(float scale);
-    void Draw(const UiDrawContext& context, UiElementState state) const override;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 

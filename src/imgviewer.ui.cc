@@ -40,15 +40,30 @@ const wchar_t* ImgViewerUi::AccessibilityRootName() const
     return L"ImgViewer";
 }
 
-void ImgViewerUi::Draw(
+D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext& context, D2D1_SIZE_F available_size)
+{
+    titlebar_.Measure(context, available_size);
+    toolbar_.Measure(context, available_size);
+    info_panel_.Measure(context, available_size);
+    return available_size;
+}
+
+void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
+{
+    root_->Arrange(final_rect);
+    titlebar_.Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, final_rect.top + ui_theme::metrics::kTitleBarHeight));
+    toolbar_.Arrange(final_rect);
+    info_panel_.Arrange(final_rect);
+}
+
+void ImgViewerUi::Render(
     const UiDrawContext& draw_context,
     UiRootState state)
 {
-    Layout(draw_context.viewport_size);
-    titlebar_.Draw(draw_context, state, top_most_, maximized_);
-    toolbar_.Draw(draw_context, state, color_picker_active_);
-    info_panel_.Draw(draw_context);
-    toast_.Draw(draw_context);
+    titlebar_.Render(draw_context, state, top_most_, maximized_);
+    toolbar_.Render(draw_context, state, color_picker_active_);
+    info_panel_.Render(draw_context);
+    toast_.Render(draw_context);
 }
 
 UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
@@ -150,9 +165,4 @@ void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
 void ImgViewerUi::SetInfoPanelState(ImgViewerUiInfoPanelState state)
 {
     info_panel_.SetState(std::move(state));
-}
-
-void ImgViewerUi::Layout(D2D1_SIZE_F viewport_size)
-{
-    root_->SetRect(D2D1::RectF(0.0f, 0.0f, viewport_size.width, viewport_size.height));
 }

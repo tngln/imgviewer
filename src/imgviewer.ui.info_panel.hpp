@@ -38,11 +38,12 @@ public:
 
     void SetState(ImgViewerUiInfoPanelState state);
     bool IsVisible() const;
-    void Draw(const UiDrawContext& draw_context) const;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
+    void Arrange(D2D1_RECT_F final_rect) const;
+    void Render(const UiDrawContext& draw_context) const;
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
-    void Layout(D2D1_SIZE_F viewport_size) const;
     void DrawRow(const UiDraw& draw, const wchar_t* label, const std::wstring& value, float top) const;
     void DrawSectionHeader(const UiDraw& draw, const wchar_t* text, float top) const;
     void DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& rect) const;

@@ -61,19 +61,19 @@ public:
         menu_.UpdatePreferredWidth(MenuTextContext(context));
     }
 
-    D2D1_SIZE_F DesiredSize() const override
-    {
-        return menu_.DesiredSize();
-    }
-
     float CornerRadius() const override
     {
         return kMenuCornerRadius;
     }
 
-    void Draw(const UiDrawContext& context) const override
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F) const override
     {
-        menu_.Draw(MenuTextContext(context), UiElementState{});
+        return menu_.Measure(MenuTextContext(context), context.viewport_size);
+    }
+
+    void Render(const UiDrawContext& context) const override
+    {
+        menu_.Render(MenuTextContext(context), UiRootState{});
     }
 
     UiEventResult OnInputEvent(const UiInputEvent& event) override
@@ -165,7 +165,12 @@ HRESULT PopupHost::Open(D2D1_POINT_2F origin, std::unique_ptr<UiPopupContent> co
     RETURN_HR_IF_NULL(E_INVALIDARG, content);
     Close();
 
-    const D2D1_SIZE_F size = content->DesiredSize();
+    const UiDrawContext measure_context{
+        .dwrite_factory = dwrite_factory_.get(),
+        .body_text_format = body_text_format_,
+        .icon_text_format = icon_text_format_,
+    };
+    const D2D1_SIZE_F size = content->Measure(measure_context, D2D1::SizeF());
     content_ = std::move(content);
     return OpenNativePopup(origin, size);
 }
@@ -186,7 +191,7 @@ HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
             MenuIconTextFormat()));
 }
 
-void PopupHost::Draw(const UiDrawContext& context) const
+void PopupHost::Render(const UiDrawContext& context) const
 {
     UNREFERENCED_PARAMETER(context);
 }
@@ -327,7 +332,7 @@ void PopupHost::RenderNativePopup()
     native_render_target_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
 
     if (content_ != nullptr) {
-        content_->Draw(draw_context);
+        content_->Render(draw_context);
     }
 
     if (native_render_target_->EndDraw() == D2DERR_RECREATE_TARGET) {

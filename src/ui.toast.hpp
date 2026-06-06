@@ -9,7 +9,7 @@
 
 class UiToast final {
 public:
-    void Draw(const UiDrawContext& draw_context) const;
+    void Render(const UiDrawContext& draw_context) const;
     void Show(const wchar_t* text);
     bool Hide();
     bool IsVisible() const;

@@ -22,7 +22,9 @@ public:
     const UiElement* Root() const override;
     const wchar_t* AccessibilityRootName() const override;
 
-    void Draw(
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override;
+    void Arrange(D2D1_RECT_F final_rect) override;
+    void Render(
         const UiDrawContext& context,
         UiRootState state) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
@@ -39,8 +41,6 @@ public:
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
 
 private:
-    void Layout(D2D1_SIZE_F viewport_size);
-
     std::unique_ptr<UiElement> root_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;

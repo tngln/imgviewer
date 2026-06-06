@@ -30,7 +30,7 @@ D2D1_COLOR_F ToastBackgroundColor()
 
 } // namespace
 
-void UiToast::Draw(const UiDrawContext& draw_context) const
+void UiToast::Render(const UiDrawContext& draw_context) const
 {
     const D2D1_SIZE_F viewport_size = draw_context.viewport_size;
     if (text_.empty() || viewport_size.width <= kToastViewportMargin * 2.0f) {

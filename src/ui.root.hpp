@@ -7,12 +7,6 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
-struct UiRootState final {
-    UiElementId hovered = UiElementId::None;
-    UiElementId pressed = UiElementId::None;
-    UiElementId focused = UiElementId::None;
-};
-
 class UiRoot {
 public:
     virtual ~UiRoot() = default;
@@ -20,7 +14,9 @@ public:
     virtual UiElement* Root() = 0;
     virtual const UiElement* Root() const = 0;
     virtual const wchar_t* AccessibilityRootName() const = 0;
-    virtual void Draw(const UiDrawContext& context, UiRootState state) = 0;
+    virtual D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) = 0;
+    virtual void Arrange(D2D1_RECT_F final_rect) = 0;
+    virtual void Render(const UiDrawContext& context, UiRootState state) = 0;
     virtual UiEventResult OnInputEvent(const UiInputEvent&) { return {}; }
     virtual UiEventResult OnPointerEvent(const UiPointerEvent&) { return {}; }
     virtual UiEventResult OnKeyEvent(const UiKeyEvent&) { return {}; }

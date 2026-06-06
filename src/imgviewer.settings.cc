@@ -584,10 +584,23 @@ public:
         return E_NOTIMPL;
     }
 
-    void Draw(const UiDrawContext& context, UiRootState state) override
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
+    {
+        reset_button_width_ = reset_button_->PreferredWidth(context);
+        save_button_width_ = save_button_->PreferredWidth(context);
+        cancel_button_width_ = cancel_button_->PreferredWidth(context);
+        return available_size;
+    }
+
+    void Arrange(D2D1_RECT_F final_rect) override
+    {
+        root_->Arrange(final_rect);
+        Layout(D2D1::SizeF(final_rect.right - final_rect.left, final_rect.bottom - final_rect.top));
+    }
+
+    void Render(const UiDrawContext& context, UiRootState state) override
     {
         const D2D1_SIZE_F size = context.viewport_size;
-        Layout(context);
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
         draw.DrawBodyText(L"Settings", 8, layout_.title, ui_theme::color::kBodyText);
@@ -699,17 +712,15 @@ private:
         return typed_control;
     }
 
-    void Layout(const UiDrawContext& context)
+    void Layout(D2D1_SIZE_F size)
     {
-        const D2D1_SIZE_F size = context.viewport_size;
-        root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
         layout_ = CalculateSettingsLayout(
             size,
-            reset_button_->PreferredWidth(context),
-            save_button_->PreferredWidth(context),
-            cancel_button_->PreferredWidth(context));
+            reset_button_width_,
+            save_button_width_,
+            cancel_button_width_);
         for (const SettingsControl& control : controls_) {
-            control.element->SetRect(layout_.*control.rect);
+            control.element->Arrange(layout_.*control.rect);
         }
     }
 
@@ -850,16 +861,7 @@ private:
 
     void DrawElement(UiElement& element, const UiDrawContext& context, UiRootState state) const
     {
-        element.Draw(
-            context,
-            UiElementState{
-                .hovered = state.hovered == element.Id(),
-                .pressed = state.pressed == element.Id(),
-                .active = state.focused == element.Id(),
-                .enabled = element.IsEnabled(),
-                .checked = IsCheckedElement(element.Id()),
-                .expanded = element.Id() == action_dropdown_->Id() && action_dropdown_->IsExpanded(),
-            });
+        element.Render(context, state);
     }
 
     bool IsCheckedElement(UiElementId id) const
@@ -888,6 +890,9 @@ private:
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
+    float reset_button_width_ = 138.0f;
+    float save_button_width_ = 126.0f;
+    float cancel_button_width_ = 128.0f;
     std::wstring opacity_text_;
     std::wstring toolbar_scale_text_;
     std::wstring shortcut_text_;

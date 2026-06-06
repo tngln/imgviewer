@@ -83,14 +83,19 @@ UiElementMetadata UiRootMetadata(
 
 UiElement::UiElement(UiElementMetadata metadata) : metadata_(metadata) {}
 
-void UiElement::SetRect(D2D1_RECT_F rect)
-{
-    rect_ = rect;
-}
-
 D2D1_RECT_F UiElement::Rect() const
 {
     return rect_;
+}
+
+D2D1_SIZE_F UiElement::Measure(const UiDrawContext&, D2D1_SIZE_F) const
+{
+    return D2D1_SIZE_F{};
+}
+
+void UiElement::Arrange(D2D1_RECT_F final_rect)
+{
+    rect_ = final_rect;
 }
 
 const UiElementMetadata& UiElement::Metadata() const
@@ -138,12 +143,43 @@ bool UiElement::IsHitTestVisible() const
     return hit_test_visible_;
 }
 
+void UiElement::SetVisualActive(bool active)
+{
+    visual_active_ = active;
+}
+
+bool UiElement::IsVisualActive() const
+{
+    return visual_active_;
+}
+
+void UiElement::SetVisualDanger(bool danger)
+{
+    visual_danger_ = danger;
+}
+
+bool UiElement::IsVisualDanger() const
+{
+    return visual_danger_;
+}
+
+UiElementState UiElement::VisualState(UiRootState state) const
+{
+    return UiElementState{
+        .hovered = state.hovered == Id(),
+        .pressed = state.pressed == Id(),
+        .active = visual_active_ || state.focused == Id(),
+        .danger = visual_danger_,
+        .enabled = IsEnabled(),
+    };
+}
+
 bool UiElement::Contains(D2D1_POINT_2F point) const
 {
     return point.x >= rect_.left && point.x < rect_.right && point.y >= rect_.top && point.y < rect_.bottom;
 }
 
-void UiElement::Draw(const UiDrawContext&, UiElementState) const {}
+void UiElement::Render(const UiDrawContext&, UiRootState) const {}
 
 UiEventResult UiElement::OnInputEvent(const UiInputEvent& event)
 {

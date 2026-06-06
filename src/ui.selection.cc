@@ -82,7 +82,12 @@ class DropdownPopupContent final : public UiPopupContent {
 public:
     explicit DropdownPopupContent(Dropdown* dropdown) : dropdown_(dropdown) {}
 
-    D2D1_SIZE_F DesiredSize() const override
+    D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F) const override
+    {
+        return PopupSize();
+    }
+
+    D2D1_SIZE_F PopupSize() const
     {
         if (dropdown_ == nullptr) {
             return D2D1::SizeF(1.0f, 1.0f);
@@ -93,14 +98,14 @@ public:
         return D2D1::SizeF(width, height);
     }
 
-    void Draw(const UiDrawContext& context) const override
+    void Render(const UiDrawContext& context) const override
     {
         if (dropdown_ == nullptr) {
             return;
         }
 
         const UiDraw draw(context);
-        const D2D1_SIZE_F size = DesiredSize();
+        const D2D1_SIZE_F size = PopupSize();
         const D2D1_RECT_F bounds = D2D1::RectF(0.0f, 0.0f, size.width, size.height);
         draw.FillRect(bounds, ui_theme::color::kButtonDefault);
 
@@ -220,7 +225,7 @@ private:
 
     D2D1_RECT_F OptionRect(size_t index) const
     {
-        const D2D1_SIZE_F size = DesiredSize();
+        const D2D1_SIZE_F size = PopupSize();
         const float top = kDropdownItemHeight * static_cast<float>(index);
         return D2D1::RectF(0.0f, top, size.width, top + kDropdownItemHeight);
     }
@@ -246,8 +251,14 @@ void Checkbox::SetChecked(bool checked)
     checked_ = checked;
 }
 
-void Checkbox::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F Checkbox::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 36.0f);
+}
+
+void Checkbox::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    const UiElementState state = VisualState(root_state);
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
     const D2D1_RECT_F box = D2D1::RectF(rect.left, rect.top + 6.0f, rect.left + kChoiceMarkSize, rect.top + 6.0f + kChoiceMarkSize);
@@ -292,8 +303,14 @@ void RadioButton::SetSelected(bool selected)
     selected_ = selected;
 }
 
-void RadioButton::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F RadioButton::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 36.0f);
+}
+
+void RadioButton::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    const UiElementState state = VisualState(root_state);
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
     const D2D1_RECT_F outer = D2D1::RectF(rect.left, rect.top + 6.0f, rect.left + kChoiceMarkSize, rect.top + 6.0f + kChoiceMarkSize);
@@ -364,8 +381,15 @@ void Dropdown::Collapse()
     hovered_index_ = options_.size();
 }
 
-void Dropdown::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F Dropdown::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 42.0f);
+}
+
+void Dropdown::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    UiElementState state = VisualState(root_state);
+    state.expanded = expanded_;
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
     draw.FillRoundedRect(D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius), ControlFill(state));

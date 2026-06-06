@@ -105,8 +105,14 @@ float Button::PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_te
         ui_theme::offset::kButtonTextRight;
 }
 
-void Button::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F Button::Measure(const UiDrawContext& context, D2D1_SIZE_F) const
 {
+    return D2D1::SizeF(PreferredWidth(context), ui_theme::metrics::kPrimaryButtonHeight);
+}
+
+void Button::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    const UiElementState state = VisualState(root_state);
     const D2D1_RECT_F rect = Rect();
     const UiDraw draw(context);
     const D2D1_ROUNDED_RECT button =
@@ -173,8 +179,14 @@ void IconButton::SetIconScale(float scale)
     icon_scale_ = (std::clamp)(scale, 0.5f, 2.0f);
 }
 
-void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
+D2D1_SIZE_F IconButton::Measure(const UiDrawContext&, D2D1_SIZE_F) const
 {
+    return D2D1::SizeF(ui_theme::metrics::kCaptionButtonWidth, ui_theme::metrics::kTitleBarHeight);
+}
+
+void IconButton::Render(const UiDrawContext& context, UiRootState root_state) const
+{
+    const UiElementState state = VisualState(root_state);
     const D2D1_RECT_F rect = Rect();
     const UiDraw draw(context);
     draw.FillRect(rect, ButtonFillColor(state));

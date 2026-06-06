@@ -19,7 +19,8 @@ public:
 
     bool IsChecked() const;
     void SetChecked(bool checked);
-    void Draw(const UiDrawContext& context, UiElementState state) const override;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 
@@ -34,7 +35,8 @@ public:
 
     bool IsSelected() const;
     void SetSelected(bool selected);
-    void Draw(const UiDrawContext& context, UiElementState state) const override;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 
@@ -53,7 +55,8 @@ public:
     void SetOptions(std::vector<DropdownOption> options);
     bool IsExpanded() const;
     void Collapse();
-    void Draw(const UiDrawContext& context, UiElementState state) const override;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 

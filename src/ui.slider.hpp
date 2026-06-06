@@ -12,7 +12,8 @@ public:
     int Value() const;
     bool SetValue(int value);
 
-    void Draw(const UiDrawContext& context, UiElementState state) const override;
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
     UiEventResult OnInputEvent(const UiInputEvent& event) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
