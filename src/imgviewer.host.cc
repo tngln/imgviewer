@@ -620,6 +620,8 @@ HRESULT RunImgViewerApplicationAsHresult()
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
     context.current_window_opacity_percent = context.config.window_opacity_percent;
+    context.current_toolbar_scale_percent = context.config.toolbar_scale_percent;
+    context.ui.SetToolbarScalePercent(context.current_toolbar_scale_percent);
     const WindowSizeConfig initial_window_size =
         context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
     ImgViewerWindowDelegate window_delegate;

@@ -337,6 +337,11 @@ void UiController::SetColorPickerActive(bool active)
     root_->SetColorPickerActive(active);
 }
 
+void UiController::SetToolbarScalePercent(int percent)
+{
+    root_->SetToolbarScalePercent(percent);
+}
+
 void UiController::SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled)
 {
     if (element == nullptr) {

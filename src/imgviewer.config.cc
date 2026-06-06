@@ -16,6 +16,8 @@ constexpr int kMinimumWindowWidth = 320;
 constexpr int kMinimumWindowHeight = 240;
 constexpr int kMinimumWindowOpacityPercent = 10;
 constexpr int kMaximumWindowOpacityPercent = 100;
+constexpr int kMinimumToolbarScalePercent = 80;
+constexpr int kMaximumToolbarScalePercent = 160;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.jsonc";
 
 std::filesystem::path ConfigFilePath()
@@ -59,6 +61,11 @@ int ClampWindowOpacityPercent(int percent)
     return (std::clamp)(percent, kMinimumWindowOpacityPercent, kMaximumWindowOpacityPercent);
 }
 
+int ClampToolbarScalePercent(int percent)
+{
+    return (std::clamp)(percent, kMinimumToolbarScalePercent, kMaximumToolbarScalePercent);
+}
+
 HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
 {
     RETURN_HR_IF_NULL(E_POINTER, config);
@@ -93,6 +100,11 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
             config->window_opacity_percent = ClampWindowOpacityPercent(opacity->get<int>());
         }
 
+        if (const auto toolbar_scale = root.find("toolbarScale");
+            toolbar_scale != root.end() && toolbar_scale->is_number_integer()) {
+            config->toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale->get<int>());
+        }
+
         if (const auto window = root.find("window");
             window != root.end() && window->is_object()) {
             config->window_size.width =
@@ -122,8 +134,10 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "  \"pixelatedSampling\": " << (config.pixelated_sampling ? "true" : "false") << ",\n";
     output << "  // When true, the main viewer window uses no native border or shadow.\n";
     output << "  \"borderlessWindow\": " << (config.borderless_window ? "true" : "false") << ",\n";
-    output << "  // Main viewer window opacity, clamped from 5 to 100 percent.\n";
+    output << "  // Main viewer window opacity, clamped from 10 to 100 percent.\n";
     output << "  \"windowOpacity\": " << ClampWindowOpacityPercent(config.window_opacity_percent) << ",\n";
+    output << "  // Main viewer toolbar size, clamped from 80 to 160 percent.\n";
+    output << "  \"toolbarScale\": " << ClampToolbarScalePercent(config.toolbar_scale_percent) << ",\n";
     output << "  \"window\": {\n";
     output << "    \"width\": " << (std::max)(kMinimumWindowWidth, config.window_size.width) << ",\n";
     output << "    \"height\": " << (std::max)(kMinimumWindowHeight, config.window_size.height) << "\n";

@@ -150,6 +150,11 @@ void ImgViewerUi::SetColorPickerActive(bool active)
     color_picker_active_ = active;
 }
 
+void ImgViewerUi::SetToolbarScalePercent(int percent)
+{
+    toolbar_.SetScalePercent(percent);
+}
+
 void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
 {
     if (action == UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs)) {

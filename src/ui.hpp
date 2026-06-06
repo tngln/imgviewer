@@ -48,6 +48,7 @@ public:
     void SetActionEnabled(UiAction action, bool enabled);
     void SetWindowState(bool top_most, bool maximized);
     void SetColorPickerActive(bool active);
+    void SetToolbarScalePercent(int percent);
 
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;

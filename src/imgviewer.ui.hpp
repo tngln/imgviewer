@@ -34,6 +34,7 @@ public:
     bool HideToast() override;
     void SetWindowState(bool top_most, bool maximized) override;
     void SetColorPickerActive(bool active) override;
+    void SetToolbarScalePercent(int percent) override;
     void SetActionEnabled(UiAction action, bool enabled) override;
 
 private:

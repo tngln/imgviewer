@@ -1,5 +1,6 @@
 #include "imgviewer.ui.toolbar.hpp"
 
+#include "imgviewer.config.hpp"
 #include "imgviewer.ui.hpp"
 
 #include <algorithm>
@@ -43,6 +44,28 @@ struct ButtonSpec final {
     bool initially_enabled = true;
     bool danger = false;
 };
+
+struct ToolbarMetrics final {
+    float button_size = ui_theme::metrics::kToolbarButtonSize;
+    float button_gap = ui_theme::metrics::kToolbarButtonGap;
+    float padding = ui_theme::metrics::kToolbarPadding;
+    float drag_handle_width = ui_theme::metrics::kToolbarDragHandleWidth;
+    float bottom_margin = ui_theme::metrics::kToolbarBottomMargin;
+    float corner_radius = ui_theme::metrics::kToolbarCornerRadius;
+};
+
+ToolbarMetrics MetricsForScale(int percent)
+{
+    const float scale = static_cast<float>(ClampToolbarScalePercent(percent)) / 100.0f;
+    return ToolbarMetrics{
+        .button_size = ui_theme::metrics::kToolbarButtonSize * scale,
+        .button_gap = ui_theme::metrics::kToolbarButtonGap * scale,
+        .padding = ui_theme::metrics::kToolbarPadding * scale,
+        .drag_handle_width = ui_theme::metrics::kToolbarDragHandleWidth * scale,
+        .bottom_margin = ui_theme::metrics::kToolbarBottomMargin * scale,
+        .corner_radius = ui_theme::metrics::kToolbarCornerRadius * scale,
+    };
+}
 
 constexpr ButtonIconSpec GlyphIcon(const wchar_t* glyph)
 {
@@ -163,6 +186,18 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
         L"toolbar-drag-handle",
         false,
         false)));
+    SetScalePercent(scale_percent_);
+}
+
+void ImgViewerUiToolbar::SetScalePercent(int percent)
+{
+    scale_percent_ = ClampToolbarScalePercent(percent);
+    const float icon_scale = static_cast<float>(scale_percent_) / 100.0f;
+    for (const ButtonInstance& button : buttons_) {
+        if (button.element != nullptr) {
+            button.element->SetIconScale(icon_scale);
+        }
+    }
 }
 
 void ImgViewerUiToolbar::Draw(
@@ -172,11 +207,12 @@ void ImgViewerUiToolbar::Draw(
 {
     const UiDraw draw(draw_context);
     Layout(draw_context.viewport_size);
+    const ToolbarMetrics metrics = MetricsForScale(scale_percent_);
 
     const D2D1_ROUNDED_RECT toolbar_background = D2D1::RoundedRect(
         toolbar_rect_,
-        ui_theme::metrics::kToolbarCornerRadius,
-        ui_theme::metrics::kToolbarCornerRadius);
+        metrics.corner_radius,
+        metrics.corner_radius);
     draw.FillRoundedRect(
         toolbar_background,
         D2D1::ColorF(
@@ -193,17 +229,18 @@ void ImgViewerUiToolbar::Draw(
 
 void ImgViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
 {
+    const ToolbarMetrics metrics = MetricsForScale(scale_percent_);
     const float toolbar_content_width =
-        ui_theme::metrics::kToolbarButtonSize * static_cast<float>(kButtonSpecs.size()) +
-        ui_theme::metrics::kToolbarButtonGap * static_cast<float>(kButtonSpecs.size() - 1);
+        metrics.button_size * static_cast<float>(kButtonSpecs.size()) +
+        metrics.button_gap * static_cast<float>(kButtonSpecs.size() - 1);
     const float toolbar_width = toolbar_content_width +
-        ui_theme::metrics::kToolbarPadding * 2.0f +
-        ui_theme::metrics::kToolbarDragHandleWidth;
-    const float toolbar_height = ui_theme::metrics::kToolbarButtonSize + ui_theme::metrics::kToolbarPadding * 2.0f;
+        metrics.padding * 2.0f +
+        metrics.drag_handle_width;
+    const float toolbar_height = metrics.button_size + metrics.padding * 2.0f;
     if (!position_initialized_) {
         toolbar_position_ = D2D1::Point2F(
             (std::max)(0.0f, (viewport_size.width - toolbar_width) * 0.5f),
-            (std::max)(0.0f, viewport_size.height - toolbar_height - ui_theme::metrics::kToolbarBottomMargin));
+            (std::max)(0.0f, viewport_size.height - toolbar_height - metrics.bottom_margin));
         position_initialized_ = true;
     }
     toolbar_rect_ = D2D1::RectF(
@@ -216,16 +253,16 @@ void ImgViewerUiToolbar::Layout(D2D1_SIZE_F viewport_size)
     drag_handle_->SetRect(D2D1::RectF(
         toolbar_rect_.left,
         toolbar_rect_.top,
-        toolbar_rect_.left + ui_theme::metrics::kToolbarPadding + ui_theme::metrics::kToolbarDragHandleWidth,
+        toolbar_rect_.left + metrics.padding + metrics.drag_handle_width,
         toolbar_rect_.bottom));
 
     const std::vector<D2D1_RECT_F> toolbar_buttons = ui_layout::PlaceHorizontalRow(
         D2D1::Point2F(
-            toolbar_rect_.left + ui_theme::metrics::kToolbarPadding + ui_theme::metrics::kToolbarDragHandleWidth,
-            toolbar_rect_.top + ui_theme::metrics::kToolbarPadding),
-        ui_theme::metrics::kToolbarButtonSize,
-        std::vector<float>(kButtonSpecs.size(), ui_theme::metrics::kToolbarButtonSize),
-        ui_theme::metrics::kToolbarButtonGap);
+            toolbar_rect_.left + metrics.padding + metrics.drag_handle_width,
+            toolbar_rect_.top + metrics.padding),
+        metrics.button_size,
+        std::vector<float>(kButtonSpecs.size(), metrics.button_size),
+        metrics.button_gap);
     for (const ButtonSpec& spec : kButtonSpecs) {
         Button(spec.button)->SetRect(toolbar_buttons[ButtonIndex(spec.button)]);
     }

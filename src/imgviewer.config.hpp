@@ -14,11 +14,13 @@ struct ImgViewerConfig final {
     bool pixelated_sampling = false;
     bool borderless_window = false;
     int window_opacity_percent = 100;
+    int toolbar_scale_percent = 125;
     WindowSizeConfig window_size;
     ActionBindings action_bindings;
 };
 
 int ClampWindowOpacityPercent(int percent);
+int ClampToolbarScalePercent(int percent);
 
 HRESULT LoadImgViewerConfig(ImgViewerConfig* config);
 HRESULT SaveImgViewerConfig(const ImgViewerConfig& config);

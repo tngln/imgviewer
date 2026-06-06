@@ -1,5 +1,6 @@
 #include "ui.button.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cwchar>
 
@@ -162,6 +163,11 @@ void IconButton::SetIcon(const wchar_t* icon)
     path_icon_ = nullptr;
 }
 
+void IconButton::SetIconScale(float scale)
+{
+    icon_scale_ = (std::clamp)(scale, 0.5f, 2.0f);
+}
+
 void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
 {
     const D2D1_RECT_F rect = Rect();
@@ -180,12 +186,13 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
                 path_icon_->command_count,
                 geometry.put()))) {
             const float icon_size = 20.0f;
+            const float scaled_icon_size = icon_size * icon_scale_;
             const float icon_width = path_icon_->view_box.right - path_icon_->view_box.left;
             const float icon_height = path_icon_->view_box.bottom - path_icon_->view_box.top;
             const float icon_viewport = (std::max)(icon_width, icon_height);
-            const float scale = icon_size / icon_viewport;
-            const float left = rect.left + (std::max)(0.0f, (rect.right - rect.left - icon_size) * 0.5f);
-            const float top = rect.top + (std::max)(0.0f, (rect.bottom - rect.top - icon_size) * 0.5f);
+            const float scale = scaled_icon_size / icon_viewport;
+            const float left = rect.left + (std::max)(0.0f, (rect.right - rect.left - scaled_icon_size) * 0.5f);
+            const float top = rect.top + (std::max)(0.0f, (rect.bottom - rect.top - scaled_icon_size) * 0.5f);
             D2D1_MATRIX_3X2_F old_transform = {};
             context.d2d_context->GetTransform(&old_transform);
             context.d2d_context->SetTransform(
@@ -196,6 +203,24 @@ void IconButton::Draw(const UiDrawContext& context, UiElementState state) const
             draw.DrawGeometry(geometry.get(), icon_color, ui_theme::metrics::kPathIconStrokeWidth / scale);
             context.d2d_context->SetTransform(old_transform);
         }
+        return;
+    }
+
+    if (icon_scale_ != 1.0f && context.d2d_context != nullptr) {
+        D2D1_MATRIX_3X2_F old_transform = {};
+        context.d2d_context->GetTransform(&old_transform);
+        const D2D1_POINT_2F center = D2D1::Point2F((rect.left + rect.right) * 0.5f, (rect.top + rect.bottom) * 0.5f);
+        context.d2d_context->SetTransform(D2D1::Matrix3x2F::Scale(icon_scale_, icon_scale_, center) * old_transform);
+        draw.DrawIconText(
+            icon_,
+            static_cast<UINT32>(wcslen(icon_)),
+            D2D1::RectF(
+                rect.left + ui_theme::offset::kCaptionIconLeft,
+                rect.top + ui_theme::offset::kCaptionIconTop,
+                rect.right,
+                rect.bottom),
+            icon_color);
+        context.d2d_context->SetTransform(old_transform);
         return;
     }
 

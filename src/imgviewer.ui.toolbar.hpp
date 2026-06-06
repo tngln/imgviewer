@@ -33,6 +33,7 @@ public:
 
     ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
 
+    void SetScalePercent(int percent);
     void Draw(const UiDrawContext& draw_context, UiRootState state, bool color_picker_active);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
@@ -64,6 +65,7 @@ private:
     D2D1_RECT_F toolbar_rect_ = D2D1_RECT_F{};
     D2D1_POINT_2F toolbar_position_ = D2D1_POINT_2F{};
     D2D1_POINT_2F drag_offset_ = D2D1_POINT_2F{};
+    int scale_percent_ = 125;
     bool position_initialized_ = false;
     bool dragging_ = false;
 };

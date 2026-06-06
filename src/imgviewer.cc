@@ -219,6 +219,25 @@ void SetImgViewerWindowOpacity(HWND hwnd, ImgViewerContext* context, int percent
     }
 }
 
+void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    const int clamped = ClampToolbarScalePercent(percent);
+    if (context->current_toolbar_scale_percent == clamped) {
+        return;
+    }
+
+    context->current_toolbar_scale_percent = clamped;
+    context->ui.SetToolbarScalePercent(context->current_toolbar_scale_percent);
+    if (hwnd != nullptr) {
+        UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
+    }
+    RenderImgViewer(context);
+}
+
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
 {
     if (!IsImgViewerActionEnabled(context, action)) {

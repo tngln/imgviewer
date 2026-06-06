@@ -37,6 +37,7 @@ public:
     virtual bool HideToast() { return false; }
     virtual void SetWindowState(bool, bool) {}
     virtual void SetColorPickerActive(bool) {}
+    virtual void SetToolbarScalePercent(int) {}
     virtual void SetActionEnabled(UiAction, bool) {}
     virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
     virtual double ElementRangeValue(UiElementId) const { return 0.0; }

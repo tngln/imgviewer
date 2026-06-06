@@ -29,6 +29,7 @@ public:
         const icons::PathIcon& icon);
 
     void SetIcon(const wchar_t* icon);
+    void SetIconScale(float scale);
     void Draw(const UiDrawContext& context, UiElementState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
@@ -36,4 +37,5 @@ public:
 private:
     const wchar_t* icon_ = L"";
     const icons::PathIcon* path_icon_ = nullptr;
+    float icon_scale_ = 1.0f;
 };

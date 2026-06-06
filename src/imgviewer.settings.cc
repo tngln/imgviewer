@@ -57,6 +57,14 @@ constexpr int kOpacityMinimum = 10;
 constexpr int kOpacityMaximum = 100;
 constexpr int kOpacitySmallStep = 1;
 constexpr int kOpacityLargeStep = 5;
+constexpr int kToolbarScaleMinimum = 80;
+constexpr int kToolbarScaleMaximum = 160;
+constexpr int kToolbarScaleSmallStep = 5;
+constexpr int kToolbarScaleLargeStep = 10;
+constexpr int kSettingsInitialWidth = 720;
+constexpr int kSettingsInitialHeight = 780;
+constexpr int kSettingsMinClientWidth = 520;
+constexpr int kSettingsMinClientHeight = 720;
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -192,6 +200,13 @@ public:
             draft_.window_opacity_percent,
             kOpacitySmallStep,
             kOpacityLargeStep)));
+        toolbar_scale_slider_ = static_cast<Slider*>(root_->AddChild(std::make_unique<Slider>(
+            Metadata(ids_.Next(), UiElementRole::Slider, ImgViewerAction::None, L"Toolbar size", L"toolbar-size"),
+            kToolbarScaleMinimum,
+            kToolbarScaleMaximum,
+            draft_.toolbar_scale_percent,
+            kToolbarScaleSmallStep,
+            kToolbarScaleLargeStep)));
 
         filter_box_ = static_cast<TextBox*>(root_->AddChild(std::make_unique<TextBox>(
             Metadata(ids_.Next(), UiElementRole::Edit, ImgViewerAction::None, L"Shortcut filter", L"shortcut-filter"),
@@ -215,18 +230,27 @@ public:
 
         SyncChoiceControls();
         UpdateOpacityText();
+        UpdateToolbarScaleText();
         UpdateFilterResults();
         UpdateShortcutText();
     }
 
     const ImgViewerConfig& Draft() const { return draft_; }
     int OpacityPercent() const { return draft_.window_opacity_percent; }
+    int ToolbarScalePercent() const { return draft_.toolbar_scale_percent; }
 
     void SetOpacityPercent(int percent)
     {
         draft_.window_opacity_percent = ClampWindowOpacityPercent(percent);
         opacity_slider_->SetValue(draft_.window_opacity_percent);
         UpdateOpacityText();
+    }
+
+    void SetToolbarScalePercent(int percent)
+    {
+        draft_.toolbar_scale_percent = ClampToolbarScalePercent(percent);
+        toolbar_scale_slider_->SetValue(draft_.toolbar_scale_percent);
+        UpdateToolbarScaleText();
     }
 
     UiElement* Root() override { return root_.get(); }
@@ -241,41 +265,78 @@ public:
         if (id == opacity_slider_->Id()) {
             return opacity_text_.c_str();
         }
+        if (id == toolbar_scale_slider_->Id()) {
+            return toolbar_scale_text_.c_str();
+        }
         return L"";
     }
 
     double ElementRangeValue(UiElementId id) const override
     {
-        return id == opacity_slider_->Id() ? static_cast<double>(opacity_slider_->Value()) : 0.0;
+        if (id == opacity_slider_->Id()) {
+            return static_cast<double>(opacity_slider_->Value());
+        }
+        if (id == toolbar_scale_slider_->Id()) {
+            return static_cast<double>(toolbar_scale_slider_->Value());
+        }
+        return 0.0;
     }
 
     double ElementRangeMinimum(UiElementId id) const override
     {
-        return id == opacity_slider_->Id() ? static_cast<double>(opacity_slider_->Minimum()) : 0.0;
+        if (id == opacity_slider_->Id()) {
+            return static_cast<double>(opacity_slider_->Minimum());
+        }
+        if (id == toolbar_scale_slider_->Id()) {
+            return static_cast<double>(toolbar_scale_slider_->Minimum());
+        }
+        return 0.0;
     }
 
     double ElementRangeMaximum(UiElementId id) const override
     {
-        return id == opacity_slider_->Id() ? static_cast<double>(opacity_slider_->Maximum()) : 0.0;
+        if (id == opacity_slider_->Id()) {
+            return static_cast<double>(opacity_slider_->Maximum());
+        }
+        if (id == toolbar_scale_slider_->Id()) {
+            return static_cast<double>(toolbar_scale_slider_->Maximum());
+        }
+        return 0.0;
     }
 
     double ElementRangeSmallChange(UiElementId id) const override
     {
-        return id == opacity_slider_->Id() ? static_cast<double>(kOpacitySmallStep) : 1.0;
+        if (id == opacity_slider_->Id()) {
+            return static_cast<double>(kOpacitySmallStep);
+        }
+        if (id == toolbar_scale_slider_->Id()) {
+            return static_cast<double>(kToolbarScaleSmallStep);
+        }
+        return 1.0;
     }
 
     double ElementRangeLargeChange(UiElementId id) const override
     {
-        return id == opacity_slider_->Id() ? static_cast<double>(kOpacityLargeStep) : 10.0;
+        if (id == opacity_slider_->Id()) {
+            return static_cast<double>(kOpacityLargeStep);
+        }
+        if (id == toolbar_scale_slider_->Id()) {
+            return static_cast<double>(kToolbarScaleLargeStep);
+        }
+        return 10.0;
     }
 
     HRESULT SetElementRangeValue(UiElementId id, double value) override
     {
-        if (id != opacity_slider_->Id()) {
-            return E_NOTIMPL;
+        if (id == opacity_slider_->Id()) {
+            SetOpacityPercent(static_cast<int>(value + 0.5));
+            return S_OK;
         }
-        SetOpacityPercent(static_cast<int>(value + 0.5));
-        return S_OK;
+        if (id == toolbar_scale_slider_->Id()) {
+            SetToolbarScalePercent(static_cast<int>(value + 0.5));
+            return S_OK;
+        }
+        return E_NOTIMPL;
     }
 
     void Draw(const UiDrawContext& context, UiRootState state) override
@@ -295,12 +356,19 @@ public:
             D2D1::RectF(size.width - 88.0f, 376.0f, size.width - 24.0f, 404.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 516.0f, size.width - 24.0f, 540.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Toolbar size", 12, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(
+            toolbar_scale_text_.c_str(),
+            static_cast<UINT32>(toolbar_scale_text_.size()),
+            D2D1::RectF(size.width - 88.0f, 464.0f, size.width - 24.0f, 492.0f),
+            ui_theme::color::kBodyText,
+            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 526.0f, size.width - 24.0f, 550.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 604.0f, size.width - 24.0f, 628.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, 594.0f, size.width - 24.0f, 620.0f),
+            D2D1::RectF(24.0f, 682.0f, size.width - 24.0f, 708.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -310,6 +378,7 @@ public:
         DrawElement(*pixelated_checkbox_, context, state);
         DrawElement(*borderless_checkbox_, context, state);
         DrawElement(*opacity_slider_, context, state);
+        DrawElement(*toolbar_scale_slider_, context, state);
         DrawElement(*reset_button_, context, state);
         DrawElement(*save_button_, context, state);
         DrawElement(*cancel_button_, context, state);
@@ -390,8 +459,9 @@ private:
         pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 254.0f));
         borderless_checkbox_->SetRect(D2D1::RectF(24.0f, 302.0f, size.width - 24.0f, 332.0f));
         opacity_slider_->SetRect(D2D1::RectF(24.0f, 380.0f, size.width - 104.0f, 410.0f));
-        filter_box_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 24.0f, 502.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, 546.0f, size.width - 24.0f, 580.0f));
+        toolbar_scale_slider_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 104.0f, 498.0f));
+        filter_box_->SetRect(D2D1::RectF(24.0f, 556.0f, size.width - 24.0f, 590.0f));
+        action_dropdown_->SetRect(D2D1::RectF(24.0f, 634.0f, size.width - 24.0f, 668.0f));
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
@@ -417,6 +487,9 @@ private:
         } else if (id == opacity_slider_->Id()) {
             draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_->Value());
             UpdateOpacityText();
+        } else if (id == toolbar_scale_slider_->Id()) {
+            draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_->Value());
+            UpdateToolbarScaleText();
         } else if (id == action_dropdown_->Id()) {
             UpdateShortcutText();
         }
@@ -484,6 +557,13 @@ private:
         opacity_text_ = text;
     }
 
+    void UpdateToolbarScaleText()
+    {
+        wchar_t text[16] = {};
+        swprintf_s(text, L"%d%%", draft_.toolbar_scale_percent);
+        toolbar_scale_text_ = text;
+    }
+
     void DrawElement(UiElement& element, const UiDrawContext& context, UiRootState state) const
     {
         element.Draw(
@@ -516,12 +596,14 @@ private:
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
     Slider* opacity_slider_ = nullptr;
+    Slider* toolbar_scale_slider_ = nullptr;
     Dropdown* action_dropdown_ = nullptr;
     TextBox* filter_box_ = nullptr;
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
     std::wstring opacity_text_;
+    std::wstring toolbar_scale_text_;
     std::wstring shortcut_text_;
 };
 
@@ -531,10 +613,12 @@ struct SettingsWindowContext final : public UiWindowDelegate {
     UiWindowHost host;
     SettingsUi* ui = nullptr;
     int original_opacity_percent = 100;
+    int original_toolbar_scale_percent = 125;
     bool saved = false;
 
-    explicit SettingsWindowContext(int original_opacity) :
-        original_opacity_percent(ClampWindowOpacityPercent(original_opacity))
+    SettingsWindowContext(int original_opacity, int original_toolbar_scale) :
+        original_opacity_percent(ClampWindowOpacityPercent(original_opacity)),
+        original_toolbar_scale_percent(ClampToolbarScalePercent(original_toolbar_scale))
     {
     }
 
@@ -552,6 +636,7 @@ struct SettingsWindowContext final : public UiWindowDelegate {
             if (!saved) {
                 app->current_window_opacity_percent = original_opacity_percent;
                 ApplyWindowOpacity(owner, original_opacity_percent);
+                SetImgViewerToolbarScale(owner, app, original_toolbar_scale_percent);
             }
             app->settings_window = nullptr;
             PostMessageW(owner, kImgViewerSettingsDestroyedMessage, 0, reinterpret_cast<LPARAM>(this));
@@ -596,6 +681,7 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
         context->app->config = draft;
         context->app->current_window_opacity_percent = context->app->config.window_opacity_percent;
         ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
+        SetImgViewerToolbarScale(context->owner, context->app, context->app->config.toolbar_scale_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         SaveImgViewerConfig(context->app->config);
         if (frame_changed) {
@@ -651,6 +737,7 @@ void SettingsWindowContext::OnUiValueChanged(UiWindowHost&, UiEventResult)
     if (owner != nullptr && ui != nullptr) {
         if (app != nullptr) {
             app->current_window_opacity_percent = ui->OpacityPercent();
+            SetImgViewerToolbarScale(owner, app, ui->ToolbarScalePercent());
         }
         ApplyWindowOpacity(owner, ui->OpacityPercent());
     }
@@ -660,9 +747,21 @@ win32::WindowMessageResult SettingsWindowContext::OnUnhandledMessage(
     UiWindowHost& window_host,
     UINT message,
     WPARAM wparam,
-    LPARAM)
+    LPARAM lparam)
 {
     switch (message) {
+    case WM_GETMINMAXINFO: {
+        auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+        if (info != nullptr) {
+            RECT min_rect{0, 0, kSettingsMinClientWidth, kSettingsMinClientHeight};
+            const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window_host.Hwnd(), GWL_STYLE));
+            const DWORD ex_style = static_cast<DWORD>(GetWindowLongPtrW(window_host.Hwnd(), GWL_EXSTYLE));
+            AdjustWindowRectEx(&min_rect, style, FALSE, ex_style);
+            info->ptMinTrackSize.x = min_rect.right - min_rect.left;
+            info->ptMinTrackSize.y = min_rect.bottom - min_rect.top;
+        }
+        return win32::WindowMessageResult::Handled();
+    }
     case kImgViewerSettingsOpacityChangedMessage: {
         if (ui != nullptr) {
             ui->SetOpacityPercent(static_cast<int>(wparam));
@@ -693,7 +792,10 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
 
     ImgViewerConfig draft = context->config;
     draft.window_opacity_percent = context->current_window_opacity_percent;
-    auto* settings_context = new (std::nothrow) SettingsWindowContext(context->current_window_opacity_percent);
+    draft.toolbar_scale_percent = context->current_toolbar_scale_percent;
+    auto* settings_context = new (std::nothrow) SettingsWindowContext(
+        context->current_window_opacity_percent,
+        context->current_toolbar_scale_percent);
     RETURN_IF_NULL_ALLOC(settings_context);
     settings_context->owner = owner;
     settings_context->app = context;
@@ -707,10 +809,10 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
                 .instance = instance,
                 .class_name = kSettingsClassName,
                 .title = L"Settings",
-                .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+                .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
                 .ex_style = WS_EX_DLGMODALFRAME,
-                .width = 720,
-                .height = 720,
+                .width = kSettingsInitialWidth,
+                .height = kSettingsInitialHeight,
                 .owner = owner,
                 .show_command = SW_SHOWNORMAL,
             },
