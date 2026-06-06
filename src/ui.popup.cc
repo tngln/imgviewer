@@ -47,9 +47,10 @@ POINT ClientToScreenPoint(HWND hwnd, D2D1_POINT_2F point)
 
 class MenuPopupContent final : public UiPopupContent {
 public:
-    explicit MenuPopupContent(std::vector<MenuItem> items)
+    MenuPopupContent(std::vector<MenuItem> items, const UiDrawContext& context)
     {
         menu_.Open(D2D1::Point2F(0.0f, 0.0f), std::move(items));
+        menu_.UpdatePreferredWidth(context);
     }
 
     D2D1_SIZE_F DesiredSize() const override
@@ -133,7 +134,12 @@ HRESULT PopupHost::Open(D2D1_POINT_2F origin, std::unique_ptr<UiPopupContent> co
 
 HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
 {
-    return Open(origin, std::make_unique<MenuPopupContent>(std::move(items)));
+    const UiDrawContext measure_context{
+        .dwrite_factory = dwrite_factory_.get(),
+        .body_text_format = body_text_format_,
+        .icon_text_format = icon_text_format_,
+    };
+    return Open(origin, std::make_unique<MenuPopupContent>(std::move(items), measure_context));
 }
 
 void PopupHost::Draw(const UiDrawContext& context) const

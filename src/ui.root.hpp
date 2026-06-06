@@ -24,7 +24,7 @@ public:
     virtual UiEventResult OnInputEvent(const UiInputEvent&) { return {}; }
     virtual UiEventResult OnPointerEvent(const UiPointerEvent&) { return {}; }
     virtual UiEventResult OnKeyEvent(const UiKeyEvent&) { return {}; }
-    virtual bool HandleUiAction(UiAction) { return false; }
+    virtual bool HandleUiAction(UiAction, PopupHost*) { return false; }
     virtual void ApplyElementEffect(UiElementId) {}
     virtual UiElementId HitTest(D2D1_POINT_2F point) const
     {

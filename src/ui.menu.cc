@@ -1,26 +1,48 @@
 #include "ui.menu.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cwchar>
 #include <utility>
 
 #include <d2d1helper.h>
 
 #include "math.hpp"
+#include "ui.text.hpp"
 #include "ui.theme.hpp"
 
 namespace {
 
-constexpr float kMenuWidth = 220.0f;
+constexpr float kMenuMinWidth = 220.0f;
 constexpr float kMenuItemHeight = 34.0f;
 constexpr float kMenuSeparatorHeight = 9.0f;
 constexpr float kMenuPadding = 6.0f;
 constexpr float kMenuTextLeft = 34.0f;
-constexpr float kMenuChildMarkLeft = 198.0f;
+constexpr float kMenuTextRight = 28.0f;
+constexpr float kMenuChildMarkWidth = 20.0f;
+constexpr float kMenuChildMarkGap = 10.0f;
 
 float ItemHeight(const MenuItem& item)
 {
     return item.separator ? kMenuSeparatorHeight : kMenuItemHeight;
+}
+
+float MenuItemPreferredWidth(const MenuItem& item, const UiDrawContext& context)
+{
+    if (item.separator) {
+        return 0.0f;
+    }
+
+    const ui_text::TextMetrics metrics = ui_text::MeasureText(
+        context.dwrite_factory,
+        context.body_text_format,
+        item.text,
+        static_cast<UINT32>(wcslen(item.text)));
+    float width = kMenuPadding * 2.0f + kMenuTextLeft + std::ceil(metrics.width) + kMenuTextRight;
+    if (!item.children.empty()) {
+        width += kMenuChildMarkGap + kMenuChildMarkWidth;
+    }
+    return width;
 }
 
 } // namespace
@@ -43,6 +65,7 @@ void MenuOverlay::Close()
 {
     open_ = false;
     items_.clear();
+    preferred_width_ = 0.0f;
     selected_ = 0;
 }
 
@@ -57,7 +80,7 @@ D2D1_SIZE_F MenuOverlay::DesiredSize() const
     for (const MenuItem& item : items_) {
         height += ItemHeight(item);
     }
-    return D2D1::SizeF(kMenuWidth, height);
+    return D2D1::SizeF(PreferredWidth(), height);
 }
 
 D2D1_RECT_F MenuOverlay::Bounds() const
@@ -71,12 +94,27 @@ const std::vector<MenuItem>& MenuOverlay::Items() const
     return items_;
 }
 
+void MenuOverlay::UpdatePreferredWidth(const UiDrawContext& context) const
+{
+    float width = kMenuMinWidth;
+    for (const MenuItem& item : items_) {
+        width = (std::max)(width, MenuItemPreferredWidth(item, context));
+    }
+    preferred_width_ = width;
+}
+
+float MenuOverlay::PreferredWidth() const
+{
+    return preferred_width_ > 0.0f ? preferred_width_ : kMenuMinWidth;
+}
+
 void MenuOverlay::Draw(const UiDrawContext& context, UiElementState) const
 {
     if (!open_) {
         return;
     }
 
+    UpdatePreferredWidth(context);
     const UiDraw draw(context);
     const D2D1_RECT_F menu_rect = Bounds();
     draw.FillRoundedRect(D2D1::RoundedRect(menu_rect, 6.0f, 6.0f), ui_theme::color::kButtonDefault);
@@ -97,9 +135,12 @@ void MenuOverlay::Draw(const UiDrawContext& context, UiElementState) const
             draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(rect.left + 11.0f, rect.top + 1.0f, rect.left + 30.0f, rect.bottom), ui_theme::color::kAccent);
         }
         const D2D1_COLOR_F text_color = item.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent;
-        draw.DrawBodyText(item.text, static_cast<UINT32>(wcslen(item.text)), D2D1::RectF(rect.left + kMenuTextLeft, rect.top + 3.0f, rect.right - 22.0f, rect.bottom), text_color, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+        const float text_right = item.children.empty()
+            ? rect.right - kMenuTextRight
+            : rect.right - kMenuTextRight - kMenuChildMarkWidth - kMenuChildMarkGap;
+        draw.DrawBodyText(item.text, static_cast<UINT32>(wcslen(item.text)), D2D1::RectF(rect.left + kMenuTextLeft, rect.top + 3.0f, text_right, rect.bottom), text_color, D2D1_DRAW_TEXT_OPTIONS_CLIP);
         if (!item.children.empty()) {
-            draw.DrawBodyText(L">", 1, D2D1::RectF(rect.left + kMenuChildMarkLeft, rect.top + 3.0f, rect.right, rect.bottom), text_color);
+            draw.DrawBodyText(L">", 1, D2D1::RectF(rect.right - kMenuTextRight - kMenuChildMarkWidth, rect.top + 3.0f, rect.right, rect.bottom), text_color);
         }
     }
 }
@@ -205,7 +246,7 @@ D2D1_RECT_F MenuOverlay::ItemRect(size_t index) const
         top += ItemHeight(items_[current]);
     }
     const float height = index < items_.size() ? ItemHeight(items_[index]) : kMenuItemHeight;
-    return D2D1::RectF(origin_.x + kMenuPadding, top, origin_.x + kMenuWidth - kMenuPadding, top + height);
+    return D2D1::RectF(origin_.x + kMenuPadding, top, origin_.x + PreferredWidth() - kMenuPadding, top + height);
 }
 
 void MenuOverlay::MoveSelection(int delta)

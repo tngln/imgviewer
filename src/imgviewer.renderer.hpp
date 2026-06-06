@@ -15,6 +15,10 @@ public:
     HRESULT SetUiOverlayVisible(bool visible);
     void SetCheckerboardBackground(bool enabled);
     D2D1_SIZE_U ViewportPixelSize() const;
+    ID2D1Factory1* D2DFactory() const;
+    IDWriteFactory* DWriteFactory() const;
+    IDWriteTextFormat* BodyTextFormat() const;
+    IDWriteTextFormat* IconTextFormat() const;
     ID2D1DeviceContext* BitmapDeviceContext() const;
 
 private:

@@ -23,6 +23,8 @@ public:
     D2D1_SIZE_F DesiredSize() const;
     D2D1_RECT_F Bounds() const;
     const std::vector<MenuItem>& Items() const;
+    void UpdatePreferredWidth(const UiDrawContext& context) const;
+    float PreferredWidth() const;
     void Draw(const UiDrawContext& context, UiElementState state) const;
     UiEventResult OnInputEvent(const UiInputEvent& event);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
@@ -36,6 +38,7 @@ private:
 
     D2D1_POINT_2F origin_ = {};
     std::vector<MenuItem> items_;
+    mutable float preferred_width_ = 0.0f;
     bool open_ = false;
     size_t selected_ = 0;
 };

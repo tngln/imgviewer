@@ -18,6 +18,7 @@
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
 #include "ui.hpp"
+#include "ui.popup.hpp"
 
 constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 
@@ -26,6 +27,7 @@ struct ImgViewerContext final {
 
     ImgViewerRenderer renderer;
     UiController ui;
+    PopupHost popup;
     ImgViewerController viewer;
     ImageSequence sequence;
     ImgViewerConfig config;

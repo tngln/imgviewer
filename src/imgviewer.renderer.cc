@@ -105,6 +105,26 @@ D2D1_SIZE_U ImgViewerRenderer::ViewportPixelSize() const
     return ui_renderer_.ViewportPixelSize();
 }
 
+ID2D1Factory1* ImgViewerRenderer::D2DFactory() const
+{
+    return ui_renderer_.D2DFactory();
+}
+
+IDWriteFactory* ImgViewerRenderer::DWriteFactory() const
+{
+    return ui_renderer_.DWriteFactory();
+}
+
+IDWriteTextFormat* ImgViewerRenderer::BodyTextFormat() const
+{
+    return ui_renderer_.BodyTextFormat();
+}
+
+IDWriteTextFormat* ImgViewerRenderer::IconTextFormat() const
+{
+    return ui_renderer_.IconTextFormat();
+}
+
 ID2D1DeviceContext* ImgViewerRenderer::BitmapDeviceContext() const
 {
     return ui_renderer_.BitmapDeviceContext();

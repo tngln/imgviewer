@@ -105,6 +105,26 @@ size_t KeyActionIndex(WPARAM wparam)
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
 }
 
+void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
+{
+    if (context == nullptr || action == kUiActionNone) {
+        return;
+    }
+
+    if (context->ui.Root() != nullptr && context->ui.Root()->HandleUiAction(action, &context->popup)) {
+        RenderImgViewer(context);
+        return;
+    }
+
+    const ImgViewerAction viewer_action = ImgViewerActionFromUiAction(action);
+    if (viewer_action == ImgViewerAction::OpenImage) {
+        HandleImgViewerOpenImageCommand(hwnd, context);
+        return;
+    }
+
+    ExecuteImgViewerAction(hwnd, context, viewer_action);
+}
+
 void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
 {
     if (context == nullptr) {
@@ -121,11 +141,7 @@ void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
         RenderImgViewer(context);
     }
 
-    if (ImgViewerActionFromUiAction(result.action) == ImgViewerAction::OpenImage) {
-        HandleImgViewerOpenImageCommand(hwnd, context);
-    } else if (result.action != kUiActionNone) {
-        ExecuteImgViewerAction(hwnd, context, ImgViewerActionFromUiAction(result.action));
-    }
+    DispatchUiAction(hwnd, context, result.action);
 }
 
 void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
@@ -246,7 +262,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 {
     switch (message) {
     case kImgViewerUiActionMessage: {
-        ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerActionFromUiAction(UiAction(static_cast<int>(wparam))));
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        const UiAction action = UiAction(static_cast<int>(wparam));
+        DispatchUiAction(hwnd, context, action);
         return 0;
     }
 
@@ -282,6 +300,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context == nullptr ||
             FAILED(context->renderer.Initialize(hwnd)) ||
+            FAILED(context->popup.Initialize(
+                hwnd,
+                kImgViewerUiActionMessage,
+                context->renderer.D2DFactory(),
+                context->renderer.DWriteFactory())) ||
             FAILED(context->viewer.Initialize()) ||
             FAILED(CreateUiAccessibilityProvider(
                 hwnd,
@@ -290,6 +313,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 context->accessibility_provider.put()))) {
             return -1;
         }
+        context->popup.SetTextFormats(context->renderer.BodyTextFormat(), context->renderer.IconTextFormat());
         context->viewer.SetPixelatedSampling(context->config.pixelated_sampling);
         context->renderer.SetCheckerboardBackground(context->config.checkerboard_background);
         ApplyWindowOpacity(hwnd, context->current_window_opacity_percent);
@@ -383,8 +407,32 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         RenderIfNeeded(context, viewer_result);
         if (context != nullptr && !viewer_result.handled) {
-            UiPointerEvent pointer{.type = UiEventType::PointerMove, .point = point, .modifiers = CurrentUiModifiers()};
-            RenderIfNeeded(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd}));
+            UiPointerEvent pointer{
+                .type = UiEventType::PointerMove,
+                .point = point,
+                .modifiers = CurrentUiModifiers(),
+                .popup_host = &context->popup,
+            };
+            if (context->popup.IsOpen()) {
+                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
+                    .type = pointer.type,
+                    .pointer = pointer,
+                    .point = point,
+                    .hwnd = hwnd,
+                    .popup_host = &context->popup,
+                });
+                RenderIfNeeded(hwnd, context, popup_result);
+                if (popup_result.handled) {
+                    return 0;
+                }
+            }
+            RenderIfNeeded(hwnd, context, context->ui.OnInputEvent(UiInputEvent{
+                .type = pointer.type,
+                .pointer = pointer,
+                .point = point,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            }));
         }
         return 0;
     }
@@ -392,9 +440,34 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_LBUTTONDOWN: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        UiPointerEvent pointer{.type = UiEventType::PointerDown, .point = point, .button = UiPointerButton::Left, .modifiers = CurrentUiModifiers()};
+        UiPointerEvent pointer{
+            .type = UiEventType::PointerDown,
+            .point = point,
+            .button = UiPointerButton::Left,
+            .modifiers = CurrentUiModifiers(),
+            .popup_host = context != nullptr ? &context->popup : nullptr,
+        };
+        if (context != nullptr && context->popup.IsOpen()) {
+            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
+                .type = pointer.type,
+                .pointer = pointer,
+                .point = point,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            });
+            RenderIfNeeded(hwnd, context, popup_result);
+            if (popup_result.handled) {
+                return 0;
+            }
+        }
         UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd})
+            ? context->ui.OnInputEvent(UiInputEvent{
+                .type = pointer.type,
+                .pointer = pointer,
+                .point = point,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            })
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
@@ -422,8 +495,33 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         RenderIfNeeded(context, viewer_result);
         UiEventResult ui_result = {};
         if (context != nullptr && !viewer_result.handled) {
-            UiPointerEvent pointer{.type = UiEventType::PointerUp, .point = point, .button = UiPointerButton::Left, .modifiers = CurrentUiModifiers()};
-            ui_result = context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = hwnd});
+            UiPointerEvent pointer{
+                .type = UiEventType::PointerUp,
+                .point = point,
+                .button = UiPointerButton::Left,
+                .modifiers = CurrentUiModifiers(),
+                .popup_host = &context->popup,
+            };
+            if (context->popup.IsOpen()) {
+                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
+                    .type = pointer.type,
+                    .pointer = pointer,
+                    .point = point,
+                    .hwnd = hwnd,
+                    .popup_host = &context->popup,
+                });
+                RenderIfNeeded(hwnd, context, popup_result);
+                if (popup_result.handled) {
+                    return 0;
+                }
+            }
+            ui_result = context->ui.OnInputEvent(UiInputEvent{
+                .type = pointer.type,
+                .pointer = pointer,
+                .point = point,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            });
             RenderIfNeeded(hwnd, context, ui_result);
         }
         return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
@@ -435,7 +533,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         RenderIfNeeded(
             hwnd,
             context,
-            context != nullptr ? context->ui.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = hwnd}) : UiEventResult{});
+            context != nullptr ? context->ui.OnInputEvent(UiInputEvent{
+                .type = pointer.type,
+                .pointer = pointer,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            }) : UiEventResult{});
         if (context != nullptr &&
             context->config.borderless_window &&
             context->ui.CapturedElement() == UiElementId::None &&
@@ -466,12 +569,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .point = point,
                 .wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam),
                 .modifiers = CurrentUiModifiers(),
+                .popup_host = &context->popup,
             };
             const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent{
                 .type = pointer.type,
                 .pointer = pointer,
                 .point = point,
                 .hwnd = hwnd,
+                .popup_host = &context->popup,
             });
             if (ui_result.handled) {
                 RenderIfNeeded(hwnd, context, ui_result);
@@ -498,9 +603,27 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .virtual_key = static_cast<UINT>(wparam),
             .modifiers = CurrentUiModifiers(),
             .repeat = (lparam & 0x40000000) != 0,
+            .popup_host = context != nullptr ? &context->popup : nullptr,
         };
+        if (context != nullptr && context->popup.IsOpen()) {
+            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
+                .type = key.type,
+                .key = key,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            });
+            RenderIfNeeded(hwnd, context, popup_result);
+            if (popup_result.handled) {
+                return 0;
+            }
+        }
         const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd})
+            ? context->ui.OnInputEvent(UiInputEvent{
+                .type = key.type,
+                .key = key,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            })
             : UiEventResult{};
         if (ui_result.handled) {
             RenderIfNeeded(hwnd, context, ui_result);
@@ -541,9 +664,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .type = UiEventType::KeyUp,
             .virtual_key = static_cast<UINT>(wparam),
             .modifiers = CurrentUiModifiers(),
+            .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = hwnd})
+            ? context->ui.OnInputEvent(UiInputEvent{
+                .type = key.type,
+                .key = key,
+                .hwnd = hwnd,
+                .popup_host = &context->popup,
+            })
             : UiEventResult{};
         if (ui_result.handled) {
             RenderIfNeeded(hwnd, context, ui_result);
@@ -606,7 +735,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_DESTROY:
         KillTimer(hwnd, kImgViewerToastTimerId);
-        SaveWindowSize(hwnd, GetImgViewerContext(hwnd));
+        if (ImgViewerContext* context = GetImgViewerContext(hwnd)) {
+            context->popup.Close();
+            SaveWindowSize(hwnd, context);
+        }
         PostQuitMessage(0);
         return 0;
 

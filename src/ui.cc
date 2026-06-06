@@ -78,7 +78,7 @@ UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
 UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
 {
     UiEventResult result = DispatchPointerEvent(event);
-    if (root_->HandleUiAction(result.action)) {
+    if (root_->HandleUiAction(result.action, event.popup_host)) {
         result.action = kUiActionNone;
         result.handled = true;
         result.needs_render = true;
@@ -95,6 +95,11 @@ UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
         return menu_result;
     }
     UiEventResult result = DispatchKeyEvent(event);
+    if (root_->HandleUiAction(result.action, event.popup_host)) {
+        result.action = kUiActionNone;
+        result.handled = true;
+        result.needs_render = true;
+    }
     ApplyEventResult(result, event.focused);
     if (result.handled && event.focused != UiElementId::None) {
         root_->ApplyElementEffect(event.focused);

@@ -166,6 +166,26 @@ D2D1_SIZE_U UiRenderer::ViewportPixelSize() const
     return D2D1::SizeU(surfaces_.Width(), surfaces_.Height());
 }
 
+ID2D1Factory1* UiRenderer::D2DFactory() const
+{
+    return d2d_factory_.get();
+}
+
+IDWriteFactory* UiRenderer::DWriteFactory() const
+{
+    return dwrite_factory_.get();
+}
+
+IDWriteTextFormat* UiRenderer::BodyTextFormat() const
+{
+    return body_text_format_.get();
+}
+
+IDWriteTextFormat* UiRenderer::IconTextFormat() const
+{
+    return icon_text_format_.get();
+}
+
 ID2D1DeviceContext* UiRenderer::BitmapDeviceContext() const
 {
     return d2d_context_.get();

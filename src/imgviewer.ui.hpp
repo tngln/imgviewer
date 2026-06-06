@@ -13,7 +13,6 @@
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
 #include "ui.toast.hpp"
-#include "ui.menu.hpp"
 
 class ImgViewerUi final : public UiRoot {
 public:
@@ -28,7 +27,7 @@ public:
         UiRootState state) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
-    bool HandleUiAction(UiAction action) override;
+    bool HandleUiAction(UiAction action, PopupHost* popup_host) override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const override;
     void SetTitleText(const wchar_t* title) override;
     void ShowToast(const wchar_t* text) override;
@@ -51,5 +50,4 @@ private:
     bool maximized_ = false;
     bool color_picker_active_ = false;
     bool save_image_as_enabled_ = false;
-    MenuOverlay menu_;
 };

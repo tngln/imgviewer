@@ -7,7 +7,14 @@
 #include <d2d1helper.h>
 
 #include "imgviewer.ui.action.hpp"
+#include "ui.popup.hpp"
 #include "ui.theme.hpp"
+
+namespace {
+
+constexpr D2D1_POINT_2F kMainMenuOrigin{6.0f, ui_theme::metrics::kTitleBarHeight + 4.0f};
+
+} // namespace
 
 ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
@@ -42,15 +49,10 @@ void ImgViewerUi::Draw(
     toolbar_.Draw(draw_context, state, color_picker_active_);
     info_panel_.Draw(draw_context);
     toast_.Draw(draw_context);
-    menu_.Draw(draw_context, UiElementState{});
 }
 
 UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
 {
-    UiEventResult menu_result = menu_.OnPointerEvent(event);
-    if (menu_result.handled) {
-        return menu_result;
-    }
     UiEventResult info_panel_result = info_panel_.OnPointerEvent(event);
     if (info_panel_result.handled) {
         return info_panel_result;
@@ -60,22 +62,21 @@ UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
 
 UiEventResult ImgViewerUi::OnKeyEvent(const UiKeyEvent& event)
 {
-    return menu_.OnKeyEvent(event);
+    UNREFERENCED_PARAMETER(event);
+    return {};
 }
 
-bool ImgViewerUi::HandleUiAction(UiAction action)
+bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
 {
     if (action != UiActionFromImgViewerAction(ImgViewerAction::OpenMenu)) {
         return false;
     }
-
-    if (menu_.IsOpen()) {
-        menu_.Close();
-        return true;
+    if (popup_host == nullptr) {
+        return false;
     }
 
-    menu_.Open(
-        D2D1::Point2F(6.0f, ui_theme::metrics::kTitleBarHeight + 4.0f),
+    return SUCCEEDED(popup_host->OpenMenu(
+        kMainMenuOrigin,
         std::vector<MenuItem>{
             {L"Open Image", UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
             {L"Save As", UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false, save_image_as_enabled_},
@@ -100,8 +101,7 @@ bool ImgViewerUi::HandleUiAction(UiAction action)
             {L"Minimize", UiActionFromImgViewerAction(ImgViewerAction::Minimize)},
             {L"Maximize or Restore", UiActionFromImgViewerAction(ImgViewerAction::ToggleMaximize)},
             {L"Close", UiActionFromImgViewerAction(ImgViewerAction::Close)},
-        });
-    return true;
+        }));
 }
 
 bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
