@@ -460,6 +460,24 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             }
             return 0;
         }
+        if (context != nullptr) {
+            UiPointerEvent pointer{
+                .type = UiEventType::PointerWheel,
+                .point = point,
+                .wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam),
+                .modifiers = CurrentUiModifiers(),
+            };
+            const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent{
+                .type = pointer.type,
+                .pointer = pointer,
+                .point = point,
+                .hwnd = hwnd,
+            });
+            if (ui_result.handled) {
+                RenderIfNeeded(hwnd, context, ui_result);
+                return 0;
+            }
+        }
         if (context != nullptr &&
             context->viewer.OnMouseWheel(
                 point.x,

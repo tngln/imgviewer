@@ -14,8 +14,10 @@ add_executable(imgviewer
     src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
     src/imgviewer.ui.info_panel.cc
+    src/image.analysis.cc
     src/image.decoder.cc
     src/image.encoder.cc
+    src/image.metadata.cc
     src/image.sequence.cc
     src/image.stb_decoder.cc
     src/imgviewer.viewer.cc

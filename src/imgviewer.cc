@@ -18,7 +18,6 @@
 #include "imgviewer.settings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
-#include "math.hpp"
 #include "ui.tooltip.hpp"
 #include "win32.clipboard.hpp"
 
@@ -28,6 +27,8 @@ constexpr UINT kToastDurationMs = 2000;
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void SetColorPickerActive(ImgViewerContext* context, bool active);
+void EnsureInfoPanelAnalysis(ImgViewerContext* context);
+void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
 
 std::wstring Unavailable()
@@ -43,17 +44,6 @@ std::wstring FormatImageDimensions(D2D1_SIZE_U size)
 
     wchar_t text[64] = {};
     swprintf_s(text, L"%ux%u", size.width, size.height);
-    return text;
-}
-
-std::wstring FormatSequence(ImageSequencePosition position)
-{
-    if (position.total == 0) {
-        return L"-";
-    }
-
-    wchar_t text[64] = {};
-    swprintf_s(text, L"%zu/%zu", position.index, position.total);
     return text;
 }
 
@@ -111,39 +101,6 @@ std::wstring FormatImageType(const std::wstring& path, bool clipboard)
         return static_cast<wchar_t>(std::towupper(value));
     });
     return extension;
-}
-
-std::wstring FormatZoom(const ImgViewerSnapshot& snapshot, D2D1_SIZE_U viewport_size)
-{
-    const float fit_scale = math::FitScale(snapshot.pixel_size, viewport_size);
-    if (fit_scale <= 0.0f) {
-        return L"-";
-    }
-
-    wchar_t text[64] = {};
-    swprintf_s(text, L"%.0f%%", static_cast<double>(fit_scale * snapshot.zoom_multiplier * 100.0f));
-    return text;
-}
-
-std::wstring FormatRotation(float rotation_degrees)
-{
-    wchar_t text[64] = {};
-    swprintf_s(text, L"%.0f deg", static_cast<double>(rotation_degrees));
-    return text;
-}
-
-std::wstring FormatFlips(const ImgViewerSnapshot& snapshot)
-{
-    if (snapshot.flipped_horizontal && snapshot.flipped_vertical) {
-        return L"Horizontal, Vertical";
-    }
-    if (snapshot.flipped_horizontal) {
-        return L"Horizontal";
-    }
-    if (snapshot.flipped_vertical) {
-        return L"Vertical";
-    }
-    return L"None";
 }
 
 } // namespace
@@ -436,6 +393,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::ToggleInfoPanel:
         if (context != nullptr) {
             context->info_panel_visible = !context->info_panel_visible;
+            EnsureInfoPanelAnalysis(context);
             RenderImgViewer(context);
         }
         break;
@@ -511,6 +469,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     }
     context->current_image_path = path;
     context->current_image_from_clipboard = false;
+    InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
 
@@ -620,6 +579,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     context->sequence.Clear();
     context->current_image_path.clear();
     context->current_image_from_clipboard = true;
+    InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
 
@@ -658,6 +618,37 @@ void SetColorPickerActive(ImgViewerContext* context, bool active)
     context->ui.SetColorPickerActive(context->color_picker_active);
 }
 
+void EnsureInfoPanelAnalysis(ImgViewerContext* context)
+{
+    if (context == nullptr ||
+        !context->info_panel_visible ||
+        !context->viewer.HasCurrentImage() ||
+        context->current_image_analysis.has_value() ||
+        context->current_image_analysis_failed) {
+        return;
+    }
+
+    ImagePixelAnalysis analysis;
+    if (SUCCEEDED(context->viewer.AnalyzeCurrentImage(&analysis))) {
+        context->current_image_analysis = analysis;
+        context->current_image_analysis_failed = false;
+        return;
+    }
+
+    context->current_image_analysis.reset();
+    context->current_image_analysis_failed = true;
+}
+
+void InvalidateInfoPanelAnalysis(ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    context->current_image_analysis.reset();
+    context->current_image_analysis_failed = false;
+}
+
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
 {
     if (context == nullptr) {
@@ -666,6 +657,7 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
 
     ImgViewerUiInfoPanelState state;
     state.visible = context->info_panel_visible;
+    EnsureInfoPanelAnalysis(context);
 
     const bool has_image = context->viewer.HasCurrentImage();
     const bool clipboard = context->current_image_from_clipboard;
@@ -677,10 +669,6 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
         state.type = Unavailable();
         state.file_size = Unavailable();
         state.modified_time = Unavailable();
-        state.sequence = L"-";
-        state.zoom = L"-";
-        state.rotation = L"-";
-        state.flips = L"-";
     } else {
         state.name = clipboard ? L"<Clipboard>" : util::FileNameFromPath(context->current_image_path.c_str(), L"-");
         state.path = clipboard || context->current_image_path.empty() ? Unavailable() : context->current_image_path;
@@ -688,10 +676,13 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
         state.type = FormatImageType(context->current_image_path, clipboard);
         state.file_size = Unavailable();
         state.modified_time = Unavailable();
-        state.sequence = FormatSequence(context->sequence.Position());
-        state.zoom = FormatZoom(snapshot, context->renderer.ViewportPixelSize());
-        state.rotation = FormatRotation(snapshot.rotation_degrees);
-        state.flips = FormatFlips(snapshot);
+        state.exif_rows = context->viewer.CurrentImageMetadata().exif_rows;
+        if (context->current_image_analysis.has_value()) {
+            state.has_analysis = true;
+            state.analysis = *context->current_image_analysis;
+        } else if (context->current_image_analysis_failed) {
+            state.analysis_unavailable = true;
+        }
 
         WIN32_FILE_ATTRIBUTE_DATA attributes = {};
         if (!clipboard &&

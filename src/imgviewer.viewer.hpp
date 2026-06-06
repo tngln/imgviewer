@@ -5,6 +5,7 @@
 #include <d2d1_1.h>
 
 #include "imgviewer.action.hpp"
+#include "image.analysis.hpp"
 #include "image.decoder.hpp"
 #include "image.encoder.hpp"
 
@@ -42,6 +43,7 @@ public:
     IWICImagingFactory2* WicFactory() const;
     bool HasCurrentImage() const;
     D2D1_SIZE_U CurrentImagePixelSize() const;
+    const ImageMetadata& CurrentImageMetadata() const;
     ImgViewerSnapshot Snapshot() const;
 
     ImgViewerEventResult OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size);
@@ -59,6 +61,7 @@ public:
     bool ResetView();
     void SetPixelatedSampling(bool enabled);
     bool SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const;
+    HRESULT AnalyzeCurrentImage(ImagePixelAnalysis* analysis) const;
 
 private:
     void SetCurrentImage(DecodedImage image);

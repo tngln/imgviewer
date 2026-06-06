@@ -87,6 +87,11 @@ D2D1_SIZE_U ImgViewerController::CurrentImagePixelSize() const
     return current_image_.pixel_size;
 }
 
+const ImageMetadata& ImgViewerController::CurrentImageMetadata() const
+{
+    return current_image_.metadata;
+}
+
 ImgViewerSnapshot ImgViewerController::Snapshot() const
 {
     return ImgViewerSnapshot{
@@ -391,6 +396,14 @@ bool ImgViewerController::SampleColorAt(float x, float y, D2D1_SIZE_U viewport_s
         .alpha = bgra[3],
     };
     return true;
+}
+
+HRESULT ImgViewerController::AnalyzeCurrentImage(ImagePixelAnalysis* analysis) const
+{
+    RETURN_HR_IF_NULL(E_POINTER, analysis);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, current_image_.pixel_source);
+    RETURN_IF_FAILED(AnalyzeImagePixels(current_image_.pixel_source.get(), analysis));
+    return S_OK;
 }
 
 bool ImgViewerController::OnActionDown(ImgViewerAction action)

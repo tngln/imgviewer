@@ -1,24 +1,35 @@
 #pragma once
 
+#include <array>
 #include <string>
+#include <vector>
 
 #include <d2d1_1.h>
 
+#include "image.analysis.hpp"
+#include "image.metadata.hpp"
 #include "ui.draw.hpp"
 #include "ui.element.hpp"
 
+enum class ImgViewerHistogramChannel {
+    Luma,
+    Red,
+    Green,
+    Blue,
+};
+
 struct ImgViewerUiInfoPanelState final {
     bool visible = false;
+    bool has_analysis = false;
+    bool analysis_unavailable = false;
     std::wstring name;
     std::wstring path;
     std::wstring dimensions;
     std::wstring type;
     std::wstring file_size;
     std::wstring modified_time;
-    std::wstring sequence;
-    std::wstring zoom;
-    std::wstring rotation;
-    std::wstring flips;
+    std::vector<ImageMetadataRow> exif_rows;
+    ImagePixelAnalysis analysis;
 };
 
 class ImgViewerUiInfoPanel final {
@@ -28,13 +39,33 @@ public:
     void SetState(ImgViewerUiInfoPanelState state);
     bool IsVisible() const;
     void Draw(const UiDrawContext& draw_context) const;
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) const;
+    UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
     void Layout(D2D1_SIZE_F viewport_size) const;
     void DrawRow(const UiDraw& draw, const wchar_t* label, const std::wstring& value, float top) const;
+    void DrawSectionHeader(const UiDraw& draw, const wchar_t* text, float top) const;
+    void DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& rect) const;
+    void DrawHistogramTabs(const UiDraw& draw, const D2D1_RECT_F& rect) const;
+    void DrawColorSummary(const UiDraw& draw, const D2D1_RECT_F& rect) const;
+    void DrawColorChip(
+        const UiDraw& draw,
+        const wchar_t* label,
+        ImageColorSample color,
+        D2D1_RECT_F rect) const;
+    bool IsHistogramChannelVisible(ImgViewerHistogramChannel channel) const;
+    float BodyContentHeight() const;
+    float BodyViewportHeight() const;
+    float MaxScrollOffset() const;
+    float EffectiveScrollOffset() const;
+    float BodyTop() const;
+    D2D1_RECT_F HistogramTabRect(ImgViewerHistogramChannel channel) const;
+    bool ToggleHistogramChannelFromPoint(D2D1_POINT_2F point);
+    bool ScrollByWheelDelta(int wheel_delta);
 
     UiElement* panel_ = nullptr;
     UiElementId panel_id_ = UiElementId::None;
     ImgViewerUiInfoPanelState state_;
+    std::array<bool, 4> visible_histogram_channels_{true, false, false, false};
+    float scroll_offset_ = 0.0f;
 };

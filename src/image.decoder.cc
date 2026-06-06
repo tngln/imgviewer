@@ -70,6 +70,7 @@ HRESULT ImageDecoder::DecodeFirstFrame(
     wil::com_ptr<IWICBitmapFrameDecode> frame;
     RETURN_IF_FAILED(decoder->GetFrame(0, frame.put()));
     RETURN_IF_FAILED(DecodeBitmapSource(frame.get(), d2d_context, &decoded));
+    RETURN_IF_FAILED(ReadImageExifMetadata(frame.get(), &decoded.metadata));
 
     *image = std::move(decoded);
     return S_OK;

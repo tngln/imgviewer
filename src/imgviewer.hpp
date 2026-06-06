@@ -6,12 +6,14 @@
 #include <UIAutomationCore.h>
 
 #include <array>
+#include <optional>
 #include <string>
 #include <wil/com.h>
 #include <wil/resource.h>
 
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "image.analysis.hpp"
 #include "image.sequence.hpp"
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
@@ -28,6 +30,8 @@ struct ImgViewerContext final {
     ImageSequence sequence;
     ImgViewerConfig config;
     std::wstring current_image_path;
+    std::optional<ImagePixelAnalysis> current_image_analysis;
+    bool current_image_analysis_failed = false;
     int current_window_opacity_percent = 100;
     int current_toolbar_scale_percent = 125;
     std::array<ImgViewerAction, 256> pressed_key_actions = {};
