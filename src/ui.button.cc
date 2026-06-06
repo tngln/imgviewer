@@ -91,6 +91,11 @@ Button::Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* t
     SetFocusable(true);
 }
 
+float Button::PreferredWidth(const UiDrawContext& context) const
+{
+    return PreferredWidth(context.dwrite_factory, context.body_text_format);
+}
+
 float Button::PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const
 {
     const ui_text::TextMetrics metrics =

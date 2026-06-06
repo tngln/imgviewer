@@ -67,9 +67,6 @@ constexpr float kSettingsSidePadding = 28.0f;
 constexpr float kSettingsFooterBottomPadding = 20.0f;
 constexpr float kSettingsFooterButtonHeight = 48.0f;
 constexpr float kSettingsFooterButtonGap = 10.0f;
-constexpr float kSettingsResetButtonWidth = 138.0f;
-constexpr float kSettingsSaveButtonWidth = 126.0f;
-constexpr float kSettingsCancelButtonWidth = 128.0f;
 constexpr float kSettingsLabelHeight = 26.0f;
 constexpr float kSettingsChoiceHeight = 36.0f;
 constexpr float kSettingsFieldHeight = 42.0f;
@@ -242,7 +239,11 @@ std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction 
     return text.empty() ? L"No shortcut configured." : text;
 }
 
-SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
+SettingsLayoutRects CalculateSettingsLayout(
+    D2D1_SIZE_F size,
+    float reset_button_width,
+    float save_button_width,
+    float cancel_button_width)
 {
     SettingsLayoutRects layout;
     const float left = kSettingsSidePadding;
@@ -283,11 +284,11 @@ SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
     layout.reset_button = D2D1::RectF(
         left,
         size.height - kSettingsFooterBottomPadding - kSettingsFooterButtonHeight,
-        left + kSettingsResetButtonWidth,
+        left + reset_button_width,
         size.height - kSettingsFooterBottomPadding);
     const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
         root,
-        std::vector<float>{kSettingsSaveButtonWidth, kSettingsCancelButtonWidth},
+        std::vector<float>{save_button_width, cancel_button_width},
         kSettingsFooterButtonHeight,
         kSettingsSidePadding - 8.0f,
         kSettingsFooterBottomPadding,
@@ -586,7 +587,7 @@ public:
     void Draw(const UiDrawContext& context, UiRootState state) override
     {
         const D2D1_SIZE_F size = context.viewport_size;
-        Layout(size);
+        Layout(context);
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
         draw.DrawBodyText(L"Settings", 8, layout_.title, ui_theme::color::kBodyText);
@@ -698,10 +699,15 @@ private:
         return typed_control;
     }
 
-    void Layout(D2D1_SIZE_F size)
+    void Layout(const UiDrawContext& context)
     {
+        const D2D1_SIZE_F size = context.viewport_size;
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-        layout_ = CalculateSettingsLayout(size);
+        layout_ = CalculateSettingsLayout(
+            size,
+            reset_button_->PreferredWidth(context),
+            save_button_->PreferredWidth(context),
+            cancel_button_->PreferredWidth(context));
         for (const SettingsControl& control : controls_) {
             control.element->SetRect(layout_.*control.rect);
         }

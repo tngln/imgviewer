@@ -11,6 +11,7 @@ class Button final : public UiElement {
 public:
     Button(UiElementMetadata metadata, const wchar_t* icon, const wchar_t* text);
 
+    float PreferredWidth(const UiDrawContext& context) const;
     float PreferredWidth(IDWriteFactory* factory, IDWriteTextFormat* body_text_format) const;
     void Draw(const UiDrawContext& context, UiElementState state) const override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;

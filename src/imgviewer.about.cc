@@ -32,8 +32,6 @@ constexpr int kAboutMinClientHeight = 420;
 constexpr float kAboutSidePadding = 28.0f;
 constexpr float kAboutFooterBottomPadding = 20.0f;
 constexpr float kAboutFooterButtonHeight = 48.0f;
-constexpr float kAboutCopyButtonWidth = 162.0f;
-constexpr float kAboutCloseButtonWidth = 128.0f;
 
 struct NoticeLine final {
     const wchar_t* name;
@@ -105,7 +103,7 @@ public:
     void Draw(const UiDrawContext& context, UiRootState state) override
     {
         const D2D1_SIZE_F size = context.viewport_size;
-        Layout(size);
+        Layout(context);
 
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
@@ -166,17 +164,18 @@ public:
     }
 
 private:
-    void Layout(D2D1_SIZE_F size)
+    void Layout(const UiDrawContext& context)
     {
+        const D2D1_SIZE_F size = context.viewport_size;
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
         copy_button_->SetRect(D2D1::RectF(
             kAboutSidePadding,
             size.height - kAboutFooterBottomPadding - kAboutFooterButtonHeight,
-            kAboutSidePadding + kAboutCopyButtonWidth,
+            kAboutSidePadding + copy_button_->PreferredWidth(context),
             size.height - kAboutFooterBottomPadding));
         const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
             root_->Rect(),
-            std::vector<float>{kAboutCloseButtonWidth},
+            std::vector<float>{close_button_->PreferredWidth(context)},
             kAboutFooterButtonHeight,
             kAboutFooterBottomPadding,
             kAboutFooterBottomPadding);
