@@ -6,6 +6,7 @@
 #include <UIAutomationCore.h>
 
 #include <array>
+#include <string>
 #include <wil/com.h>
 #include <wil/resource.h>
 
@@ -26,6 +27,7 @@ struct ImgViewerContext final {
     ImgViewerController viewer;
     ImageSequence sequence;
     ImgViewerConfig config;
+    std::wstring current_image_path;
     int current_window_opacity_percent = 100;
     int current_toolbar_scale_percent = 125;
     std::array<ImgViewerAction, 256> pressed_key_actions = {};
@@ -33,7 +35,10 @@ struct ImgViewerContext final {
     wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
     void* settings_context = nullptr;
+    void* about_context = nullptr;
     bool color_picker_active = false;
+    bool current_image_from_clipboard = false;
+    bool info_panel_visible = false;
     bool interactive_size_move_active = false;
     int last_window_size_toast_width = 0;
     int last_window_size_toast_height = 0;
@@ -59,3 +64,5 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);
 void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_context);
+HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context);
+void CleanupImgViewerAboutWindow(ImgViewerContext* context, void* about_context);

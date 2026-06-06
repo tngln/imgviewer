@@ -158,6 +158,7 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "    \"flipVertical\": [\"V\"],\n";
     output << "    \"zoomIn\": [\"Ctrl+=\"],\n";
     output << "    \"zoomOut\": [\"Ctrl+-\"],\n";
+    output << "    \"toggleInfoPanel\": [\"I\"],\n";
     output << "    \"fitWindow\": [\"Ctrl+9\"],\n";
     output << "    \"actualSize\": [\"Ctrl+1\"],\n";
     output << "    \"resetView\": [\"Ctrl+0\"],\n";

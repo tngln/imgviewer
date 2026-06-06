@@ -7,7 +7,7 @@
 
 namespace {
 
-constexpr std::array<ImgViewerAction, 11> kConfigurableKeyActions = {
+constexpr std::array<ImgViewerAction, 12> kConfigurableKeyActions = {
     ImgViewerAction::OpenImage,
     ImgViewerAction::PreviousImage,
     ImgViewerAction::NextImage,
@@ -19,6 +19,7 @@ constexpr std::array<ImgViewerAction, 11> kConfigurableKeyActions = {
     ImgViewerAction::FlipHorizontal,
     ImgViewerAction::FlipVertical,
     ImgViewerAction::ResetView,
+    ImgViewerAction::ToggleInfoPanel,
 };
 
 std::string ToLowerAscii(std::string_view value)
@@ -197,6 +198,7 @@ ActionBindings DefaultActionBindings()
     SetBinding(&bindings, KeyGesture{.virtual_key = 'V'}, ImgViewerAction::FlipVertical);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_PLUS, .ctrl = true}, ImgViewerAction::ZoomIn);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_MINUS, .ctrl = true}, ImgViewerAction::ZoomOut);
+    SetBinding(&bindings, KeyGesture{.virtual_key = 'I'}, ImgViewerAction::ToggleInfoPanel);
     SetBinding(&bindings, KeyGesture{.virtual_key = '9', .ctrl = true}, ImgViewerAction::FitWindow);
     SetBinding(&bindings, KeyGesture{.virtual_key = '1', .ctrl = true}, ImgViewerAction::ActualSize);
     SetBinding(&bindings, KeyGesture{.virtual_key = '0', .ctrl = true}, ImgViewerAction::ResetView);

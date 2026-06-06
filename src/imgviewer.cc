@@ -1,8 +1,12 @@
 #include "imgviewer.hpp"
 
 #include <algorithm>
+#include <cwchar>
+#include <cwctype>
+#include <filesystem>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include <wil/result_macros.h>
 #include <wil/resource.h>
@@ -10,9 +14,11 @@
 #include "win32.dialog.hpp"
 #include "win32.util.hpp"
 #include "imgviewer.messages.hpp"
+#include "imgviewer.about.hpp"
 #include "imgviewer.settings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
+#include "math.hpp"
 #include "ui.tooltip.hpp"
 #include "win32.clipboard.hpp"
 
@@ -22,6 +28,123 @@ constexpr UINT kToastDurationMs = 2000;
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void SetColorPickerActive(ImgViewerContext* context, bool active);
+void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
+
+std::wstring Unavailable()
+{
+    return L"Unavailable";
+}
+
+std::wstring FormatImageDimensions(D2D1_SIZE_U size)
+{
+    if (size.width == 0 || size.height == 0) {
+        return L"-";
+    }
+
+    wchar_t text[64] = {};
+    swprintf_s(text, L"%ux%u", size.width, size.height);
+    return text;
+}
+
+std::wstring FormatSequence(ImageSequencePosition position)
+{
+    if (position.total == 0) {
+        return L"-";
+    }
+
+    wchar_t text[64] = {};
+    swprintf_s(text, L"%zu/%zu", position.index, position.total);
+    return text;
+}
+
+std::wstring FormatFileSize(ULONGLONG byte_count)
+{
+    constexpr ULONGLONG kKiB = 1024;
+    constexpr ULONGLONG kMiB = kKiB * 1024;
+    constexpr ULONGLONG kGiB = kMiB * 1024;
+
+    wchar_t text[64] = {};
+    if (byte_count >= kGiB) {
+        swprintf_s(text, L"%.1f GB", static_cast<double>(byte_count) / static_cast<double>(kGiB));
+    } else if (byte_count >= kMiB) {
+        swprintf_s(text, L"%.1f MB", static_cast<double>(byte_count) / static_cast<double>(kMiB));
+    } else if (byte_count >= kKiB) {
+        swprintf_s(text, L"%.1f KB", static_cast<double>(byte_count) / static_cast<double>(kKiB));
+    } else {
+        swprintf_s(text, L"%llu bytes", byte_count);
+    }
+    return text;
+}
+
+std::wstring FormatFileTime(FILETIME file_time)
+{
+    FILETIME local_time = {};
+    SYSTEMTIME system_time = {};
+    if (!FileTimeToLocalFileTime(&file_time, &local_time) || !FileTimeToSystemTime(&local_time, &system_time)) {
+        return Unavailable();
+    }
+
+    wchar_t date_text[64] = {};
+    wchar_t time_text[64] = {};
+    if (GetDateFormatEx(LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE, &system_time, nullptr, date_text, ARRAYSIZE(date_text), nullptr) == 0 ||
+        GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS, &system_time, nullptr, time_text, ARRAYSIZE(time_text)) == 0) {
+        return Unavailable();
+    }
+
+    return std::wstring(date_text) + L" " + time_text;
+}
+
+std::wstring FormatImageType(const std::wstring& path, bool clipboard)
+{
+    if (clipboard) {
+        return L"Clipboard image";
+    }
+
+    std::wstring extension = std::filesystem::path(path).extension().wstring();
+    if (extension.empty()) {
+        return Unavailable();
+    }
+    if (extension[0] == L'.') {
+        extension.erase(extension.begin());
+    }
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t value) {
+        return static_cast<wchar_t>(std::towupper(value));
+    });
+    return extension;
+}
+
+std::wstring FormatZoom(const ImgViewerSnapshot& snapshot, D2D1_SIZE_U viewport_size)
+{
+    const float fit_scale = math::FitScale(snapshot.pixel_size, viewport_size);
+    if (fit_scale <= 0.0f) {
+        return L"-";
+    }
+
+    wchar_t text[64] = {};
+    swprintf_s(text, L"%.0f%%", static_cast<double>(fit_scale * snapshot.zoom_multiplier * 100.0f));
+    return text;
+}
+
+std::wstring FormatRotation(float rotation_degrees)
+{
+    wchar_t text[64] = {};
+    swprintf_s(text, L"%.0f deg", static_cast<double>(rotation_degrees));
+    return text;
+}
+
+std::wstring FormatFlips(const ImgViewerSnapshot& snapshot)
+{
+    if (snapshot.flipped_horizontal && snapshot.flipped_vertical) {
+        return L"Horizontal, Vertical";
+    }
+    if (snapshot.flipped_horizontal) {
+        return L"Horizontal";
+    }
+    if (snapshot.flipped_vertical) {
+        return L"Vertical";
+    }
+    return L"None";
+}
 
 } // namespace
 
@@ -33,6 +156,7 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
         return S_OK;
     }
 
+    UpdateImgViewerInfoPanelState(context);
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
     return S_OK;
 }
@@ -254,6 +378,9 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::OpenSettings:
         OpenImgViewerSettingsWindow(hwnd, context);
         break;
+    case ImgViewerAction::OpenAbout:
+        OpenImgViewerAboutWindow(hwnd, context);
+        break;
     case ImgViewerAction::PreviousImage:
         NavigateImageFile(hwnd, context, -1);
         break;
@@ -303,6 +430,12 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::ToggleColorPicker:
         if (context != nullptr) {
             SetColorPickerActive(context, !context->color_picker_active);
+            RenderImgViewer(context);
+        }
+        break;
+    case ImgViewerAction::ToggleInfoPanel:
+        if (context != nullptr) {
+            context->info_panel_visible = !context->info_panel_visible;
             RenderImgViewer(context);
         }
         break;
@@ -376,6 +509,8 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     if (FAILED(sequence_hr)) {
         MessageBoxW(hwnd, L"Could not read the image folder.", kImgViewerWindowTitle, MB_OK | MB_ICONWARNING);
     }
+    context->current_image_path = path;
+    context->current_image_from_clipboard = false;
     SyncActionStates(context);
     SetColorPickerActive(context, false);
 
@@ -483,6 +618,8 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     }
 
     context->sequence.Clear();
+    context->current_image_path.clear();
+    context->current_image_from_clipboard = true;
     SyncActionStates(context);
     SetColorPickerActive(context, false);
 
@@ -519,6 +656,57 @@ void SetColorPickerActive(ImgViewerContext* context, bool active)
 
     context->color_picker_active = active && IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker);
     context->ui.SetColorPickerActive(context->color_picker_active);
+}
+
+void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    ImgViewerUiInfoPanelState state;
+    state.visible = context->info_panel_visible;
+
+    const bool has_image = context->viewer.HasCurrentImage();
+    const bool clipboard = context->current_image_from_clipboard;
+    const ImgViewerSnapshot snapshot = context->viewer.Snapshot();
+    if (!has_image) {
+        state.name = L"No image";
+        state.path = Unavailable();
+        state.dimensions = L"-";
+        state.type = Unavailable();
+        state.file_size = Unavailable();
+        state.modified_time = Unavailable();
+        state.sequence = L"-";
+        state.zoom = L"-";
+        state.rotation = L"-";
+        state.flips = L"-";
+    } else {
+        state.name = clipboard ? L"<Clipboard>" : util::FileNameFromPath(context->current_image_path.c_str(), L"-");
+        state.path = clipboard || context->current_image_path.empty() ? Unavailable() : context->current_image_path;
+        state.dimensions = FormatImageDimensions(snapshot.pixel_size);
+        state.type = FormatImageType(context->current_image_path, clipboard);
+        state.file_size = Unavailable();
+        state.modified_time = Unavailable();
+        state.sequence = FormatSequence(context->sequence.Position());
+        state.zoom = FormatZoom(snapshot, context->renderer.ViewportPixelSize());
+        state.rotation = FormatRotation(snapshot.rotation_degrees);
+        state.flips = FormatFlips(snapshot);
+
+        WIN32_FILE_ATTRIBUTE_DATA attributes = {};
+        if (!clipboard &&
+            !context->current_image_path.empty() &&
+            GetFileAttributesExW(context->current_image_path.c_str(), GetFileExInfoStandard, &attributes) &&
+            (attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+            const ULONGLONG file_size =
+                (static_cast<ULONGLONG>(attributes.nFileSizeHigh) << 32) |
+                static_cast<ULONGLONG>(attributes.nFileSizeLow);
+            state.file_size = FormatFileSize(file_size);
+            state.modified_time = FormatFileTime(attributes.ftLastWriteTime);
+        }
+    }
+
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetInfoPanelState(std::move(state));
 }
 
 } // namespace

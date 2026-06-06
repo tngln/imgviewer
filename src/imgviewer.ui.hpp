@@ -9,6 +9,7 @@
 #include "ui.events.hpp"
 #include "ui.root.hpp"
 
+#include "imgviewer.ui.info_panel.hpp"
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
 #include "ui.toast.hpp"
@@ -36,6 +37,7 @@ public:
     void SetColorPickerActive(bool active) override;
     void SetToolbarScalePercent(int percent) override;
     void SetActionEnabled(UiAction action, bool enabled) override;
+    void SetInfoPanelState(ImgViewerUiInfoPanelState state);
 
 private:
     void Layout(D2D1_SIZE_F viewport_size);
@@ -44,6 +46,7 @@ private:
     UiElementIdGenerator ids_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
+    ImgViewerUiInfoPanel info_panel_;
     UiToast toast_;
     bool top_most_ = false;
     bool maximized_ = false;

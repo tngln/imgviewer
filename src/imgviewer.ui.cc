@@ -1,6 +1,7 @@
 #include "imgviewer.ui.hpp"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include <d2d1helper.h>
@@ -38,7 +39,8 @@ ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
         Metadata(UiElementId::None, UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_, ids_),
-    toolbar_(*root_, ids_)
+    toolbar_(*root_, ids_),
+    info_panel_(*root_, ids_)
 {
 }
 
@@ -64,8 +66,9 @@ void ImgViewerUi::Draw(
     Layout(draw_context.viewport_size);
     titlebar_.Draw(draw_context, state, top_most_, maximized_);
     toolbar_.Draw(draw_context, state, color_picker_active_);
-    menu_.Draw(draw_context, UiElementState{});
+    info_panel_.Draw(draw_context);
     toast_.Draw(draw_context);
+    menu_.Draw(draw_context, UiElementState{});
 }
 
 UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
@@ -73,6 +76,10 @@ UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
     UiEventResult menu_result = menu_.OnPointerEvent(event);
     if (menu_result.handled) {
         return menu_result;
+    }
+    UiEventResult info_panel_result = info_panel_.OnPointerEvent(event);
+    if (info_panel_result.handled) {
+        return info_panel_result;
     }
     return toolbar_.OnPointerEvent(event);
 }
@@ -98,7 +105,11 @@ bool ImgViewerUi::HandleUiAction(UiAction action)
         std::vector<MenuItem>{
             {L"Open Image", UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
             {L"Save As", UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false, save_image_as_enabled_},
+            {L"", kUiActionNone, true},
             {L"Settings", UiActionFromImgViewerAction(ImgViewerAction::OpenSettings)},
+            {L"About", UiActionFromImgViewerAction(ImgViewerAction::OpenAbout)},
+            {L"", kUiActionNone, true},
+            {L"Info Panel", UiActionFromImgViewerAction(ImgViewerAction::ToggleInfoPanel), false, info_panel_.IsVisible()},
             {L"", kUiActionNone, true},
             {L"Zoom In", UiActionFromImgViewerAction(ImgViewerAction::ZoomIn)},
             {L"Zoom Out", UiActionFromImgViewerAction(ImgViewerAction::ZoomOut)},
@@ -160,6 +171,11 @@ void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
     if (action == UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs)) {
         save_image_as_enabled_ = enabled;
     }
+}
+
+void ImgViewerUi::SetInfoPanelState(ImgViewerUiInfoPanelState state)
+{
+    info_panel_.SetState(std::move(state));
 }
 
 void ImgViewerUi::Layout(D2D1_SIZE_F viewport_size)

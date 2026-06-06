@@ -31,6 +31,8 @@ const char* ImgViewerActionName(ImgViewerAction action)
         return "resetView";
     case ImgViewerAction::ToggleColorPicker:
         return "toggleColorPicker";
+    case ImgViewerAction::ToggleInfoPanel:
+        return "toggleInfoPanel";
     case ImgViewerAction::OpenMenu:
         return "openMenu";
     case ImgViewerAction::OpenSettings:
@@ -39,6 +41,12 @@ const char* ImgViewerActionName(ImgViewerAction action)
         return "closeSettings";
     case ImgViewerAction::SaveSettings:
         return "saveSettings";
+    case ImgViewerAction::OpenAbout:
+        return "openAbout";
+    case ImgViewerAction::CloseAbout:
+        return "closeAbout";
+    case ImgViewerAction::CopyAboutNotices:
+        return "copyAboutNotices";
     case ImgViewerAction::ResetKeyBindings:
         return "resetKeyBindings";
     case ImgViewerAction::TextCopy:
@@ -105,6 +113,9 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     if (value == "toggleColorPicker") {
         return ImgViewerAction::ToggleColorPicker;
     }
+    if (value == "toggleInfoPanel") {
+        return ImgViewerAction::ToggleInfoPanel;
+    }
     if (value == "openMenu") {
         return ImgViewerAction::OpenMenu;
     }
@@ -116,6 +127,15 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     }
     if (value == "saveSettings") {
         return ImgViewerAction::SaveSettings;
+    }
+    if (value == "openAbout") {
+        return ImgViewerAction::OpenAbout;
+    }
+    if (value == "closeAbout") {
+        return ImgViewerAction::CloseAbout;
+    }
+    if (value == "copyAboutNotices") {
+        return ImgViewerAction::CopyAboutNotices;
     }
     if (value == "resetKeyBindings") {
         return ImgViewerAction::ResetKeyBindings;

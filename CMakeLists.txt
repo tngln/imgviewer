@@ -6,12 +6,14 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 add_executable(imgviewer
     src/imgviewer.cc
+    src/imgviewer.about.cc
     src/imgviewer.action.cc
     src/imgviewer.config.cc
     src/imgviewer.host.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
+    src/imgviewer.ui.info_panel.cc
     src/image.decoder.cc
     src/image.encoder.cc
     src/image.sequence.cc
