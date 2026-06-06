@@ -43,7 +43,7 @@ void TextBox::SetText(std::wstring text)
     anchor_ = (std::min)(anchor_, text_.size());
 }
 
-void TextBox::SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format)
+void TextBox::SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format) const
 {
     dwrite_factory_ = factory;
     text_format_ = format;
@@ -85,7 +85,7 @@ D2D1_SIZE_F TextBox::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) c
 void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
 {
     const UiElementState state = VisualState(root_state);
-    const_cast<TextBox*>(this)->SetTextServices(context.dwrite_factory, context.body_text_format);
+    SetTextServices(context.dwrite_factory, context.body_text_format);
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
     draw.FillRoundedRect(
@@ -145,7 +145,7 @@ void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
         const float caret_x = text_rect.left - horizontal_scroll_ + x;
         const float caret_top = text_rect.top + 2.0f;
         const float caret_bottom = rect.bottom - kTextPaddingY - 2.0f;
-        const_cast<TextBox*>(this)->caret_point_ = D2D1::Point2F(caret_x, caret_bottom);
+        caret_point_ = D2D1::Point2F(caret_x, caret_bottom);
         draw.FillRect(D2D1::RectF(caret_x, caret_top, caret_x + 1.5f, caret_bottom), ui_theme::color::kBodyText);
     }
 }

@@ -11,11 +11,6 @@
 
 namespace {
 
-bool IsKeyDown(int virtual_key)
-{
-    return (GetKeyState(virtual_key) & 0x8000) != 0;
-}
-
 D2D1_SIZE_U ClientPixelSize(HWND hwnd)
 {
     RECT rect = {};
@@ -478,11 +473,7 @@ bool UiWindowHost::ExecuteAction(UiAction action)
 
 UiModifiers UiWindowHost::CurrentModifiers() const
 {
-    return UiModifiers{
-        .ctrl = IsKeyDown(VK_CONTROL),
-        .shift = IsKeyDown(VK_SHIFT),
-        .alt = IsKeyDown(VK_MENU),
-    };
+    return UiModifiers::Current();
 }
 
 void UiWindowHost::SyncCaretTimer()

@@ -1,0 +1,49 @@
+# ImgViewer 重构进度
+
+## 已完成的清理
+
+### 1. 统一 `IsKeyDown` 函数
+- **之前**: `imgviewer.host.cc` 和 `ui.window.cc` 各自在匿名命名空间定义了相同的 `IsKeyDown(int virtual_key)` 函数
+- **之后**: 移动到 `win32.util.hpp/cc` 中作为 `util::IsKeyDown()`
+- **文件变更**: 
+  - `win32.util.hpp` - 添加声明
+  - `win32.util.cc` - 添加实现
+  - `imgviewer.host.cc` - 删除本地定义，改用 `util::IsKeyDown()`
+  - `ui.window.cc` - 删除本地定义，通过 `UiModifiers::Current()` 间接使用
+
+### 2. 统一 `CurrentUiModifiers` / `CurrentModifiers`
+- **之前**: `imgviewer.host.cc` 有自由函数 `CurrentUiModifiers()`，`UiWindowHost` 有成员函数 `CurrentModifiers()`
+- **之后**: 在 `UiModifiers` 结构体中添加静态方法 `UiModifiers::Current()`
+- **文件变更**:
+  - `ui.events.hpp` - 在 `UiModifiers` 中添加 `static Current()` 声明
+  - `ui.events.cc` - 新文件，实现 `UiModifiers::Current()`
+  - `CMakeLists.txt` - 添加 `ui.events.cc`
+  - `imgviewer.host.cc` - 删除本地定义，改用 `UiModifiers::Current()`
+  - `ui.window.cc` - `CurrentModifiers()` 内部调用 `UiModifiers::Current()`
+
+### 3. 移除 `TextBox` 中不必要的 `const_cast`
+- **之前**: `TextBox::Draw()` 使用 `const_cast` 修改 `caret_point_`、`dwrite_factory_`、`text_format_`
+- **之后**: 将这些成员标记为 `mutable`，移除 `const_cast`
+- **文件变更**:
+  - `ui.textbox.hpp` - 添加 `mutable` 关键字到 `caret_visible_`、`caret_point_`、`dwrite_factory_`、`text_format_`
+  - `ui.textbox.hpp` - `SetTextServices()` 改为 `const` 方法
+  - `ui.textbox.cc` - 移除两处 `const_cast`
+
+## 待清理项目
+
+### 低风险
+- [ ] 统一常量命名风格（有些用 `k` 前缀，有些用大写）
+- [ ] 提取格式化函数 (`FormatFileSize`, `FormatFileTime` 等) 到独立头文件
+
+### 中等风险
+- [ ] `ClientPixelSize` 函数可能可以移到 `win32.util`（但需要处理 D2D1 依赖）
+- [ ] 评估是否将 `UiWindowHost::CurrentModifiers()` 简化为直接返回 `UiModifiers::Current()`（已完成）
+
+## 架构级问题（暂不处理）
+
+这些问题需要更大范围的重构，不适合作为小步骤清理：
+
+1. **双重 UI 宿主系统** - 主窗口用 `WindowProc`，子窗口用 `UiWindowHost`
+2. **渲染系统分裂** - DirectComposition vs HwndRenderTarget
+3. **布局系统缺失** - 纯命令式手动计算
+4. **`ImgViewerContext` 过大** - God Object 问题

@@ -9,6 +9,11 @@
 
 namespace util {
 
+bool IsKeyDown(int virtual_key)
+{
+    return (GetKeyState(virtual_key) & 0x8000) != 0;
+}
+
 bool IsWindowTopMost(HWND hwnd)
 {
     return (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;

@@ -51,11 +51,6 @@ ImgViewerContext* GetImgViewerContext(HWND hwnd)
     return static_cast<ImgViewerContext*>(win32::NativeWindow::UserData(hwnd));
 }
 
-bool IsKeyDown(int virtual_key)
-{
-    return (GetKeyState(virtual_key) & 0x8000) != 0;
-}
-
 bool IsCursorInsideWindow(HWND hwnd)
 {
     POINT cursor = {};
@@ -77,15 +72,6 @@ void TrackNonClientMouseLeave(HWND hwnd)
     TrackMouseEvent(&track_event);
 }
 
-UiModifiers CurrentUiModifiers()
-{
-    return UiModifiers{
-        .ctrl = IsKeyDown(VK_CONTROL),
-        .shift = IsKeyDown(VK_SHIFT),
-        .alt = IsKeyDown(VK_MENU),
-    };
-}
-
 ImgViewerAction ActionForKeyboardMessage(const ImgViewerContext* context, WPARAM wparam)
 {
     if (context == nullptr) {
@@ -95,9 +81,9 @@ ImgViewerAction ActionForKeyboardMessage(const ImgViewerContext* context, WPARAM
     return ActionForKey(
         context->config.action_bindings,
         static_cast<UINT>(wparam),
-        IsKeyDown(VK_CONTROL),
-        IsKeyDown(VK_SHIFT),
-        IsKeyDown(VK_MENU));
+        util::IsKeyDown(VK_CONTROL),
+        util::IsKeyDown(VK_SHIFT),
+        util::IsKeyDown(VK_MENU));
 }
 
 size_t KeyActionIndex(WPARAM wparam)
@@ -442,7 +428,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             UiPointerEvent pointer{
                 .type = UiEventType::PointerMove,
                 .point = point,
-                .modifiers = CurrentUiModifiers(),
+                .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
             if (context->popup.IsOpen()) {
@@ -476,7 +462,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .type = UiEventType::PointerDown,
             .point = point,
             .button = UiPointerButton::Left,
-            .modifiers = CurrentUiModifiers(),
+            .modifiers = UiModifiers::Current(),
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (context != nullptr && context->popup.IsOpen()) {
@@ -531,7 +517,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .type = UiEventType::PointerUp,
                 .point = point,
                 .button = UiPointerButton::Left,
-                .modifiers = CurrentUiModifiers(),
+                .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
             if (context->popup.IsOpen()) {
@@ -561,7 +547,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_MOUSELEAVE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
-        UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = CurrentUiModifiers()};
+        UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = UiModifiers::Current()};
         RenderIfNeeded(
             hwnd,
             context,
@@ -583,7 +569,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_MOUSEWHEEL: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetScreenPointerPoint(hwnd, lparam);
-        if (context != nullptr && IsKeyDown('O')) {
+        if (context != nullptr && util::IsKeyDown('O')) {
             constexpr int kOpacityWheelStep = 5;
             const int wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam);
             const int steps = wheel_delta / WHEEL_DELTA;
@@ -600,7 +586,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .type = UiEventType::PointerWheel,
                 .point = point,
                 .wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam),
-                .modifiers = CurrentUiModifiers(),
+                .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
             const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent{
@@ -633,7 +619,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         UiKeyEvent key{
             .type = UiEventType::KeyDown,
             .virtual_key = static_cast<UINT>(wparam),
-            .modifiers = CurrentUiModifiers(),
+            .modifiers = UiModifiers::Current(),
             .repeat = (lparam & 0x40000000) != 0,
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
@@ -695,7 +681,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         UiKeyEvent key{
             .type = UiEventType::KeyUp,
             .virtual_key = static_cast<UINT>(wparam),
-            .modifiers = CurrentUiModifiers(),
+            .modifiers = UiModifiers::Current(),
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         const UiEventResult ui_result = context != nullptr

@@ -15,7 +15,7 @@ public:
 
     const std::wstring& Text() const;
     void SetText(std::wstring text);
-    void SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format);
+    void SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format) const;
     void SetCaretVisible(bool visible);
     bool IsEditing() const;
     D2D1_POINT_2F CaretPoint() const;
@@ -52,9 +52,9 @@ private:
     size_t caret_ = 0;
     size_t anchor_ = 0;
     float horizontal_scroll_ = 0.0f;
-    bool caret_visible_ = true;
+    mutable bool caret_visible_ = true;
     bool dragging_ = false;
-    D2D1_POINT_2F caret_point_ = {};
-    IDWriteFactory* dwrite_factory_ = nullptr;
-    IDWriteTextFormat* text_format_ = nullptr;
+    mutable D2D1_POINT_2F caret_point_ = {};
+    mutable IDWriteFactory* dwrite_factory_ = nullptr;
+    mutable IDWriteTextFormat* text_format_ = nullptr;
 };

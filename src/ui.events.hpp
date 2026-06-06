@@ -41,6 +41,8 @@ struct UiModifiers final {
     bool ctrl = false;
     bool shift = false;
     bool alt = false;
+
+    static UiModifiers Current();
 };
 
 struct UiPointerEvent final {

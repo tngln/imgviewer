@@ -6,6 +6,7 @@
 
 namespace util {
 
+bool IsKeyDown(int virtual_key);
 bool IsWindowTopMost(HWND hwnd);
 int ResizeBorderThicknessForDpi(UINT dpi);
 std::wstring FileNameFromPath(const wchar_t* path, const wchar_t* fallback);
