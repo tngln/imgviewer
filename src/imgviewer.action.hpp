@@ -8,6 +8,8 @@ enum class ImgViewerAction {
     NextImage,
     ZoomIn,
     ZoomOut,
+    FitWindow,
+    ActualSize,
     RotateClockwise,
     FlipHorizontal,
     FlipVertical,

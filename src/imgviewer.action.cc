@@ -17,6 +17,10 @@ const char* ImgViewerActionName(ImgViewerAction action)
         return "zoomIn";
     case ImgViewerAction::ZoomOut:
         return "zoomOut";
+    case ImgViewerAction::FitWindow:
+        return "fitWindow";
+    case ImgViewerAction::ActualSize:
+        return "actualSize";
     case ImgViewerAction::RotateClockwise:
         return "rotateClockwise";
     case ImgViewerAction::FlipHorizontal:
@@ -79,6 +83,12 @@ ImgViewerAction ImgViewerActionFromName(const char* name)
     }
     if (value == "zoomOut") {
         return ImgViewerAction::ZoomOut;
+    }
+    if (value == "fitWindow") {
+        return ImgViewerAction::FitWindow;
+    }
+    if (value == "actualSize") {
+        return ImgViewerAction::ActualSize;
     }
     if (value == "rotateClockwise") {
         return ImgViewerAction::RotateClockwise;

@@ -251,6 +251,16 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             RenderImgViewer(context);
         }
         break;
+    case ImgViewerAction::FitWindow:
+        if (context != nullptr && context->viewer.FitWindow()) {
+            RenderImgViewer(context);
+        }
+        break;
+    case ImgViewerAction::ActualSize:
+        if (context != nullptr && context->viewer.ActualSize(context->renderer.ViewportPixelSize())) {
+            RenderImgViewer(context);
+        }
+        break;
     case ImgViewerAction::RotateClockwise:
         if (context != nullptr && context->viewer.RotateClockwise()) {
             RenderImgViewer(context);

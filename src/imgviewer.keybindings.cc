@@ -7,12 +7,14 @@
 
 namespace {
 
-constexpr std::array<ImgViewerAction, 9> kConfigurableKeyActions = {
+constexpr std::array<ImgViewerAction, 11> kConfigurableKeyActions = {
     ImgViewerAction::OpenImage,
     ImgViewerAction::PreviousImage,
     ImgViewerAction::NextImage,
     ImgViewerAction::ZoomIn,
     ImgViewerAction::ZoomOut,
+    ImgViewerAction::FitWindow,
+    ImgViewerAction::ActualSize,
     ImgViewerAction::RotateClockwise,
     ImgViewerAction::FlipHorizontal,
     ImgViewerAction::FlipVertical,
@@ -195,6 +197,8 @@ ActionBindings DefaultActionBindings()
     SetBinding(&bindings, KeyGesture{.virtual_key = 'V'}, ImgViewerAction::FlipVertical);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_PLUS, .ctrl = true}, ImgViewerAction::ZoomIn);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_MINUS, .ctrl = true}, ImgViewerAction::ZoomOut);
+    SetBinding(&bindings, KeyGesture{.virtual_key = '9', .ctrl = true}, ImgViewerAction::FitWindow);
+    SetBinding(&bindings, KeyGesture{.virtual_key = '1', .ctrl = true}, ImgViewerAction::ActualSize);
     SetBinding(&bindings, KeyGesture{.virtual_key = '0', .ctrl = true}, ImgViewerAction::ResetView);
     SetBinding(&bindings, KeyGesture{.virtual_key = 'O', .ctrl = true}, ImgViewerAction::OpenImage);
     return bindings;

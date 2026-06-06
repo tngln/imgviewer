@@ -51,6 +51,8 @@ public:
     bool OnActionDown(ImgViewerAction action);
     ImgViewerEventResult OnActionUp(ImgViewerAction action);
     bool ZoomByStep(int steps, D2D1_SIZE_U viewport_size);
+    bool FitWindow();
+    bool ActualSize(D2D1_SIZE_U viewport_size);
     bool RotateClockwise();
     bool FlipHorizontal();
     bool FlipVertical();

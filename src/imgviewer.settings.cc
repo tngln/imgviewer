@@ -35,12 +35,14 @@ namespace {
 
 constexpr wchar_t kSettingsClassName[] = L"ImgViewerSettingsWindow";
 
-constexpr std::array<ImgViewerAction, 9> kShownActions{
+constexpr std::array<ImgViewerAction, 11> kShownActions{
     ImgViewerAction::OpenImage,
     ImgViewerAction::PreviousImage,
     ImgViewerAction::NextImage,
     ImgViewerAction::ZoomIn,
     ImgViewerAction::ZoomOut,
+    ImgViewerAction::FitWindow,
+    ImgViewerAction::ActualSize,
     ImgViewerAction::RotateClockwise,
     ImgViewerAction::FlipHorizontal,
     ImgViewerAction::FlipVertical,
@@ -69,6 +71,10 @@ const wchar_t* ActionDisplayName(ImgViewerAction action)
         return L"Zoom In";
     case ImgViewerAction::ZoomOut:
         return L"Zoom Out";
+    case ImgViewerAction::FitWindow:
+        return L"Fit Window";
+    case ImgViewerAction::ActualSize:
+        return L"Actual Size";
     case ImgViewerAction::RotateClockwise:
         return L"Rotate Clockwise";
     case ImgViewerAction::FlipHorizontal:

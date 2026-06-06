@@ -259,6 +259,45 @@ bool ImgViewerController::ZoomByStep(int steps, D2D1_SIZE_U viewport_size)
         viewport_size);
 }
 
+bool ImgViewerController::FitWindow()
+{
+    if (!current_image_.bitmap) {
+        return false;
+    }
+
+    image_view_center_ = D2D1::Point2F(
+        static_cast<float>(current_image_.pixel_size.width) * 0.5f,
+        static_cast<float>(current_image_.pixel_size.height) * 0.5f);
+    image_zoom_multiplier_ = 1.0f;
+    image_is_panning_ = false;
+    image_is_rotating_ = false;
+    r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
+    return true;
+}
+
+bool ImgViewerController::ActualSize(D2D1_SIZE_U viewport_size)
+{
+    if (!current_image_.bitmap || viewport_size.width == 0 || viewport_size.height == 0) {
+        return false;
+    }
+
+    const float fit_scale = math::FitScale(current_image_.pixel_size, viewport_size);
+    if (fit_scale <= 0.0f) {
+        return false;
+    }
+
+    image_view_center_ = D2D1::Point2F(
+        static_cast<float>(current_image_.pixel_size.width) * 0.5f,
+        static_cast<float>(current_image_.pixel_size.height) * 0.5f);
+    image_zoom_multiplier_ = 1.0f / fit_scale;
+    image_is_panning_ = false;
+    image_is_rotating_ = false;
+    r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
+    return true;
+}
+
 bool ImgViewerController::RotateClockwise()
 {
     if (!current_image_.bitmap) {

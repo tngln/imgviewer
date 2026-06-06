@@ -102,6 +102,8 @@ bool ImgViewerUi::HandleUiAction(UiAction action)
             {L"", kUiActionNone, true},
             {L"Zoom In", UiActionFromImgViewerAction(ImgViewerAction::ZoomIn)},
             {L"Zoom Out", UiActionFromImgViewerAction(ImgViewerAction::ZoomOut)},
+            {L"Fit Window", UiActionFromImgViewerAction(ImgViewerAction::FitWindow)},
+            {L"Actual Size", UiActionFromImgViewerAction(ImgViewerAction::ActualSize)},
             {L"Reset View", UiActionFromImgViewerAction(ImgViewerAction::ResetView)},
             {L"Color Picker", UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker), false, color_picker_active_},
             {L"", kUiActionNone, true},

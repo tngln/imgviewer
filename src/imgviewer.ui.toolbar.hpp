@@ -18,6 +18,8 @@ public:
         NextImage,
         ZoomIn,
         ZoomOut,
+        FitWindow,
+        ActualSize,
         RotateClockwise,
         FlipHorizontal,
         FlipVertical,

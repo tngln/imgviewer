@@ -101,4 +101,57 @@ constexpr PathCommand kColorPickerIconPath[] = {
 
 constexpr PathIcon kColorPickerIcon = MakePathIcon(kColorPickerIconPath, {0.0f, 0.0f, 24.0f, 24.0f});
 
+constexpr PathCommand kFitWindowIconPath[] = {
+    {PathVerb::MoveTo, {{4.0f, 4.0f}, {}, {}}},
+    {PathVerb::LineTo, {{20.0f, 4.0f}, {}, {}}},
+    {PathVerb::LineTo, {{20.0f, 20.0f}, {}, {}}},
+    {PathVerb::LineTo, {{4.0f, 20.0f}, {}, {}}},
+    {PathVerb::Close, {{}, {}, {}}},
+    {PathVerb::MoveTo, {{8.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{6.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{6.0f, 8.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{16.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{18.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{18.0f, 8.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{8.0f, 18.0f}, {}, {}}},
+    {PathVerb::LineTo, {{6.0f, 18.0f}, {}, {}}},
+    {PathVerb::LineTo, {{6.0f, 16.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{16.0f, 18.0f}, {}, {}}},
+    {PathVerb::LineTo, {{18.0f, 18.0f}, {}, {}}},
+    {PathVerb::LineTo, {{18.0f, 16.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{6.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{10.0f, 10.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{18.0f, 6.0f}, {}, {}}},
+    {PathVerb::LineTo, {{14.0f, 10.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{6.0f, 18.0f}, {}, {}}},
+    {PathVerb::LineTo, {{10.0f, 14.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{18.0f, 18.0f}, {}, {}}},
+    {PathVerb::LineTo, {{14.0f, 14.0f}, {}, {}}},
+};
+
+constexpr PathIcon kFitWindowIcon = MakePathIcon(kFitWindowIconPath, {0.0f, 0.0f, 24.0f, 24.0f});
+
+constexpr PathCommand kActualSizeIconPath[] = {
+    {PathVerb::MoveTo, {{5.0f, 5.0f}, {}, {}}},
+    {PathVerb::LineTo, {{19.0f, 5.0f}, {}, {}}},
+    {PathVerb::LineTo, {{19.0f, 19.0f}, {}, {}}},
+    {PathVerb::LineTo, {{5.0f, 19.0f}, {}, {}}},
+    {PathVerb::Close, {{}, {}, {}}},
+    {PathVerb::MoveTo, {{9.6667f, 5.0f}, {}, {}}},
+    {PathVerb::LineTo, {{9.6667f, 19.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{14.3333f, 5.0f}, {}, {}}},
+    {PathVerb::LineTo, {{14.3333f, 19.0f}, {}, {}}},
+    {PathVerb::MoveTo, {{5.0f, 9.6667f}, {}, {}}},
+    {PathVerb::LineTo, {{19.0f, 9.6667f}, {}, {}}},
+    {PathVerb::MoveTo, {{5.0f, 14.3333f}, {}, {}}},
+    {PathVerb::LineTo, {{19.0f, 14.3333f}, {}, {}}},
+    {PathVerb::MoveTo, {{9.6667f, 9.6667f}, {}, {}}},
+    {PathVerb::LineTo, {{14.3333f, 9.6667f}, {}, {}}},
+    {PathVerb::LineTo, {{14.3333f, 14.3333f}, {}, {}}},
+    {PathVerb::LineTo, {{9.6667f, 14.3333f}, {}, {}}},
+    {PathVerb::Close, {{}, {}, {}}},
+};
+
+constexpr PathIcon kActualSizeIcon = MakePathIcon(kActualSizeIconPath, {0.0f, 0.0f, 24.0f, 24.0f});
+
 } // namespace icons
