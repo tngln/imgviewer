@@ -284,6 +284,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return -1;
         }
         context->viewer.SetPixelatedSampling(context->config.pixelated_sampling);
+        context->renderer.SetCheckerboardBackground(context->config.checkerboard_background);
         ApplyWindowOpacity(hwnd, context->current_window_opacity_percent);
         if (FAILED(RenderImgViewer(context))) {
             return -1;

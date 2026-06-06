@@ -12,6 +12,7 @@ struct WindowSizeConfig final {
 struct ImgViewerConfig final {
     bool remember_window_size = true;
     bool pixelated_sampling = false;
+    bool checkerboard_background = false;
     bool borderless_window = false;
     int window_opacity_percent = 100;
     int toolbar_scale_percent = 125;

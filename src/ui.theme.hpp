@@ -22,6 +22,8 @@ namespace ui_theme {
 namespace color {
 
 constexpr auto kWindowBackground = COLOR(0xf7f9fc);
+constexpr auto kCheckerboardLight = COLOR(0xf1f4f8);
+constexpr auto kCheckerboardDark = COLOR(0xcfd8e6);
 constexpr auto kTitleBarBackground = COLOR(0xffffff);
 constexpr float kTitleBarBackgroundOpacity = 0.86f;
 constexpr auto kBorder = COLOR(0xb8c7dc);

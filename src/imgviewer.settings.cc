@@ -62,9 +62,9 @@ constexpr int kToolbarScaleMaximum = 160;
 constexpr int kToolbarScaleSmallStep = 5;
 constexpr int kToolbarScaleLargeStep = 10;
 constexpr int kSettingsInitialWidth = 820;
-constexpr int kSettingsInitialHeight = 900;
+constexpr int kSettingsInitialHeight = 944;
 constexpr int kSettingsMinClientWidth = 620;
-constexpr int kSettingsMinClientHeight = 872;
+constexpr int kSettingsMinClientHeight = 916;
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -189,6 +189,10 @@ public:
             Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Pixelated sampling", L"pixelated-sampling"),
             L"Pixelated sampling",
             draft_.pixelated_sampling)));
+        checkerboard_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
+            Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Checkerboard background", L"checkerboard-background"),
+            L"Checkerboard background",
+            draft_.checkerboard_background)));
         borderless_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
             Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Borderless window", L"borderless-window"),
             L"Borderless window",
@@ -348,27 +352,27 @@ public:
         draw.DrawBodyText(L"Settings", 8, D2D1::RectF(28.0f, 18.0f, size.width - 28.0f, 52.0f), ui_theme::color::kBodyText);
         draw.DrawBodyText(L"Window size", 11, D2D1::RectF(28.0f, 104.0f, size.width - 28.0f, 130.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(28.0f, 224.0f, size.width - 28.0f, 250.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(28.0f, 308.0f, size.width - 28.0f, 334.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(28.0f, 392.0f, size.width - 28.0f, 418.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(28.0f, 352.0f, size.width - 28.0f, 378.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(28.0f, 436.0f, size.width - 28.0f, 462.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             opacity_text_.c_str(),
             static_cast<UINT32>(opacity_text_.size()),
-            D2D1::RectF(size.width - 100.0f, 422.0f, size.width - 28.0f, 454.0f),
+            D2D1::RectF(size.width - 100.0f, 466.0f, size.width - 28.0f, 498.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Toolbar size", 12, D2D1::RectF(28.0f, 478.0f, size.width - 28.0f, 504.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Toolbar size", 12, D2D1::RectF(28.0f, 522.0f, size.width - 28.0f, 548.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             toolbar_scale_text_.c_str(),
             static_cast<UINT32>(toolbar_scale_text_.size()),
-            D2D1::RectF(size.width - 100.0f, 508.0f, size.width - 28.0f, 540.0f),
+            D2D1::RectF(size.width - 100.0f, 552.0f, size.width - 28.0f, 584.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(28.0f, 564.0f, size.width - 28.0f, 590.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(28.0f, 656.0f, size.width - 28.0f, 682.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(28.0f, 608.0f, size.width - 28.0f, 634.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(28.0f, 700.0f, size.width - 28.0f, 726.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(28.0f, 750.0f, size.width - 28.0f, 780.0f),
+            D2D1::RectF(28.0f, 794.0f, size.width - 28.0f, 824.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -376,6 +380,7 @@ public:
         DrawElement(*remember_radio_, context, state);
         DrawElement(*default_radio_, context, state);
         DrawElement(*pixelated_checkbox_, context, state);
+        DrawElement(*checkerboard_checkbox_, context, state);
         DrawElement(*borderless_checkbox_, context, state);
         DrawElement(*opacity_slider_, context, state);
         DrawElement(*toolbar_scale_slider_, context, state);
@@ -457,11 +462,12 @@ private:
         remember_radio_->SetRect(D2D1::RectF(52.0f, 136.0f, size.width - 28.0f, 172.0f));
         default_radio_->SetRect(D2D1::RectF(52.0f, 172.0f, size.width - 28.0f, 208.0f));
         pixelated_checkbox_->SetRect(D2D1::RectF(28.0f, 256.0f, size.width - 28.0f, 292.0f));
-        borderless_checkbox_->SetRect(D2D1::RectF(28.0f, 340.0f, size.width - 28.0f, 376.0f));
-        opacity_slider_->SetRect(D2D1::RectF(28.0f, 426.0f, size.width - 116.0f, 462.0f));
-        toolbar_scale_slider_->SetRect(D2D1::RectF(28.0f, 512.0f, size.width - 116.0f, 548.0f));
-        filter_box_->SetRect(D2D1::RectF(28.0f, 598.0f, size.width - 28.0f, 640.0f));
-        action_dropdown_->SetRect(D2D1::RectF(28.0f, 690.0f, size.width - 28.0f, 732.0f));
+        checkerboard_checkbox_->SetRect(D2D1::RectF(28.0f, 292.0f, size.width - 28.0f, 328.0f));
+        borderless_checkbox_->SetRect(D2D1::RectF(28.0f, 384.0f, size.width - 28.0f, 420.0f));
+        opacity_slider_->SetRect(D2D1::RectF(28.0f, 470.0f, size.width - 116.0f, 506.0f));
+        toolbar_scale_slider_->SetRect(D2D1::RectF(28.0f, 556.0f, size.width - 116.0f, 592.0f));
+        filter_box_->SetRect(D2D1::RectF(28.0f, 642.0f, size.width - 28.0f, 684.0f));
+        action_dropdown_->SetRect(D2D1::RectF(28.0f, 734.0f, size.width - 28.0f, 776.0f));
         reset_button_->SetRect(D2D1::RectF(28.0f, size.height - 68.0f, 166.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 148.0f, size.height - 68.0f, size.width - 20.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 284.0f, size.height - 68.0f, size.width - 158.0f, size.height - 20.0f));
@@ -474,6 +480,9 @@ private:
             SyncChoiceControls();
         } else if (id == pixelated_checkbox_->Id()) {
             draft_.pixelated_sampling = !draft_.pixelated_sampling;
+            SyncChoiceControls();
+        } else if (id == checkerboard_checkbox_->Id()) {
+            draft_.checkerboard_background = !draft_.checkerboard_background;
             SyncChoiceControls();
         } else if (id == borderless_checkbox_->Id()) {
             draft_.borderless_window = !draft_.borderless_window;
@@ -501,6 +510,7 @@ private:
         remember_radio_->SetSelected(draft_.remember_window_size);
         default_radio_->SetSelected(!draft_.remember_window_size);
         pixelated_checkbox_->SetChecked(draft_.pixelated_sampling);
+        checkerboard_checkbox_->SetChecked(draft_.checkerboard_background);
         borderless_checkbox_->SetChecked(draft_.borderless_window);
     }
 
@@ -582,6 +592,7 @@ private:
     {
         return (id == remember_checkbox_->Id() && remember_checkbox_->IsChecked()) ||
             (id == pixelated_checkbox_->Id() && pixelated_checkbox_->IsChecked()) ||
+            (id == checkerboard_checkbox_->Id() && checkerboard_checkbox_->IsChecked()) ||
             (id == borderless_checkbox_->Id() && borderless_checkbox_->IsChecked()) ||
             (id == remember_radio_->Id() && remember_radio_->IsSelected()) ||
             (id == default_radio_->Id() && default_radio_->IsSelected());
@@ -592,6 +603,7 @@ private:
     std::unique_ptr<UiElement> root_;
     Checkbox* remember_checkbox_ = nullptr;
     Checkbox* pixelated_checkbox_ = nullptr;
+    Checkbox* checkerboard_checkbox_ = nullptr;
     Checkbox* borderless_checkbox_ = nullptr;
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
@@ -683,6 +695,7 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
         ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
         SetImgViewerToolbarScale(context->owner, context->app, context->app->config.toolbar_scale_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
+        context->app->renderer.SetCheckerboardBackground(context->app->config.checkerboard_background);
         SaveImgViewerConfig(context->app->config);
         if (frame_changed) {
             ApplyImgViewerWindowFrame(context->owner, context->app, true);

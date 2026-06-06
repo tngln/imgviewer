@@ -10,6 +10,44 @@
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
 
+namespace {
+
+constexpr float kCheckerboardCellSize = 16.0f;
+
+struct ImageLayerRenderState final {
+    ImgViewerSnapshot image;
+    bool checkerboard_background = false;
+};
+
+HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size)
+{
+    RETURN_HR_IF_NULL(E_POINTER, context);
+
+    wil::com_ptr<ID2D1SolidColorBrush> light_brush;
+    wil::com_ptr<ID2D1SolidColorBrush> dark_brush;
+    RETURN_IF_FAILED(context->CreateSolidColorBrush(ui_theme::color::kCheckerboardLight, light_brush.put()));
+    RETURN_IF_FAILED(context->CreateSolidColorBrush(ui_theme::color::kCheckerboardDark, dark_brush.put()));
+
+    for (float y = 0.0f; y < size.height; y += kCheckerboardCellSize) {
+        const int row = static_cast<int>(y / kCheckerboardCellSize);
+        for (float x = 0.0f; x < size.width; x += kCheckerboardCellSize) {
+            const int column = static_cast<int>(x / kCheckerboardCellSize);
+            ID2D1SolidColorBrush* brush = ((row + column) % 2 == 0) ? light_brush.get() : dark_brush.get();
+            context->FillRectangle(
+                D2D1::RectF(
+                    x,
+                    y,
+                    (std::min)(x + kCheckerboardCellSize, size.width),
+                    (std::min)(y + kCheckerboardCellSize, size.height)),
+                brush);
+        }
+    }
+
+    return S_OK;
+}
+
+} // namespace
+
 HRESULT ImgViewerRenderer::Initialize(HWND hwnd)
 {
     RETURN_IF_FAILED(ui_renderer_.Initialize(hwnd));
@@ -57,6 +95,11 @@ HRESULT ImgViewerRenderer::SetUiOverlayVisible(bool visible)
     return S_OK;
 }
 
+void ImgViewerRenderer::SetCheckerboardBackground(bool enabled)
+{
+    checkerboard_background_ = enabled;
+}
+
 D2D1_SIZE_U ImgViewerRenderer::ViewportPixelSize() const
 {
     return ui_renderer_.ViewportPixelSize();
@@ -69,11 +112,16 @@ ID2D1DeviceContext* ImgViewerRenderer::BitmapDeviceContext() const
 
 HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
 {
+    ImageLayerRenderState state{
+        .image = image,
+        .checkerboard_background = checkerboard_background_,
+    };
     return ui_renderer_.DrawSurface(
         image_surface_,
         [](const UiSurfaceDrawContext& context, void* user_data) -> HRESULT {
-            const auto* image = static_cast<const ImgViewerSnapshot*>(user_data);
-            RETURN_HR_IF_NULL(E_INVALIDARG, image);
+            const auto* state = static_cast<const ImageLayerRenderState*>(user_data);
+            RETURN_HR_IF_NULL(E_INVALIDARG, state);
+            const ImgViewerSnapshot* image = &state->image;
 
             const UiDraw draw(context.draw);
             auto* d2d_context = static_cast<ID2D1DeviceContext*>(context.draw.d2d_context);
@@ -88,6 +136,9 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
             const float width = context.draw.viewport_size.width;
             const float height = context.draw.viewport_size.height;
             d2d_context->SetTransform(context.root_transform);
+            if (state->checkerboard_background) {
+                RETURN_IF_FAILED(DrawCheckerboard(d2d_context, context.draw.viewport_size));
+            }
 
             if (image->bitmap != nullptr) {
                 const float image_width = static_cast<float>(image->pixel_size.width);
@@ -141,5 +192,5 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
                 ui_theme::metrics::kPathIconStrokeWidth / scale);
             return S_OK;
         },
-        const_cast<ImgViewerSnapshot*>(&image));
+        &state);
 }

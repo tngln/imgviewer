@@ -90,6 +90,11 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
             config->pixelated_sampling = pixelated->get<bool>();
         }
 
+        if (const auto checkerboard = root.find("checkerboardBackground");
+            checkerboard != root.end() && checkerboard->is_boolean()) {
+            config->checkerboard_background = checkerboard->get<bool>();
+        }
+
         if (const auto borderless = root.find("borderlessWindow");
             borderless != root.end() && borderless->is_boolean()) {
             config->borderless_window = borderless->get<bool>();
@@ -132,6 +137,8 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "  \"rememberWindowSize\": " << (config.remember_window_size ? "true" : "false") << ",\n";
     output << "  // When true, enlarged images use nearest-neighbor sampling for crisp pixel previews.\n";
     output << "  \"pixelatedSampling\": " << (config.pixelated_sampling ? "true" : "false") << ",\n";
+    output << "  // When true, the image canvas uses a checkerboard background for transparent pixels.\n";
+    output << "  \"checkerboardBackground\": " << (config.checkerboard_background ? "true" : "false") << ",\n";
     output << "  // When true, the main viewer window uses no native border or shadow.\n";
     output << "  \"borderlessWindow\": " << (config.borderless_window ? "true" : "false") << ",\n";
     output << "  // Main viewer window opacity, clamped from 10 to 100 percent.\n";
