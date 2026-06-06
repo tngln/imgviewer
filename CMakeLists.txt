@@ -36,6 +36,7 @@ add_executable(imgviewer
     src/ui.toast.cc
     src/ui.tooltip.cc
     src/ui.window.cc
+    src/ui.window.frame.cc
     src/ui.cc
     src/win32.clipboard.cc
     src/win32.dialog.cc

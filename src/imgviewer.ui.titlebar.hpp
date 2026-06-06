@@ -11,15 +11,13 @@
 #include "ui.element.hpp"
 
 #include "ui.root.hpp"
+#include "ui.window.frame.hpp"
 
 class ImgViewerUiTitleBar final {
 public:
     enum class ButtonKey : size_t {
         Menu,
         TopMost,
-        Minimize,
-        MaximizeRestore,
-        Close,
         Count,
     };
 
@@ -54,7 +52,5 @@ private:
         bool danger = false) const;
 
     std::array<ButtonInstance, kButtonCount> buttons_{};
-    std::wstring title_text_ = L"ImgViewer";
-    D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
-    D2D1_RECT_F title_text_rect_ = D2D1_RECT_F{16.0f, 0.0f, 720.0f, 48.0f};
+    UiWindowFrame frame_;
 };

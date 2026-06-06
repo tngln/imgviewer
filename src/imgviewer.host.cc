@@ -121,7 +121,13 @@ void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
         RenderImgViewer(context);
     }
 
-    if (ImgViewerActionFromUiAction(result.action) == ImgViewerAction::OpenImage) {
+    if (result.action == kUiActionWindowMinimize) {
+        ExecuteImgViewerAction(hwnd, context, ImgViewerAction::Minimize);
+    } else if (result.action == kUiActionWindowToggleMaximize) {
+        ExecuteImgViewerAction(hwnd, context, ImgViewerAction::ToggleMaximize);
+    } else if (result.action == kUiActionWindowClose) {
+        ExecuteImgViewerAction(hwnd, context, ImgViewerAction::Close);
+    } else if (ImgViewerActionFromUiAction(result.action) == ImgViewerAction::OpenImage) {
         HandleImgViewerOpenImageCommand(hwnd, context);
     } else if (result.action != kUiActionNone) {
         ExecuteImgViewerAction(hwnd, context, ImgViewerActionFromUiAction(result.action));
@@ -246,7 +252,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 {
     switch (message) {
     case kImgViewerUiActionMessage: {
-        ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerActionFromUiAction(UiAction(static_cast<int>(wparam))));
+        const UiAction action(static_cast<int>(wparam));
+        if (action == kUiActionWindowMinimize) {
+            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerAction::Minimize);
+        } else if (action == kUiActionWindowToggleMaximize) {
+            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerAction::ToggleMaximize);
+        } else if (action == kUiActionWindowClose) {
+            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerAction::Close);
+        } else {
+            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerActionFromUiAction(action));
+        }
         return 0;
     }
 

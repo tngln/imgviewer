@@ -42,6 +42,9 @@ struct UiWindowOptions final {
     bool enable_accessibility = true;
     bool enable_popup = true;
     bool enable_ime = true;
+    bool custom_frame = false;
+    bool resizable = true;
+    bool allow_maximize = true;
 };
 
 class UiWindowHost final : public win32::NativeWindowDelegate {
@@ -81,6 +84,8 @@ private:
     D2D1_POINT_2F CaretPoint() const;
     bool IsFocusedTextElement() const;
     std::wstring ImeCompositionString(LPARAM lparam) const;
+    win32::WindowMessageResult HitTestFrame(LPARAM lparam) const;
+    win32::WindowMessageResult CalculateClientArea(WPARAM wparam, LPARAM lparam) const;
 
     UiWindowOptions options_ = {};
     UiWindowDelegate* delegate_ = nullptr;
@@ -93,4 +98,5 @@ private:
     wil::com_ptr<IDWriteTextFormat> body_text_format_;
     wil::com_ptr<IDWriteTextFormat> icon_text_format_;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider_;
+    bool maximized_ = false;
 };
