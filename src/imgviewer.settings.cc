@@ -196,22 +196,6 @@ std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction 
     return text.empty() ? L"No shortcut configured." : text;
 }
 
-UiElementMetadata RootMetadata(
-    UiElementRole role,
-    ImgViewerAction action,
-    const wchar_t* name,
-    const wchar_t* automation_id)
-{
-    return UiElementMetadata{
-        .id = UiElementId::None,
-        .role = role,
-        .action = action,
-        .name = name,
-        .tooltip = name,
-        .automation_id = automation_id,
-    };
-}
-
 SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
 {
     SettingsLayoutRects layout;
@@ -280,66 +264,136 @@ public:
     explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
     {
         root_ = std::make_unique<UiElement>(
-            RootMetadata(UiElementRole::Pane, ImgViewerAction::None, L"Settings", L"settings-root"));
+            UiRootMetadata(
+                UiElementRole::Pane,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Settings",
+                L"Settings",
+                L"settings-root"));
 
-        remember_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
-            Metadata(UiElementRole::CheckBox, ImgViewerAction::None, L"Remember window size", L"remember-window-size"),
+        remember_checkbox_ = AddControl(std::make_unique<Checkbox>(
+            UiMetadata(
+                UiElementRole::CheckBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Remember window size",
+                L"Remember window size",
+                L"remember-window-size"),
             L"Remember window size",
-            draft_.remember_window_size)));
-        remember_radio_ = static_cast<RadioButton*>(root_->AddChild(std::make_unique<RadioButton>(
-            Metadata(UiElementRole::RadioButton, ImgViewerAction::None, L"Remember last size", L"remember-last-size"),
+            draft_.remember_window_size));
+        remember_radio_ = AddControl(std::make_unique<RadioButton>(
+            UiMetadata(
+                UiElementRole::RadioButton,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Remember last size",
+                L"Remember last size",
+                L"remember-last-size"),
             L"Remember last size",
-            draft_.remember_window_size)));
-        default_radio_ = static_cast<RadioButton*>(root_->AddChild(std::make_unique<RadioButton>(
-            Metadata(UiElementRole::RadioButton, ImgViewerAction::None, L"Use default size", L"use-default-size"),
+            draft_.remember_window_size));
+        default_radio_ = AddControl(std::make_unique<RadioButton>(
+            UiMetadata(
+                UiElementRole::RadioButton,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Use default size",
+                L"Use default size",
+                L"use-default-size"),
             L"Use default size",
-            !draft_.remember_window_size)));
-        pixelated_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
-            Metadata(UiElementRole::CheckBox, ImgViewerAction::None, L"Pixelated sampling", L"pixelated-sampling"),
+            !draft_.remember_window_size));
+        pixelated_checkbox_ = AddControl(std::make_unique<Checkbox>(
+            UiMetadata(
+                UiElementRole::CheckBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Pixelated sampling",
+                L"Pixelated sampling",
+                L"pixelated-sampling"),
             L"Pixelated sampling",
-            draft_.pixelated_sampling)));
-        checkerboard_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
-            Metadata(UiElementRole::CheckBox, ImgViewerAction::None, L"Checkerboard background", L"checkerboard-background"),
+            draft_.pixelated_sampling));
+        checkerboard_checkbox_ = AddControl(std::make_unique<Checkbox>(
+            UiMetadata(
+                UiElementRole::CheckBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Checkerboard background",
+                L"Checkerboard background",
+                L"checkerboard-background"),
             L"Checkerboard background",
-            draft_.checkerboard_background)));
-        borderless_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
-            Metadata(UiElementRole::CheckBox, ImgViewerAction::None, L"Borderless window", L"borderless-window"),
+            draft_.checkerboard_background));
+        borderless_checkbox_ = AddControl(std::make_unique<Checkbox>(
+            UiMetadata(
+                UiElementRole::CheckBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Borderless window",
+                L"Borderless window",
+                L"borderless-window"),
             L"Borderless window",
-            draft_.borderless_window)));
-        opacity_slider_ = static_cast<Slider*>(root_->AddChild(std::make_unique<Slider>(
-            Metadata(UiElementRole::Slider, ImgViewerAction::None, L"Opacity", L"window-opacity"),
+            draft_.borderless_window));
+        opacity_slider_ = AddControl(std::make_unique<Slider>(
+            UiMetadata(
+                UiElementRole::Slider,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Opacity",
+                L"Opacity",
+                L"window-opacity"),
             kOpacityMinimum,
             kOpacityMaximum,
             draft_.window_opacity_percent,
             kOpacitySmallStep,
-            kOpacityLargeStep)));
-        toolbar_scale_slider_ = static_cast<Slider*>(root_->AddChild(std::make_unique<Slider>(
-            Metadata(UiElementRole::Slider, ImgViewerAction::None, L"Toolbar size", L"toolbar-size"),
+            kOpacityLargeStep));
+        toolbar_scale_slider_ = AddControl(std::make_unique<Slider>(
+            UiMetadata(
+                UiElementRole::Slider,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Toolbar size",
+                L"Toolbar size",
+                L"toolbar-size"),
             kToolbarScaleMinimum,
             kToolbarScaleMaximum,
             draft_.toolbar_scale_percent,
             kToolbarScaleSmallStep,
-            kToolbarScaleLargeStep)));
+            kToolbarScaleLargeStep));
 
-        filter_box_ = static_cast<TextBox*>(root_->AddChild(std::make_unique<TextBox>(
-            Metadata(UiElementRole::Edit, ImgViewerAction::None, L"Shortcut filter", L"shortcut-filter"),
-            L"Filter actions")));
-        action_dropdown_ = static_cast<Dropdown*>(root_->AddChild(std::make_unique<Dropdown>(
-            Metadata(UiElementRole::ComboBox, ImgViewerAction::None, L"Action shortcuts", L"action-shortcuts"),
-            BuildDropdownOptions())));
+        filter_box_ = AddControl(std::make_unique<TextBox>(
+            UiMetadata(
+                UiElementRole::Edit,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Shortcut filter",
+                L"Shortcut filter",
+                L"shortcut-filter"),
+            L"Filter actions"));
+        action_dropdown_ = AddControl(std::make_unique<Dropdown>(
+            UiMetadata(
+                UiElementRole::ComboBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Action shortcuts",
+                L"Action shortcuts",
+                L"action-shortcuts"),
+            BuildDropdownOptions()));
 
-        reset_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            Metadata(UiElementRole::Button, ImgViewerAction::ResetKeyBindings, L"Reset Shortcuts", L"reset-shortcuts"),
+        reset_button_ = AddControl(std::make_unique<Button>(
+            UiMetadata(
+                UiElementRole::Button,
+                UiActionFromImgViewerAction(ImgViewerAction::ResetKeyBindings),
+                L"Reset Shortcuts",
+                L"Reset Shortcuts",
+                L"reset-shortcuts"),
             kResetIcon,
-            L"Reset")));
-        save_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            Metadata(UiElementRole::Button, ImgViewerAction::SaveSettings, L"Save", L"save-settings"),
+            L"Reset"));
+        save_button_ = AddControl(std::make_unique<Button>(
+            UiMetadata(
+                UiElementRole::Button,
+                UiActionFromImgViewerAction(ImgViewerAction::SaveSettings),
+                L"Save",
+                L"Save",
+                L"save-settings"),
             kSaveIcon,
-            L"Save")));
-        cancel_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            Metadata(UiElementRole::Button, ImgViewerAction::CloseSettings, L"Cancel", L"cancel-settings"),
+            L"Save"));
+        cancel_button_ = AddControl(std::make_unique<Button>(
+            UiMetadata(
+                UiElementRole::Button,
+                UiActionFromImgViewerAction(ImgViewerAction::CloseSettings),
+                L"Cancel",
+                L"Cancel",
+                L"cancel-settings"),
             kCancelIcon,
-            L"Cancel")));
+            L"Cancel"));
 
         SyncChoiceControls();
         UpdateOpacityText();
@@ -485,19 +539,9 @@ public:
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
-        DrawElement(*remember_checkbox_, context, state);
-        DrawElement(*remember_radio_, context, state);
-        DrawElement(*default_radio_, context, state);
-        DrawElement(*pixelated_checkbox_, context, state);
-        DrawElement(*checkerboard_checkbox_, context, state);
-        DrawElement(*borderless_checkbox_, context, state);
-        DrawElement(*opacity_slider_, context, state);
-        DrawElement(*toolbar_scale_slider_, context, state);
-        DrawElement(*reset_button_, context, state);
-        DrawElement(*save_button_, context, state);
-        DrawElement(*cancel_button_, context, state);
-        DrawElement(*filter_box_, context, state);
-        DrawElement(*action_dropdown_, context, state);
+        for (UiElement* control : controls_) {
+            DrawElement(*control, context, state);
+        }
     }
 
     UiEventResult OnInputEvent(const UiInputEvent& event) override
@@ -564,20 +608,13 @@ public:
     }
 
 private:
-    UiElementMetadata Metadata(
-        UiElementRole role,
-        ImgViewerAction action,
-        const wchar_t* name,
-        const wchar_t* automation_id)
+    template <typename T>
+    T* AddControl(std::unique_ptr<T> control)
     {
-        return UiElementMetadata{
-            .id = ids_.Next(),
-            .role = role,
-            .action = action,
-            .name = name,
-            .tooltip = name,
-            .automation_id = automation_id,
-        };
+        T* typed_control = control.get();
+        UiElement* element = root_->AddChild(std::move(control));
+        controls_.push_back(element);
+        return typed_control;
     }
 
     void Layout(D2D1_SIZE_F size)
@@ -725,8 +762,8 @@ private:
     }
 
     ImgViewerConfig draft_;
-    UiElementIdGenerator ids_;
     std::unique_ptr<UiElement> root_;
+    std::vector<UiElement*> controls_;
     Checkbox* remember_checkbox_ = nullptr;
     Checkbox* pixelated_checkbox_ = nullptr;
     Checkbox* checkerboard_checkbox_ = nullptr;

@@ -9,37 +9,12 @@
 #include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
-namespace {
-
-UiElementMetadata RootMetadata(
-    UiElementRole role,
-    UiAction action,
-    const wchar_t* name,
-    const wchar_t* tooltip,
-    const wchar_t* automation_id,
-    bool is_control = true,
-    bool is_content = true)
-{
-    return UiElementMetadata{
-        .id = UiElementId::None,
-        .role = role,
-        .action = action,
-        .name = name,
-        .tooltip = tooltip,
-        .automation_id = automation_id,
-        .is_control = is_control,
-        .is_content = is_content,
-    };
-}
-
-} // namespace
-
 ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
-        RootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
-    titlebar_(*root_, ids_),
-    toolbar_(*root_, ids_),
-    info_panel_(*root_, ids_)
+        UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
+    titlebar_(*root_),
+    toolbar_(*root_),
+    info_panel_(*root_)
 {
 }
 

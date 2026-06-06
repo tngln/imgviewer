@@ -43,7 +43,6 @@ private:
     void Layout(D2D1_SIZE_F viewport_size);
 
     std::unique_ptr<UiElement> root_;
-    UiElementIdGenerator ids_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
     ImgViewerUiInfoPanel info_panel_;

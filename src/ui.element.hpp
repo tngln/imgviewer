@@ -59,6 +59,23 @@ struct UiElementMetadata final {
     bool is_content = true;
 };
 
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control = true,
+    bool is_content = true);
+
 struct UiElementState final {
     bool hovered = false;
     bool pressed = false;

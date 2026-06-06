@@ -31,7 +31,7 @@ public:
     static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
     static constexpr size_t ButtonIndex(ButtonKey button);
 
-    ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids);
+    explicit ImgViewerUiToolbar(UiElement& root);
 
     void SetScalePercent(int percent);
     void Draw(const UiDrawContext& draw_context, UiRootState state, bool color_picker_active);

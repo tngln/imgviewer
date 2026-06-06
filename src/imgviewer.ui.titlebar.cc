@@ -78,33 +78,13 @@ constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
     return static_cast<size_t>(button);
 }
 
-ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids)
+ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
 {
-    const auto metadata = [&ids](
-                              UiElementRole role,
-                              UiAction action,
-                              const wchar_t* name,
-                              const wchar_t* tooltip,
-                              const wchar_t* automation_id,
-                              bool is_control = true,
-                              bool is_content = true) {
-        return UiElementMetadata{
-            .id = ids.Next(),
-            .role = role,
-            .action = action,
-            .name = name,
-            .tooltip = tooltip,
-            .automation_id = automation_id,
-            .is_control = is_control,
-            .is_content = is_content,
-        };
-    };
-
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
         button.element = static_cast<IconButton*>(root.AddChild(CreateButton(
             spec,
-            metadata(
+            UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
                 spec.name,

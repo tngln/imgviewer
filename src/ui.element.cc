@@ -9,6 +9,78 @@ UiElementId UiElementIdGenerator::Next()
     return static_cast<UiElementId>(next_id_++);
 }
 
+namespace {
+
+UiElementIdGenerator& GlobalUiElementIdGenerator()
+{
+    static UiElementIdGenerator generator;
+    return generator;
+}
+
+UiElementMetadata MakeUiElementMetadata(
+    UiElementId id,
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control,
+    bool is_content)
+{
+    return UiElementMetadata{
+        .id = id,
+        .role = role,
+        .action = action,
+        .name = name,
+        .tooltip = tooltip,
+        .automation_id = automation_id,
+        .is_control = is_control,
+        .is_content = is_content,
+    };
+}
+
+} // namespace
+
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control,
+    bool is_content)
+{
+    return MakeUiElementMetadata(
+        GlobalUiElementIdGenerator().Next(),
+        role,
+        action,
+        name,
+        tooltip,
+        automation_id,
+        is_control,
+        is_content);
+}
+
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    const wchar_t* automation_id,
+    bool is_control,
+    bool is_content)
+{
+    return MakeUiElementMetadata(
+        UiElementId::None,
+        role,
+        action,
+        name,
+        tooltip,
+        automation_id,
+        is_control,
+        is_content);
+}
+
 UiElement::UiElement(UiElementMetadata metadata) : metadata_(metadata) {}
 
 void UiElement::SetRect(D2D1_RECT_F rect)

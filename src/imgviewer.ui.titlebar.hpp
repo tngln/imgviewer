@@ -26,7 +26,7 @@ public:
     static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
     static constexpr size_t ButtonIndex(ButtonKey button);
 
-    ImgViewerUiTitleBar(UiElement& root, UiElementIdGenerator& ids);
+    explicit ImgViewerUiTitleBar(UiElement& root);
 
     void Draw(
         const UiDrawContext& draw_context,

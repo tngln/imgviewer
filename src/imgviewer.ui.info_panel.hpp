@@ -34,7 +34,7 @@ struct ImgViewerUiInfoPanelState final {
 
 class ImgViewerUiInfoPanel final {
 public:
-    ImgViewerUiInfoPanel(UiElement& root, UiElementIdGenerator& ids);
+    explicit ImgViewerUiInfoPanel(UiElement& root);
 
     void SetState(ImgViewerUiInfoPanelState state);
     bool IsVisible() const;

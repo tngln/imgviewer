@@ -102,26 +102,12 @@ std::wstring HexColor(ImageColorSample color)
 
 } // namespace
 
-ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root, UiElementIdGenerator& ids)
+ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
 {
-    const auto metadata = [&ids](
-                              UiElementRole role,
-                              const wchar_t* name,
-                              const wchar_t* automation_id,
-                              bool is_control = true,
-                              bool is_content = true) {
-        return UiElementMetadata{
-            .id = ids.Next(),
-            .role = role,
-            .name = name,
-            .automation_id = automation_id,
-            .is_control = is_control,
-            .is_content = is_content,
-        };
-    };
-
-    panel_ = root.AddChild(std::make_unique<UiElement>(metadata(
+    panel_ = root.AddChild(std::make_unique<UiElement>(UiMetadata(
         UiElementRole::Pane,
+        kUiActionNone,
+        L"Info Panel",
         L"Info Panel",
         L"info-panel",
         false,

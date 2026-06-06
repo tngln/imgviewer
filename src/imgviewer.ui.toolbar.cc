@@ -137,33 +137,13 @@ constexpr size_t ImgViewerUiToolbar::ButtonIndex(ButtonKey button)
     return static_cast<size_t>(button);
 }
 
-ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& ids)
+ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
 {
-    const auto metadata = [&ids](
-                              UiElementRole role,
-                              UiAction action,
-                              const wchar_t* name,
-                              const wchar_t* tooltip,
-                              const wchar_t* automation_id,
-                              bool is_control = true,
-                              bool is_content = true) {
-        return UiElementMetadata{
-            .id = ids.Next(),
-            .role = role,
-            .action = action,
-            .name = name,
-            .tooltip = tooltip,
-            .automation_id = automation_id,
-            .is_control = is_control,
-            .is_content = is_content,
-        };
-    };
-
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
         button.element = static_cast<IconButton*>(root.AddChild(CreateButton(
             spec,
-            metadata(
+            UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
                 spec.name,
@@ -173,7 +153,7 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root, UiElementIdGenerator& id
         button.element->SetEnabled(spec.initially_enabled);
     }
 
-    drag_handle_ = root.AddChild(std::make_unique<UiElement>(metadata(
+    drag_handle_ = root.AddChild(std::make_unique<UiElement>(UiMetadata(
         UiElementRole::Pane,
         kUiActionNone,
         L"Toolbar drag handle",
