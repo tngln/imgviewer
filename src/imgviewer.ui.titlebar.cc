@@ -194,9 +194,9 @@ void ImgViewerUiTitleBar::Layout(D2D1_SIZE_F viewport_size)
     }
 
     Button(ButtonKey::Menu)->SetRect(D2D1::RectF(
-        0.0f,
+        caption_edge_padding,
         titlebar_rect_.top + caption_edge_padding,
-        ui_theme::metrics::kCaptionButtonWidth,
+        ui_theme::metrics::kCaptionButtonWidth + caption_edge_padding,
         ui_theme::metrics::kTitleBarHeight));
 
     title_text_rect_ = D2D1::RectF(
