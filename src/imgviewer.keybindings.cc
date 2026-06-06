@@ -251,3 +251,41 @@ ImgViewerAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, b
 
     return ImgViewerAction::None;
 }
+
+std::wstring KeyName(UINT virtual_key)
+{
+    if (virtual_key >= 'A' && virtual_key <= 'Z') {
+        return std::wstring(1, static_cast<wchar_t>(virtual_key));
+    }
+    if (virtual_key >= '0' && virtual_key <= '9') {
+        return std::wstring(1, static_cast<wchar_t>(virtual_key));
+    }
+    switch (virtual_key) {
+    case VK_LEFT:
+        return L"Left";
+    case VK_RIGHT:
+        return L"Right";
+    case VK_OEM_PLUS:
+        return L"=";
+    case VK_OEM_MINUS:
+        return L"-";
+    default:
+        return L"Key";
+    }
+}
+
+std::wstring GestureText(const KeyGesture& gesture)
+{
+    std::wstring text;
+    if (gesture.ctrl) {
+        text += L"Ctrl+";
+    }
+    if (gesture.shift) {
+        text += L"Shift+";
+    }
+    if (gesture.alt) {
+        text += L"Alt+";
+    }
+    text += KeyName(gesture.virtual_key);
+    return text;
+}

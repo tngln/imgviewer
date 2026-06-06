@@ -22,22 +22,37 @@
   - `ui.window.cc` - `CurrentModifiers()` 内部调用 `UiModifiers::Current()`
 
 ### 3. 移除 `TextBox` 中不必要的 `const_cast`
-- **之前**: `TextBox::Draw()` 使用 `const_cast` 修改 `caret_point_`、`dwrite_factory_`、`text_format_`
+- **之前**: `TextBox::Render()` 使用 `const_cast` 修改 `caret_point_`、`dwrite_factory_`、`text_format_`
 - **之后**: 将这些成员标记为 `mutable`，移除 `const_cast`
 - **文件变更**:
   - `ui.textbox.hpp` - 添加 `mutable` 关键字到 `caret_visible_`、`caret_point_`、`dwrite_factory_`、`text_format_`
   - `ui.textbox.hpp` - `SetTextServices()` 改为 `const` 方法
   - `ui.textbox.cc` - 移除两处 `const_cast`
 
+### 4. 提取格式化函数到 `util.format.hpp/cc`
+- **之前**: `FormatFileSize`、`FormatFileTime`、`FormatImageDimensions`、`FormatImageType` 在 `imgviewer.cc` 匿名命名空间
+- **之后**: 移动到 `util::` 命名空间
+- **文件变更**:
+  - `util.format.hpp` - 新文件，声明格式化函数
+  - `util.format.cc` - 新文件，实现格式化函数
+  - `CMakeLists.txt` - 添加 `util.format.cc`
+  - `imgviewer.cc` - 删除本地定义，改用 `util::Format*()` 函数
+
+### 5. 提取按键显示函数到 `imgviewer.keybindings`
+- **之前**: `KeyName`、`GestureText` 在 `imgviewer.settings.cc` 匿名命名空间
+- **之后**: 移动到 `imgviewer.keybindings.hpp/cc`，与 `KeyGesture` 类型放在一起
+- **文件变更**:
+  - `imgviewer.keybindings.hpp` - 添加 `KeyName()`、`GestureText()` 声明
+  - `imgviewer.keybindings.cc` - 添加实现
+  - `imgviewer.settings.cc` - 删除本地定义
+
 ## 待清理项目
 
 ### 低风险
 - [ ] 统一常量命名风格（有些用 `k` 前缀，有些用大写）
-- [ ] 提取格式化函数 (`FormatFileSize`, `FormatFileTime` 等) 到独立头文件
 
 ### 中等风险
 - [ ] `ClientPixelSize` 函数可能可以移到 `win32.util`（但需要处理 D2D1 依赖）
-- [ ] 评估是否将 `UiWindowHost::CurrentModifiers()` 简化为直接返回 `UiModifiers::Current()`（已完成）
 
 ## 架构级问题（暂不处理）
 

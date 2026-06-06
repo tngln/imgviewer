@@ -1,9 +1,5 @@
 #include "imgviewer.hpp"
 
-#include <algorithm>
-#include <cwchar>
-#include <cwctype>
-#include <filesystem>
 #include <optional>
 #include <string>
 #include <utility>
@@ -11,15 +7,16 @@
 #include <wil/result_macros.h>
 #include <wil/resource.h>
 
-#include "win32.dialog.hpp"
-#include "win32.util.hpp"
-#include "imgviewer.messages.hpp"
 #include "imgviewer.about.hpp"
+#include "imgviewer.messages.hpp"
 #include "imgviewer.settings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
 #include "ui.tooltip.hpp"
+#include "util.format.hpp"
 #include "win32.clipboard.hpp"
+#include "win32.dialog.hpp"
+#include "win32.util.hpp"
 
 namespace {
 
@@ -30,78 +27,6 @@ void SetColorPickerActive(ImgViewerContext* context, bool active);
 void EnsureInfoPanelAnalysis(ImgViewerContext* context);
 void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
-
-std::wstring Unavailable()
-{
-    return L"Unavailable";
-}
-
-std::wstring FormatImageDimensions(D2D1_SIZE_U size)
-{
-    if (size.width == 0 || size.height == 0) {
-        return L"-";
-    }
-
-    wchar_t text[64] = {};
-    swprintf_s(text, L"%ux%u", size.width, size.height);
-    return text;
-}
-
-std::wstring FormatFileSize(ULONGLONG byte_count)
-{
-    constexpr ULONGLONG kKiB = 1024;
-    constexpr ULONGLONG kMiB = kKiB * 1024;
-    constexpr ULONGLONG kGiB = kMiB * 1024;
-
-    wchar_t text[64] = {};
-    if (byte_count >= kGiB) {
-        swprintf_s(text, L"%.1f GB", static_cast<double>(byte_count) / static_cast<double>(kGiB));
-    } else if (byte_count >= kMiB) {
-        swprintf_s(text, L"%.1f MB", static_cast<double>(byte_count) / static_cast<double>(kMiB));
-    } else if (byte_count >= kKiB) {
-        swprintf_s(text, L"%.1f KB", static_cast<double>(byte_count) / static_cast<double>(kKiB));
-    } else {
-        swprintf_s(text, L"%llu bytes", byte_count);
-    }
-    return text;
-}
-
-std::wstring FormatFileTime(FILETIME file_time)
-{
-    FILETIME local_time = {};
-    SYSTEMTIME system_time = {};
-    if (!FileTimeToLocalFileTime(&file_time, &local_time) || !FileTimeToSystemTime(&local_time, &system_time)) {
-        return Unavailable();
-    }
-
-    wchar_t date_text[64] = {};
-    wchar_t time_text[64] = {};
-    if (GetDateFormatEx(LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE, &system_time, nullptr, date_text, ARRAYSIZE(date_text), nullptr) == 0 ||
-        GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS, &system_time, nullptr, time_text, ARRAYSIZE(time_text)) == 0) {
-        return Unavailable();
-    }
-
-    return std::wstring(date_text) + L" " + time_text;
-}
-
-std::wstring FormatImageType(const std::wstring& path, bool clipboard)
-{
-    if (clipboard) {
-        return L"Clipboard image";
-    }
-
-    std::wstring extension = std::filesystem::path(path).extension().wstring();
-    if (extension.empty()) {
-        return Unavailable();
-    }
-    if (extension[0] == L'.') {
-        extension.erase(extension.begin());
-    }
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t value) {
-        return static_cast<wchar_t>(std::towupper(value));
-    });
-    return extension;
-}
 
 } // namespace
 
@@ -664,18 +589,18 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
     const ImgViewerSnapshot snapshot = context->viewer.Snapshot();
     if (!has_image) {
         state.name = L"No image";
-        state.path = Unavailable();
+        state.path = L"Unavailable";
         state.dimensions = L"-";
-        state.type = Unavailable();
-        state.file_size = Unavailable();
-        state.modified_time = Unavailable();
+        state.type = L"Unavailable";
+        state.file_size = L"Unavailable";
+        state.modified_time = L"Unavailable";
     } else {
         state.name = clipboard ? L"<Clipboard>" : util::FileNameFromPath(context->current_image_path.c_str(), L"-");
-        state.path = clipboard || context->current_image_path.empty() ? Unavailable() : context->current_image_path;
-        state.dimensions = FormatImageDimensions(snapshot.pixel_size);
-        state.type = FormatImageType(context->current_image_path, clipboard);
-        state.file_size = Unavailable();
-        state.modified_time = Unavailable();
+        state.path = clipboard || context->current_image_path.empty() ? L"Unavailable" : context->current_image_path;
+        state.dimensions = util::FormatImageDimensions(snapshot.pixel_size);
+        state.type = util::FormatImageType(context->current_image_path, clipboard);
+        state.file_size = L"Unavailable";
+        state.modified_time = L"Unavailable";
         state.exif_rows = context->viewer.CurrentImageMetadata().exif_rows;
         if (context->current_image_analysis.has_value()) {
             state.has_analysis = true;
@@ -692,8 +617,8 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
             const ULONGLONG file_size =
                 (static_cast<ULONGLONG>(attributes.nFileSizeHigh) << 32) |
                 static_cast<ULONGLONG>(attributes.nFileSizeLow);
-            state.file_size = FormatFileSize(file_size);
-            state.modified_time = FormatFileTime(attributes.ftLastWriteTime);
+            state.file_size = util::FormatFileSize(file_size);
+            state.modified_time = util::FormatFileTime(attributes.ftLastWriteTime);
         }
     }
 

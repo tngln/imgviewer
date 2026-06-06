@@ -27,3 +27,6 @@ struct ActionBindings final {
 ActionBindings DefaultActionBindings();
 void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings);
 ImgViewerAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ctrl, bool shift, bool alt);
+
+std::wstring KeyName(UINT virtual_key);
+std::wstring GestureText(const KeyGesture& gesture);
