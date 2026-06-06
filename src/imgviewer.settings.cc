@@ -259,6 +259,15 @@ SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
     return layout;
 }
 
+class SettingsUi;
+using SettingsEffect = void (SettingsUi::*)();
+
+struct SettingsControl final {
+    UiElement* element = nullptr;
+    D2D1_RECT_F SettingsLayoutRects::* rect = nullptr;
+    SettingsEffect effect = nullptr;
+};
+
 class SettingsUi final : public UiRoot {
 public:
     explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
@@ -279,7 +288,9 @@ public:
                 L"Remember window size",
                 L"remember-window-size"),
             L"Remember window size",
-            draft_.remember_window_size));
+            draft_.remember_window_size),
+            &SettingsLayoutRects::remember_checkbox,
+            &SettingsUi::ToggleRememberWindowSize);
         remember_radio_ = AddControl(std::make_unique<RadioButton>(
             UiMetadata(
                 UiElementRole::RadioButton,
@@ -288,7 +299,9 @@ public:
                 L"Remember last size",
                 L"remember-last-size"),
             L"Remember last size",
-            draft_.remember_window_size));
+            draft_.remember_window_size),
+            &SettingsLayoutRects::remember_radio,
+            &SettingsUi::SelectRememberWindowSize);
         default_radio_ = AddControl(std::make_unique<RadioButton>(
             UiMetadata(
                 UiElementRole::RadioButton,
@@ -297,7 +310,9 @@ public:
                 L"Use default size",
                 L"use-default-size"),
             L"Use default size",
-            !draft_.remember_window_size));
+            !draft_.remember_window_size),
+            &SettingsLayoutRects::default_radio,
+            &SettingsUi::SelectDefaultWindowSize);
         pixelated_checkbox_ = AddControl(std::make_unique<Checkbox>(
             UiMetadata(
                 UiElementRole::CheckBox,
@@ -306,7 +321,9 @@ public:
                 L"Pixelated sampling",
                 L"pixelated-sampling"),
             L"Pixelated sampling",
-            draft_.pixelated_sampling));
+            draft_.pixelated_sampling),
+            &SettingsLayoutRects::pixelated_checkbox,
+            &SettingsUi::TogglePixelatedSampling);
         checkerboard_checkbox_ = AddControl(std::make_unique<Checkbox>(
             UiMetadata(
                 UiElementRole::CheckBox,
@@ -315,7 +332,9 @@ public:
                 L"Checkerboard background",
                 L"checkerboard-background"),
             L"Checkerboard background",
-            draft_.checkerboard_background));
+            draft_.checkerboard_background),
+            &SettingsLayoutRects::checkerboard_checkbox,
+            &SettingsUi::ToggleCheckerboardBackground);
         borderless_checkbox_ = AddControl(std::make_unique<Checkbox>(
             UiMetadata(
                 UiElementRole::CheckBox,
@@ -324,7 +343,9 @@ public:
                 L"Borderless window",
                 L"borderless-window"),
             L"Borderless window",
-            draft_.borderless_window));
+            draft_.borderless_window),
+            &SettingsLayoutRects::borderless_checkbox,
+            &SettingsUi::ToggleBorderlessWindow);
         opacity_slider_ = AddControl(std::make_unique<Slider>(
             UiMetadata(
                 UiElementRole::Slider,
@@ -336,7 +357,9 @@ public:
             kOpacityMaximum,
             draft_.window_opacity_percent,
             kOpacitySmallStep,
-            kOpacityLargeStep));
+            kOpacityLargeStep),
+            &SettingsLayoutRects::opacity_slider,
+            &SettingsUi::ApplyOpacitySlider);
         toolbar_scale_slider_ = AddControl(std::make_unique<Slider>(
             UiMetadata(
                 UiElementRole::Slider,
@@ -348,7 +371,9 @@ public:
             kToolbarScaleMaximum,
             draft_.toolbar_scale_percent,
             kToolbarScaleSmallStep,
-            kToolbarScaleLargeStep));
+            kToolbarScaleLargeStep),
+            &SettingsLayoutRects::toolbar_scale_slider,
+            &SettingsUi::ApplyToolbarScaleSlider);
 
         filter_box_ = AddControl(std::make_unique<TextBox>(
             UiMetadata(
@@ -357,15 +382,18 @@ public:
                 L"Shortcut filter",
                 L"Shortcut filter",
                 L"shortcut-filter"),
-            L"Filter actions"));
+            L"Filter actions"),
+            &SettingsLayoutRects::filter_box);
         action_dropdown_ = AddControl(std::make_unique<Dropdown>(
             UiMetadata(
                 UiElementRole::ComboBox,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 L"Action shortcuts",
                 L"Action shortcuts",
-                L"action-shortcuts"),
-            BuildDropdownOptions()));
+            L"action-shortcuts"),
+            BuildDropdownOptions()),
+            &SettingsLayoutRects::action_dropdown,
+            &SettingsUi::UpdateShortcutText);
 
         reset_button_ = AddControl(std::make_unique<Button>(
             UiMetadata(
@@ -375,7 +403,8 @@ public:
                 L"Reset Shortcuts",
                 L"reset-shortcuts"),
             kResetIcon,
-            L"Reset"));
+            L"Reset"),
+            &SettingsLayoutRects::reset_button);
         save_button_ = AddControl(std::make_unique<Button>(
             UiMetadata(
                 UiElementRole::Button,
@@ -384,7 +413,8 @@ public:
                 L"Save",
                 L"save-settings"),
             kSaveIcon,
-            L"Save"));
+            L"Save"),
+            &SettingsLayoutRects::save_button);
         cancel_button_ = AddControl(std::make_unique<Button>(
             UiMetadata(
                 UiElementRole::Button,
@@ -393,7 +423,8 @@ public:
                 L"Cancel",
                 L"cancel-settings"),
             kCancelIcon,
-            L"Cancel"));
+            L"Cancel"),
+            &SettingsLayoutRects::cancel_button);
 
         SyncChoiceControls();
         UpdateOpacityText();
@@ -539,8 +570,8 @@ public:
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
-        for (UiElement* control : controls_) {
-            DrawElement(*control, context, state);
+        for (const SettingsControl& control : controls_) {
+            DrawElement(*control.element, context, state);
         }
     }
 
@@ -609,11 +640,14 @@ public:
 
 private:
     template <typename T>
-    T* AddControl(std::unique_ptr<T> control)
+    T* AddControl(
+        std::unique_ptr<T> control,
+        D2D1_RECT_F SettingsLayoutRects::* rect,
+        SettingsEffect effect = nullptr)
     {
         T* typed_control = control.get();
         UiElement* element = root_->AddChild(std::move(control));
-        controls_.push_back(element);
+        controls_.push_back(SettingsControl{element, rect, effect});
         return typed_control;
     }
 
@@ -621,50 +655,67 @@ private:
     {
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
         layout_ = CalculateSettingsLayout(size);
-        remember_checkbox_->SetRect(layout_.remember_checkbox);
-        remember_radio_->SetRect(layout_.remember_radio);
-        default_radio_->SetRect(layout_.default_radio);
-        pixelated_checkbox_->SetRect(layout_.pixelated_checkbox);
-        checkerboard_checkbox_->SetRect(layout_.checkerboard_checkbox);
-        borderless_checkbox_->SetRect(layout_.borderless_checkbox);
-        opacity_slider_->SetRect(layout_.opacity_slider);
-        toolbar_scale_slider_->SetRect(layout_.toolbar_scale_slider);
-        filter_box_->SetRect(layout_.filter_box);
-        action_dropdown_->SetRect(layout_.action_dropdown);
-        reset_button_->SetRect(layout_.reset_button);
-        save_button_->SetRect(layout_.save_button);
-        cancel_button_->SetRect(layout_.cancel_button);
+        for (const SettingsControl& control : controls_) {
+            control.element->SetRect(layout_.*control.rect);
+        }
     }
 
     void ApplyElementEffect(UiElementId id) override
     {
-        if (id == remember_checkbox_->Id()) {
-            draft_.remember_window_size = !draft_.remember_window_size;
-            SyncChoiceControls();
-        } else if (id == pixelated_checkbox_->Id()) {
-            draft_.pixelated_sampling = !draft_.pixelated_sampling;
-            SyncChoiceControls();
-        } else if (id == checkerboard_checkbox_->Id()) {
-            draft_.checkerboard_background = !draft_.checkerboard_background;
-            SyncChoiceControls();
-        } else if (id == borderless_checkbox_->Id()) {
-            draft_.borderless_window = !draft_.borderless_window;
-            SyncChoiceControls();
-        } else if (id == remember_radio_->Id()) {
-            draft_.remember_window_size = true;
-            SyncChoiceControls();
-        } else if (id == default_radio_->Id()) {
-            draft_.remember_window_size = false;
-            SyncChoiceControls();
-        } else if (id == opacity_slider_->Id()) {
-            draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_->Value());
-            UpdateOpacityText();
-        } else if (id == toolbar_scale_slider_->Id()) {
-            draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_->Value());
-            UpdateToolbarScaleText();
-        } else if (id == action_dropdown_->Id()) {
-            UpdateShortcutText();
+        for (const SettingsControl& control : controls_) {
+            if (id == control.element->Id() && control.effect != nullptr) {
+                (this->*control.effect)();
+                return;
+            }
         }
+    }
+
+    void ToggleRememberWindowSize()
+    {
+        draft_.remember_window_size = !draft_.remember_window_size;
+        SyncChoiceControls();
+    }
+
+    void SelectRememberWindowSize()
+    {
+        draft_.remember_window_size = true;
+        SyncChoiceControls();
+    }
+
+    void SelectDefaultWindowSize()
+    {
+        draft_.remember_window_size = false;
+        SyncChoiceControls();
+    }
+
+    void TogglePixelatedSampling()
+    {
+        draft_.pixelated_sampling = !draft_.pixelated_sampling;
+        SyncChoiceControls();
+    }
+
+    void ToggleCheckerboardBackground()
+    {
+        draft_.checkerboard_background = !draft_.checkerboard_background;
+        SyncChoiceControls();
+    }
+
+    void ToggleBorderlessWindow()
+    {
+        draft_.borderless_window = !draft_.borderless_window;
+        SyncChoiceControls();
+    }
+
+    void ApplyOpacitySlider()
+    {
+        draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_->Value());
+        UpdateOpacityText();
+    }
+
+    void ApplyToolbarScaleSlider()
+    {
+        draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_->Value());
+        UpdateToolbarScaleText();
     }
 
     void SyncChoiceControls()
@@ -763,7 +814,7 @@ private:
 
     ImgViewerConfig draft_;
     std::unique_ptr<UiElement> root_;
-    std::vector<UiElement*> controls_;
+    std::vector<SettingsControl> controls_;
     Checkbox* remember_checkbox_ = nullptr;
     Checkbox* pixelated_checkbox_ = nullptr;
     Checkbox* checkerboard_checkbox_ = nullptr;
