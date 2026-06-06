@@ -6,10 +6,8 @@
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
-#include "math.hpp"
 #include "ui.a11y.hpp"
 #include "ui.textbox.hpp"
-#include "win32.util.hpp"
 
 namespace {
 
@@ -44,18 +42,7 @@ HRESULT UiWindowHost::Create(UiWindowOptions options, std::unique_ptr<UiRoot> ro
     options_ = options;
     delegate_ = delegate;
     ui_.ResetRoot(std::move(root));
-    RETURN_IF_FAILED(window_.Create(options_.native, this));
-    if (options_.custom_frame) {
-        RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
-            window_.Hwnd(),
-            nullptr,
-            0,
-            0,
-            0,
-            0,
-            SWP_FRAMECHANGED | SWP_NOREDRAW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
-    }
-    return S_OK;
+    return window_.Create(options_.native, this);
 }
 
 void UiWindowHost::ResetRoot(std::unique_ptr<UiRoot> root)
@@ -139,32 +126,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     }
 
     switch (message) {
-    case WM_NCCREATE:
-        if (options_.custom_frame && FAILED(util::ApplyDwmFrame(window_.Hwnd(), true))) {
-            return win32::WindowMessageResult::Handled(FALSE);
-        }
-        break;
-    case WM_NCCALCSIZE:
-        if (options_.custom_frame) {
-            return CalculateClientArea(wparam, lparam);
-        }
-        break;
-    case WM_NCHITTEST:
-        if (options_.custom_frame) {
-            return HitTestFrame(lparam);
-        }
-        break;
-    case WM_NCLBUTTONDBLCLK:
-        if (options_.custom_frame && wparam == HTCAPTION) {
-            if (options_.allow_maximize) {
-                ShowWindow(window_.Hwnd(), IsZoomed(window_.Hwnd()) ? SW_RESTORE : SW_MAXIMIZE);
-                maximized_ = IsZoomed(window_.Hwnd()) != FALSE;
-                ui_.SetWindowState(false, maximized_);
-                Invalidate();
-            }
-            return win32::WindowMessageResult::Handled();
-        }
-        break;
     case WM_CREATE:
         if (FAILED(InitializeRenderResources()) ||
             (options_.enable_popup &&
@@ -184,8 +145,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         }
         return win32::WindowMessageResult::Handled();
     case WM_SIZE:
-        maximized_ = IsZoomed(window_.Hwnd()) != FALSE;
-        ui_.SetWindowState(false, maximized_);
         if (render_target_ != nullptr) {
             render_target_->Resize(ClientPixelSize(window_.Hwnd()));
         }
@@ -500,24 +459,6 @@ bool UiWindowHost::ExecuteAction(UiAction action)
     if (action == kUiActionNone) {
         return false;
     }
-    if (action == kUiActionWindowMinimize) {
-        ShowWindow(window_.Hwnd(), SW_MINIMIZE);
-        return true;
-    }
-    if (action == kUiActionWindowToggleMaximize) {
-        if (!options_.allow_maximize) {
-            return true;
-        }
-        ShowWindow(window_.Hwnd(), IsZoomed(window_.Hwnd()) ? SW_RESTORE : SW_MAXIMIZE);
-        maximized_ = IsZoomed(window_.Hwnd()) != FALSE;
-        ui_.SetWindowState(false, maximized_);
-        Invalidate();
-        return true;
-    }
-    if (action == kUiActionWindowClose) {
-        Close();
-        return true;
-    }
     return delegate_->OnUiAction(*this, action);
 }
 
@@ -595,77 +536,4 @@ std::wstring UiWindowHost::ImeCompositionString(LPARAM lparam) const
     }
     ImmReleaseContext(window_.Hwnd(), ime);
     return text;
-}
-
-win32::WindowMessageResult UiWindowHost::HitTestFrame(LPARAM lparam) const
-{
-    POINT screen_point{
-        GET_X_LPARAM(lparam),
-        GET_Y_LPARAM(lparam),
-    };
-
-    RECT window_rect = {};
-    GetWindowRect(window_.Hwnd(), &window_rect);
-    const UINT dpi = GetDpiForWindow(window_.Hwnd());
-    const int resize_border = util::ResizeBorderThicknessForDpi(dpi);
-
-    if (options_.resizable && !IsZoomed(window_.Hwnd())) {
-        const bool left = screen_point.x >= window_rect.left && screen_point.x < window_rect.left + resize_border;
-        const bool right = screen_point.x < window_rect.right && screen_point.x >= window_rect.right - resize_border;
-        const bool top = screen_point.y >= window_rect.top && screen_point.y < window_rect.top + resize_border;
-        const bool bottom = screen_point.y < window_rect.bottom && screen_point.y >= window_rect.bottom - resize_border;
-
-        if (top && left) {
-            return win32::WindowMessageResult::Handled(HTTOPLEFT);
-        }
-        if (top && right) {
-            return win32::WindowMessageResult::Handled(HTTOPRIGHT);
-        }
-        if (bottom && left) {
-            return win32::WindowMessageResult::Handled(HTBOTTOMLEFT);
-        }
-        if (bottom && right) {
-            return win32::WindowMessageResult::Handled(HTBOTTOMRIGHT);
-        }
-        if (left) {
-            return win32::WindowMessageResult::Handled(HTLEFT);
-        }
-        if (right) {
-            return win32::WindowMessageResult::Handled(HTRIGHT);
-        }
-        if (top) {
-            return win32::WindowMessageResult::Handled(HTTOP);
-        }
-        if (bottom) {
-            return win32::WindowMessageResult::Handled(HTBOTTOM);
-        }
-    }
-
-    POINT client_point = screen_point;
-    ScreenToClient(window_.Hwnd(), &client_point);
-    const D2D1_POINT_2F render_point =
-        D2D1::Point2F(static_cast<float>(client_point.x), static_cast<float>(client_point.y));
-    if (ui_.IsPointInCaptionDragArea(render_point)) {
-        return win32::WindowMessageResult::Handled(HTCAPTION);
-    }
-
-    return win32::WindowMessageResult::Handled(HTCLIENT);
-}
-
-win32::WindowMessageResult UiWindowHost::CalculateClientArea(WPARAM wparam, LPARAM lparam) const
-{
-    if (wparam != TRUE) {
-        return win32::WindowMessageResult::Unhandled();
-    }
-
-    auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
-    if (IsZoomed(window_.Hwnd())) {
-        const int resize_border = util::ResizeBorderThicknessForDpi(GetDpiForWindow(window_.Hwnd()));
-        params->rgrc[0].left += resize_border;
-        params->rgrc[0].top += resize_border;
-        params->rgrc[0].right -= resize_border;
-        params->rgrc[0].bottom -= resize_border;
-    }
-
-    return win32::WindowMessageResult::Handled();
 }

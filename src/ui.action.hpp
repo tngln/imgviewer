@@ -32,6 +32,3 @@ inline constexpr UiAction kUiActionTextCopy{-1};
 inline constexpr UiAction kUiActionTextCut{-2};
 inline constexpr UiAction kUiActionTextPaste{-3};
 inline constexpr UiAction kUiActionTextSelectAll{-4};
-inline constexpr UiAction kUiActionWindowMinimize{-10};
-inline constexpr UiAction kUiActionWindowToggleMaximize{-11};
-inline constexpr UiAction kUiActionWindowClose{-12};

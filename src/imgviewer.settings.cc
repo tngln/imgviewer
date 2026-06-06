@@ -30,7 +30,6 @@
 #include "ui.textbox.hpp"
 #include "ui.theme.hpp"
 #include "ui.window.hpp"
-#include "ui.window.frame.hpp"
 
 namespace {
 
@@ -58,8 +57,6 @@ constexpr int kOpacityMinimum = 10;
 constexpr int kOpacityMaximum = 100;
 constexpr int kOpacitySmallStep = 1;
 constexpr int kOpacityLargeStep = 5;
-constexpr int kSettingsWindowWidth = 720;
-constexpr int kSettingsWindowHeight = 768;
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -144,36 +141,6 @@ std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction 
     return text.empty() ? L"No shortcut configured." : text;
 }
 
-POINT CenterWindowOnOwner(HWND owner, int width, int height)
-{
-    RECT owner_rect = {};
-    if (!GetWindowRect(owner, &owner_rect)) {
-        owner_rect = RECT{0, 0, width, height};
-    }
-
-    RECT work_area = {};
-    HMONITOR monitor = MonitorFromWindow(owner, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO monitor_info{.cbSize = sizeof(monitor_info)};
-    if (monitor != nullptr && GetMonitorInfoW(monitor, &monitor_info)) {
-        work_area = monitor_info.rcWork;
-    } else {
-        SystemParametersInfoW(SPI_GETWORKAREA, 0, &work_area, 0);
-    }
-
-    const LONG window_width = static_cast<LONG>(width);
-    const LONG window_height = static_cast<LONG>(height);
-    const LONG owner_center_x = owner_rect.left + (owner_rect.right - owner_rect.left) / 2;
-    const LONG owner_center_y = owner_rect.top + (owner_rect.bottom - owner_rect.top) / 2;
-    const LONG min_x = work_area.left;
-    const LONG min_y = work_area.top;
-    const LONG max_x = (std::max)(min_x, work_area.right - window_width);
-    const LONG max_y = (std::max)(min_y, work_area.bottom - window_height);
-    return POINT{
-        (std::min)((std::max)(owner_center_x - window_width / 2, min_x), max_x),
-        (std::min)((std::max)(owner_center_y - window_height / 2, min_y), max_y),
-    };
-}
-
 UiElementMetadata Metadata(
     UiElementId id,
     UiElementRole role,
@@ -193,18 +160,11 @@ UiElementMetadata Metadata(
 
 class SettingsUi final : public UiRoot {
 public:
-    explicit SettingsUi(ImgViewerConfig config) :
-        draft_(std::move(config)),
-        root_(std::make_unique<UiElement>(
-            Metadata(UiElementId::None, UiElementRole::Pane, ImgViewerAction::None, L"Settings", L"settings-root"))),
-        frame_(
-            *root_,
-            ids_,
-            UiWindowFrameOptions{
-                .title = L"Settings",
-                .show_maximize = false,
-            })
+    explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
     {
+        root_ = std::make_unique<UiElement>(
+            Metadata(UiElementId::None, UiElementRole::Pane, ImgViewerAction::None, L"Settings", L"settings-root"));
+
         remember_checkbox_ = static_cast<Checkbox*>(root_->AddChild(std::make_unique<Checkbox>(
             Metadata(ids_.Next(), UiElementRole::CheckBox, ImgViewerAction::None, L"Remember window size", L"remember-window-size"),
             L"Remember window size",
@@ -323,26 +283,24 @@ public:
         const D2D1_SIZE_F size = context.viewport_size;
         Layout(size);
         const UiDraw draw(context);
-        const float content_top = ui_theme::metrics::kTitleBarHeight;
         draw.Clear(ui_theme::color::kWindowBackground);
-        frame_.Draw(context, state, UiWindowFrameState{.maximized = maximized_});
-        draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, content_top + 18.0f, size.width - 24.0f, content_top + 46.0f), ui_theme::color::kBodyText);
-        draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, content_top + 88.0f, size.width - 24.0f, content_top + 112.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(24.0f, content_top + 194.0f, size.width - 24.0f, content_top + 218.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(24.0f, content_top + 272.0f, size.width - 24.0f, content_top + 296.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(24.0f, content_top + 350.0f, size.width - 24.0f, content_top + 374.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Settings", 8, D2D1::RectF(24.0f, 18.0f, size.width - 24.0f, 46.0f), ui_theme::color::kBodyText);
+        draw.DrawBodyText(L"Window size", 11, D2D1::RectF(24.0f, 88.0f, size.width - 24.0f, 112.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Image rendering", 15, D2D1::RectF(24.0f, 194.0f, size.width - 24.0f, 218.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Window frame", 12, D2D1::RectF(24.0f, 272.0f, size.width - 24.0f, 296.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Opacity", 7, D2D1::RectF(24.0f, 350.0f, size.width - 24.0f, 374.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             opacity_text_.c_str(),
             static_cast<UINT32>(opacity_text_.size()),
-            D2D1::RectF(size.width - 88.0f, content_top + 376.0f, size.width - 24.0f, content_top + 404.0f),
+            D2D1::RectF(size.width - 88.0f, 376.0f, size.width - 24.0f, 404.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, content_top + 438.0f, size.width - 24.0f, content_top + 462.0f), ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, content_top + 516.0f, size.width - 24.0f, content_top + 540.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Shortcut filter", 15, D2D1::RectF(24.0f, 438.0f, size.width - 24.0f, 462.0f), ui_theme::color::kMutedText);
+        draw.DrawBodyText(L"Action shortcuts", 16, D2D1::RectF(24.0f, 516.0f, size.width - 24.0f, 540.0f), ui_theme::color::kMutedText);
         draw.DrawBodyText(
             shortcut_text_.c_str(),
             static_cast<UINT32>(shortcut_text_.size()),
-            D2D1::RectF(24.0f, content_top + 594.0f, size.width - 24.0f, content_top + 620.0f),
+            D2D1::RectF(24.0f, 594.0f, size.width - 24.0f, 620.0f),
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 
@@ -399,16 +357,6 @@ public:
         return {};
     }
 
-    bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const override
-    {
-        return frame_.IsPointInCaptionDragArea(*root_, point);
-    }
-
-    void SetWindowState(bool, bool maximized) override
-    {
-        maximized_ = maximized;
-    }
-
     UiEventResult OnTextChar(UiElementId focused, wchar_t ch)
     {
         if (focused != filter_box_->Id()) {
@@ -435,16 +383,15 @@ public:
 private:
     void Layout(D2D1_SIZE_F size)
     {
-        const float content_top = ui_theme::metrics::kTitleBarHeight;
         root_->SetRect(D2D1::RectF(0.0f, 0.0f, size.width, size.height));
-        remember_checkbox_->SetRect(D2D1::RectF(24.0f, content_top + 54.0f, size.width - 24.0f, content_top + 84.0f));
-        remember_radio_->SetRect(D2D1::RectF(44.0f, content_top + 116.0f, size.width - 24.0f, content_top + 146.0f));
-        default_radio_->SetRect(D2D1::RectF(44.0f, content_top + 146.0f, size.width - 24.0f, content_top + 176.0f));
-        pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, content_top + 224.0f, size.width - 24.0f, content_top + 254.0f));
-        borderless_checkbox_->SetRect(D2D1::RectF(24.0f, content_top + 302.0f, size.width - 24.0f, content_top + 332.0f));
-        opacity_slider_->SetRect(D2D1::RectF(24.0f, content_top + 380.0f, size.width - 104.0f, content_top + 410.0f));
-        filter_box_->SetRect(D2D1::RectF(24.0f, content_top + 468.0f, size.width - 24.0f, content_top + 502.0f));
-        action_dropdown_->SetRect(D2D1::RectF(24.0f, content_top + 546.0f, size.width - 24.0f, content_top + 580.0f));
+        remember_checkbox_->SetRect(D2D1::RectF(24.0f, 54.0f, size.width - 24.0f, 84.0f));
+        remember_radio_->SetRect(D2D1::RectF(44.0f, 116.0f, size.width - 24.0f, 146.0f));
+        default_radio_->SetRect(D2D1::RectF(44.0f, 146.0f, size.width - 24.0f, 176.0f));
+        pixelated_checkbox_->SetRect(D2D1::RectF(24.0f, 224.0f, size.width - 24.0f, 254.0f));
+        borderless_checkbox_->SetRect(D2D1::RectF(24.0f, 302.0f, size.width - 24.0f, 332.0f));
+        opacity_slider_->SetRect(D2D1::RectF(24.0f, 380.0f, size.width - 104.0f, 410.0f));
+        filter_box_->SetRect(D2D1::RectF(24.0f, 468.0f, size.width - 24.0f, 502.0f));
+        action_dropdown_->SetRect(D2D1::RectF(24.0f, 546.0f, size.width - 24.0f, 580.0f));
         reset_button_->SetRect(D2D1::RectF(24.0f, size.height - 58.0f, 150.0f, size.height - 20.0f));
         cancel_button_->SetRect(D2D1::RectF(size.width - 132.0f, size.height - 58.0f, size.width - 12.0f, size.height - 20.0f));
         save_button_->SetRect(D2D1::RectF(size.width - 254.0f, size.height - 58.0f, size.width - 142.0f, size.height - 20.0f));
@@ -563,7 +510,6 @@ private:
     ImgViewerConfig draft_;
     UiElementIdGenerator ids_;
     std::unique_ptr<UiElement> root_;
-    UiWindowFrame frame_;
     Checkbox* remember_checkbox_ = nullptr;
     Checkbox* pixelated_checkbox_ = nullptr;
     Checkbox* borderless_checkbox_ = nullptr;
@@ -577,7 +523,6 @@ private:
     Button* cancel_button_ = nullptr;
     std::wstring opacity_text_;
     std::wstring shortcut_text_;
-    bool maximized_ = false;
 };
 
 struct SettingsWindowContext final : public UiWindowDelegate {
@@ -756,26 +701,21 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
 
     auto root = std::make_unique<SettingsUi>(std::move(draft));
     settings_context->ui = root.get();
-    const POINT settings_origin = CenterWindowOnOwner(owner, kSettingsWindowWidth, kSettingsWindowHeight);
     const HRESULT create_hr = settings_context->host.Create(
         UiWindowOptions{
             .native = win32::NativeWindowOptions{
                 .instance = instance,
                 .class_name = kSettingsClassName,
                 .title = L"Settings",
-                .style = WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX,
-                .x = settings_origin.x,
-                .y = settings_origin.y,
-                .width = kSettingsWindowWidth,
-                .height = kSettingsWindowHeight,
+                .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,
+                .ex_style = WS_EX_DLGMODALFRAME,
+                .width = 720,
+                .height = 720,
                 .owner = owner,
                 .show_command = SW_SHOWNORMAL,
             },
             .action_message = kImgViewerUiActionMessage,
             .caret_timer_id = kCaretTimerId,
-            .custom_frame = true,
-            .resizable = true,
-            .allow_maximize = false,
         },
         std::move(root),
         settings_context);
