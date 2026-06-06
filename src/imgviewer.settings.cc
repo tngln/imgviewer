@@ -74,6 +74,9 @@ constexpr float kSettingsLabelHeight = 26.0f;
 constexpr float kSettingsChoiceHeight = 36.0f;
 constexpr float kSettingsFieldHeight = 42.0f;
 constexpr float kSettingsValueWidth = 72.0f;
+constexpr float kSettingsRadioIndent = 24.0f;
+constexpr float kSettingsSliderValueGap = 16.0f;
+constexpr float kSettingsValueTextOffset = 4.0f;
 
 struct SettingsLayoutRects final {
     D2D1_RECT_F title = {};
@@ -112,6 +115,49 @@ D2D1_RECT_F BelowFullWidth(D2D1_RECT_F anchor, float gap, float left, float righ
     const D2D1_RECT_F rect = ui_layout::Below(anchor, gap, right - left, height);
     return D2D1::RectF(left, rect.top, right, rect.bottom);
 }
+
+struct SettingsSliderRow final {
+    D2D1_RECT_F slider = {};
+    D2D1_RECT_F value = {};
+};
+
+struct SettingsLayoutCursor final {
+    float left = 0.0f;
+    float right = 0.0f;
+    float value_left = 0.0f;
+    D2D1_RECT_F last = {};
+
+    D2D1_RECT_F Start(float top, float height)
+    {
+        last = FullWidthRect(left, top, right, height);
+        return last;
+    }
+
+    D2D1_RECT_F Full(float gap, float height)
+    {
+        last = BelowFullWidth(last, gap, left, right, height);
+        return last;
+    }
+
+    D2D1_RECT_F Indented(float gap, float height, float indent)
+    {
+        last = BelowFullWidth(last, gap, left + indent, right, height);
+        return last;
+    }
+
+    SettingsSliderRow Slider(float gap)
+    {
+        SettingsSliderRow row;
+        row.slider = BelowFullWidth(last, gap, left, value_left - kSettingsSliderValueGap, kSettingsChoiceHeight);
+        row.value = D2D1::RectF(
+            value_left,
+            row.slider.top - kSettingsValueTextOffset,
+            right,
+            row.slider.bottom - kSettingsValueTextOffset);
+        last = row.slider;
+        return row;
+    }
+};
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -201,46 +247,38 @@ SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
     SettingsLayoutRects layout;
     const float left = kSettingsSidePadding;
     const float right = size.width - kSettingsSidePadding;
-    const float radio_left = left + 24.0f;
     const float value_left = size.width - kSettingsSidePadding - kSettingsValueWidth;
     const D2D1_RECT_F root = D2D1::RectF(0.0f, 0.0f, size.width, size.height);
+    SettingsLayoutCursor flow{left, right, value_left};
 
-    layout.title = FullWidthRect(left, 18.0f, right, 34.0f);
-    layout.remember_checkbox = BelowFullWidth(layout.title, 8.0f, left, right, kSettingsChoiceHeight);
-    layout.window_size_label = BelowFullWidth(layout.remember_checkbox, 8.0f, left, right, kSettingsLabelHeight);
+    layout.title = flow.Start(18.0f, 34.0f);
+    layout.remember_checkbox = flow.Full(8.0f, kSettingsChoiceHeight);
+    layout.window_size_label = flow.Full(8.0f, kSettingsLabelHeight);
+    layout.remember_radio = flow.Indented(10.0f, kSettingsChoiceHeight, kSettingsRadioIndent);
+    layout.default_radio = flow.Indented(0.0f, kSettingsChoiceHeight, kSettingsRadioIndent);
 
-    const std::vector<D2D1_RECT_F> size_choices = ui_layout::PlaceVerticalStack(
-        D2D1::RectF(radio_left, layout.window_size_label.bottom + 10.0f, right, 0.0f),
-        std::vector<float>{kSettingsChoiceHeight, kSettingsChoiceHeight});
-    layout.remember_radio = size_choices[0];
-    layout.default_radio = size_choices[1];
+    layout.image_rendering_label = flow.Full(16.0f, kSettingsLabelHeight);
+    layout.pixelated_checkbox = flow.Full(6.0f, kSettingsChoiceHeight);
+    layout.checkerboard_checkbox = flow.Full(0.0f, kSettingsChoiceHeight);
 
-    layout.image_rendering_label = BelowFullWidth(layout.default_radio, 16.0f, left, right, kSettingsLabelHeight);
-    const std::vector<D2D1_RECT_F> rendering_choices = ui_layout::PlaceVerticalStack(
-        D2D1::RectF(left, layout.image_rendering_label.bottom + 6.0f, right, 0.0f),
-        std::vector<float>{kSettingsChoiceHeight, kSettingsChoiceHeight});
-    layout.pixelated_checkbox = rendering_choices[0];
-    layout.checkerboard_checkbox = rendering_choices[1];
+    layout.window_frame_label = flow.Full(24.0f, kSettingsLabelHeight);
+    layout.borderless_checkbox = flow.Full(6.0f, kSettingsChoiceHeight);
 
-    layout.window_frame_label = BelowFullWidth(layout.checkerboard_checkbox, 24.0f, left, right, kSettingsLabelHeight);
-    layout.borderless_checkbox = BelowFullWidth(layout.window_frame_label, 6.0f, left, right, kSettingsChoiceHeight);
+    layout.opacity_label = flow.Full(16.0f, kSettingsLabelHeight);
+    const SettingsSliderRow opacity = flow.Slider(8.0f);
+    layout.opacity_slider = opacity.slider;
+    layout.opacity_value = opacity.value;
 
-    layout.opacity_label = BelowFullWidth(layout.borderless_checkbox, 16.0f, left, right, kSettingsLabelHeight);
-    layout.opacity_slider = BelowFullWidth(layout.opacity_label, 8.0f, left, value_left - 16.0f, kSettingsChoiceHeight);
-    layout.opacity_value = D2D1::RectF(value_left, layout.opacity_slider.top - 4.0f, right, layout.opacity_slider.bottom - 4.0f);
+    layout.toolbar_scale_label = flow.Full(16.0f, kSettingsLabelHeight);
+    const SettingsSliderRow toolbar_scale = flow.Slider(8.0f);
+    layout.toolbar_scale_slider = toolbar_scale.slider;
+    layout.toolbar_scale_value = toolbar_scale.value;
 
-    layout.toolbar_scale_label = BelowFullWidth(layout.opacity_slider, 16.0f, left, right, kSettingsLabelHeight);
-    layout.toolbar_scale_slider =
-        BelowFullWidth(layout.toolbar_scale_label, 8.0f, left, value_left - 16.0f, kSettingsChoiceHeight);
-    layout.toolbar_scale_value =
-        D2D1::RectF(value_left, layout.toolbar_scale_slider.top - 4.0f, right, layout.toolbar_scale_slider.bottom - 4.0f);
-
-    layout.shortcut_filter_label =
-        BelowFullWidth(layout.toolbar_scale_slider, 16.0f, left, right, kSettingsLabelHeight);
-    layout.filter_box = BelowFullWidth(layout.shortcut_filter_label, 8.0f, left, right, kSettingsFieldHeight);
-    layout.action_shortcuts_label = BelowFullWidth(layout.filter_box, 24.0f, left, right, kSettingsLabelHeight);
-    layout.action_dropdown = BelowFullWidth(layout.action_shortcuts_label, 8.0f, left, right, kSettingsFieldHeight);
-    layout.shortcut_text = BelowFullWidth(layout.action_dropdown, 18.0f, left, right, 30.0f);
+    layout.shortcut_filter_label = flow.Full(16.0f, kSettingsLabelHeight);
+    layout.filter_box = flow.Full(8.0f, kSettingsFieldHeight);
+    layout.action_shortcuts_label = flow.Full(24.0f, kSettingsLabelHeight);
+    layout.action_dropdown = flow.Full(8.0f, kSettingsFieldHeight);
+    layout.shortcut_text = flow.Full(18.0f, 30.0f);
 
     layout.reset_button = D2D1::RectF(
         left,
@@ -261,11 +299,13 @@ SettingsLayoutRects CalculateSettingsLayout(D2D1_SIZE_F size)
 
 class SettingsUi;
 using SettingsEffect = void (SettingsUi::*)();
+using SettingsChecked = bool (SettingsUi::*)() const;
 
 struct SettingsControl final {
     UiElement* element = nullptr;
     D2D1_RECT_F SettingsLayoutRects::* rect = nullptr;
     SettingsEffect effect = nullptr;
+    SettingsChecked checked = nullptr;
 };
 
 class SettingsUi final : public UiRoot {
@@ -290,7 +330,8 @@ public:
             L"Remember window size",
             draft_.remember_window_size),
             &SettingsLayoutRects::remember_checkbox,
-            &SettingsUi::ToggleRememberWindowSize);
+            &SettingsUi::ToggleRememberWindowSize,
+            &SettingsUi::RememberWindowSizeChecked);
         remember_radio_ = AddControl(std::make_unique<RadioButton>(
             UiMetadata(
                 UiElementRole::RadioButton,
@@ -301,7 +342,8 @@ public:
             L"Remember last size",
             draft_.remember_window_size),
             &SettingsLayoutRects::remember_radio,
-            &SettingsUi::SelectRememberWindowSize);
+            &SettingsUi::SelectRememberWindowSize,
+            &SettingsUi::RememberWindowSizeSelected);
         default_radio_ = AddControl(std::make_unique<RadioButton>(
             UiMetadata(
                 UiElementRole::RadioButton,
@@ -312,7 +354,8 @@ public:
             L"Use default size",
             !draft_.remember_window_size),
             &SettingsLayoutRects::default_radio,
-            &SettingsUi::SelectDefaultWindowSize);
+            &SettingsUi::SelectDefaultWindowSize,
+            &SettingsUi::DefaultWindowSizeSelected);
         pixelated_checkbox_ = AddControl(std::make_unique<Checkbox>(
             UiMetadata(
                 UiElementRole::CheckBox,
@@ -323,7 +366,8 @@ public:
             L"Pixelated sampling",
             draft_.pixelated_sampling),
             &SettingsLayoutRects::pixelated_checkbox,
-            &SettingsUi::TogglePixelatedSampling);
+            &SettingsUi::TogglePixelatedSampling,
+            &SettingsUi::PixelatedSamplingChecked);
         checkerboard_checkbox_ = AddControl(std::make_unique<Checkbox>(
             UiMetadata(
                 UiElementRole::CheckBox,
@@ -334,7 +378,8 @@ public:
             L"Checkerboard background",
             draft_.checkerboard_background),
             &SettingsLayoutRects::checkerboard_checkbox,
-            &SettingsUi::ToggleCheckerboardBackground);
+            &SettingsUi::ToggleCheckerboardBackground,
+            &SettingsUi::CheckerboardBackgroundChecked);
         borderless_checkbox_ = AddControl(std::make_unique<Checkbox>(
             UiMetadata(
                 UiElementRole::CheckBox,
@@ -345,7 +390,8 @@ public:
             L"Borderless window",
             draft_.borderless_window),
             &SettingsLayoutRects::borderless_checkbox,
-            &SettingsUi::ToggleBorderlessWindow);
+            &SettingsUi::ToggleBorderlessWindow,
+            &SettingsUi::BorderlessWindowChecked);
         opacity_slider_ = AddControl(std::make_unique<Slider>(
             UiMetadata(
                 UiElementRole::Slider,
@@ -643,11 +689,12 @@ private:
     T* AddControl(
         std::unique_ptr<T> control,
         D2D1_RECT_F SettingsLayoutRects::* rect,
-        SettingsEffect effect = nullptr)
+        SettingsEffect effect = nullptr,
+        SettingsChecked checked = nullptr)
     {
         T* typed_control = control.get();
         UiElement* element = root_->AddChild(std::move(control));
-        controls_.push_back(SettingsControl{element, rect, effect});
+        controls_.push_back(SettingsControl{element, rect, effect, checked});
         return typed_control;
     }
 
@@ -717,6 +764,13 @@ private:
         draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_->Value());
         UpdateToolbarScaleText();
     }
+
+    bool RememberWindowSizeChecked() const { return remember_checkbox_->IsChecked(); }
+    bool RememberWindowSizeSelected() const { return remember_radio_->IsSelected(); }
+    bool DefaultWindowSizeSelected() const { return default_radio_->IsSelected(); }
+    bool PixelatedSamplingChecked() const { return pixelated_checkbox_->IsChecked(); }
+    bool CheckerboardBackgroundChecked() const { return checkerboard_checkbox_->IsChecked(); }
+    bool BorderlessWindowChecked() const { return borderless_checkbox_->IsChecked(); }
 
     void SyncChoiceControls()
     {
@@ -804,12 +858,12 @@ private:
 
     bool IsCheckedElement(UiElementId id) const
     {
-        return (id == remember_checkbox_->Id() && remember_checkbox_->IsChecked()) ||
-            (id == pixelated_checkbox_->Id() && pixelated_checkbox_->IsChecked()) ||
-            (id == checkerboard_checkbox_->Id() && checkerboard_checkbox_->IsChecked()) ||
-            (id == borderless_checkbox_->Id() && borderless_checkbox_->IsChecked()) ||
-            (id == remember_radio_->Id() && remember_radio_->IsSelected()) ||
-            (id == default_radio_->Id() && default_radio_->IsSelected());
+        for (const SettingsControl& control : controls_) {
+            if (id == control.element->Id() && control.checked != nullptr) {
+                return (this->*control.checked)();
+            }
+        }
+        return false;
     }
 
     ImgViewerConfig draft_;
