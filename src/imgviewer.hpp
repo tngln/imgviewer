@@ -44,6 +44,7 @@ struct ImgViewerContext final {
     void* about_context = nullptr;
     bool color_picker_active = false;
     bool current_image_from_clipboard = false;
+    bool current_image_from_screenshot = false;
     bool info_panel_visible = false;
     bool interactive_size_move_active = false;
     int last_window_size_toast_width = 0;
@@ -66,6 +67,8 @@ bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);
+void HandleImgViewerCaptureDesktop(HWND hwnd, ImgViewerContext* context);
+void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);

@@ -48,6 +48,7 @@ add_executable(imgviewer
     src/util.format.cc
     src/win32.clipboard.cc
     src/win32.dialog.cc
+    src/win32.screen_capture.cc
     src/win32.util.cc
     src/win32.window.cc
 )

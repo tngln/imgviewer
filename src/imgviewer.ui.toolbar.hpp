@@ -17,6 +17,8 @@ public:
     enum class ButtonKey : size_t {
         PreviousImage,
         NextImage,
+        CaptureDesktop,
+        CaptureRegion,
         ZoomIn,
         ZoomOut,
         FitWindow,

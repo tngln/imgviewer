@@ -16,6 +16,7 @@
 #include "util.format.hpp"
 #include "win32.clipboard.hpp"
 #include "win32.dialog.hpp"
+#include "win32.screen_capture.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -27,6 +28,7 @@ void SetColorPickerActive(ImgViewerContext* context, bool active);
 void EnsureInfoPanelAnalysis(ImgViewerContext* context);
 void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
+HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWICBitmapSource* source);
 
 } // namespace
 
@@ -252,6 +254,12 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::OpenImage:
     case ImgViewerAction::OpenMenu:
         break;
+    case ImgViewerAction::CaptureDesktop:
+        HandleImgViewerCaptureDesktop(hwnd, context);
+        break;
+    case ImgViewerAction::CaptureRegion:
+        HandleImgViewerCaptureRegion(hwnd, context);
+        break;
     case ImgViewerAction::SaveImageAs:
         HandleImgViewerSaveImageAsCommand(hwnd, context);
         break;
@@ -376,6 +384,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     }
     context->current_image_path = path;
     context->current_image_from_clipboard = false;
+    context->current_image_from_screenshot = false;
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
@@ -418,6 +427,123 @@ void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
 
     LoadImgViewerImageFile(hwnd, context, path.c_str());
 }
+
+void HandleImgViewerCaptureDesktop(HWND hwnd, ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    const bool was_visible = IsWindowVisible(hwnd) != FALSE;
+    const bool was_iconic = IsIconic(hwnd) != FALSE;
+    const bool was_zoomed = IsZoomed(hwnd) != FALSE;
+    if (was_visible) {
+        ShowWindow(hwnd, SW_HIDE);
+        Sleep(120);
+    }
+    bool restored = false;
+    const auto restore_window = [&] {
+        if (restored) {
+            return;
+        }
+        restored = true;
+        if (!was_visible) {
+            return;
+        }
+        ShowWindow(hwnd, was_iconic ? SW_SHOWMINIMIZED : (was_zoomed ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL));
+        SetForegroundWindow(hwnd);
+    };
+
+    wil::com_ptr<IWICBitmapSource> screenshot;
+    const HRESULT capture_hr = win32::CaptureVirtualDesktop(context->viewer.WicFactory(), screenshot.put());
+    restore_window();
+    if (FAILED(capture_hr)) {
+        ShowImgViewerToast(hwnd, context, L"Could not capture desktop.");
+        return;
+    }
+
+    if (FAILED(LoadImgViewerScreenshotBitmap(hwnd, context, screenshot.get()))) {
+        ShowImgViewerToast(hwnd, context, L"Could not capture desktop.");
+    }
+}
+
+void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    const bool was_visible = IsWindowVisible(hwnd) != FALSE;
+    const bool was_iconic = IsIconic(hwnd) != FALSE;
+    const bool was_zoomed = IsZoomed(hwnd) != FALSE;
+    if (was_visible) {
+        ShowWindow(hwnd, SW_HIDE);
+        Sleep(120);
+    }
+    bool restored = false;
+    const auto restore_window = [&] {
+        if (restored) {
+            return;
+        }
+        restored = true;
+        if (!was_visible) {
+            return;
+        }
+        ShowWindow(hwnd, was_iconic ? SW_SHOWMINIMIZED : (was_zoomed ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL));
+        SetForegroundWindow(hwnd);
+    };
+
+    RECT region = {};
+    const HRESULT select_hr = win32::SelectCaptureRegion(hwnd, &region);
+    if (select_hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
+        restore_window();
+        return;
+    }
+    if (FAILED(select_hr)) {
+        restore_window();
+        ShowImgViewerToast(hwnd, context, L"Could not capture region.");
+        return;
+    }
+
+    Sleep(80);
+    wil::com_ptr<IWICBitmapSource> screenshot;
+    const HRESULT capture_hr = win32::CaptureScreenRect(context->viewer.WicFactory(), region, screenshot.put());
+    restore_window();
+    if (FAILED(capture_hr)) {
+        ShowImgViewerToast(hwnd, context, L"Could not capture region.");
+        return;
+    }
+
+    if (FAILED(LoadImgViewerScreenshotBitmap(hwnd, context, screenshot.get()))) {
+        ShowImgViewerToast(hwnd, context, L"Could not capture region.");
+    }
+}
+
+namespace {
+
+HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWICBitmapSource* source)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, context);
+    RETURN_HR_IF_NULL(E_INVALIDARG, source);
+    RETURN_IF_FAILED(context->viewer.LoadBitmapSource(source, context->renderer.BitmapDeviceContext()));
+
+    context->sequence.Clear();
+    context->current_image_path.clear();
+    context->current_image_from_clipboard = false;
+    context->current_image_from_screenshot = true;
+    InvalidateInfoPanelAnalysis(context);
+    SyncActionStates(context);
+    SetColorPickerActive(context, false);
+
+    const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
+    const std::wstring title_text = L"<Screenshot>  " + util::FormatImageDimensions(image_size);
+    context->ui.SetTitleText(title_text.c_str());
+    SetWindowTextW(hwnd, title_text.c_str());
+    RETURN_IF_FAILED(RenderImgViewer(context));
+    return S_OK;
+}
+
+} // namespace
 
 void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
 {
@@ -483,6 +609,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     context->sequence.Clear();
     context->current_image_path.clear();
     context->current_image_from_clipboard = true;
+    context->current_image_from_screenshot = false;
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
@@ -564,6 +691,7 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
 
     const bool has_image = context->viewer.HasCurrentImage();
     const bool clipboard = context->current_image_from_clipboard;
+    const bool screenshot = context->current_image_from_screenshot;
     const ImgViewerSnapshot snapshot = context->viewer.Snapshot();
     if (!has_image) {
         state.name = L"No image";
@@ -573,10 +701,10 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
         state.file_size = L"Unavailable";
         state.modified_time = L"Unavailable";
     } else {
-        state.name = clipboard ? L"<Clipboard>" : util::FileNameFromPath(context->current_image_path.c_str(), L"-");
-        state.path = clipboard || context->current_image_path.empty() ? L"Unavailable" : context->current_image_path;
+        state.name = clipboard ? L"<Clipboard>" : (screenshot ? L"<Screenshot>" : util::FileNameFromPath(context->current_image_path.c_str(), L"-"));
+        state.path = clipboard || screenshot || context->current_image_path.empty() ? L"Unavailable" : context->current_image_path;
         state.dimensions = util::FormatImageDimensions(snapshot.pixel_size);
-        state.type = util::FormatImageType(context->current_image_path, clipboard);
+        state.type = screenshot ? L"Screenshot image" : util::FormatImageType(context->current_image_path, clipboard);
         state.file_size = L"Unavailable";
         state.modified_time = L"Unavailable";
         state.exif_rows = context->viewer.CurrentImageMetadata().exif_rows;
@@ -589,6 +717,7 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
 
         WIN32_FILE_ATTRIBUTE_DATA attributes = {};
         if (!clipboard &&
+            !screenshot &&
             !context->current_image_path.empty() &&
             GetFileAttributesExW(context->current_image_path.c_str(), GetFileExInfoStandard, &attributes) &&
             (attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
