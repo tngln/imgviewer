@@ -1,26 +1,10 @@
 #include "imgviewer.keybindings.hpp"
 
 #include <algorithm>
-#include <array>
 #include <string>
 #include <string_view>
 
 namespace {
-
-constexpr std::array<ImgViewerAction, 12> kConfigurableKeyActions = {
-    ImgViewerAction::OpenImage,
-    ImgViewerAction::PreviousImage,
-    ImgViewerAction::NextImage,
-    ImgViewerAction::ZoomIn,
-    ImgViewerAction::ZoomOut,
-    ImgViewerAction::FitWindow,
-    ImgViewerAction::ActualSize,
-    ImgViewerAction::RotateClockwise,
-    ImgViewerAction::FlipHorizontal,
-    ImgViewerAction::FlipVertical,
-    ImgViewerAction::ResetView,
-    ImgViewerAction::ToggleInfoPanel,
-};
 
 std::string ToLowerAscii(std::string_view value)
 {
@@ -176,16 +160,6 @@ void RemoveBindingsForAction(ActionBindings* bindings, ImgViewerAction action)
         key_bindings.end());
 }
 
-bool IsConfigurableKeyAction(ImgViewerAction action)
-{
-    for (ImgViewerAction configurable_action : kConfigurableKeyActions) {
-        if (configurable_action == action) {
-            return true;
-        }
-    }
-    return false;
-}
-
 } // namespace
 
 ActionBindings DefaultActionBindings()
@@ -219,7 +193,7 @@ void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings
 
     for (const auto& item : key_bindings->items()) {
         const ImgViewerAction action = ImgViewerActionFromName(item.key().c_str());
-        if (!IsConfigurableKeyAction(action) || !item.value().is_array()) {
+        if (!IsImgViewerActionConfigurableKeyBinding(action) || !item.value().is_array()) {
             continue;
         }
 

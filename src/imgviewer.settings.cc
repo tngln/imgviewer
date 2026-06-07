@@ -1,6 +1,5 @@
 #include "imgviewer.settings.hpp"
 
-#include <array>
 #include <cwctype>
 #include <memory>
 #include <string>
@@ -34,20 +33,6 @@ namespace {
 
 constexpr wchar_t kSettingsClassName[] = L"ImgViewerSettingsWindow";
 
-constexpr std::array<ImgViewerAction, 11> kShownActions{
-    ImgViewerAction::OpenImage,
-    ImgViewerAction::PreviousImage,
-    ImgViewerAction::NextImage,
-    ImgViewerAction::ZoomIn,
-    ImgViewerAction::ZoomOut,
-    ImgViewerAction::FitWindow,
-    ImgViewerAction::ActualSize,
-    ImgViewerAction::RotateClockwise,
-    ImgViewerAction::FlipHorizontal,
-    ImgViewerAction::FlipVertical,
-    ImgViewerAction::ResetView,
-};
-
 constexpr wchar_t kSaveIcon[] = L"\xE105";
 constexpr wchar_t kCancelIcon[] = L"\xE711";
 constexpr wchar_t kResetIcon[] = L"\xE777";
@@ -70,36 +55,6 @@ constexpr float kSettingsContentTopPadding = 18.0f;
 constexpr float kSettingsFooterBottomPadding = 20.0f;
 constexpr float kSettingsFooterButtonHeight = 48.0f;
 constexpr float kSettingsFooterButtonGap = 10.0f;
-
-const wchar_t* ActionDisplayName(ImgViewerAction action)
-{
-    switch (action) {
-    case ImgViewerAction::OpenImage:
-        return L"Open Image";
-    case ImgViewerAction::PreviousImage:
-        return L"Previous Image";
-    case ImgViewerAction::NextImage:
-        return L"Next Image";
-    case ImgViewerAction::ZoomIn:
-        return L"Zoom In";
-    case ImgViewerAction::ZoomOut:
-        return L"Zoom Out";
-    case ImgViewerAction::FitWindow:
-        return L"Fit Window";
-    case ImgViewerAction::ActualSize:
-        return L"Actual Size";
-    case ImgViewerAction::RotateClockwise:
-        return L"Rotate Clockwise";
-    case ImgViewerAction::FlipHorizontal:
-        return L"Flip Horizontal";
-    case ImgViewerAction::FlipVertical:
-        return L"Flip Vertical";
-    case ImgViewerAction::ResetView:
-        return L"Reset View";
-    default:
-        return L"";
-    }
-}
 
 std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction action)
 {
@@ -584,7 +539,7 @@ private:
         if (filter.empty()) {
             return true;
         }
-        std::wstring haystack = ActionDisplayName(action);
+        std::wstring haystack = ImgViewerActionDisplayName(action);
         haystack += L" ";
         haystack += ShortcutsForAction(draft_.action_bindings, action);
         std::wstring needle = filter;
@@ -600,9 +555,9 @@ private:
     std::vector<DropdownOption> BuildDropdownOptions() const
     {
         std::vector<DropdownOption> options;
-        for (ImgViewerAction action : kShownActions) {
-            if (MatchesFilter(action)) {
-                options.push_back(DropdownOption{ActionDisplayName(action), action});
+        for (const ImgViewerActionInfo& action : ImgViewerActions()) {
+            if (action.shown_in_settings && MatchesFilter(action.action)) {
+                options.push_back(DropdownOption{action.display_name, action.action});
             }
         }
         if (options.empty()) {
