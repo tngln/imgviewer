@@ -61,6 +61,11 @@ IWICImagingFactory2* ImgViewerController::WicFactory() const
     return image_decoder_.WicFactory();
 }
 
+IWICBitmapSource* ImgViewerController::CurrentPixelSource() const
+{
+    return current_image_.pixel_source.get();
+}
+
 bool ImgViewerController::HasCurrentImage() const
 {
     return current_image_.bitmap != nullptr && current_image_.pixel_source != nullptr;

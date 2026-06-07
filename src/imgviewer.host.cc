@@ -446,7 +446,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         util::TrackMouseLeave(hwnd);
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
-            viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+            if (context->edit.Active()) {
+                viewer_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
+            }
+            if (!viewer_result.handled) {
+                viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+            }
         }
         RenderIfNeeded(context, viewer_result);
         if (context != nullptr && !viewer_result.handled) {
@@ -496,6 +501,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (context != nullptr && !ui_result.handled) {
             if (HandleImgViewerColorPick(hwnd, context, point)) {
                 ui_result.handled = true;
+            } else if (context->edit.Active()) {
+                viewer_result = context->edit.OnPointerDown(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else {
                 viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
             }
@@ -513,7 +520,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
-            viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
+            if (context->edit.Active()) {
+                viewer_result = context->edit.OnPointerUp(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
+            }
+            if (!viewer_result.handled) {
+                viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
+            }
         }
         RenderIfNeeded(context, viewer_result);
         UiEventResult ui_result = {};
@@ -629,6 +641,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return 0;
         }
 
+        if (context != nullptr &&
+            !key.modifiers.ctrl &&
+            !key.modifiers.shift &&
+            !key.modifiers.alt &&
+            context->edit.OnTextKeyDown(static_cast<UINT>(wparam))) {
+            RenderImgViewer(context);
+            return 0;
+        }
+
         if (message == WM_KEYDOWN && wparam == 'V' && key.modifiers.ctrl && !key.modifiers.shift && !key.modifiers.alt) {
             HandleImgViewerPasteClipboard(hwnd, context);
             return 0;
@@ -651,6 +672,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         if (action != ImgViewerAction::None) {
             ExecuteImgViewerAction(hwnd, context, action);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_CHAR: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr && context->edit.OnTextInput(static_cast<wchar_t>(wparam))) {
+            RenderImgViewer(context);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);

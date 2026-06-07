@@ -9,10 +9,12 @@ add_executable(imgviewer
     src/imgviewer.about.cc
     src/imgviewer.action.cc
     src/imgviewer.config.cc
+    src/imgviewer.edit.cc
     src/imgviewer.host.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
+    src/imgviewer.ui.edit_toolbar.cc
     src/imgviewer.ui.info_panel.cc
     src/imgviewer.ui.animation_toolbar.cc
     src/image.analysis.cc

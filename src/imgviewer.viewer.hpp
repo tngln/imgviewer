@@ -51,6 +51,7 @@ public:
     HRESULT LoadBitmapSource(IWICBitmapSource* source, ID2D1DeviceContext* d2d_context);
     HRESULT SaveCurrentImagePng(const wchar_t* path);
     IWICImagingFactory2* WicFactory() const;
+    IWICBitmapSource* CurrentPixelSource() const;
     bool HasCurrentImage() const;
     D2D1_SIZE_U CurrentImagePixelSize() const;
     const ImageMetadata& CurrentImageMetadata() const;

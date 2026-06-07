@@ -196,6 +196,11 @@ void ImgViewerUiAnimationToolbar::Render(const UiDrawContext& draw_context, UiRo
     panel_->Render(draw_context, state);
 }
 
+UiEventResult ImgViewerUiAnimationToolbar::OnPointerEvent(const UiPointerEvent&)
+{
+    return {};
+}
+
 IconButton* ImgViewerUiAnimationToolbar::Button(ButtonKey button)
 {
     return buttons_[ButtonIndex(button)].element;

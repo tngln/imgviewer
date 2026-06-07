@@ -1,6 +1,7 @@
 #include "imgviewer.renderer.hpp"
 
 #include <algorithm>
+#include <string>
 
 #include <d2d1helper.h>
 #include <wil/com.h>
@@ -18,6 +19,11 @@ struct ImageLayerRenderState final {
     ImgViewerSnapshot image;
     bool checkerboard_background = false;
     float dpi_scale = 1.0f;
+};
+
+struct EditLayerRenderState final {
+    ImgViewerSnapshot image;
+    ImgViewerEditSnapshot edit;
 };
 
 HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size, float cell_size)
@@ -63,6 +69,15 @@ HRESULT ImgViewerRenderer::Initialize(HWND hwnd)
         &image_surface_));
     RETURN_IF_FAILED(ui_renderer_.RegisterSurface(
         UiSurfaceDescriptor{
+            .name = L"edit-overlay",
+            .alpha_mode = DXGI_ALPHA_MODE_PREMULTIPLIED,
+            .z_order = 50,
+            .auto_resize = true,
+            .initially_visible = true,
+        },
+        &edit_surface_));
+    RETURN_IF_FAILED(ui_renderer_.RegisterSurface(
+        UiSurfaceDescriptor{
             .name = L"ui-overlay",
             .alpha_mode = DXGI_ALPHA_MODE_PREMULTIPLIED,
             .z_order = 100,
@@ -78,9 +93,11 @@ HRESULT ImgViewerRenderer::Resize()
     return ui_renderer_.Resize();
 }
 
-HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, UiController& ui)
+HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, UiController& ui)
 {
-    RETURN_IF_FAILED(RenderImageLayer(viewer.Snapshot()));
+    const ImgViewerSnapshot image = viewer.Snapshot();
+    RETURN_IF_FAILED(RenderImageLayer(image));
+    RETURN_IF_FAILED(RenderEditLayer(image, edit.Snapshot()));
     RETURN_IF_FAILED(ui_renderer_.RenderUiOverlay(ui_overlay_surface_, ui));
     return ui_renderer_.Commit();
 }
@@ -213,6 +230,116 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
                 icon_geometry.get(),
                 ui_theme::color::kAccent,
                 ui_theme::metrics::kPathIconStrokeWidth / scale);
+            return S_OK;
+        },
+        &state);
+}
+
+HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit)
+{
+    EditLayerRenderState state{
+        .image = image,
+        .edit = edit,
+    };
+    return ui_renderer_.DrawSurface(
+        edit_surface_,
+        [](const UiSurfaceDrawContext& context, void* user_data) -> HRESULT {
+            const auto* state = static_cast<const EditLayerRenderState*>(user_data);
+            RETURN_HR_IF_NULL(E_INVALIDARG, state);
+
+            const UiDraw draw(context.draw);
+            draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
+            if (!state->edit.active || state->image.bitmap == nullptr) {
+                return S_OK;
+            }
+
+            auto* d2d_context = static_cast<ID2D1DeviceContext*>(context.draw.d2d_context);
+            const float width = context.draw.viewport_size.width;
+            const float height = context.draw.viewport_size.height;
+            const float image_width = static_cast<float>(state->image.pixel_size.width);
+            const float image_height = static_cast<float>(state->image.pixel_size.height);
+            const float image_scale =
+                math::FitScale(state->image.pixel_size, context.viewport_pixel_size) * state->image.zoom_multiplier;
+            const D2D1_POINT_2F viewport_center = D2D1::Point2F(width * 0.5f, height * 0.5f);
+            const D2D1_RECT_F image_rect = D2D1::RectF(0.0f, 0.0f, image_width, image_height);
+            const D2D1_MATRIX_3X2_F document_transform =
+                D2D1::Matrix3x2F::Translation(-state->image.view_center.x, -state->image.view_center.y) *
+                D2D1::Matrix3x2F::Scale(image_scale, image_scale) *
+                D2D1::Matrix3x2F::Scale(
+                    state->image.flipped_horizontal ? -1.0f : 1.0f,
+                    state->image.flipped_vertical ? -1.0f : 1.0f,
+                    D2D1::Point2F(0.0f, 0.0f)) *
+                D2D1::Matrix3x2F::Rotation(state->image.rotation_degrees, D2D1::Point2F(0.0f, 0.0f)) *
+                D2D1::Matrix3x2F::Translation(viewport_center.x, viewport_center.y) *
+                context.root_transform;
+            d2d_context->SetTransform(document_transform);
+
+            wil::com_ptr<ID2D1SolidColorBrush> brush;
+            for (const ImgViewerEditStroke& stroke : state->edit.strokes) {
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(stroke.color, brush.put()));
+                for (size_t index = 1; index < stroke.points.size(); ++index) {
+                    d2d_context->DrawLine(stroke.points[index - 1], stroke.points[index], brush.get(), stroke.width);
+                }
+                brush.reset();
+            }
+            if (state->edit.drawing_stroke) {
+                const ImgViewerEditStroke& stroke = state->edit.current_stroke;
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(stroke.color, brush.put()));
+                for (size_t index = 1; index < stroke.points.size(); ++index) {
+                    d2d_context->DrawLine(stroke.points[index - 1], stroke.points[index], brush.get(), stroke.width);
+                }
+                brush.reset();
+            }
+
+            const D2D1_RECT_F crop_rect = state->edit.drawing_crop ? state->edit.current_crop_rect : state->edit.crop_rect;
+            if (crop_rect.right > crop_rect.left && crop_rect.bottom > crop_rect.top) {
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Cyan, 0.88f), brush.put()));
+                d2d_context->DrawRectangle(crop_rect, brush.get(), 2.0f / (std::max)(0.01f, image_scale));
+                brush.reset();
+            }
+
+            for (size_t text_index = 0; text_index < state->edit.texts.size(); ++text_index) {
+                const ImgViewerEditText& text = state->edit.texts[text_index];
+                const bool editing = state->edit.editing_text && state->edit.editing_text_index == text_index;
+                const float marker_width = (std::max)(48.0f, static_cast<float>(text.text.size()) * 8.0f + 12.0f);
+                const D2D1_RECT_F marker = D2D1::RectF(
+                    text.origin.x,
+                    text.origin.y,
+                    text.origin.x + marker_width,
+                    text.origin.y + 26.0f);
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow, editing ? 0.82f : 0.55f), brush.put()));
+                d2d_context->FillRectangle(marker, brush.get());
+                brush.reset();
+
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(editing ? ui_theme::color::kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.7f), brush.put()));
+                d2d_context->DrawRectangle(marker, brush.get(), 1.0f / (std::max)(0.01f, image_scale));
+                brush.reset();
+
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 0.95f), brush.put()));
+                const std::wstring text_to_draw = text.text.empty() && editing ? L" " : text.text;
+                d2d_context->DrawTextW(
+                    text_to_draw.c_str(),
+                    static_cast<UINT32>(text_to_draw.size()),
+                    context.draw.body_text_format,
+                    D2D1::RectF(marker.left + 6.0f, marker.top + 2.0f, marker.right - 6.0f, marker.bottom),
+                    brush.get(),
+                    D2D1_DRAW_TEXT_OPTIONS_CLIP);
+                brush.reset();
+
+                if (editing) {
+                    const float caret_x = marker.left + 6.0f + (std::max)(0.0f, static_cast<float>(text.text.size()) * 8.0f);
+                    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));
+                    d2d_context->DrawLine(
+                        D2D1::Point2F(caret_x, marker.top + 4.0f),
+                        D2D1::Point2F(caret_x, marker.bottom - 4.0f),
+                        brush.get(),
+                        1.0f / (std::max)(0.01f, image_scale));
+                    brush.reset();
+                }
+            }
+
+            RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.55f), brush.put()));
+            d2d_context->DrawRectangle(image_rect, brush.get(), 1.0f / (std::max)(0.01f, image_scale));
             return S_OK;
         },
         &state);

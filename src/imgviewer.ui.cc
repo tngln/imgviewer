@@ -21,6 +21,7 @@ ImgViewerUi::ImgViewerUi() :
         UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_),
     toolbar_(*root_),
+    edit_toolbar_(*root_),
     animation_toolbar_(*root_),
     info_panel_(*root_)
 {
@@ -45,6 +46,7 @@ D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext& context, D2D1_SIZE_F avail
 {
     titlebar_.Measure(context, available_size);
     toolbar_.Measure(context, available_size);
+    edit_toolbar_.Measure(context, available_size);
     animation_toolbar_.Measure(context, available_size);
     info_panel_.Measure(context, available_size);
     return available_size;
@@ -55,7 +57,8 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
     root_->Arrange(final_rect);
     titlebar_.Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, final_rect.top + ui_theme::metrics::kTitleBarHeight));
     toolbar_.Arrange(final_rect);
-    animation_toolbar_.Arrange(final_rect, toolbar_.Rect());
+    edit_toolbar_.Arrange(final_rect, toolbar_.Rect());
+    animation_toolbar_.Arrange(final_rect, edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect());
     info_panel_.Arrange(final_rect);
 }
 
@@ -65,6 +68,7 @@ void ImgViewerUi::Render(
 {
     titlebar_.Render(draw_context, state, top_most_, maximized_);
     toolbar_.Render(draw_context, state, color_picker_active_);
+    edit_toolbar_.Render(draw_context, state);
     animation_toolbar_.Render(draw_context, state);
     info_panel_.Render(draw_context);
     toast_.Render(draw_context);
@@ -75,6 +79,14 @@ UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
     UiEventResult info_panel_result = info_panel_.OnPointerEvent(event);
     if (info_panel_result.handled) {
         return info_panel_result;
+    }
+    UiEventResult edit_toolbar_result = edit_toolbar_.OnPointerEvent(event);
+    if (edit_toolbar_result.handled) {
+        return edit_toolbar_result;
+    }
+    UiEventResult animation_toolbar_result = animation_toolbar_.OnPointerEvent(event);
+    if (animation_toolbar_result.handled) {
+        return animation_toolbar_result;
     }
     return toolbar_.OnPointerEvent(event);
 }
@@ -118,6 +130,15 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
             {L"Actual Size", UiActionFromImgViewerAction(ImgViewerAction::ActualSize)},
             {L"Reset View", UiActionFromImgViewerAction(ImgViewerAction::ResetView)},
             {L"Color Picker", UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker), false, color_picker_active_},
+            {L"", kUiActionNone, true},
+            {L"Edit Mode", UiActionFromImgViewerAction(ImgViewerAction::ToggleEditMode), false, edit_toolbar_state_.visible},
+            {L"Select", UiActionFromImgViewerAction(ImgViewerAction::EditSelect), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Select},
+            {L"Pen", UiActionFromImgViewerAction(ImgViewerAction::EditPen), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Pen},
+            {L"Text", UiActionFromImgViewerAction(ImgViewerAction::EditText), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Text},
+            {L"Crop", UiActionFromImgViewerAction(ImgViewerAction::EditCrop), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
+            {L"Edit Rotate Clockwise", UiActionFromImgViewerAction(ImgViewerAction::EditRotateClockwise)},
+            {L"Undo Edit", UiActionFromImgViewerAction(ImgViewerAction::EditUndo)},
+            {L"Redo Edit", UiActionFromImgViewerAction(ImgViewerAction::EditRedo)},
             {L"", kUiActionNone, true},
             {L"Rotate Clockwise", UiActionFromImgViewerAction(ImgViewerAction::RotateClockwise)},
             {L"Flip Horizontal", UiActionFromImgViewerAction(ImgViewerAction::FlipHorizontal)},
@@ -164,6 +185,7 @@ void ImgViewerUi::SetColorPickerActive(bool active)
 void ImgViewerUi::SetToolbarScalePercent(int percent)
 {
     toolbar_.SetScalePercent(percent);
+    edit_toolbar_.SetScalePercent(percent);
     animation_toolbar_.SetScalePercent(percent);
 }
 
@@ -186,4 +208,10 @@ void ImgViewerUi::SetAnimationState(ImgViewerAnimationState state)
 {
     animation_state_ = state;
     animation_toolbar_.SetState(state);
+}
+
+void ImgViewerUi::SetEditToolbarState(ImgViewerUiEditToolbarState state)
+{
+    edit_toolbar_state_ = state;
+    edit_toolbar_.SetState(state);
 }

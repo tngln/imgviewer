@@ -27,6 +27,8 @@ constexpr UINT kAnimationTickMs = 16;
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 bool HasCurrentImageFilePath(const ImgViewerContext* context);
 void SetColorPickerActive(ImgViewerContext* context, bool active);
+bool EnsureEditDocument(ImgViewerContext* context);
+void SetEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditTool tool, const wchar_t* toast_text);
 void EnsureInfoPanelAnalysis(ImgViewerContext* context);
 void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
@@ -44,7 +46,14 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
 
     UpdateImgViewerInfoPanelState(context);
     static_cast<ImgViewerUi*>(context->ui.Root())->SetAnimationState(context->viewer.AnimationState());
-    RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetEditToolbarState(ImgViewerUiEditToolbarState{
+        .visible = context->edit.Active(),
+        .tool = context->edit.Tool(),
+        .dirty = context->edit.Dirty(),
+        .can_undo = context->edit.CanUndo(),
+        .can_redo = context->edit.CanRedo(),
+    });
+    RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->edit, context->ui));
     return S_OK;
 }
 
@@ -137,6 +146,17 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
     }
 
     if (action == ImgViewerAction::SaveImageAs) {
+        return context != nullptr && context->viewer.HasCurrentImage();
+    }
+
+    if (action == ImgViewerAction::ToggleEditMode ||
+        action == ImgViewerAction::EditSelect ||
+        action == ImgViewerAction::EditPen ||
+        action == ImgViewerAction::EditText ||
+        action == ImgViewerAction::EditCrop ||
+        action == ImgViewerAction::EditRotateClockwise ||
+        action == ImgViewerAction::EditUndo ||
+        action == ImgViewerAction::EditRedo) {
         return context != nullptr && context->viewer.HasCurrentImage();
     }
 
@@ -280,6 +300,13 @@ inline void TryViewerAction(ImgViewerContext* context, bool success)
     }
 }
 
+inline void TryEditAction(ImgViewerContext* context, bool success)
+{
+    if (success) {
+        RenderImgViewer(context);
+    }
+}
+
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
 {
     if (!IsImgViewerActionEnabled(context, action)) {
@@ -345,6 +372,36 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             SetColorPickerActive(context, !context->color_picker_active);
             RenderImgViewer(context);
         }
+        break;
+    case ImgViewerAction::ToggleEditMode:
+        if (context != nullptr) {
+            const bool was_active = context->edit.Active();
+            if (was_active || EnsureEditDocument(context)) {
+                context->edit.SetActive(!was_active);
+                ShowImgViewerToast(hwnd, context, context->edit.Active() ? L"Edit mode on." : L"Edit mode off.");
+            }
+        }
+        break;
+    case ImgViewerAction::EditSelect:
+        SetEditTool(hwnd, context, ImgViewerEditTool::Select, L"Edit select.");
+        break;
+    case ImgViewerAction::EditPen:
+        SetEditTool(hwnd, context, ImgViewerEditTool::Pen, L"Edit pen.");
+        break;
+    case ImgViewerAction::EditText:
+        SetEditTool(hwnd, context, ImgViewerEditTool::Text, L"Edit text.");
+        break;
+    case ImgViewerAction::EditCrop:
+        SetEditTool(hwnd, context, ImgViewerEditTool::Crop, L"Edit crop.");
+        break;
+    case ImgViewerAction::EditRotateClockwise:
+        if (context != nullptr && EnsureEditDocument(context)) TryEditAction(context, context->edit.RotateClockwise());
+        break;
+    case ImgViewerAction::EditUndo:
+        if (context != nullptr) TryEditAction(context, context->edit.Undo());
+        break;
+    case ImgViewerAction::EditRedo:
+        if (context != nullptr) TryEditAction(context, context->edit.Redo());
         break;
     case ImgViewerAction::ToggleInfoPanel:
         if (context != nullptr) {
@@ -451,6 +508,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     context->current_image_path = path;
     context->current_image_from_clipboard = false;
     context->current_image_from_screenshot = false;
+    context->edit.Clear();
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
@@ -598,6 +656,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
     context->current_image_path.clear();
     context->current_image_from_clipboard = false;
     context->current_image_from_screenshot = true;
+    context->edit.Clear();
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
@@ -634,10 +693,23 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
         return;
     }
 
-    const HRESULT save_hr = context->viewer.SaveCurrentImagePng(path.c_str());
-    if (FAILED(save_hr)) {
-        MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
-        return;
+    if (context->edit.HasDocument()) {
+        wil::com_ptr<IWICBitmapSource> edited_source;
+        const HRESULT export_hr = context->edit.ExportPngSource(context->viewer.WicFactory(), edited_source.put());
+        ImageEncoder encoder;
+        if (FAILED(export_hr) ||
+            FAILED(encoder.Initialize(context->viewer.WicFactory())) ||
+            FAILED(encoder.SavePngFile(edited_source.get(), path.c_str()))) {
+            MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+            return;
+        }
+        context->edit.MarkSaved();
+    } else {
+        const HRESULT save_hr = context->viewer.SaveCurrentImagePng(path.c_str());
+        if (FAILED(save_hr)) {
+            MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+            return;
+        }
     }
 
     ShowImgViewerToast(hwnd, context, L"Saved image.");
@@ -678,6 +750,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     context->current_image_path.clear();
     context->current_image_from_clipboard = true;
     context->current_image_from_screenshot = false;
+    context->edit.Clear();
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetColorPickerActive(context, false);
@@ -725,6 +798,34 @@ void SetColorPickerActive(ImgViewerContext* context, bool active)
 
     context->color_picker_active = active && IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker);
     context->ui.SetColorPickerActive(context->color_picker_active);
+}
+
+bool EnsureEditDocument(ImgViewerContext* context)
+{
+    if (context == nullptr || !context->viewer.HasCurrentImage()) {
+        return false;
+    }
+
+    if (context->edit.HasDocument()) {
+        return true;
+    }
+
+    return SUCCEEDED(context->edit.Begin(context->viewer.CurrentPixelSource(), context->viewer.CurrentImagePixelSize()));
+}
+
+void SetEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditTool tool, const wchar_t* toast_text)
+{
+    if (context == nullptr || !EnsureEditDocument(context)) {
+        return;
+    }
+
+    context->edit.SetTool(tool);
+    context->edit.SetActive(true);
+    if (toast_text != nullptr) {
+        ShowImgViewerToast(hwnd, context, toast_text);
+    } else {
+        RenderImgViewer(context);
+    }
 }
 
 void EnsureInfoPanelAnalysis(ImgViewerContext* context)

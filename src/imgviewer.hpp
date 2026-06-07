@@ -15,6 +15,7 @@
 #include "imgviewer.config.hpp"
 #include "image.analysis.hpp"
 #include "image.sequence.hpp"
+#include "imgviewer.edit.hpp"
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
 #include "ui.hpp"
@@ -29,6 +30,7 @@ struct ImgViewerContext final {
     UiController ui;
     PopupHost popup;
     ImgViewerController viewer;
+    ImgViewerEditController edit;
     ImageSequence sequence;
     ImgViewerConfig config;
     std::wstring current_image_path;

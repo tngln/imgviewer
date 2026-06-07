@@ -19,6 +19,14 @@
     X(FlipVertical, "flipVertical", L"Flip Vertical", true, true) \
     X(ResetView, "resetView", L"Reset View", true, true) \
     X(ToggleColorPicker, "toggleColorPicker", L"Color Picker", false, false) \
+    X(ToggleEditMode, "toggleEditMode", L"Edit Mode", true, true) \
+    X(EditSelect, "editSelect", L"Edit Select", true, true) \
+    X(EditPen, "editPen", L"Edit Pen", true, true) \
+    X(EditText, "editText", L"Edit Text", true, true) \
+    X(EditCrop, "editCrop", L"Edit Crop", true, true) \
+    X(EditRotateClockwise, "editRotateClockwise", L"Edit Rotate Clockwise", true, true) \
+    X(EditUndo, "editUndo", L"Edit Undo", true, true) \
+    X(EditRedo, "editRedo", L"Edit Redo", true, true) \
     X(ToggleInfoPanel, "toggleInfoPanel", L"Info Panel", true, false) \
     X(ToggleAnimationLoop, "toggleAnimationLoop", L"Loop Animation", false, false) \
     X(ToggleAnimationPlayback, "toggleAnimationPlayback", L"Play or Pause Animation", false, false) \
