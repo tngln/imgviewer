@@ -26,6 +26,7 @@ enum class ImgViewerPointerCaptureOwner {
     ViewerRotate,
     EditStroke,
     EditCrop,
+    EditPixelSelection,
 };
 
 enum class ImgViewerModalOwner {

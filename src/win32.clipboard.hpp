@@ -16,6 +16,7 @@ struct ClipboardContent final {
 
 bool IsClipboardTextAvailable();
 bool CopyTextToClipboard(HWND hwnd, const wchar_t* text);
+HRESULT CopyBitmapSourceToClipboard(HWND hwnd, IWICImagingFactory2* wic_factory, IWICBitmapSource* source);
 bool ReadClipboardText(HWND hwnd, std::wstring* text);
 HRESULT ReadClipboardContent(HWND hwnd, IWICImagingFactory2* wic_factory, ClipboardContent* content);
 

@@ -298,6 +298,58 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 brush.reset();
             }
 
+            for (const ImgViewerEditMosaic& mosaic : state->edit.mosaics) {
+                const float block = static_cast<float>((std::max)(1U, mosaic.block_size));
+                for (float y = mosaic.rect.top; y < mosaic.rect.bottom; y += block) {
+                    for (float x = mosaic.rect.left; x < mosaic.rect.right; x += block) {
+                        const D2D1_RECT_F block_rect = D2D1::RectF(
+                            x,
+                            y,
+                            (std::min)(x + block, mosaic.rect.right),
+                            (std::min)(y + block, mosaic.rect.bottom));
+                        const float sample_x = std::clamp(
+                            (block_rect.left + block_rect.right) * 0.5f,
+                            0.0f,
+                            image_width - 1.0f);
+                        const float sample_y = std::clamp(
+                            (block_rect.top + block_rect.bottom) * 0.5f,
+                            0.0f,
+                            image_height - 1.0f);
+                        const D2D1_RECT_F sample_rect = D2D1::RectF(sample_x, sample_y, sample_x + 1.0f, sample_y + 1.0f);
+                        d2d_context->DrawBitmap(
+                            state->image.bitmap,
+                            block_rect,
+                            1.0f,
+                            D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
+                            sample_rect);
+                    }
+                }
+            }
+
+            const D2D1_RECT_F pixel_selection_rect = state->edit.drawing_pixel_selection
+                ? state->edit.current_pixel_selection_rect
+                : state->edit.pixel_selection_rect;
+            if ((state->edit.drawing_pixel_selection || state->edit.has_pixel_selection) &&
+                pixel_selection_rect.right > pixel_selection_rect.left &&
+                pixel_selection_rect.bottom > pixel_selection_rect.top) {
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.16f), brush.put()));
+                d2d_context->FillRectangle(pixel_selection_rect, brush.get());
+                brush.reset();
+
+                D2D1_STROKE_STYLE_PROPERTIES stroke_properties = {};
+                stroke_properties.dashStyle = D2D1_DASH_STYLE_DASH;
+                stroke_properties.lineJoin = D2D1_LINE_JOIN_MITER;
+                wil::com_ptr<ID2D1StrokeStyle> dashed_stroke;
+                RETURN_IF_FAILED(context.d2d_factory->CreateStrokeStyle(&stroke_properties, nullptr, 0, dashed_stroke.put()));
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.95f), brush.put()));
+                d2d_context->DrawRectangle(
+                    pixel_selection_rect,
+                    brush.get(),
+                    1.5f / (std::max)(0.01f, image_scale),
+                    dashed_stroke.get());
+                brush.reset();
+            }
+
             for (size_t text_index = 0; text_index < state->edit.texts.size(); ++text_index) {
                 const ImgViewerEditText& text = state->edit.texts[text_index];
                 const bool editing = state->edit.editing_text && state->edit.editing_text_index == text_index;

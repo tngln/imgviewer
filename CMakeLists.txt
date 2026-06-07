@@ -18,6 +18,7 @@ add_executable(imgviewer
     src/imgviewer.ui.edit_toolbar.cc
     src/imgviewer.ui.floating_toolbar.cc
     src/imgviewer.ui.info_panel.cc
+    src/imgviewer.ui.selection_toolstrip.cc
     src/imgviewer.ui.animation_toolbar.cc
     src/image.analysis.cc
     src/image.animation_decoder.cc

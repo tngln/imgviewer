@@ -30,11 +30,14 @@ struct ButtonSpec final {
     const wchar_t* tooltip = L"";
     const wchar_t* automation_id = L"";
     const wchar_t* icon = L"";
+    const icons::PathIcon* path_icon = nullptr;
 };
 
 constexpr std::array<ButtonSpec, ImgViewerUiEditToolbar::kButtonCount> kButtonSpecs{{
     {ImgViewerUiEditToolbar::ButtonKey::Select, ImgViewerAction::EditSelect, L"Edit Select",
         L"Select edit objects", L"edit-select", kSelectIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::PixelSelect, ImgViewerAction::EditPixelSelect, L"Pixel Select",
+        L"Select pixels", L"edit-pixel-select", L"", &icons::kRegionScreenshotIcon},
     {ImgViewerUiEditToolbar::ButtonKey::Pen, ImgViewerAction::EditPen, L"Edit Pen",
         L"Pen annotation", L"edit-pen", kPenIcon},
     {ImgViewerUiEditToolbar::ButtonKey::Text, ImgViewerAction::EditText, L"Edit Text",
@@ -78,14 +81,15 @@ ImgViewerUiEditToolbar::ImgViewerUiEditToolbar(UiElement& root)
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        auto element = std::make_unique<IconButton>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(spec.action),
-                spec.name,
-                spec.tooltip,
-                spec.automation_id),
-            spec.icon);
+        UiElementMetadata metadata = UiMetadata(
+            UiElementRole::Button,
+            UiActionFromImgViewerAction(spec.action),
+            spec.name,
+            spec.tooltip,
+            spec.automation_id);
+        auto element = spec.path_icon != nullptr
+            ? std::make_unique<IconButton>(metadata, *spec.path_icon)
+            : std::make_unique<IconButton>(metadata, spec.icon);
         button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
         button.id = button.element->Id();
     }
@@ -182,6 +186,7 @@ void ImgViewerUiEditToolbar::UpdateVisualState()
     }
 
     Button(ButtonKey::Select)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Select);
+    Button(ButtonKey::PixelSelect)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::PixelSelect);
     Button(ButtonKey::Pen)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Pen);
     Button(ButtonKey::Text)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Text);
     Button(ButtonKey::Crop)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Crop);

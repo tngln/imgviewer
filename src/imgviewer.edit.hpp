@@ -14,6 +14,7 @@
 
 enum class ImgViewerEditTool {
     Select,
+    PixelSelect,
     Pen,
     Text,
     Crop,
@@ -31,12 +32,18 @@ struct ImgViewerEditText final {
     D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Yellow);
 };
 
+struct ImgViewerEditMosaic final {
+    D2D1_RECT_F rect = {};
+    UINT block_size = 12;
+};
+
 struct ImgViewerEditDocument final {
     wil::com_ptr<IWICBitmapSource> source;
     D2D1_SIZE_U source_size = {};
     D2D1_RECT_F crop_rect = {};
     bool has_crop = false;
     int rotation_quadrants = 0;
+    std::vector<ImgViewerEditMosaic> mosaics;
     std::vector<ImgViewerEditStroke> strokes;
     std::vector<ImgViewerEditText> texts;
     bool dirty = false;
@@ -48,11 +55,16 @@ struct ImgViewerEditSnapshot final {
     int rotation_quadrants = 0;
     std::vector<ImgViewerEditStroke> strokes;
     std::vector<ImgViewerEditText> texts;
+    std::vector<ImgViewerEditMosaic> mosaics;
     bool drawing_stroke = false;
     ImgViewerEditStroke current_stroke;
     bool drawing_crop = false;
     D2D1_RECT_F crop_rect = {};
     D2D1_RECT_F current_crop_rect = {};
+    bool drawing_pixel_selection = false;
+    bool has_pixel_selection = false;
+    D2D1_RECT_F pixel_selection_rect = {};
+    D2D1_RECT_F current_pixel_selection_rect = {};
     bool editing_text = false;
     size_t editing_text_index = 0;
 };
@@ -68,6 +80,7 @@ public:
     bool IsEditingText() const;
     bool IsDrawing() const;
     bool HasTransientCapture() const;
+    bool HasPixelSelection() const;
     ImgViewerEditSnapshot Snapshot() const;
 
     HRESULT Begin(IWICBitmapSource* source, D2D1_SIZE_U source_size);
@@ -79,6 +92,9 @@ public:
     bool Redo();
     void MarkSaved();
     void CancelTransientTool();
+    void ClearPixelSelection();
+    HRESULT CopySelectedPixels(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const;
+    bool MosaicSelection();
     bool OnTextInput(wchar_t character);
     bool OnTextKeyDown(UINT virtual_key);
 
@@ -94,12 +110,14 @@ private:
         Text,
         RotateClockwise,
         Crop,
+        Mosaic,
     };
 
     struct HistoryEntry final {
         HistoryKind kind = HistoryKind::Stroke;
         ImgViewerEditStroke stroke;
         ImgViewerEditText text;
+        ImgViewerEditMosaic mosaic;
         D2D1_RECT_F previous_crop_rect = {};
         bool previous_has_crop = false;
         D2D1_RECT_F crop_rect = {};
@@ -119,9 +137,14 @@ private:
     bool active_ = false;
     bool drawing_stroke_ = false;
     bool drawing_crop_ = false;
+    bool drawing_pixel_selection_ = false;
+    bool has_pixel_selection_ = false;
     bool editing_text_ = false;
     size_t editing_text_index_ = 0;
     D2D1_POINT_2F crop_start_ = {};
     D2D1_RECT_F current_crop_rect_ = {};
+    D2D1_POINT_2F pixel_selection_start_ = {};
+    D2D1_RECT_F pixel_selection_rect_ = {};
+    D2D1_RECT_F current_pixel_selection_rect_ = {};
     ImgViewerEditStroke current_stroke_;
 };

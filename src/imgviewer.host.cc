@@ -198,6 +198,9 @@ ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditControll
     if (edit.Tool() == ImgViewerEditTool::Crop) {
         return ImgViewerPointerCaptureOwner::EditCrop;
     }
+    if (edit.Tool() == ImgViewerEditTool::PixelSelect) {
+        return ImgViewerPointerCaptureOwner::EditPixelSelection;
+    }
     return ImgViewerPointerCaptureOwner::EditStroke;
 }
 
@@ -529,7 +532,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
             ImgViewerEventResult canvas_result = {};
             if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop) {
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop ||
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditPixelSelection) {
                 canvas_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {
@@ -598,7 +602,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
             if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop) {
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop ||
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditPixelSelection) {
                 viewer_result = context->edit.OnPointerUp(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {

@@ -51,6 +51,9 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
         .can_undo = context->edit.CanUndo(),
         .can_redo = context->edit.CanRedo(),
     });
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetSelectionToolstripState(ImgViewerUiSelectionToolstripState{
+        .visible = context->edit.Active() && context->edit.HasPixelSelection(),
+    });
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->edit, context->ui));
     return S_OK;
 }
@@ -149,13 +152,22 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
 
     if (action == ImgViewerAction::ToggleEditMode ||
         action == ImgViewerAction::EditSelect ||
+        action == ImgViewerAction::EditPixelSelect ||
         action == ImgViewerAction::EditPen ||
         action == ImgViewerAction::EditText ||
         action == ImgViewerAction::EditCrop ||
+        action == ImgViewerAction::EditCopySelection ||
+        action == ImgViewerAction::EditMosaicSelection ||
         action == ImgViewerAction::EditRotateClockwise ||
         action == ImgViewerAction::EditUndo ||
         action == ImgViewerAction::EditRedo) {
-        return context != nullptr && context->viewer.HasCurrentImage();
+        if (context == nullptr || !context->viewer.HasCurrentImage()) {
+            return false;
+        }
+        if (action == ImgViewerAction::EditCopySelection || action == ImgViewerAction::EditMosaicSelection) {
+            return context->edit.HasPixelSelection();
+        }
+        return true;
     }
 
     if (action == ImgViewerAction::ShowInFileExplorer) {
@@ -469,6 +481,9 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::EditSelect:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Select, L"Edit select.");
         break;
+    case ImgViewerAction::EditPixelSelect:
+        SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::PixelSelect, L"Pixel select.");
+        break;
     case ImgViewerAction::EditPen:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Pen, L"Edit pen.");
         break;
@@ -477,6 +492,20 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         break;
     case ImgViewerAction::EditCrop:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Crop, L"Edit crop.");
+        break;
+    case ImgViewerAction::EditCopySelection:
+        if (context != nullptr) {
+            wil::com_ptr<IWICBitmapSource> selected_pixels;
+            if (SUCCEEDED(context->edit.CopySelectedPixels(context->viewer.WicFactory(), selected_pixels.put())) &&
+                SUCCEEDED(win32::CopyBitmapSourceToClipboard(hwnd, context->viewer.WicFactory(), selected_pixels.get()))) {
+                ShowImgViewerToast(hwnd, context, L"Copied selected pixels.");
+            } else {
+                ShowImgViewerToast(hwnd, context, L"Could not copy selected pixels.");
+            }
+        }
+        break;
+    case ImgViewerAction::EditMosaicSelection:
+        if (context != nullptr) TryEditAction(context, context->edit.MosaicSelection());
         break;
     case ImgViewerAction::EditRotateClockwise:
         if (context != nullptr && EnsureEditDocument(context)) TryEditAction(context, context->edit.RotateClockwise());

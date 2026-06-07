@@ -136,6 +136,76 @@ bool IsUsefulRect(D2D1_RECT_F rect)
     return rect.right - rect.left >= 2.0f && rect.bottom - rect.top >= 2.0f;
 }
 
+D2D1_RECT_F PixelAlignedRect(D2D1_RECT_F rect, D2D1_SIZE_U bounds)
+{
+    return D2D1::RectF(
+        std::clamp(std::floor(rect.left), 0.0f, static_cast<float>(bounds.width)),
+        std::clamp(std::floor(rect.top), 0.0f, static_cast<float>(bounds.height)),
+        std::clamp(std::ceil(rect.right), 0.0f, static_cast<float>(bounds.width)),
+        std::clamp(std::ceil(rect.bottom), 0.0f, static_cast<float>(bounds.height)));
+}
+
+WICRect WicRectFromD2DRect(D2D1_RECT_F rect)
+{
+    const int left = static_cast<int>(std::floor(rect.left));
+    const int top = static_cast<int>(std::floor(rect.top));
+    return WICRect{
+        left,
+        top,
+        (std::max)(1, static_cast<int>(std::ceil(rect.right)) - left),
+        (std::max)(1, static_cast<int>(std::ceil(rect.bottom)) - top),
+    };
+}
+
+void DrawMosaic(std::vector<BYTE>* pixels, UINT width, UINT height, D2D1_RECT_F rect, UINT block_size)
+{
+    if (pixels == nullptr || width == 0 || height == 0 || block_size == 0) {
+        return;
+    }
+
+    const UINT left = (std::min)(width, static_cast<UINT>((std::max)(0.0f, std::floor(rect.left))));
+    const UINT top = (std::min)(height, static_cast<UINT>((std::max)(0.0f, std::floor(rect.top))));
+    const UINT right = (std::min)(width, static_cast<UINT>((std::max)(0.0f, std::ceil(rect.right))));
+    const UINT bottom = (std::min)(height, static_cast<UINT>((std::max)(0.0f, std::ceil(rect.bottom))));
+    for (UINT block_y = top; block_y < bottom; block_y += block_size) {
+        for (UINT block_x = left; block_x < right; block_x += block_size) {
+            const UINT block_right = (std::min)(right, block_x + block_size);
+            const UINT block_bottom = (std::min)(bottom, block_y + block_size);
+            UINT64 blue = 0;
+            UINT64 green = 0;
+            UINT64 red = 0;
+            UINT64 alpha = 0;
+            UINT64 count = 0;
+            for (UINT y = block_y; y < block_bottom; ++y) {
+                for (UINT x = block_x; x < block_right; ++x) {
+                    const BYTE* pixel = pixels->data() + (static_cast<size_t>(y) * width + x) * 4;
+                    blue += pixel[0];
+                    green += pixel[1];
+                    red += pixel[2];
+                    alpha += pixel[3];
+                    ++count;
+                }
+            }
+            if (count == 0) {
+                continue;
+            }
+            const BYTE average_blue = static_cast<BYTE>(blue / count);
+            const BYTE average_green = static_cast<BYTE>(green / count);
+            const BYTE average_red = static_cast<BYTE>(red / count);
+            const BYTE average_alpha = static_cast<BYTE>(alpha / count);
+            for (UINT y = block_y; y < block_bottom; ++y) {
+                for (UINT x = block_x; x < block_right; ++x) {
+                    BYTE* pixel = pixels->data() + (static_cast<size_t>(y) * width + x) * 4;
+                    pixel[0] = average_blue;
+                    pixel[1] = average_green;
+                    pixel[2] = average_red;
+                    pixel[3] = average_alpha;
+                }
+            }
+        }
+    }
+}
+
 } // namespace
 
 bool ImgViewerEditController::Active() const
@@ -180,7 +250,12 @@ bool ImgViewerEditController::IsDrawing() const
 
 bool ImgViewerEditController::HasTransientCapture() const
 {
-    return IsDrawing();
+    return IsDrawing() || drawing_pixel_selection_;
+}
+
+bool ImgViewerEditController::HasPixelSelection() const
+{
+    return active_ && has_pixel_selection_ && IsUsefulRect(pixel_selection_rect_);
 }
 
 ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
@@ -191,11 +266,16 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
         .rotation_quadrants = document_.rotation_quadrants,
         .strokes = document_.strokes,
         .texts = document_.texts,
+        .mosaics = document_.mosaics,
         .drawing_stroke = drawing_stroke_,
         .current_stroke = current_stroke_,
         .drawing_crop = drawing_crop_,
         .crop_rect = document_.crop_rect,
         .current_crop_rect = current_crop_rect_,
+        .drawing_pixel_selection = drawing_pixel_selection_,
+        .has_pixel_selection = has_pixel_selection_,
+        .pixel_selection_rect = pixel_selection_rect_,
+        .current_pixel_selection_rect = current_pixel_selection_rect_,
         .editing_text = editing_text_,
         .editing_text_index = editing_text_index_,
     };
@@ -214,9 +294,13 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    drawing_pixel_selection_ = false;
+    has_pixel_selection_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
+    pixel_selection_rect_ = D2D1_RECT_F{};
+    current_pixel_selection_rect_ = D2D1_RECT_F{};
     active_ = true;
     tool_ = ImgViewerEditTool::Pen;
     return S_OK;
@@ -230,9 +314,13 @@ void ImgViewerEditController::Clear()
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    drawing_pixel_selection_ = false;
+    has_pixel_selection_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
+    pixel_selection_rect_ = D2D1_RECT_F{};
+    current_pixel_selection_rect_ = D2D1_RECT_F{};
     active_ = false;
     tool_ = ImgViewerEditTool::Select;
 }
@@ -247,8 +335,14 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     tool_ = tool;
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    drawing_pixel_selection_ = false;
     editing_text_ = false;
     current_stroke_ = ImgViewerEditStroke{};
+    current_pixel_selection_rect_ = D2D1_RECT_F{};
+    if (tool_ != ImgViewerEditTool::PixelSelect) {
+        has_pixel_selection_ = false;
+        pixel_selection_rect_ = D2D1_RECT_F{};
+    }
 }
 
 bool ImgViewerEditController::RotateClockwise()
@@ -290,6 +384,11 @@ bool ImgViewerEditController::Undo()
         document_.has_crop = entry.previous_has_crop;
         document_.crop_rect = entry.previous_crop_rect;
         break;
+    case HistoryKind::Mosaic:
+        if (!document_.mosaics.empty()) {
+            document_.mosaics.pop_back();
+        }
+        break;
     }
     document_.dirty = !undo_stack_.empty();
     return true;
@@ -317,6 +416,9 @@ bool ImgViewerEditController::Redo()
         document_.has_crop = true;
         document_.crop_rect = entry.crop_rect;
         break;
+    case HistoryKind::Mosaic:
+        document_.mosaics.push_back(entry.mosaic);
+        break;
     }
     undo_stack_.push_back(entry);
     document_.dirty = true;
@@ -333,9 +435,54 @@ void ImgViewerEditController::CancelTransientTool()
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    drawing_pixel_selection_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
+    current_pixel_selection_rect_ = D2D1_RECT_F{};
+}
+
+void ImgViewerEditController::ClearPixelSelection()
+{
+    has_pixel_selection_ = false;
+    drawing_pixel_selection_ = false;
+    pixel_selection_rect_ = D2D1_RECT_F{};
+    current_pixel_selection_rect_ = D2D1_RECT_F{};
+}
+
+HRESULT ImgViewerEditController::CopySelectedPixels(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
+    RETURN_HR_IF_NULL(E_POINTER, source);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, document_.source);
+    RETURN_HR_IF(E_UNEXPECTED, !HasPixelSelection());
+
+    wil::com_ptr<IWICBitmapClipper> clipper;
+    RETURN_IF_FAILED(wic_factory->CreateBitmapClipper(clipper.put()));
+    const WICRect rect = WicRectFromD2DRect(pixel_selection_rect_);
+    RETURN_IF_FAILED(clipper->Initialize(document_.source.get(), &rect));
+
+    wil::com_ptr<IWICBitmap> cached_bitmap;
+    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(clipper.get(), WICBitmapCacheOnLoad, cached_bitmap.put()));
+    *source = cached_bitmap.detach();
+    return S_OK;
+}
+
+bool ImgViewerEditController::MosaicSelection()
+{
+    if (!HasPixelSelection()) {
+        return false;
+    }
+
+    ImgViewerEditMosaic mosaic{
+        .rect = pixel_selection_rect_,
+        .block_size = 12,
+    };
+    document_.mosaics.push_back(mosaic);
+    document_.dirty = true;
+    PushHistory(HistoryEntry{.kind = HistoryKind::Mosaic, .mosaic = mosaic});
+    ClearPixelSelection();
+    return true;
 }
 
 bool ImgViewerEditController::OnTextInput(wchar_t character)
@@ -401,6 +548,16 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
     }
 
+    if (tool_ == ImgViewerEditTool::PixelSelect) {
+        pixel_selection_start_ = document_point;
+        current_pixel_selection_rect_ = PixelAlignedRect(
+            NormalizedRect(pixel_selection_start_, document_point, document_.source_size),
+            document_.source_size);
+        drawing_pixel_selection_ = true;
+        has_pixel_selection_ = false;
+        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+    }
+
     if (tool_ == ImgViewerEditTool::Text) {
         ImgViewerEditText text{
             .origin = document_point,
@@ -429,7 +586,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !drawing_crop_)) {
+    if (!active_ || (!drawing_stroke_ && !drawing_crop_ && !drawing_pixel_selection_)) {
         return {};
     }
 
@@ -443,6 +600,13 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
         return ImgViewerEventResult{.handled = true, .needs_render = true};
     }
 
+    if (drawing_pixel_selection_) {
+        current_pixel_selection_rect_ = PixelAlignedRect(
+            NormalizedRect(pixel_selection_start_, document_point, document_.source_size),
+            document_.source_size);
+        return ImgViewerEventResult{.handled = true, .needs_render = true};
+    }
+
     current_stroke_.points.push_back(document_point);
     return ImgViewerEventResult{.handled = true, .needs_render = true};
 }
@@ -452,7 +616,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !drawing_crop_)) {
+    if (!active_ || (!drawing_stroke_ && !drawing_crop_ && !drawing_pixel_selection_)) {
         return {};
     }
 
@@ -482,6 +646,20 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
         return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
     }
 
+    if (drawing_pixel_selection_) {
+        D2D1_RECT_F selection_rect = current_pixel_selection_rect_;
+        if (DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
+            selection_rect = PixelAlignedRect(
+                NormalizedRect(pixel_selection_start_, document_point, document_.source_size),
+                document_.source_size);
+        }
+        has_pixel_selection_ = IsUsefulRect(selection_rect);
+        pixel_selection_rect_ = has_pixel_selection_ ? selection_rect : D2D1_RECT_F{};
+        current_pixel_selection_rect_ = D2D1_RECT_F{};
+        drawing_pixel_selection_ = false;
+        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+    }
+
     if (current_stroke_.points.size() > 1) {
         document_.strokes.push_back(current_stroke_);
         document_.dirty = true;
@@ -505,6 +683,9 @@ HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factor
     std::vector<BYTE> source_pixels(static_cast<size_t>(source_width) * source_height * 4);
     const UINT source_stride = source_width * 4;
     RETURN_IF_FAILED(document_.source->CopyPixels(nullptr, source_stride, static_cast<UINT>(source_pixels.size()), source_pixels.data()));
+    for (const ImgViewerEditMosaic& mosaic : document_.mosaics) {
+        DrawMosaic(&source_pixels, source_width, source_height, mosaic.rect, mosaic.block_size);
+    }
 
     const D2D1_RECT_F crop = document_.has_crop && IsUsefulRect(document_.crop_rect)
         ? document_.crop_rect

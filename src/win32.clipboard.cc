@@ -338,6 +338,76 @@ bool CopyTextToClipboard(HWND hwnd, const wchar_t* text)
     return true;
 }
 
+HRESULT CopyBitmapSourceToClipboard(HWND hwnd, IWICImagingFactory2* wic_factory, IWICBitmapSource* source)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
+    RETURN_HR_IF_NULL(E_INVALIDARG, source);
+
+    wil::com_ptr<IWICFormatConverter> converter;
+    RETURN_IF_FAILED(wic_factory->CreateFormatConverter(converter.put()));
+    RETURN_IF_FAILED(converter->Initialize(
+        source,
+        GUID_WICPixelFormat32bppBGRA,
+        WICBitmapDitherTypeNone,
+        nullptr,
+        0.0,
+        WICBitmapPaletteTypeCustom));
+
+    UINT width = 0;
+    UINT height = 0;
+    RETURN_IF_FAILED(converter->GetSize(&width, &height));
+    RETURN_HR_IF(E_INVALIDARG, width == 0 || height == 0);
+
+    const UINT stride = width * 4;
+    const size_t pixel_size = static_cast<size_t>(stride) * height;
+    RETURN_HR_IF(E_OUTOFMEMORY, pixel_size > (std::numeric_limits<DWORD>::max)());
+    const size_t dib_size = sizeof(BITMAPV5HEADER) + pixel_size;
+    RETURN_HR_IF(E_OUTOFMEMORY, dib_size > (std::numeric_limits<SIZE_T>::max)());
+
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, dib_size);
+    RETURN_LAST_ERROR_IF_NULL(memory);
+
+    BYTE* data = static_cast<BYTE*>(GlobalLock(memory));
+    if (data == nullptr) {
+        GlobalFree(memory);
+        RETURN_LAST_ERROR();
+    }
+    auto unlock = wil::scope_exit([memory] { GlobalUnlock(memory); });
+
+    auto* header = reinterpret_cast<BITMAPV5HEADER*>(data);
+    *header = {};
+    header->bV5Size = sizeof(BITMAPV5HEADER);
+    header->bV5Width = static_cast<LONG>(width);
+    header->bV5Height = -static_cast<LONG>(height);
+    header->bV5Planes = 1;
+    header->bV5BitCount = 32;
+    header->bV5Compression = BI_BITFIELDS;
+    header->bV5SizeImage = static_cast<DWORD>(pixel_size);
+    header->bV5RedMask = 0x00FF0000;
+    header->bV5GreenMask = 0x0000FF00;
+    header->bV5BlueMask = 0x000000FF;
+    header->bV5AlphaMask = 0xFF000000;
+    header->bV5CSType = LCS_sRGB;
+
+    RETURN_IF_FAILED(converter->CopyPixels(
+        nullptr,
+        stride,
+        static_cast<UINT>(pixel_size),
+        data + sizeof(BITMAPV5HEADER)));
+    GlobalUnlock(memory);
+    unlock.release();
+
+    RETURN_IF_WIN32_BOOL_FALSE(OpenClipboard(hwnd));
+    auto close_clipboard = wil::scope_exit([] { CloseClipboard(); });
+    RETURN_IF_WIN32_BOOL_FALSE(EmptyClipboard());
+    if (SetClipboardData(CF_DIBV5, memory) == nullptr) {
+        GlobalFree(memory);
+        RETURN_LAST_ERROR();
+    }
+
+    return S_OK;
+}
+
 bool ReadClipboardText(HWND hwnd, std::wstring* text)
 {
     if (text == nullptr || !IsClipboardTextAvailable() || !OpenClipboard(hwnd)) {

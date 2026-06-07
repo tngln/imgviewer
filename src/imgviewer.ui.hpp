@@ -13,6 +13,7 @@
 #include "imgviewer.edit.hpp"
 #include "imgviewer.ui.edit_toolbar.hpp"
 #include "imgviewer.ui.info_panel.hpp"
+#include "imgviewer.ui.selection_toolstrip.hpp"
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
 #include "ui.toast.hpp"
@@ -44,12 +45,14 @@ public:
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
     void SetAnimationState(ImgViewerAnimationState state);
     void SetEditToolbarState(ImgViewerUiEditToolbarState state);
+    void SetSelectionToolstripState(ImgViewerUiSelectionToolstripState state);
 
 private:
     std::unique_ptr<UiElement> root_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
     ImgViewerUiEditToolbar edit_toolbar_;
+    ImgViewerUiSelectionToolstrip selection_toolstrip_;
     ImgViewerUiAnimationToolbar animation_toolbar_;
     ImgViewerUiInfoPanel info_panel_;
     UiToast toast_;
@@ -59,5 +62,6 @@ private:
     bool save_image_as_enabled_ = false;
     bool show_in_file_explorer_enabled_ = false;
     ImgViewerUiEditToolbarState edit_toolbar_state_;
+    ImgViewerUiSelectionToolstripState selection_toolstrip_state_;
     ImgViewerAnimationState animation_state_;
 };

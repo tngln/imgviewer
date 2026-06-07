@@ -21,9 +21,12 @@
     X(ToggleColorPicker, "toggleColorPicker", L"Color Picker", false, false) \
     X(ToggleEditMode, "toggleEditMode", L"Edit Mode", true, true) \
     X(EditSelect, "editSelect", L"Edit Select", true, true) \
+    X(EditPixelSelect, "editPixelSelect", L"Edit Pixel Select", true, true) \
     X(EditPen, "editPen", L"Edit Pen", true, true) \
     X(EditText, "editText", L"Edit Text", true, true) \
     X(EditCrop, "editCrop", L"Edit Crop", true, true) \
+    X(EditCopySelection, "editCopySelection", L"Copy Pixel Selection", true, true) \
+    X(EditMosaicSelection, "editMosaicSelection", L"Mosaic Pixel Selection", true, true) \
     X(EditRotateClockwise, "editRotateClockwise", L"Edit Rotate Clockwise", true, true) \
     X(EditUndo, "editUndo", L"Edit Undo", true, true) \
     X(EditRedo, "editRedo", L"Edit Redo", true, true) \
