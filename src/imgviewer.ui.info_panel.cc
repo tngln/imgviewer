@@ -123,7 +123,7 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
         UiElementRole::Pane,
         kUiActionNone,
         L"Info Panel",
-        L"Info Panel",
+        L"",
         L"info-panel",
         false,
         true)));
