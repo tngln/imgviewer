@@ -226,12 +226,12 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
 
 UiEventResult PopupHost::OnPointerEvent(const UiPointerEvent& event)
 {
-    return OnInputEvent(UiInputEvent{.type = event.type, .pointer = event, .point = event.point});
+    return OnInputEvent(UiInputEvent::Pointer(event, nullptr));
 }
 
 UiEventResult PopupHost::OnKeyEvent(const UiKeyEvent& event)
 {
-    return OnInputEvent(UiInputEvent{.type = event.type, .key = event});
+    return OnInputEvent(UiInputEvent::Key(event, nullptr));
 }
 
 bool PopupHost::Contains(D2D1_POINT_2F) const

@@ -77,6 +77,30 @@ struct UiInputEvent final {
     UINT_PTR timer_id = 0;
     HWND hwnd = nullptr;
     PopupHost* popup_host = nullptr;
+
+    // Wraps a pointer event into an input event, mirroring its point and host so
+    // both the pointer payload and the top-level fields stay in sync.
+    static UiInputEvent Pointer(const UiPointerEvent& pointer, HWND hwnd)
+    {
+        return UiInputEvent{
+            .type = pointer.type,
+            .pointer = pointer,
+            .point = pointer.point,
+            .hwnd = hwnd,
+            .popup_host = pointer.popup_host,
+        };
+    }
+
+    // Wraps a key event into an input event, mirroring its host.
+    static UiInputEvent Key(const UiKeyEvent& key, HWND hwnd)
+    {
+        return UiInputEvent{
+            .type = key.type,
+            .key = key,
+            .hwnd = hwnd,
+            .popup_host = key.popup_host,
+        };
+    }
 };
 
 enum class UiCaptureRequest {

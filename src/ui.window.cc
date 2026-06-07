@@ -174,14 +174,13 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .modifiers = CurrentModifiers(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
-        DispatchInputEvent(
-            UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()});
+        DispatchInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd()));
         PositionIme();
         return win32::WindowMessageResult::Handled();
     }
     case WM_MOUSELEAVE: {
         UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = CurrentModifiers()};
-        HandleUiResult(ui_.OnInputEvent(UiInputEvent{.type = pointer.type, .pointer = pointer, .hwnd = window_.Hwnd()}));
+        HandleUiResult(ui_.OnInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd())));
         return win32::WindowMessageResult::Handled();
     }
     case WM_LBUTTONDOWN:
@@ -197,8 +196,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .modifiers = CurrentModifiers(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
-        DispatchInputEvent(
-            UiInputEvent{.type = type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()});
+        DispatchInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd()));
         SyncCaretTimer();
         PositionIme();
         return win32::WindowMessageResult::Handled();
@@ -210,8 +208,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .modifiers = CurrentModifiers(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
-        UiEventResult result =
-            DispatchInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = window_.Hwnd()});
+        UiEventResult result = DispatchInputEvent(UiInputEvent::Key(key, window_.Hwnd()));
         SyncCaretTimer();
         PositionIme();
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();

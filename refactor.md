@@ -46,6 +46,16 @@
   - `imgviewer.keybindings.cc` - 添加实现
   - `imgviewer.settings.cc` - 删除本地定义
 
+### 6. 抽取输入事件构造工厂函数
+- **之前**: `imgviewer.host.cc`、`ui.window.cc`、`ui.popup.cc` 中反复手写 `UiInputEvent{.type=..., .pointer=..., .point=..., .hwnd=..., .popup_host=...}` 聚合初始化
+- **之后**: 在 `UiInputEvent` 中添加静态工厂方法 `Pointer()` 和 `Key()`，自动镜像 point/popup_host 字段
+- **文件变更**:
+  - `ui.events.hpp` - 添加 `UiInputEvent::Pointer()` 和 `UiInputEvent::Key()` 静态方法
+  - `imgviewer.host.cc` - 替换 7 处手写构造为工厂调用
+  - `ui.window.cc` - 替换 4 处手写构造为工厂调用
+  - `ui.popup.cc` - 替换 2 处手写构造为工厂调用
+- **未替换**: `WM_MOUSELEAVE`（主窗口）因 null context 处理特殊；`WM_CHAR`/`WM_IME_*`/`WM_CONTEXTMENU`/`WM_TIMER`/`WM_ACTIVATE` 等非 Pointer/Key 事件
+
 ## 待清理项目
 
 ### 低风险

@@ -427,25 +427,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .popup_host = &context->popup,
             };
             if (context->popup.IsOpen()) {
-                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
-                    .type = pointer.type,
-                    .pointer = pointer,
-                    .point = point,
-                    .hwnd = hwnd,
-                    .popup_host = &context->popup,
-                });
+                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
                 RenderIfNeeded(hwnd, context, popup_result);
                 if (popup_result.handled) {
                     return 0;
                 }
             }
-            RenderIfNeeded(hwnd, context, context->ui.OnInputEvent(UiInputEvent{
-                .type = pointer.type,
-                .pointer = pointer,
-                .point = point,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            }));
+            RenderIfNeeded(hwnd, context, context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd)));
         }
         return 0;
     }
@@ -461,26 +449,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (context != nullptr && context->popup.IsOpen()) {
-            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
-                .type = pointer.type,
-                .pointer = pointer,
-                .point = point,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            });
+            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
             RenderIfNeeded(hwnd, context, popup_result);
             if (popup_result.handled) {
                 return 0;
             }
         }
         UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent{
-                .type = pointer.type,
-                .pointer = pointer,
-                .point = point,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            })
+            ? context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
@@ -516,25 +492,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .popup_host = &context->popup,
             };
             if (context->popup.IsOpen()) {
-                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
-                    .type = pointer.type,
-                    .pointer = pointer,
-                    .point = point,
-                    .hwnd = hwnd,
-                    .popup_host = &context->popup,
-                });
+                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
                 RenderIfNeeded(hwnd, context, popup_result);
                 if (popup_result.handled) {
                     return 0;
                 }
             }
-            ui_result = context->ui.OnInputEvent(UiInputEvent{
-                .type = pointer.type,
-                .pointer = pointer,
-                .point = point,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            });
+            ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
             RenderIfNeeded(hwnd, context, ui_result);
         }
         return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
@@ -584,13 +548,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
-            const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent{
-                .type = pointer.type,
-                .pointer = pointer,
-                .point = point,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            });
+            const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
             if (ui_result.handled) {
                 RenderIfNeeded(hwnd, context, ui_result);
                 return 0;
@@ -619,24 +577,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (context != nullptr && context->popup.IsOpen()) {
-            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent{
-                .type = key.type,
-                .key = key,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            });
+            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Key(key, hwnd));
             RenderIfNeeded(hwnd, context, popup_result);
             if (popup_result.handled) {
                 return 0;
             }
         }
         const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent{
-                .type = key.type,
-                .key = key,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            })
+            ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
             RenderIfNeeded(hwnd, context, ui_result);
@@ -680,12 +628,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent{
-                .type = key.type,
-                .key = key,
-                .hwnd = hwnd,
-                .popup_host = &context->popup,
-            })
+            ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
             RenderIfNeeded(hwnd, context, ui_result);
