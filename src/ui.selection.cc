@@ -16,6 +16,20 @@ constexpr float kChoiceMarkSize = 11.0f;
 constexpr float kChoiceGap = 6.0f;
 constexpr float kChoiceTextTop = 2.5f;
 constexpr float kDropdownItemHeight = 20.0f;
+constexpr float kCheckboxCornerRadius = 1.5f;
+constexpr float kCheckmarkOffset = 1.5f;
+constexpr float kRadioOuterCornerRadius = 5.5f;
+constexpr float kRadioBorderWidth = 0.75f;
+constexpr float kRadioInnerDotCornerRadius = 2.5f;
+constexpr float kRadioDotInset = 3.0f;
+constexpr float kDropdownTextLeft = 7.0f;
+constexpr float kDropdownTextTop = 4.0f;
+constexpr float kDropdownTextRight = 19.0f;
+constexpr float kDropdownChevronRight = 15.0f;
+constexpr float kDropdownChevronTop = 2.5f;
+constexpr float kDropdownOptionTextLeft = 7.0f;
+constexpr float kDropdownOptionTextTop = 3.5f;
+constexpr float kDropdownOptionTextRight = 4.0f;
 
 UiEventResult ChoicePointerEvent(UiElement& element, const UiPointerEvent& event)
 {
@@ -105,7 +119,7 @@ public:
             draw.DrawBodyText(
                 dropdown_->options_[index].text,
                 static_cast<UINT32>(wcslen(dropdown_->options_[index].text)),
-                D2D1::RectF(option_rect.left + 7.0f, option_rect.top + 3.5f, option_rect.right - 4.0f, option_rect.bottom),
+                D2D1::RectF(option_rect.left + kDropdownOptionTextLeft, option_rect.top + kDropdownOptionTextTop, option_rect.right - kDropdownOptionTextRight, option_rect.bottom),
                 ui_theme::color::kBodyText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP);
         }
@@ -239,7 +253,7 @@ void Checkbox::SetChecked(bool checked)
 
 D2D1_SIZE_F Checkbox::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
-    return D2D1::SizeF((std::max)(1.0f, available_size.width), 18.0f);
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), ui_theme::metrics::kWidgetRowHeight);
 }
 
 void Checkbox::Render(const UiDrawContext& context, UiRootState root_state) const
@@ -247,11 +261,11 @@ void Checkbox::Render(const UiDrawContext& context, UiRootState root_state) cons
     const UiElementState state = VisualState(root_state);
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
-    const D2D1_RECT_F box = D2D1::RectF(rect.left, rect.top + 3.0f, rect.left + kChoiceMarkSize, rect.top + 3.0f + kChoiceMarkSize);
-    draw.FillRoundedRect(D2D1::RoundedRect(box, 1.5f, 1.5f), checked_ ? ui_theme::color::kAccent : ui_theme::WidgetFillColor(state));
-    draw.DrawRoundedRect(D2D1::RoundedRect(box, 1.5f, 1.5f), ui_theme::color::kBorder);
+    const D2D1_RECT_F box = D2D1::RectF(rect.left, rect.top + ui_theme::metrics::kTextRowTopOffset, rect.left + kChoiceMarkSize, rect.top + ui_theme::metrics::kTextRowTopOffset + kChoiceMarkSize);
+    draw.FillRoundedRect(D2D1::RoundedRect(box, kCheckboxCornerRadius, kCheckboxCornerRadius), checked_ ? ui_theme::color::kAccent : ui_theme::WidgetFillColor(state));
+    draw.DrawRoundedRect(D2D1::RoundedRect(box, kCheckboxCornerRadius, kCheckboxCornerRadius), ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
     if (checked_) {
-        draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(box.left + 1.5f, box.top - 1.5f, box.right, box.bottom), ui_theme::color::kButtonDefault);
+        draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(box.left + kCheckmarkOffset, box.top - kCheckmarkOffset, box.right, box.bottom), ui_theme::color::kButtonDefault);
     }
     draw.DrawBodyText(
         text_,
@@ -291,7 +305,7 @@ void RadioButton::SetSelected(bool selected)
 
 D2D1_SIZE_F RadioButton::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
-    return D2D1::SizeF((std::max)(1.0f, available_size.width), 18.0f);
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), ui_theme::metrics::kWidgetRowHeight);
 }
 
 void RadioButton::Render(const UiDrawContext& context, UiRootState root_state) const
@@ -299,12 +313,12 @@ void RadioButton::Render(const UiDrawContext& context, UiRootState root_state) c
     const UiElementState state = VisualState(root_state);
     const UiDraw draw(context);
     const D2D1_RECT_F rect = Rect();
-    const D2D1_RECT_F outer = D2D1::RectF(rect.left, rect.top + 3.0f, rect.left + kChoiceMarkSize, rect.top + 3.0f + kChoiceMarkSize);
-    draw.FillRoundedRect(D2D1::RoundedRect(outer, 5.5f, 5.5f), ui_theme::WidgetFillColor(state));
-    draw.DrawRoundedRect(D2D1::RoundedRect(outer, 5.5f, 5.5f), selected_ ? ui_theme::color::kAccent : ui_theme::color::kBorder, 0.75f);
+    const D2D1_RECT_F outer = D2D1::RectF(rect.left, rect.top + ui_theme::metrics::kTextRowTopOffset, rect.left + kChoiceMarkSize, rect.top + ui_theme::metrics::kTextRowTopOffset + kChoiceMarkSize);
+    draw.FillRoundedRect(D2D1::RoundedRect(outer, kRadioOuterCornerRadius, kRadioOuterCornerRadius), ui_theme::WidgetFillColor(state));
+    draw.DrawRoundedRect(D2D1::RoundedRect(outer, kRadioOuterCornerRadius, kRadioOuterCornerRadius), selected_ ? ui_theme::color::kAccent : ui_theme::color::kBorder, kRadioBorderWidth);
     if (selected_) {
-        const D2D1_RECT_F inner = D2D1::RectF(outer.left + 3.0f, outer.top + 3.0f, outer.right - 3.0f, outer.bottom - 3.0f);
-        draw.FillRoundedRect(D2D1::RoundedRect(inner, 2.5f, 2.5f), ui_theme::color::kAccent);
+        const D2D1_RECT_F inner = D2D1::RectF(outer.left + kRadioDotInset, outer.top + kRadioDotInset, outer.right - kRadioDotInset, outer.bottom - kRadioDotInset);
+        draw.FillRoundedRect(D2D1::RoundedRect(inner, kRadioInnerDotCornerRadius, kRadioInnerDotCornerRadius), ui_theme::color::kAccent);
     }
     draw.DrawBodyText(
         text_,
@@ -369,7 +383,7 @@ void Dropdown::Collapse()
 
 D2D1_SIZE_F Dropdown::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
-    return D2D1::SizeF((std::max)(1.0f, available_size.width), 21.0f);
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), ui_theme::metrics::kInputHeight);
 }
 
 void Dropdown::Render(const UiDrawContext& context, UiRootState root_state) const
@@ -381,8 +395,8 @@ void Dropdown::Render(const UiDrawContext& context, UiRootState root_state) cons
     draw.FillRoundedRect(D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius), ui_theme::WidgetFillColor(state));
     draw.DrawRoundedRect(D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius), ui_theme::color::kBorder);
     const wchar_t* text = options_.empty() ? L"" : options_[selected_index_].text;
-    draw.DrawBodyText(text, static_cast<UINT32>(wcslen(text)), D2D1::RectF(rect.left + 7.0f, rect.top + 4.0f, rect.right - 19.0f, rect.bottom), ui_theme::color::kBodyText, D2D1_DRAW_TEXT_OPTIONS_CLIP);
-    draw.DrawBodyText(expanded_ ? L"\x2303" : L"\x2304", 1, D2D1::RectF(rect.right - 15.0f, rect.top + 2.5f, rect.right, rect.bottom), ui_theme::color::kMutedText);
+    draw.DrawBodyText(text, static_cast<UINT32>(wcslen(text)), D2D1::RectF(rect.left + kDropdownTextLeft, rect.top + kDropdownTextTop, rect.right - kDropdownTextRight, rect.bottom), ui_theme::color::kBodyText, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    draw.DrawBodyText(expanded_ ? L"\x2303" : L"\x2304", 1, D2D1::RectF(rect.right - kDropdownChevronRight, rect.top + kDropdownChevronTop, rect.right, rect.bottom), ui_theme::color::kMutedText);
 }
 
 UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)

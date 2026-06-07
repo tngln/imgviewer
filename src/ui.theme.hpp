@@ -72,6 +72,12 @@ constexpr float kIconPlaceholderSize = 48.0f;
 constexpr float kIconPlaceholderPadding = 12.0f;
 constexpr float kIconPlaceholderMinimumSize = 8.0f;
 constexpr float kPathIconStrokeWidth = 0.875f;
+constexpr float kStrokeWidth = 1.0f;
+constexpr float kActiveStrokeWidth = 1.5f;
+constexpr float kWidgetRowHeight = 18.0f;
+constexpr float kInputHeight = 21.0f;
+constexpr float kTextRowTopOffset = 3.0f;
+constexpr float kPanelCornerRadius = 4.0f;
 
 } // namespace metrics
 

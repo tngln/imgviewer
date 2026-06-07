@@ -31,6 +31,25 @@ constexpr float kSectionHeaderHeight = 20.0f;
 constexpr float kScrollStep = 36.0f;
 constexpr float kMinimumPanelHeight = 180.0f;
 
+constexpr float kScrollbarRightMargin = 4.0f;
+constexpr float kScrollbarThumbMinHeight = 14.0f;
+constexpr float kScrollbarThumbWidth = 1.5f;
+constexpr float kScrollbarThumbCornerRadius = 0.75f;
+constexpr float kChartMargin = 1.0f;
+constexpr float kHistogramBarMinWidth = 0.3f;
+constexpr float kHistogramBarHalfPixel = 0.5f;
+constexpr float kTabTextPadding = 5.0f;
+constexpr float kTabTextTop = 3.5f;
+constexpr float kColorChipHeight = 17.0f;
+constexpr float kColorChipGap = 4.0f;
+constexpr float kChipLabelGap = 4.0f;
+constexpr float kChipSectionTopGap = 2.0f;
+constexpr float kHeaderBodyGap = 4.0f;
+constexpr float kPanelMinWidth = 90.0f;
+constexpr float kPanelBackgroundOpacity = 0.94f;
+constexpr float kScrollbarThumbOpacity = 0.35f;
+constexpr float kHistogramBarOpacity = 0.42f;
+
 D2D1_COLOR_F WithOpacity(D2D1_COLOR_F color, float opacity)
 {
     color.a = opacity;
@@ -132,7 +151,7 @@ bool ImgViewerUiInfoPanel::IsVisible() const
 
 D2D1_SIZE_F ImgViewerUiInfoPanel::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
-    const float width = (std::min)(kPanelWidth, (std::max)(90.0f, available_size.width - kPanelMargin * 2.0f));
+    const float width = (std::min)(kPanelWidth, (std::max)(kPanelMinWidth, available_size.width - kPanelMargin * 2.0f));
     const float top = ui_theme::metrics::kTitleBarHeight + kPanelMargin;
     const float bottom = (std::max)(top + kMinimumPanelHeight, available_size.height - kPanelMargin);
     return D2D1::SizeF(width, bottom - top);
@@ -159,9 +178,9 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
     const UiDraw draw(draw_context);
     const D2D1_RECT_F rect = panel_->Rect();
     draw.FillRoundedRect(
-        D2D1::RoundedRect(rect, 4.0f, 4.0f),
-        WithOpacity(ui_theme::color::kButtonDefault, 0.94f));
-    draw.DrawRoundedRect(D2D1::RoundedRect(rect, 4.0f, 4.0f), ui_theme::color::kBorder);
+        D2D1::RoundedRect(rect, ui_theme::metrics::kPanelCornerRadius, ui_theme::metrics::kPanelCornerRadius),
+        WithOpacity(ui_theme::color::kButtonDefault, kPanelBackgroundOpacity));
+    draw.DrawRoundedRect(D2D1::RoundedRect(rect, ui_theme::metrics::kPanelCornerRadius, ui_theme::metrics::kPanelCornerRadius), ui_theme::color::kBorder);
 
     const D2D1_RECT_F content = D2D1::RectF(
         rect.left + kPanelSidePadding,
@@ -211,15 +230,15 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
 
     const float max_scroll = MaxScrollOffset();
     if (max_scroll > 0.0f) {
-        const float track_left = rect.right - 4.0f;
+        const float track_left = rect.right - kScrollbarRightMargin;
         const float track_top = body_clip.top;
         const float track_bottom = body_clip.bottom;
         const float track_height = (std::max)(0.5f, track_bottom - track_top);
-        const float thumb_height = (std::max)(14.0f, track_height * BodyViewportHeight() / BodyContentHeight());
+        const float thumb_height = (std::max)(kScrollbarThumbMinHeight, track_height * BodyViewportHeight() / BodyContentHeight());
         const float thumb_top = track_top + (track_height - thumb_height) * EffectiveScrollOffset() / max_scroll;
         draw.FillRoundedRect(
-            D2D1::RoundedRect(D2D1::RectF(track_left, thumb_top, track_left + 1.5f, thumb_top + thumb_height), 0.75f, 0.75f),
-            WithOpacity(ui_theme::color::kMutedText, 0.35f));
+            D2D1::RoundedRect(D2D1::RectF(track_left, thumb_top, track_left + kScrollbarThumbWidth, thumb_top + thumb_height), kScrollbarThumbCornerRadius, kScrollbarThumbCornerRadius),
+            WithOpacity(ui_theme::color::kMutedText, kScrollbarThumbOpacity));
     }
 }
 
@@ -257,13 +276,13 @@ void ImgViewerUiInfoPanel::DrawRow(
     draw.DrawBodyText(
         label,
         static_cast<UINT32>(std::wcslen(label)),
-        D2D1::RectF(row.left, row.top + 3.0f, row.left + kLabelWidth, row.bottom),
+        D2D1::RectF(row.left, row.top + ui_theme::metrics::kTextRowTopOffset, row.left + kLabelWidth, row.bottom),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     draw.DrawBodyText(
         display_value,
         display_value_length,
-        D2D1::RectF(row.left + kLabelWidth, row.top + 3.0f, row.right, row.bottom),
+        D2D1::RectF(row.left + kLabelWidth, row.top + ui_theme::metrics::kTextRowTopOffset, row.right, row.bottom),
         ui_theme::color::kBodyText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
 }
@@ -276,7 +295,7 @@ void ImgViewerUiInfoPanel::DrawSectionHeader(const UiDraw& draw, const wchar_t* 
         static_cast<UINT32>(std::wcslen(text)),
         D2D1::RectF(
             panel_rect.left + kPanelSidePadding,
-            top + 3.0f,
+            top + ui_theme::metrics::kTextRowTopOffset,
             panel_rect.right - kPanelSidePadding,
             top + kSectionHeaderHeight),
         ui_theme::color::kMutedText,
@@ -316,8 +335,8 @@ void ImgViewerUiInfoPanel::DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& 
         return;
     }
 
-    const float chart_width = (std::max)(0.5f, chart.right - chart.left - 1.0f);
-    const float chart_height = (std::max)(0.5f, chart.bottom - chart.top - 1.0f);
+    const float chart_width = (std::max)(0.5f, chart.right - chart.left - kChartMargin);
+    const float chart_height = (std::max)(0.5f, chart.bottom - chart.top - kChartMargin);
     constexpr std::array<ImgViewerHistogramChannel, 4> kChannels{
         ImgViewerHistogramChannel::Luma,
         ImgViewerHistogramChannel::Red,
@@ -339,11 +358,11 @@ void ImgViewerUiInfoPanel::DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& 
             }
 
             const float ratio = static_cast<float>(histogram[index]) / static_cast<float>(max_count);
-            const float left = chart.left + 0.5f + static_cast<float>(index) * bar_width;
-            const float right = (std::max)(left + 0.3f, chart.left + 0.5f + static_cast<float>(index + 1) * bar_width);
-            const float bottom = chart.bottom - 0.5f;
+            const float left = chart.left + kHistogramBarHalfPixel + static_cast<float>(index) * bar_width;
+            const float right = (std::max)(left + kHistogramBarMinWidth, chart.left + kHistogramBarHalfPixel + static_cast<float>(index + 1) * bar_width);
+            const float bottom = chart.bottom - kHistogramBarHalfPixel;
             const float top = bottom - chart_height * ratio;
-            draw.FillRect(D2D1::RectF(left, top, right, bottom), WithOpacity(color, 0.42f));
+            draw.FillRect(D2D1::RectF(left, top, right, bottom), WithOpacity(color, kHistogramBarOpacity));
         }
     }
 }
@@ -365,7 +384,7 @@ void ImgViewerUiInfoPanel::DrawHistogramTabs(const UiDraw& draw, const D2D1_RECT
         draw.DrawBodyText(
             text,
             static_cast<UINT32>(std::wcslen(text)),
-            D2D1::RectF(rect.left + 5.0f, rect.top + 3.5f, rect.right - 5.0f, rect.bottom),
+            D2D1::RectF(rect.left + kTabTextPadding, rect.top + kTabTextTop, rect.right - kTabTextPadding, rect.bottom),
             active ? ChannelColor(channel) : ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
@@ -389,9 +408,9 @@ void ImgViewerUiInfoPanel::DrawColorSummary(const UiDraw& draw, const D2D1_RECT_
         return;
     }
 
-    const float gap = 4.0f;
+    const float gap = kColorChipGap;
     const float width = (rect.right - rect.left - gap * 2.0f) / 3.0f;
-    const float top = rect.top + kHistogramHeaderHeight + 2.0f;
+    const float top = rect.top + kHistogramHeaderHeight + kChipSectionTopGap;
     DrawColorChip(draw, L"Avg", state_.analysis.average, D2D1::RectF(rect.left, top, rect.left + width, rect.bottom));
     DrawColorChip(
         draw,
@@ -411,13 +430,13 @@ void ImgViewerUiInfoPanel::DrawColorChip(
     ImageColorSample color,
     D2D1_RECT_F rect) const
 {
-    const D2D1_RECT_F chip = D2D1::RectF(rect.left, rect.top, rect.right, rect.top + 17.0f);
+    const D2D1_RECT_F chip = D2D1::RectF(rect.left, rect.top, rect.right, rect.top + kColorChipHeight);
     draw.FillRect(chip, SampleColor(color));
     draw.DrawRect(chip, ui_theme::color::kBorder);
     draw.DrawBodyText(
         label,
         static_cast<UINT32>(std::wcslen(label)),
-        D2D1::RectF(rect.left, chip.bottom + 4.0f, rect.right, chip.bottom + 23.0f),
+        D2D1::RectF(rect.left, chip.bottom + kChipLabelGap, rect.right, chip.bottom + 23.0f),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     const std::wstring hex = HexColor(color);
@@ -472,7 +491,7 @@ float ImgViewerUiInfoPanel::BodyTop() const
     }
 
     const D2D1_RECT_F rect = panel_->Rect();
-    return rect.top + kPanelTopPadding + kHeaderHeight + 4.0f;
+    return rect.top + kPanelTopPadding + kHeaderHeight + kHeaderBodyGap;
 }
 
 D2D1_RECT_F ImgViewerUiInfoPanel::HistogramTabRect(ImgViewerHistogramChannel channel) const

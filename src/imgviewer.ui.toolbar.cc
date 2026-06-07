@@ -250,7 +250,7 @@ void ImgViewerUiToolbar::Render(
             ui_theme::color::kToolbarBackground.g,
             ui_theme::color::kToolbarBackground.b,
             ui_theme::color::kToolbarBackgroundOpacity));
-    draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, 1.0f);
+    draw.DrawRoundedRect(toolbar_background, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
 
     Button(ButtonKey::ColorPicker)->SetVisualActive(color_picker_active);
     button_panel_->Render(draw_context, state);

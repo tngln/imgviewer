@@ -34,6 +34,22 @@ constexpr float kAboutSidePadding = 14.0f;
 constexpr float kAboutFooterBottomPadding = 10.0f;
 constexpr float kAboutFooterButtonHeight = 24.0f;
 
+constexpr float kAboutHeaderTop = 12.0f;
+constexpr float kAboutHeaderHeight = 17.0f;
+constexpr float kAboutSubtitleRow1Top = 33.0f;
+constexpr float kAboutSubtitleHeight = 14.0f;
+constexpr float kAboutSubtitleRow2Top = 51.0f;
+constexpr float kAboutSectionTop = 79.0f;
+constexpr float kAboutSectionHeight = 14.0f;
+constexpr float kAboutBorderTop = 97.0f;
+constexpr float kAboutFooterHeight = 46.0f;
+constexpr float kAboutNoticeStartY = 105.0f;
+constexpr float kAboutNoticeIndent = 22.0f;
+constexpr float kAboutNoticeLineHeight = 12.0f;
+constexpr float kAboutNoticeNameGap = 13.0f;
+constexpr float kAboutNoticeDetailGap = 12.0f;
+constexpr float kAboutNoticeEntryGap = 20.0f;
+
 struct NoticeLine final {
     const wchar_t* name;
     const wchar_t* detail;
@@ -120,48 +136,48 @@ public:
 
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(L"ImgViewer", 9, D2D1::RectF(14.0f, 12.0f, size.width - 14.0f, 29.0f), ui_theme::color::kBodyText);
+        draw.DrawBodyText(L"ImgViewer", 9, D2D1::RectF(kAboutSidePadding, kAboutHeaderTop, size.width - kAboutSidePadding, kAboutHeaderTop + kAboutHeaderHeight), ui_theme::color::kBodyText);
         draw.DrawBodyText(
             L"Lightweight native image viewer.",
             32,
-            D2D1::RectF(14.0f, 33.0f, size.width - 14.0f, 47.0f),
+            D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow1Top, size.width - kAboutSidePadding, kAboutSubtitleRow1Top + kAboutSubtitleHeight),
             ui_theme::color::kMutedText);
         draw.DrawBodyText(
             L"Development build",
             17,
-            D2D1::RectF(14.0f, 51.0f, size.width - 14.0f, 65.0f),
+            D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow2Top, size.width - kAboutSidePadding, kAboutSubtitleRow2Top + kAboutSubtitleHeight),
             ui_theme::color::kMutedText);
 
         draw.DrawBodyText(
             L"Third-party notices",
             19,
-            D2D1::RectF(14.0f, 79.0f, size.width - 14.0f, 93.0f),
+            D2D1::RectF(kAboutSidePadding, kAboutSectionTop, size.width - kAboutSidePadding, kAboutSectionTop + kAboutSectionHeight),
             ui_theme::color::kBodyText);
-        draw.DrawRect(D2D1::RectF(14.0f, 97.0f, size.width - 14.0f, size.height - 46.0f), ui_theme::color::kBorder);
+        draw.DrawRect(D2D1::RectF(kAboutSidePadding, kAboutBorderTop, size.width - kAboutSidePadding, size.height - kAboutFooterHeight), ui_theme::color::kBorder);
 
-        float y = 105.0f;
+        float y = kAboutNoticeStartY;
         for (const NoticeLine& line : kNoticeLines) {
             draw.DrawBodyText(
                 line.name,
                 static_cast<UINT32>(wcslen(line.name)),
-                D2D1::RectF(22.0f, y, size.width - 22.0f, y + 12.0f),
+                D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
                 ui_theme::color::kBodyText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += 13.0f;
+            y += kAboutNoticeNameGap;
             draw.DrawBodyText(
                 line.detail,
                 static_cast<UINT32>(wcslen(line.detail)),
-                D2D1::RectF(22.0f, y, size.width - 22.0f, y + 12.0f),
+                D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += 12.0f;
+            y += kAboutNoticeDetailGap;
             draw.DrawBodyText(
                 line.license_path,
                 static_cast<UINT32>(wcslen(line.license_path)),
-                D2D1::RectF(22.0f, y, size.width - 22.0f, y + 12.0f),
+                D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += 20.0f;
+            y += kAboutNoticeEntryGap;
         }
 
         DrawElement(*copy_button_, context, state);
@@ -201,8 +217,8 @@ private:
     std::unique_ptr<UiElement> root_;
     Button* copy_button_ = nullptr;
     Button* close_button_ = nullptr;
-    float copy_button_width_ = 81.0f;
-    float close_button_width_ = 56.0f;
+    float copy_button_width_ = 0.0f;
+    float close_button_width_ = 0.0f;
 };
 
 struct AboutWindowContext final : public UiWindowDelegate {

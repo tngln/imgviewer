@@ -162,7 +162,7 @@ void ImgViewerUiTitleBar::Render(
                 (std::max)(ui_theme::metrics::kWindowBorderMinimum,
                     draw_context.viewport_size.height - ui_theme::metrics::kWindowBorderInset)),
             ui_theme::color::kBorder,
-            1.0f);
+            ui_theme::metrics::kStrokeWidth);
     }
 
     const std::wstring title_text = ui_text::TruncateText(

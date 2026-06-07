@@ -4,7 +4,6 @@
 
 #include <d2d1helper.h>
 
-#include "math.hpp"
 #include "ui.text.hpp"
 #include "ui.theme.hpp"
 
@@ -69,7 +68,7 @@ void UiToast::Render(const UiDrawContext& draw_context) const
     const UiDraw draw(draw_context);
     const D2D1_ROUNDED_RECT rounded_rect = D2D1::RoundedRect(rect, kToastCornerRadius, kToastCornerRadius);
     draw.FillRoundedRect(rounded_rect, ToastBackgroundColor());
-    draw.DrawRoundedRect(rounded_rect, ui_theme::color::kBorder, 1.0f);
+    draw.DrawRoundedRect(rounded_rect, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
     draw.DrawBodyText(
         display_text.c_str(),
         static_cast<UINT32>(display_text.size()),

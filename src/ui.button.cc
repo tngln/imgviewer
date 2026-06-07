@@ -13,6 +13,9 @@
 
 namespace {
 
+constexpr float kPathIconRenderSize = 10.0f;
+constexpr float kGlyphIconBoxSize = 12.0f;
+
 class D2DTransformGuard final {
 public:
     D2DTransformGuard(ID2D1RenderTarget* target, D2D1_MATRIX_3X2_F transform) : target_(target)
@@ -129,7 +132,7 @@ void Button::Render(const UiDrawContext& context, UiRootState root_state) const
     const D2D1_ROUNDED_RECT button =
         D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius);
     draw.FillRoundedRect(button, ui_theme::WidgetFillColor(state));
-    draw.DrawRoundedRect(button, ui_theme::color::kBorder, 1.0f);
+    draw.DrawRoundedRect(button, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
     const D2D1_COLOR_F content_color =
         state.enabled ? ui_theme::color::kAccent : ui_theme::color::kButtonDisabledContent;
     const D2D1_COLOR_F text_color =
@@ -214,7 +217,7 @@ void IconButton::Render(const UiDrawContext& context, UiRootState root_state) co
                 path_icon_->commands,
                 path_icon_->command_count,
                 geometry.put()))) {
-            const float icon_size = 10.0f;
+            const float icon_size = kPathIconRenderSize;
             const float scaled_icon_size = icon_size * icon_scale_;
             const float icon_width = path_icon_->view_box.right - path_icon_->view_box.left;
             const float icon_height = path_icon_->view_box.bottom - path_icon_->view_box.top;
@@ -232,7 +235,7 @@ void IconButton::Render(const UiDrawContext& context, UiRootState root_state) co
         return;
     }
 
-    const float icon_box_size = 12.0f;
+    const float icon_box_size = kGlyphIconBoxSize;
     const D2D1_RECT_F icon_rect = D2D1::RectF(
         center.x - icon_box_size * 0.5f,
         center.y - icon_box_size * 0.5f,
