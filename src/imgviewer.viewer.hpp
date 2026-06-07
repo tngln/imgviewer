@@ -56,6 +56,7 @@ public:
     D2D1_SIZE_U CurrentImagePixelSize() const;
     const ImageMetadata& CurrentImageMetadata() const;
     ImgViewerSnapshot Snapshot() const;
+    bool HasTransientCapture() const;
     ImgViewerAnimationState AnimationState() const;
     bool HasAnimation() const;
     bool ToggleAnimationPlayback();
@@ -77,6 +78,7 @@ public:
     bool FlipVertical();
     bool ResetView();
     void SetPixelatedSampling(bool enabled);
+    void CancelTransientViewGesture();
     bool SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const;
     HRESULT AnalyzeCurrentImage(ImagePixelAnalysis* analysis) const;
 

@@ -86,6 +86,8 @@ size_t KeyActionIndex(WPARAM wparam)
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
 }
 
+void SyncPopupModal(ImgViewerContext* context);
+
 void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
 {
     if (context == nullptr || action == kUiActionNone) {
@@ -93,6 +95,7 @@ void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
     }
 
     if (context->ui.Root() != nullptr && context->ui.Root()->HandleUiAction(action, &context->popup)) {
+        SyncPopupModal(context);
         RenderImgViewer(context);
         return;
     }
@@ -104,6 +107,7 @@ void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
     }
 
     ExecuteImgViewerAction(hwnd, context, viewer_action);
+    SyncPopupModal(context);
 }
 
 void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
@@ -113,8 +117,14 @@ void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
     }
 
     if (result.capture == UiCaptureRequest::Capture) {
+        if (context != nullptr) {
+            context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::Ui);
+        }
         SetCapture(hwnd);
     } else if (result.capture == UiCaptureRequest::Release) {
+        if (context != nullptr) {
+            context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::Ui);
+        }
         ReleaseCapture();
     }
 
@@ -132,6 +142,9 @@ void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
     }
 
     if (result.released_capture) {
+        if (context != nullptr) {
+            context->interaction.ClearPointerCapture();
+        }
         ReleaseCapture();
     }
 
@@ -144,7 +157,48 @@ void ClosePopup(ImgViewerContext* context)
 {
     if (context != nullptr && context->popup.IsOpen()) {
         context->popup.Close();
+        context->interaction.ClearModal(ImgViewerModalOwner::Popup);
     }
+}
+
+void SyncPopupModal(ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    if (context->popup.IsOpen()) {
+        if (context->interaction.Modal() != ImgViewerModalOwner::Popup) {
+            context->interaction.SetModal(ImgViewerModalOwner::Popup);
+        }
+    } else {
+        context->interaction.ClearModal(ImgViewerModalOwner::Popup);
+    }
+}
+
+void SyncKeyboardOwner(ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    if (context->popup.IsOpen()) {
+        context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::Popup);
+    } else if (context->edit.IsEditingText()) {
+        context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::EditText);
+    } else if (context->ui.FocusedElement() != UiElementId::None) {
+        context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::UiFocus);
+    } else {
+        context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::ViewerShortcut);
+    }
+}
+
+ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditController& edit)
+{
+    if (edit.Tool() == ImgViewerEditTool::Crop) {
+        return ImgViewerPointerCaptureOwner::EditCrop;
+    }
+    return ImgViewerPointerCaptureOwner::EditStroke;
 }
 
 void ShowWindowSizeToast(HWND hwnd, ImgViewerContext* context)
@@ -319,6 +373,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context != nullptr) {
             ClosePopup(context);
+            ResetImgViewerTransientInput(hwnd, context);
             context->interactive_size_move_active = true;
             context->last_window_size_toast_width = 0;
             context->last_window_size_toast_height = 0;
@@ -390,6 +445,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             ImgViewerContext* context = GetImgViewerContext(hwnd);
             ClosePopup(context);
             if (context != nullptr) {
+                ResetImgViewerTransientInput(hwnd, context);
                 RenderIfNeeded(
                     hwnd,
                     context,
@@ -444,17 +500,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         util::TrackMouseLeave(hwnd);
-        ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
-            if (context->edit.Active()) {
-                viewer_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
-            }
-            if (!viewer_result.handled) {
-                viewer_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
-            }
-        }
-        RenderIfNeeded(context, viewer_result);
-        if (context != nullptr && !viewer_result.handled) {
+            SyncPopupModal(context);
             const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd);
             const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / coordinates.scale(), point.y / coordinates.scale());
             UiPointerEvent pointer{
@@ -466,11 +513,31 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             if (context->popup.IsOpen()) {
                 UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
                 RenderIfNeeded(hwnd, context, popup_result);
+                SyncPopupModal(context);
                 if (popup_result.handled) {
                     return 0;
                 }
             }
-            RenderIfNeeded(hwnd, context, context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd)));
+            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::Ui ||
+                !context->interaction.HasPointerCapture()) {
+                UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
+                RenderIfNeeded(hwnd, context, ui_result);
+                if (ui_result.handled) {
+                    return 0;
+                }
+            }
+
+            ImgViewerEventResult canvas_result = {};
+            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop) {
+                canvas_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
+            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {
+                canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer) {
+                canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+            }
+            RenderIfNeeded(context, canvas_result);
         }
         return 0;
     }
@@ -488,8 +555,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (context != nullptr && context->popup.IsOpen()) {
+            SyncPopupModal(context);
             UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
             RenderIfNeeded(hwnd, context, popup_result);
+            SyncPopupModal(context);
             if (popup_result.handled) {
                 return 0;
             }
@@ -499,15 +568,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
-            if (HandleImgViewerColorPick(hwnd, context, point)) {
+            if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::ColorPicker &&
+                HandleImgViewerColorPick(hwnd, context, point)) {
                 ui_result.handled = true;
-            } else if (context->edit.Active()) {
+            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool && context->edit.Active()) {
                 viewer_result = context->edit.OnPointerDown(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else {
                 viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
             }
         }
         if (viewer_result.captured) {
+            if (context != nullptr && context->edit.HasTransientCapture()) {
+                context->interaction.BeginPointerCapture(EditPointerCaptureOwner(context->edit));
+            } else if (context != nullptr && context->viewer.HasTransientCapture()) {
+                context->interaction.BeginPointerCapture(util::IsKeyDown('R')
+                    ? ImgViewerPointerCaptureOwner::ViewerRotate
+                    : ImgViewerPointerCaptureOwner::ViewerPan);
+            }
             SetCapture(hwnd);
         }
         RenderIfNeeded(hwnd, context, ui_result);
@@ -520,16 +597,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
-            if (context->edit.Active()) {
+            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop) {
                 viewer_result = context->edit.OnPointerUp(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
-            }
-            if (!viewer_result.handled) {
+            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
+                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {
                 viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
             }
         }
         RenderIfNeeded(context, viewer_result);
         UiEventResult ui_result = {};
-        if (context != nullptr && !viewer_result.handled) {
+        if (context != nullptr &&
+            !viewer_result.handled &&
+            (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::Ui ||
+                !context->interaction.HasPointerCapture())) {
             const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
             const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
             UiPointerEvent pointer{
@@ -540,8 +621,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .popup_host = &context->popup,
             };
             if (context->popup.IsOpen()) {
+                SyncPopupModal(context);
                 UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
                 RenderIfNeeded(hwnd, context, popup_result);
+                SyncPopupModal(context);
                 if (popup_result.handled) {
                     return 0;
                 }
@@ -598,6 +681,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
+            if (context->popup.IsOpen()) {
+                SyncPopupModal(context);
+                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
+                RenderIfNeeded(hwnd, context, popup_result);
+                SyncPopupModal(context);
+                if (popup_result.handled) {
+                    return 0;
+                }
+            }
             const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
             if (ui_result.handled) {
                 RenderIfNeeded(hwnd, context, ui_result);
@@ -605,6 +697,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             }
         }
         if (context != nullptr &&
+            context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer &&
             context->viewer.OnMouseWheel(
                 point.x,
                 point.y,
@@ -627,26 +720,30 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (context != nullptr && context->popup.IsOpen()) {
+            SyncPopupModal(context);
             UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Key(key, hwnd));
             RenderIfNeeded(hwnd, context, popup_result);
+            SyncPopupModal(context);
             if (popup_result.handled) {
                 return 0;
             }
         }
+
+        SyncKeyboardOwner(context);
+        if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
+            if (!key.modifiers.ctrl && !key.modifiers.alt) {
+                if (context->edit.OnTextKeyDown(static_cast<UINT>(wparam))) {
+                    RenderImgViewer(context);
+                }
+                return 0;
+            }
+        }
+
         const UiEventResult ui_result = context != nullptr
             ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
             RenderIfNeeded(hwnd, context, ui_result);
-            return 0;
-        }
-
-        if (context != nullptr &&
-            !key.modifiers.ctrl &&
-            !key.modifiers.shift &&
-            !key.modifiers.alt &&
-            context->edit.OnTextKeyDown(static_cast<UINT>(wparam))) {
-            RenderImgViewer(context);
             return 0;
         }
 
@@ -663,7 +760,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         if (context != nullptr) {
             context->pressed_key_actions[KeyActionIndex(wparam)] = action;
         }
-        if (context != nullptr && context->viewer.OnActionDown(action)) {
+        if (context != nullptr &&
+            context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer &&
+            context->viewer.OnActionDown(action)) {
             return 0;
         }
         if (action == ImgViewerAction::OpenImage) {
@@ -679,7 +778,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_CHAR: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
-        if (context != nullptr && context->edit.OnTextInput(static_cast<wchar_t>(wparam))) {
+        SyncKeyboardOwner(context);
+        if (context != nullptr &&
+            context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText &&
+            context->edit.OnTextInput(static_cast<wchar_t>(wparam))) {
             RenderImgViewer(context);
             return 0;
         }
@@ -695,6 +797,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             .modifiers = UiModifiers::Current(),
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
+        if (context != nullptr && context->popup.IsOpen()) {
+            SyncPopupModal(context);
+            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Key(key, hwnd));
+            RenderIfNeeded(hwnd, context, popup_result);
+            SyncPopupModal(context);
+            if (popup_result.handled) {
+                return 0;
+            }
+        }
         const UiEventResult ui_result = context != nullptr
             ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
@@ -708,7 +819,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             context->pressed_key_actions[KeyActionIndex(wparam)] = ImgViewerAction::None;
         }
         const ImgViewerEventResult viewer_result =
-            context != nullptr ? context->viewer.OnActionUp(action) : ImgViewerEventResult{};
+            context != nullptr && context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer
+                ? context->viewer.OnActionUp(action)
+                : ImgViewerEventResult{};
         if (viewer_result.handled) {
             RenderIfNeeded(context, viewer_result);
             return 0;

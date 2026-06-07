@@ -110,6 +110,11 @@ std::wstring HexColor(ImageColorSample color)
     return text;
 }
 
+std::wstring TableValue(std::wstring value)
+{
+    return value.empty() ? L"-" : std::move(value);
+}
+
 } // namespace
 
 ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
@@ -124,11 +129,63 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
         true)));
     panel_id_ = panel_->Id();
     panel_->SetHitTestVisible(false);
+
+    basic_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
+        UiElementRole::Pane,
+        kUiActionNone,
+        L"Image details",
+        L"Image details",
+        L"info-panel-image-details",
+        false,
+        true))));
+    basic_table_->SetColumns(std::vector<TableColumn>{
+        TableColumn{L"", kLabelWidth, false},
+        TableColumn{L"", 0.0f, true},
+    });
+    basic_table_->SetRowHeight(kRowHeight);
+    basic_table_->SetCellPadding(0.0f);
+    basic_table_->SetSeparatorsVisible(false);
+    basic_table_->SetHitTestVisible(false);
+
+    exif_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
+        UiElementRole::Pane,
+        kUiActionNone,
+        L"EXIF",
+        L"EXIF",
+        L"info-panel-exif",
+        false,
+        true))));
+    exif_table_->SetColumns(std::vector<TableColumn>{
+        TableColumn{L"", kLabelWidth, false},
+        TableColumn{L"", 0.0f, true},
+    });
+    exif_table_->SetRowHeight(kRowHeight);
+    exif_table_->SetCellPadding(0.0f);
+    exif_table_->SetSeparatorsVisible(false);
+    exif_table_->SetHitTestVisible(false);
 }
 
 void ImgViewerUiInfoPanel::SetState(ImgViewerUiInfoPanelState state)
 {
     state_ = std::move(state);
+    if (basic_table_ != nullptr) {
+        basic_table_->SetRows(std::vector<TableRow>{
+            TableRow{.cells = {L"Name", TableValue(state_.name)}},
+            TableRow{.cells = {L"Path", TableValue(state_.path)}},
+            TableRow{.cells = {L"Dimensions", TableValue(state_.dimensions)}},
+            TableRow{.cells = {L"Type", TableValue(state_.type)}},
+            TableRow{.cells = {L"File size", TableValue(state_.file_size)}},
+            TableRow{.cells = {L"Modified", TableValue(state_.modified_time)}},
+        });
+    }
+    if (exif_table_ != nullptr) {
+        std::vector<TableRow> rows;
+        rows.reserve(state_.exif_rows.size());
+        for (const ImageMetadataRow& row : state_.exif_rows) {
+            rows.push_back(TableRow{.cells = {row.label, TableValue(row.value)}});
+        }
+        exif_table_->SetRows(std::move(rows));
+    }
     scroll_offset_ = std::clamp(scroll_offset_, 0.0f, MaxScrollOffset());
     if (panel_ != nullptr) {
         panel_->SetHitTestVisible(state_.visible);
@@ -192,25 +249,21 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
     draw_context.d2d_context->PushAxisAlignedClip(body_clip, D2D1_ANTIALIAS_MODE_ALIASED);
 
     float top = BodyTop() - EffectiveScrollOffset();
-    DrawRow(draw, L"Name", state_.name, top);
-    top += kRowHeight;
-    DrawRow(draw, L"Path", state_.path, top);
-    top += kRowHeight;
-    DrawRow(draw, L"Dimensions", state_.dimensions, top);
-    top += kRowHeight;
-    DrawRow(draw, L"Type", state_.type, top);
-    top += kRowHeight;
-    DrawRow(draw, L"File size", state_.file_size, top);
-    top += kRowHeight;
-    DrawRow(draw, L"Modified", state_.modified_time, top);
-    top += kRowHeight + ui_theme::metrics::kLargeGap;
+    const float basic_table_height = kRowHeight * kInfoRowCount;
+    if (basic_table_ != nullptr) {
+        basic_table_->Arrange(D2D1::RectF(content.left, top, content.right, top + basic_table_height));
+        basic_table_->Render(draw_context, UiRootState{});
+    }
+    top += basic_table_height + ui_theme::metrics::kLargeGap;
     if (!state_.exif_rows.empty()) {
         DrawSectionHeader(draw, L"EXIF", top);
         top += kSectionHeaderHeight;
-        for (const ImageMetadataRow& row : state_.exif_rows) {
-            DrawRow(draw, row.label.c_str(), row.value, top);
-            top += kRowHeight;
+        const float exif_table_height = kRowHeight * static_cast<float>(state_.exif_rows.size());
+        if (exif_table_ != nullptr) {
+            exif_table_->Arrange(D2D1::RectF(content.left, top, content.right, top + exif_table_height));
+            exif_table_->Render(draw_context, UiRootState{});
         }
+        top += exif_table_height;
         top += ui_theme::metrics::kLargeGap;
     }
     DrawHistogram(draw, D2D1::RectF(content.left, top, content.right, top + kHistogramHeaderHeight + kHistogramTabHeight + kHistogramHeight));
@@ -248,34 +301,6 @@ UiEventResult ImgViewerUiInfoPanel::OnPointerEvent(const UiPointerEvent& event)
     }
 
     return UiEventResult{.handled = true};
-}
-
-void ImgViewerUiInfoPanel::DrawRow(
-    const UiDraw& draw,
-    const wchar_t* label,
-    const std::wstring& value,
-    float top) const
-{
-    const D2D1_RECT_F panel_rect = panel_ != nullptr ? panel_->Rect() : D2D1::RectF();
-    const D2D1_RECT_F row = D2D1::RectF(
-        panel_rect.left + ui_theme::metrics::kSectionPadding,
-        top,
-        panel_rect.right - ui_theme::metrics::kSectionPadding,
-        top + kRowHeight);
-    const wchar_t* display_value = value.empty() ? L"-" : value.c_str();
-    const UINT32 display_value_length = value.empty() ? 1 : static_cast<UINT32>(value.size());
-    draw.DrawBodyText(
-        label,
-        static_cast<UINT32>(std::wcslen(label)),
-        D2D1::RectF(row.left, row.top + ui_theme::metrics::kTextRowTopOffset, row.left + kLabelWidth, row.bottom),
-        ui_theme::color::kMutedText,
-        D2D1_DRAW_TEXT_OPTIONS_CLIP);
-    draw.DrawBodyText(
-        display_value,
-        display_value_length,
-        D2D1::RectF(row.left + kLabelWidth, row.top + ui_theme::metrics::kTextRowTopOffset, row.right, row.bottom),
-        ui_theme::color::kBodyText,
-        D2D1_DRAW_TEXT_OPTIONS_CLIP);
 }
 
 void ImgViewerUiInfoPanel::DrawSectionHeader(const UiDraw& draw, const wchar_t* text, float top) const

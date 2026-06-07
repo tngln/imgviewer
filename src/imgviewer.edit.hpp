@@ -65,6 +65,9 @@ public:
     bool CanUndo() const;
     bool CanRedo() const;
     ImgViewerEditTool Tool() const;
+    bool IsEditingText() const;
+    bool IsDrawing() const;
+    bool HasTransientCapture() const;
     ImgViewerEditSnapshot Snapshot() const;
 
     HRESULT Begin(IWICBitmapSource* source, D2D1_SIZE_U source_size);
@@ -75,6 +78,7 @@ public:
     bool Undo();
     bool Redo();
     void MarkSaved();
+    void CancelTransientTool();
     bool OnTextInput(wchar_t character);
     bool OnTextKeyDown(UINT virtual_key);
 

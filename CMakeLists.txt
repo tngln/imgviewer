@@ -11,6 +11,7 @@ add_executable(imgviewer
     src/imgviewer.config.cc
     src/imgviewer.edit.cc
     src/imgviewer.host.cc
+    src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
@@ -43,6 +44,7 @@ add_executable(imgviewer
     src/ui.selection.cc
     src/ui.slider.cc
     src/ui.surface.cc
+    src/ui.table.cc
     src/ui.text.cc
     src/ui.textbox.cc
     src/ui.toast.cc

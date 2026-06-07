@@ -161,6 +161,11 @@ ImgViewerSnapshot ImgViewerController::Snapshot() const
     };
 }
 
+bool ImgViewerController::HasTransientCapture() const
+{
+    return image_is_panning_ || image_is_rotating_;
+}
+
 ImgViewerAnimationState ImgViewerController::AnimationState() const
 {
     return ImgViewerAnimationState{
@@ -495,6 +500,16 @@ bool ImgViewerController::ResetView()
 void ImgViewerController::SetPixelatedSampling(bool enabled)
 {
     pixelated_sampling_ = enabled;
+}
+
+void ImgViewerController::CancelTransientViewGesture()
+{
+    image_is_panning_ = false;
+    image_is_rotating_ = false;
+    r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
+    image_last_pan_point_ = D2D1_POINT_2F{};
+    image_last_rotation_angle_ = 0.0f;
 }
 
 bool ImgViewerController::SampleColorAt(float x, float y, D2D1_SIZE_U viewport_size, ImgViewerColorSample* color) const

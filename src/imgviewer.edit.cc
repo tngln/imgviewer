@@ -168,6 +168,21 @@ ImgViewerEditTool ImgViewerEditController::Tool() const
     return tool_;
 }
 
+bool ImgViewerEditController::IsEditingText() const
+{
+    return active_ && editing_text_ && editing_text_index_ < document_.texts.size();
+}
+
+bool ImgViewerEditController::IsDrawing() const
+{
+    return active_ && (drawing_stroke_ || drawing_crop_);
+}
+
+bool ImgViewerEditController::HasTransientCapture() const
+{
+    return IsDrawing();
+}
+
 ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
 {
     return ImgViewerEditSnapshot{
@@ -311,6 +326,16 @@ bool ImgViewerEditController::Redo()
 void ImgViewerEditController::MarkSaved()
 {
     document_.dirty = false;
+}
+
+void ImgViewerEditController::CancelTransientTool()
+{
+    current_stroke_ = ImgViewerEditStroke{};
+    drawing_stroke_ = false;
+    drawing_crop_ = false;
+    editing_text_ = false;
+    editing_text_index_ = 0;
+    current_crop_rect_ = D2D1_RECT_F{};
 }
 
 bool ImgViewerEditController::OnTextInput(wchar_t character)

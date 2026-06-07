@@ -10,6 +10,7 @@
 #include "image.metadata.hpp"
 #include "ui.draw.hpp"
 #include "ui.element.hpp"
+#include "ui.table.hpp"
 
 enum class ImgViewerHistogramChannel {
     Luma,
@@ -44,7 +45,6 @@ public:
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
-    void DrawRow(const UiDraw& draw, const wchar_t* label, const std::wstring& value, float top) const;
     void DrawSectionHeader(const UiDraw& draw, const wchar_t* text, float top) const;
     void DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& rect) const;
     void DrawHistogramTabs(const UiDraw& draw, const D2D1_RECT_F& rect) const;
@@ -65,6 +65,8 @@ private:
     bool ScrollByWheelDelta(int wheel_delta);
 
     UiElement* panel_ = nullptr;
+    Table* basic_table_ = nullptr;
+    Table* exif_table_ = nullptr;
     UiElementId panel_id_ = UiElementId::None;
     ImgViewerUiInfoPanelState state_;
     std::array<bool, 4> visible_histogram_channels_{true, false, false, false};

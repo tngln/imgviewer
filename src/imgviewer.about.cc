@@ -323,6 +323,7 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
     }
 
     about_context->host.Window().Show(SW_SHOWNORMAL);
+    context->interaction.SetModal(ImgViewerModalOwner::About);
     return S_OK;
 }
 
@@ -330,6 +331,7 @@ void CleanupImgViewerAboutWindow(ImgViewerContext* context, void* about_context)
 {
     if (context != nullptr && context->about_context == about_context) {
         context->about_context = nullptr;
+        context->interaction.ClearModal(ImgViewerModalOwner::About);
     }
     delete static_cast<AboutWindowContext*>(about_context);
 }

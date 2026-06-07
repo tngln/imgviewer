@@ -25,6 +25,7 @@
 #include "ui.panel.hpp"
 #include "ui.selection.hpp"
 #include "ui.slider.hpp"
+#include "ui.table.hpp"
 #include "ui.textbox.hpp"
 #include "ui.theme.hpp"
 #include "ui.window.hpp"
@@ -45,16 +46,17 @@ constexpr int kToolbarScaleMinimum = 80;
 constexpr int kToolbarScaleMaximum = 160;
 constexpr int kToolbarScaleSmallStep = 5;
 constexpr int kToolbarScaleLargeStep = 10;
-constexpr int kSettingsInitialWidth = 410;
-constexpr int kSettingsInitialHeight = 472;
-constexpr int kSettingsMinClientWidth = 310;
-constexpr int kSettingsMinClientHeight = 458;
+constexpr int kSettingsInitialWidth = 500;
+constexpr int kSettingsInitialHeight = 570;
+constexpr int kSettingsMinClientWidth = 400;
+constexpr int kSettingsMinClientHeight = 540;
 
 constexpr float kSettingsSidePadding = 14.0f;
 constexpr float kSettingsContentTopPadding = 9.0f;
 constexpr float kSettingsFooterBottomPadding = 10.0f;
 constexpr float kSettingsFooterButtonHeight = 24.0f;
 constexpr float kSettingsFooterButtonGap = 5.0f;
+constexpr float kShortcutTableHeight = 146.0f;
 
 std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction action)
 {
@@ -93,7 +95,6 @@ public:
         UpdateOpacityText();
         UpdateToolbarScaleText();
         UpdateFilterResults();
-        UpdateShortcutText();
     }
 
     const ImgViewerConfig& Draft() const { return draft_; }
@@ -261,8 +262,7 @@ public:
             }
             return {};
         case UiEventType::OwnerDeactivated:
-            action_dropdown_->Collapse();
-            return UiEventResult{.handled = true, .needs_render = true};
+            return {};
         default:
             return {};
         }
@@ -275,10 +275,6 @@ public:
         }
         const UINT virtual_key = event.virtual_key;
         if (virtual_key == VK_ESCAPE) {
-            if (action_dropdown_->IsExpanded()) {
-                action_dropdown_->Collapse();
-                return UiEventResult{.handled = true, .needs_render = true};
-            }
             return UiEventResult{.handled = true, .action = ImgViewerAction::CloseSettings};
         }
         return {};
@@ -292,7 +288,6 @@ public:
         UiEventResult result = filter_box_->OnInputEvent(UiInputEvent{.type = UiEventType::TextChar, .character = ch});
         if (result.handled) {
             UpdateFilterResults();
-            UpdateShortcutText();
         }
         return result;
     }
@@ -302,7 +297,6 @@ public:
         UiEventResult result = filter_box_->ExecuteEditAction(action, hwnd);
         if (result.handled) {
             UpdateFilterResults();
-            UpdateShortcutText();
         }
         return result;
     }
@@ -428,13 +422,17 @@ private:
         section7->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Action shortcuts", L"", L"action-shortcuts-label", false, false),
             L"Action shortcuts", LabelStyle::Muted));
-        action_dropdown_ = section7->AddItem(std::make_unique<Dropdown>(
-            UiMetadata(UiElementRole::ComboBox, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Action shortcuts", L"Action shortcuts", L"action-shortcuts"),
-            BuildDropdownOptions()));
-        shortcut_label_ = section7->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Shortcut", L"", L"shortcut-text", false, false),
-            L"", LabelStyle::Body));
+        action_table_ = section7->AddItem(std::make_unique<Table>(
+            UiMetadata(UiElementRole::Pane, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Action shortcuts", L"Action shortcuts", L"action-shortcuts")));
+        action_table_->SetColumns(std::vector<TableColumn>{
+            TableColumn{L"Action", 170.0f, false},
+            TableColumn{L"Shortcut", 0.0f, true},
+        });
+        action_table_->SetHeaderVisible(true);
+        action_table_->SetSelectionEnabled(true);
+        action_table_->SetRowHeight(21.0f);
+        section7->SetItemFixedMainSize(section7->ChildCount() - 1, kShortcutTableHeight);
 
         // Footer buttons owned separately
         reset_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
@@ -461,7 +459,7 @@ private:
         if (id == borderless_checkbox_->Id()) { ToggleBorderlessWindow(); return; }
         if (id == opacity_slider_row_->GetSlider()->Id()) { ApplyOpacitySlider(); return; }
         if (id == toolbar_scale_slider_row_->GetSlider()->Id()) { ApplyToolbarScaleSlider(); return; }
-        if (id == action_dropdown_->Id()) { UpdateShortcutText(); return; }
+        if (id == action_table_->Id()) { return; }
     }
 
     void ToggleRememberWindowSize()
@@ -524,15 +522,6 @@ private:
         borderless_checkbox_->SetChecked(draft_.borderless_window);
     }
 
-    void UpdateShortcutText()
-    {
-        const ImgViewerAction action = ImgViewerActionFromUiAction(action_dropdown_->SelectedAction());
-        shortcut_text_ = action != ImgViewerAction::None
-            ? ShortcutsForAction(draft_.action_bindings, action)
-            : std::wstring();
-        shortcut_label_->SetText(shortcut_text_.c_str());
-    }
-
     bool MatchesFilter(ImgViewerAction action) const
     {
         const std::wstring& filter = filter_box_->Text();
@@ -552,23 +541,29 @@ private:
         return haystack.find(needle) != std::wstring::npos;
     }
 
-    std::vector<DropdownOption> BuildDropdownOptions() const
+    std::vector<TableRow> BuildShortcutRows() const
     {
-        std::vector<DropdownOption> options;
+        std::vector<TableRow> rows;
         for (const ImgViewerActionInfo& action : ImgViewerActions()) {
             if (action.shown_in_settings && MatchesFilter(action.action)) {
-                options.push_back(DropdownOption{action.display_name, action.action});
+                rows.push_back(TableRow{
+                    .cells = {action.display_name, ShortcutsForAction(draft_.action_bindings, action.action)},
+                    .action = UiActionFromImgViewerAction(action.action),
+                });
             }
         }
-        if (options.empty()) {
-            options.push_back(DropdownOption{L"No matches", ImgViewerAction::None});
+        if (rows.empty()) {
+            rows.push_back(TableRow{
+                .cells = {L"No matches", L""},
+                .enabled = false,
+            });
         }
-        return options;
+        return rows;
     }
 
     void UpdateFilterResults()
     {
-        action_dropdown_->SetOptions(BuildDropdownOptions());
+        action_table_->SetRows(BuildShortcutRows());
     }
 
     void UpdateOpacityText()
@@ -602,9 +597,8 @@ private:
     RadioButton* default_radio_ = nullptr;
     SliderRow* opacity_slider_row_ = nullptr;
     SliderRow* toolbar_scale_slider_row_ = nullptr;
-    Dropdown* action_dropdown_ = nullptr;
     TextBox* filter_box_ = nullptr;
-    Label* shortcut_label_ = nullptr;
+    Table* action_table_ = nullptr;
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
@@ -613,7 +607,6 @@ private:
     float cancel_button_width_ = 0.0f;
     std::wstring opacity_text_;
     std::wstring toolbar_scale_text_;
-    std::wstring shortcut_text_;
 };
 
 struct SettingsWindowContext final : public UiWindowDelegate {
@@ -823,6 +816,7 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
     }
 
     settings_context->host.Window().Show(SW_SHOWNORMAL);
+    context->interaction.SetModal(ImgViewerModalOwner::Settings);
     return S_OK;
 }
 
@@ -830,6 +824,7 @@ void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_co
 {
     if (context != nullptr && context->settings_context == settings_context) {
         context->settings_context = nullptr;
+        context->interaction.ClearModal(ImgViewerModalOwner::Settings);
     }
     delete static_cast<SettingsWindowContext*>(settings_context);
 }

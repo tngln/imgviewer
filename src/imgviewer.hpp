@@ -16,6 +16,7 @@
 #include "image.analysis.hpp"
 #include "image.sequence.hpp"
 #include "imgviewer.edit.hpp"
+#include "imgviewer.interaction.hpp"
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
 #include "ui.hpp"
@@ -31,6 +32,7 @@ struct ImgViewerContext final {
     PopupHost popup;
     ImgViewerController viewer;
     ImgViewerEditController edit;
+    ImgViewerInteractionState interaction;
     ImageSequence sequence;
     ImgViewerConfig config;
     std::wstring current_image_path;
@@ -64,6 +66,11 @@ void SyncActionStates(ImgViewerContext* context);
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text);
 void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context);
 void InvalidateImgViewerInfoPanelAnalysis(ImgViewerContext* context);
+void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context);
+bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context);
+void ExitImgViewerEditMode(HWND hwnd, ImgViewerContext* context);
+void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditTool tool, const wchar_t* toast_text);
+void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool active);
 void ApplyWindowOpacity(HWND hwnd, int percent);
 void SetImgViewerWindowOpacity(HWND hwnd, ImgViewerContext* context, int percent);
 void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent);
