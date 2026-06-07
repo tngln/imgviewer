@@ -1,5 +1,6 @@
 #include "imgviewer.settings.hpp"
 
+#include <array>
 #include <cwctype>
 #include <memory>
 #include <string>
@@ -55,6 +56,7 @@ constexpr float kSettingsSidePadding = 14.0f;
 constexpr float kSettingsContentTopPadding = 9.0f;
 constexpr float kSettingsFooterBottomPadding = 10.0f;
 constexpr float kSettingsFooterButtonHeight = 24.0f;
+constexpr float kSettingsFooterButtonWidth = 72.0f;
 constexpr float kSettingsFooterButtonGap = 5.0f;
 constexpr float kShortcutTableHeight = 146.0f;
 
@@ -75,6 +77,60 @@ std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction 
 
 
 class SettingsUi final : public UiRoot {
+private:
+    using BoolField = bool ImgViewerConfig::*;
+    using IntField = int ImgViewerConfig::*;
+    using ClampIntFn = int (*)(int);
+
+    struct BooleanSettingSpec final {
+        const wchar_t* label = L"";
+        const wchar_t* automation_id = L"";
+        BoolField field = nullptr;
+        bool inverted = false;
+    };
+
+    struct BooleanControl final {
+        const BooleanSettingSpec* spec = nullptr;
+        Checkbox* checkbox = nullptr;
+    };
+
+    struct SliderSettingSpec final {
+        const wchar_t* label = L"";
+        const wchar_t* automation_id = L"";
+        IntField field = nullptr;
+        int minimum = 0;
+        int maximum = 100;
+        int small_step = 1;
+        int large_step = 10;
+        ClampIntFn clamp = nullptr;
+    };
+
+    struct SliderControl final {
+        const SliderSettingSpec* spec = nullptr;
+        SliderRow* row = nullptr;
+        std::wstring value_text;
+    };
+
+    static constexpr size_t kRememberWindowSizeSetting = 0;
+    static constexpr size_t kPixelatedSamplingSetting = 1;
+    static constexpr size_t kCheckerboardBackgroundSetting = 2;
+    static constexpr size_t kBorderlessWindowSetting = 3;
+    static constexpr std::array<BooleanSettingSpec, 4> kBooleanSettingSpecs{{
+        {L"Remember window size", L"remember-window-size", &ImgViewerConfig::remember_window_size},
+        {L"Pixelated sampling", L"pixelated-sampling", &ImgViewerConfig::pixelated_sampling},
+        {L"Checkerboard background", L"checkerboard-background", &ImgViewerConfig::checkerboard_background},
+        {L"Borderless window", L"borderless-window", &ImgViewerConfig::borderless_window},
+    }};
+
+    static constexpr size_t kOpacitySliderSetting = 0;
+    static constexpr size_t kToolbarScaleSliderSetting = 1;
+    static constexpr std::array<SliderSettingSpec, 2> kSliderSettingSpecs{{
+        {L"Opacity", L"window-opacity", &ImgViewerConfig::window_opacity_percent,
+            kOpacityMinimum, kOpacityMaximum, kOpacitySmallStep, kOpacityLargeStep, ClampWindowOpacityPercent},
+        {L"Toolbar size", L"toolbar-size", &ImgViewerConfig::toolbar_scale_percent,
+            kToolbarScaleMinimum, kToolbarScaleMaximum, kToolbarScaleSmallStep, kToolbarScaleLargeStep, ClampToolbarScalePercent},
+    }};
+
 public:
     explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
     {
@@ -92,8 +148,7 @@ public:
 
         BuildUiTree();
         SyncChoiceControls();
-        UpdateOpacityText();
-        UpdateToolbarScaleText();
+        SyncSliderControls();
         UpdateFilterResults();
     }
 
@@ -103,18 +158,12 @@ public:
 
     void SetOpacityPercent(int percent)
     {
-        draft_.window_opacity_percent = ClampWindowOpacityPercent(percent);
-        opacity_slider_row_->SetValue(draft_.window_opacity_percent);
-        UpdateOpacityText();
-        opacity_slider_row_->SetValueText(opacity_text_.c_str());
+        SetSliderValue(kOpacitySliderSetting, percent);
     }
 
     void SetToolbarScalePercent(int percent) override
     {
-        draft_.toolbar_scale_percent = ClampToolbarScalePercent(percent);
-        toolbar_scale_slider_row_->SetValue(draft_.toolbar_scale_percent);
-        UpdateToolbarScaleText();
-        toolbar_scale_slider_row_->SetValueText(toolbar_scale_text_.c_str());
+        SetSliderValue(kToolbarScaleSliderSetting, percent);
     }
 
     UiElement* Root() override { return root_; }
@@ -126,78 +175,56 @@ public:
         if (id == filter_box_->Id()) {
             return filter_box_->Text().c_str();
         }
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            return opacity_text_.c_str();
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            return toolbar_scale_text_.c_str();
+        if (const SliderControl* control = SliderControlForId(id)) {
+            return control->value_text.c_str();
         }
         return L"";
     }
 
     double ElementRangeValue(UiElementId id) const override
     {
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(opacity_slider_row_->Value());
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(toolbar_scale_slider_row_->Value());
+        if (const SliderControl* control = SliderControlForId(id)) {
+            return static_cast<double>(control->row->Value());
         }
         return 0.0;
     }
 
     double ElementRangeMinimum(UiElementId id) const override
     {
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kOpacityMinimum);
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kToolbarScaleMinimum);
+        if (const SliderControl* control = SliderControlForId(id)) {
+            return static_cast<double>(control->spec->minimum);
         }
         return 0.0;
     }
 
     double ElementRangeMaximum(UiElementId id) const override
     {
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kOpacityMaximum);
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kToolbarScaleMaximum);
+        if (const SliderControl* control = SliderControlForId(id)) {
+            return static_cast<double>(control->spec->maximum);
         }
         return 0.0;
     }
 
     double ElementRangeSmallChange(UiElementId id) const override
     {
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kOpacitySmallStep);
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kToolbarScaleSmallStep);
+        if (const SliderControl* control = SliderControlForId(id)) {
+            return static_cast<double>(control->spec->small_step);
         }
         return 1.0;
     }
 
     double ElementRangeLargeChange(UiElementId id) const override
     {
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kOpacityLargeStep);
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            return static_cast<double>(kToolbarScaleLargeStep);
+        if (const SliderControl* control = SliderControlForId(id)) {
+            return static_cast<double>(control->spec->large_step);
         }
         return 10.0;
     }
 
     HRESULT SetElementRangeValue(UiElementId id, double value) override
     {
-        if (id == opacity_slider_row_->GetSlider()->Id()) {
-            SetOpacityPercent(static_cast<int>(value + 0.5));
-            return S_OK;
-        }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
-            SetToolbarScalePercent(static_cast<int>(value + 0.5));
+        if (SliderControl* control = SliderControlForId(id)) {
+            SetSliderValue(*control, static_cast<int>(value + 0.5));
             return S_OK;
         }
         return E_NOTIMPL;
@@ -205,9 +232,6 @@ public:
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
     {
-        reset_button_width_ = reset_button_->PreferredWidth(context);
-        save_button_width_ = save_button_->PreferredWidth(context);
-        cancel_button_width_ = cancel_button_->PreferredWidth(context);
         const float footer_height = kSettingsFooterButtonHeight + kSettingsFooterBottomPadding;
         D2D1_SIZE_F content_available = D2D1::SizeF(available_size.width, available_size.height - footer_height);
         root_->Measure(context, content_available);
@@ -223,11 +247,11 @@ public:
         reset_button_->Arrange(D2D1::RectF(
             final_rect.left + kSettingsSidePadding,
             footer_top,
-            final_rect.left + kSettingsSidePadding + reset_button_width_,
+            final_rect.left + kSettingsSidePadding + kSettingsFooterButtonWidth,
             footer_bottom));
         const float cancel_right = final_rect.right - kSettingsSidePadding;
-        const float save_right = cancel_right - cancel_button_width_ - kSettingsFooterButtonGap;
-        const float reset_right = save_right - save_button_width_ - kSettingsFooterButtonGap;
+        const float save_right = cancel_right - kSettingsFooterButtonWidth - kSettingsFooterButtonGap;
+        const float reset_right = save_right - kSettingsFooterButtonWidth - kSettingsFooterButtonGap;
         save_button_->Arrange(D2D1::RectF(reset_right, footer_top, save_right, footer_bottom));
         cancel_button_->Arrange(D2D1::RectF(save_right + kSettingsFooterButtonGap, footer_top, cancel_right, footer_bottom));
 
@@ -302,6 +326,74 @@ public:
     }
 
 private:
+    static UiElementMetadata PaneMetadata()
+    {
+        return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false);
+    }
+
+    static UiElementMetadata LabelMetadata(const wchar_t* label, const wchar_t* automation_id)
+    {
+        return UiMetadata(UiElementRole::Text, kUiActionNone, label, L"", automation_id, false, false);
+    }
+
+    StackPanel* AddSection(const wchar_t* label, const wchar_t* automation_id, float gap = ui_theme::metrics::kStandardGap)
+    {
+        auto* section = root_->AddItem(std::make_unique<StackPanel>(PaneMetadata()));
+        section->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        section->SetGap(gap);
+        section->AddItem(std::make_unique<Label>(
+            LabelMetadata(label, automation_id),
+            label,
+            LabelStyle::Muted));
+        return section;
+    }
+
+    Checkbox* AddCheckboxSetting(StackPanel* section, size_t index)
+    {
+        const BooleanSettingSpec& spec = kBooleanSettingSpecs[index];
+        auto checkbox = std::make_unique<Checkbox>(
+            UiMetadata(
+                UiElementRole::CheckBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                spec.label,
+                spec.label,
+                spec.automation_id),
+            spec.label,
+            BooleanSettingValue(spec));
+        Checkbox* result = section->AddItem(std::move(checkbox));
+        boolean_controls_[index] = BooleanControl{.spec = &spec, .checkbox = result};
+        return result;
+    }
+
+    SliderRow* AddSliderSetting(StackPanel* section, size_t index)
+    {
+        const SliderSettingSpec& spec = kSliderSettingSpecs[index];
+        auto slider = std::make_unique<SliderRow>(
+            UiMetadata(
+                UiElementRole::Slider,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                spec.label,
+                spec.label,
+                spec.automation_id),
+            spec.minimum,
+            spec.maximum,
+            draft_.*(spec.field),
+            spec.small_step,
+            spec.large_step);
+        SliderRow* result = section->AddItem(std::move(slider));
+        slider_controls_[index] = SliderControl{.spec = &spec, .row = result};
+        UpdateSliderText(slider_controls_[index]);
+        return result;
+    }
+
+    Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* automation_id, const wchar_t* icon, const wchar_t* text)
+    {
+        return static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
+            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, name, automation_id),
+            icon,
+            text)));
+    }
+
     void BuildUiTree()
     {
         // Title
@@ -309,120 +401,38 @@ private:
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Settings", L"", L"settings-title", false, false),
             L"Settings", LabelStyle::Title), 17.0f);
 
-        // Remember window size section (gap before = 16px)
-        auto* section1 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section1->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section1->SetGap(3.0f);
-
-        remember_checkbox_ = section1->AddItem(std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Remember window size", L"Remember window size", L"remember-window-size"),
-            L"Remember window size", draft_.remember_window_size));
-
-        auto* indent1 = section1->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        indent1->SetPadding(UiThickness{ui_theme::metrics::kSectionPadding, 0.0f, 0.0f, 0.0f});
-        indent1->SetGap(ui_theme::metrics::kStandardGap);
-
-        indent1->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Window size", L"", L"window-size-label", false, false),
-            L"Window size", LabelStyle::Muted));
-        remember_radio_ = indent1->AddItem(std::make_unique<RadioButton>(
+        StackPanel* window_size_section = AddSection(L"Window size", L"window-size-label", 3.0f);
+        AddCheckboxSetting(window_size_section, kRememberWindowSizeSetting);
+        remember_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
             UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
                 L"Remember last size", L"Remember last size", L"remember-last-size"),
             L"Remember last size", draft_.remember_window_size));
-        default_radio_ = indent1->AddItem(std::make_unique<RadioButton>(
+        default_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
             UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
                 L"Use default size", L"Use default size", L"use-default-size"),
             L"Use default size", !draft_.remember_window_size));
 
-        // Image rendering section (gap before = 16px)
-        auto* section2 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section2->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section2->SetGap(ui_theme::metrics::kStandardGap);
+        StackPanel* image_section = AddSection(L"Image rendering", L"image-rendering-label");
+        AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
+        AddCheckboxSetting(image_section, kCheckerboardBackgroundSetting);
 
-        section2->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Image rendering", L"", L"image-rendering-label", false, false),
-            L"Image rendering", LabelStyle::Muted));
-        pixelated_checkbox_ = section2->AddItem(std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Pixelated sampling", L"Pixelated sampling", L"pixelated-sampling"),
-            L"Pixelated sampling", draft_.pixelated_sampling));
-        checkerboard_checkbox_ = section2->AddItem(std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Checkerboard background", L"Checkerboard background", L"checkerboard-background"),
-            L"Checkerboard background", draft_.checkerboard_background));
+        StackPanel* frame_section = AddSection(L"Window frame", L"window-frame-label");
+        AddCheckboxSetting(frame_section, kBorderlessWindowSetting);
 
-        // Window frame section (gap before = 16px)
-        auto* section3 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section3->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section3->SetGap(ui_theme::metrics::kStandardGap);
+        StackPanel* opacity_section = AddSection(L"Opacity", L"opacity-label", ui_theme::metrics::kSmallGap);
+        AddSliderSetting(opacity_section, kOpacitySliderSetting);
 
-        section3->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Window frame", L"", L"window-frame-label", false, false),
-            L"Window frame", LabelStyle::Muted));
-        borderless_checkbox_ = section3->AddItem(std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Borderless window", L"Borderless window", L"borderless-window"),
-            L"Borderless window", draft_.borderless_window));
+        StackPanel* toolbar_section = AddSection(L"Toolbar size", L"toolbar-size-label", ui_theme::metrics::kSmallGap);
+        AddSliderSetting(toolbar_section, kToolbarScaleSliderSetting);
 
-        // Opacity section (gap before = 16px)
-        auto* section4 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section4->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section4->SetGap(ui_theme::metrics::kSmallGap);
-
-        section4->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Opacity", L"", L"opacity-label", false, false),
-            L"Opacity", LabelStyle::Muted));
-        opacity_slider_row_ = section4->AddItem(std::make_unique<SliderRow>(
-            UiMetadata(UiElementRole::Slider, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Opacity", L"Opacity", L"window-opacity"),
-            kOpacityMinimum, kOpacityMaximum, draft_.window_opacity_percent,
-            kOpacitySmallStep, kOpacityLargeStep));
-
-        // Toolbar size section (gap before = 16px)
-        auto* section5 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section5->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section5->SetGap(ui_theme::metrics::kSmallGap);
-
-        section5->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Toolbar size", L"", L"toolbar-size-label", false, false),
-            L"Toolbar size", LabelStyle::Muted));
-        toolbar_scale_slider_row_ = section5->AddItem(std::make_unique<SliderRow>(
-            UiMetadata(UiElementRole::Slider, UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Toolbar size", L"Toolbar size", L"toolbar-size"),
-            kToolbarScaleMinimum, kToolbarScaleMaximum, draft_.toolbar_scale_percent,
-            kToolbarScaleSmallStep, kToolbarScaleLargeStep));
-
-        // Shortcut filter section (gap before = 16px)
-        auto* section6 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section6->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section6->SetGap(ui_theme::metrics::kSmallGap);
-
-        section6->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Shortcut filter", L"", L"shortcut-filter-label", false, false),
-            L"Shortcut filter", LabelStyle::Muted));
-        filter_box_ = section6->AddItem(std::make_unique<TextBox>(
+        StackPanel* filter_section = AddSection(L"Shortcut filter", L"shortcut-filter-label", ui_theme::metrics::kSmallGap);
+        filter_box_ = filter_section->AddItem(std::make_unique<TextBox>(
             UiMetadata(UiElementRole::Edit, UiActionFromImgViewerAction(ImgViewerAction::None),
                 L"Shortcut filter", L"Shortcut filter", L"shortcut-filter"),
             L"Filter actions"));
 
-        // Action shortcuts section (gap before = 24px)
-        auto* section7 = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section7->SetPadding(UiThickness{0.0f, 12.0f, 0.0f, 0.0f});
-        section7->SetGap(8.0f);
-
-        section7->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Action shortcuts", L"", L"action-shortcuts-label", false, false),
-            L"Action shortcuts", LabelStyle::Muted));
-        action_table_ = section7->AddItem(std::make_unique<Table>(
+        StackPanel* shortcuts_section = AddSection(L"Action shortcuts", L"action-shortcuts-label", 8.0f);
+        action_table_ = shortcuts_section->AddItem(std::make_unique<Table>(
             UiMetadata(UiElementRole::Pane, UiActionFromImgViewerAction(ImgViewerAction::None),
                 L"Action shortcuts", L"Action shortcuts", L"action-shortcuts")));
         action_table_->SetColumns(std::vector<TableColumn>{
@@ -432,40 +442,20 @@ private:
         action_table_->SetHeaderVisible(true);
         action_table_->SetSelectionEnabled(true);
         action_table_->SetRowHeight(21.0f);
-        section7->SetItemFixedMainSize(section7->ChildCount() - 1, kShortcutTableHeight);
+        shortcuts_section->SetItemFixedMainSize(shortcuts_section->ChildCount() - 1, kShortcutTableHeight);
 
-        // Footer buttons owned separately
-        reset_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::ResetKeyBindings),
-                L"Reset Shortcuts", L"Reset Shortcuts", L"reset-shortcuts"),
-            kResetIcon, L"Reset")));
-        save_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::SaveSettings),
-                L"Save", L"Save", L"save-settings"),
-            kSaveIcon, L"Save")));
-        cancel_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::CloseSettings),
-                L"Cancel", L"Cancel", L"cancel-settings"),
-            kCancelIcon, L"Cancel")));
+        reset_button_ = AddFooterButton(ImgViewerAction::ResetKeyBindings, L"Reset Shortcuts", L"reset-shortcuts", kResetIcon, L"Reset");
+        save_button_ = AddFooterButton(ImgViewerAction::SaveSettings, L"Save", L"save-settings", kSaveIcon, L"Save");
+        cancel_button_ = AddFooterButton(ImgViewerAction::CloseSettings, L"Cancel", L"cancel-settings", kCancelIcon, L"Cancel");
     }
 
     void ApplyElementEffect(UiElementId id) override
     {
-        if (id == remember_checkbox_->Id()) { ToggleRememberWindowSize(); return; }
         if (id == remember_radio_->Id()) { SelectRememberWindowSize(); return; }
         if (id == default_radio_->Id()) { SelectDefaultWindowSize(); return; }
-        if (id == pixelated_checkbox_->Id()) { TogglePixelatedSampling(); return; }
-        if (id == checkerboard_checkbox_->Id()) { ToggleCheckerboardBackground(); return; }
-        if (id == borderless_checkbox_->Id()) { ToggleBorderlessWindow(); return; }
-        if (id == opacity_slider_row_->GetSlider()->Id()) { ApplyOpacitySlider(); return; }
-        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) { ApplyToolbarScaleSlider(); return; }
+        if (ApplyBooleanSetting(id)) { return; }
+        if (ApplySliderSetting(id)) { return; }
         if (id == action_table_->Id()) { return; }
-    }
-
-    void ToggleRememberWindowSize()
-    {
-        draft_.remember_window_size = !draft_.remember_window_size;
-        SyncChoiceControls();
     }
 
     void SelectRememberWindowSize()
@@ -480,46 +470,94 @@ private:
         SyncChoiceControls();
     }
 
-    void TogglePixelatedSampling()
-    {
-        draft_.pixelated_sampling = !draft_.pixelated_sampling;
-        SyncChoiceControls();
-    }
-
-    void ToggleCheckerboardBackground()
-    {
-        draft_.checkerboard_background = !draft_.checkerboard_background;
-        SyncChoiceControls();
-    }
-
-    void ToggleBorderlessWindow()
-    {
-        draft_.borderless_window = !draft_.borderless_window;
-        SyncChoiceControls();
-    }
-
-    void ApplyOpacitySlider()
-    {
-        draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_row_->Value());
-        UpdateOpacityText();
-        opacity_slider_row_->SetValueText(opacity_text_.c_str());
-    }
-
-    void ApplyToolbarScaleSlider()
-    {
-        draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_row_->Value());
-        UpdateToolbarScaleText();
-        toolbar_scale_slider_row_->SetValueText(toolbar_scale_text_.c_str());
-    }
-
     void SyncChoiceControls()
     {
-        remember_checkbox_->SetChecked(draft_.remember_window_size);
+        for (BooleanControl& control : boolean_controls_) {
+            if (control.checkbox != nullptr && control.spec != nullptr) {
+                control.checkbox->SetChecked(BooleanSettingValue(*control.spec));
+            }
+        }
         remember_radio_->SetSelected(draft_.remember_window_size);
         default_radio_->SetSelected(!draft_.remember_window_size);
-        pixelated_checkbox_->SetChecked(draft_.pixelated_sampling);
-        checkerboard_checkbox_->SetChecked(draft_.checkerboard_background);
-        borderless_checkbox_->SetChecked(draft_.borderless_window);
+    }
+
+    bool BooleanSettingValue(const BooleanSettingSpec& spec) const
+    {
+        const bool value = draft_.*(spec.field);
+        return spec.inverted ? !value : value;
+    }
+
+    bool ApplyBooleanSetting(UiElementId id)
+    {
+        for (const BooleanControl& control : boolean_controls_) {
+            if (control.checkbox != nullptr && control.checkbox->Id() == id) {
+                draft_.*(control.spec->field) = !(draft_.*(control.spec->field));
+                SyncChoiceControls();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void SyncSliderControls()
+    {
+        for (SliderControl& control : slider_controls_) {
+            if (control.row != nullptr && control.spec != nullptr) {
+                SetSliderValue(control, draft_.*(control.spec->field));
+            }
+        }
+    }
+
+    bool ApplySliderSetting(UiElementId id)
+    {
+        if (SliderControl* control = SliderControlForId(id)) {
+            SetSliderValue(*control, control->row->Value());
+            return true;
+        }
+        return false;
+    }
+
+    SliderControl* SliderControlForId(UiElementId id)
+    {
+        for (SliderControl& control : slider_controls_) {
+            if (control.row != nullptr && control.row->GetSlider()->Id() == id) {
+                return &control;
+            }
+        }
+        return nullptr;
+    }
+
+    const SliderControl* SliderControlForId(UiElementId id) const
+    {
+        for (const SliderControl& control : slider_controls_) {
+            if (control.row != nullptr && control.row->GetSlider()->Id() == id) {
+                return &control;
+            }
+        }
+        return nullptr;
+    }
+
+    void SetSliderValue(size_t index, int value)
+    {
+        SetSliderValue(slider_controls_[index], value);
+    }
+
+    void SetSliderValue(SliderControl& control, int value)
+    {
+        const int clamped = control.spec->clamp(value);
+        draft_.*(control.spec->field) = clamped;
+        control.row->SetValue(clamped);
+        UpdateSliderText(control);
+    }
+
+    void UpdateSliderText(SliderControl& control)
+    {
+        wchar_t text[16] = {};
+        swprintf_s(text, L"%d%%", draft_.*(control.spec->field));
+        control.value_text = text;
+        if (control.row != nullptr) {
+            control.row->SetValueText(control.value_text.c_str());
+        }
     }
 
     bool MatchesFilter(ImgViewerAction action) const
@@ -566,47 +604,18 @@ private:
         action_table_->SetRows(BuildShortcutRows());
     }
 
-    void UpdateOpacityText()
-    {
-        wchar_t text[16] = {};
-        swprintf_s(text, L"%d%%", draft_.window_opacity_percent);
-        opacity_text_ = text;
-        if (opacity_slider_row_ != nullptr) {
-            opacity_slider_row_->SetValueText(opacity_text_.c_str());
-        }
-    }
-
-    void UpdateToolbarScaleText()
-    {
-        wchar_t text[16] = {};
-        swprintf_s(text, L"%d%%", draft_.toolbar_scale_percent);
-        toolbar_scale_text_ = text;
-        if (toolbar_scale_slider_row_ != nullptr) {
-            toolbar_scale_slider_row_->SetValueText(toolbar_scale_text_.c_str());
-        }
-    }
-
     ImgViewerConfig draft_;
     std::unique_ptr<StackPanel> root_owner_;
     StackPanel* root_ = nullptr;
-    Checkbox* remember_checkbox_ = nullptr;
-    Checkbox* pixelated_checkbox_ = nullptr;
-    Checkbox* checkerboard_checkbox_ = nullptr;
-    Checkbox* borderless_checkbox_ = nullptr;
+    std::array<BooleanControl, kBooleanSettingSpecs.size()> boolean_controls_{};
+    std::array<SliderControl, kSliderSettingSpecs.size()> slider_controls_{};
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
-    SliderRow* opacity_slider_row_ = nullptr;
-    SliderRow* toolbar_scale_slider_row_ = nullptr;
     TextBox* filter_box_ = nullptr;
     Table* action_table_ = nullptr;
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
-    float reset_button_width_ = 0.0f;
-    float save_button_width_ = 0.0f;
-    float cancel_button_width_ = 0.0f;
-    std::wstring opacity_text_;
-    std::wstring toolbar_scale_text_;
 };
 
 struct SettingsWindowContext final : public UiWindowDelegate {
