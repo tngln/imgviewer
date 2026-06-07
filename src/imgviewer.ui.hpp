@@ -50,4 +50,5 @@ private:
     bool maximized_ = false;
     bool color_picker_active_ = false;
     bool save_image_as_enabled_ = false;
+    bool show_in_file_explorer_enabled_ = false;
 };

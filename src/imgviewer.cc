@@ -24,6 +24,7 @@ namespace {
 constexpr UINT kToastDurationMs = 2000;
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
+bool HasCurrentImageFilePath(const ImgViewerContext* context);
 void SetColorPickerActive(ImgViewerContext* context, bool active);
 void EnsureInfoPanelAnalysis(ImgViewerContext* context);
 void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
@@ -137,6 +138,10 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         return context != nullptr && context->viewer.HasCurrentImage();
     }
 
+    if (action == ImgViewerAction::ShowInFileExplorer) {
+        return HasCurrentImageFilePath(context);
+    }
+
     return true;
 }
 
@@ -151,6 +156,7 @@ void SyncActionStates(ImgViewerContext* context)
         ImgViewerAction::NextImage,
         ImgViewerAction::ToggleColorPicker,
         ImgViewerAction::SaveImageAs,
+        ImgViewerAction::ShowInFileExplorer,
     };
     for (const ImgViewerAction action : kSyncActions) {
         context->ui.SetActionEnabled(
@@ -262,6 +268,11 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         break;
     case ImgViewerAction::SaveImageAs:
         HandleImgViewerSaveImageAsCommand(hwnd, context);
+        break;
+    case ImgViewerAction::ShowInFileExplorer:
+        if (context != nullptr && FAILED(util::ShowFileInExplorer(context->current_image_path.c_str()))) {
+            ShowImgViewerToast(hwnd, context, L"Could not show file in Explorer.");
+        }
         break;
     case ImgViewerAction::OpenSettings:
         OpenImgViewerSettingsWindow(hwnd, context);
@@ -636,6 +647,16 @@ bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction)
 
     LoadImgViewerImageFile(hwnd, context, path->c_str());
     return true;
+}
+
+bool HasCurrentImageFilePath(const ImgViewerContext* context)
+{
+    if (context == nullptr || context->current_image_path.empty()) {
+        return false;
+    }
+
+    const DWORD attributes = GetFileAttributesW(context->current_image_path.c_str());
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
 }
 
 void SetColorPickerActive(ImgViewerContext* context, bool active)

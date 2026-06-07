@@ -2,10 +2,12 @@
 
 #include <dwmapi.h>
 #include <imm.h>
+#include <shlobj_core.h>
 
 #include <string>
 
 #include <wil/result_macros.h>
+#include <wil/resource.h>
 
 namespace util {
 
@@ -46,6 +48,20 @@ HRESULT ApplyDwmFrame(HWND hwnd, bool borderless)
 
     const MARGINS margins = borderless ? MARGINS{0, 0, 0, 0} : MARGINS{0, 0, 0, 1};
     RETURN_IF_FAILED(DwmExtendFrameIntoClientArea(hwnd, &margins));
+    return S_OK;
+}
+
+HRESULT ShowFileInExplorer(const wchar_t* path)
+{
+    RETURN_HR_IF(E_INVALIDARG, path == nullptr || path[0] == L'\0');
+
+    PIDLIST_ABSOLUTE item = nullptr;
+    RETURN_IF_FAILED(SHParseDisplayName(path, nullptr, &item, 0, nullptr));
+    auto free_item = wil::scope_exit([&] {
+        CoTaskMemFree(item);
+    });
+
+    RETURN_IF_FAILED(SHOpenFolderAndSelectItems(item, 0, nullptr, 0));
     return S_OK;
 }
 

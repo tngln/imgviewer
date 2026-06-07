@@ -7,6 +7,7 @@
     X(CaptureDesktop, "captureDesktop", L"Desktop Screenshot", true, true) \
     X(CaptureRegion, "captureRegion", L"Region Screenshot", true, true) \
     X(SaveImageAs, "saveImageAs", L"Save As", false, false) \
+    X(ShowInFileExplorer, "showInFileExplorer", L"Show in File Explorer", true, true) \
     X(PreviousImage, "previousImage", L"Previous Image", true, true) \
     X(NextImage, "nextImage", L"Next Image", true, true) \
     X(ZoomIn, "zoomIn", L"Zoom In", true, true) \
