@@ -14,8 +14,8 @@
 
 namespace {
 
-constexpr float kTextPaddingX = 10.0f;
-constexpr float kTextPaddingY = 5.0f;
+constexpr float kTextPaddingX = 5.0f;
+constexpr float kTextPaddingY = 2.5f;
 
 bool IsPrintable(wchar_t ch)
 {
@@ -79,7 +79,7 @@ std::vector<MenuItem> TextBox::ContextMenuItems() const
 
 D2D1_SIZE_F TextBox::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
-    return D2D1::SizeF((std::max)(1.0f, available_size.width), 42.0f);
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 21.0f);
 }
 
 void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
@@ -143,8 +143,8 @@ void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
         FLOAT y = 0.0f;
         layout->HitTestTextPosition(static_cast<UINT32>(caret_), FALSE, &x, &y, &metric);
         const float caret_x = text_rect.left - horizontal_scroll_ + x;
-        const float caret_top = text_rect.top + 2.0f;
-        const float caret_bottom = rect.bottom - kTextPaddingY - 2.0f;
+        const float caret_top = text_rect.top + 1.0f;
+        const float caret_bottom = rect.bottom - kTextPaddingY - 1.0f;
         caret_point_ = D2D1::Point2F(caret_x, caret_bottom);
         draw.FillRect(D2D1::RectF(caret_x, caret_top, caret_x + 1.5f, caret_bottom), ui_theme::color::kBodyText);
     }
@@ -387,7 +387,7 @@ wil::com_ptr<IDWriteTextLayout> TextBox::CreateLayout(const std::wstring& value,
         static_cast<UINT32>(value.size()),
         text_format_,
         (std::max)(1.0f, width + horizontal_scroll_ + 4096.0f),
-        32.0f,
+        16.0f,
         layout.put());
     return layout;
 }
@@ -412,9 +412,9 @@ void TextBox::UpdateHorizontalScroll()
     DWRITE_HIT_TEST_METRICS metric = {};
     layout->HitTestTextPosition(static_cast<UINT32>(caret_), FALSE, &x, &y, &metric);
     if (x - horizontal_scroll_ > width) {
-        horizontal_scroll_ = x - width + 4.0f;
+        horizontal_scroll_ = x - width + 2.0f;
     } else if (x < horizontal_scroll_) {
-        horizontal_scroll_ = (std::max)(0.0f, x - 4.0f);
+        horizontal_scroll_ = (std::max)(0.0f, x - 2.0f);
     }
 }
 

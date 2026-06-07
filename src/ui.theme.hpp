@@ -46,45 +46,45 @@ constexpr float kToolbarBackgroundOpacity = 0.88f;
 
 namespace metrics {
 
-constexpr float kTitleBarHeight = 48.0f;
-constexpr float kCaptionButtonWidth = 48.0f;
-constexpr float kCaptionButtonEdgePadding = 1.0f;
-constexpr float kTitleTextLeft = 16.0f;
-constexpr float kTitleTextRightPadding = 12.0f;
-constexpr float kWindowBorderInset = 0.5f;
-constexpr float kWindowBorderMinimum = 0.5f;
-constexpr float kButtonCornerRadius = 6.0f;
-constexpr float kPanelPadding = 32.0f;
-constexpr float kPrimaryButtonTop = 128.0f;
-constexpr float kPrimaryButtonHeight = 44.0f;
-constexpr float kOpenButtonWidth = 200.0f;
-constexpr float kToolbarButtonSize = 44.0f;
-constexpr float kToolbarButtonGap = 2.0f;
-constexpr float kToolbarPadding = 8.0f;
-constexpr float kToolbarDragHandleWidth = 18.0f;
-constexpr float kToolbarBottomMargin = 28.0f;
-constexpr float kToolbarCornerRadius = 8.0f;
-constexpr float kBodyTextTop = 58.0f;
-constexpr float kBodyTextBottom = 98.0f;
-constexpr float kIconTextTop = 96.0f;
-constexpr float kIconTextBottom = 136.0f;
-constexpr float kIconPlaceholderSize = 96.0f;
-constexpr float kIconPlaceholderPadding = 24.0f;
-constexpr float kIconPlaceholderMinimumSize = 16.0f;
-constexpr float kPathIconStrokeWidth = 1.75f;
+constexpr float kTitleBarHeight = 24.0f;
+constexpr float kCaptionButtonWidth = 24.0f;
+constexpr float kCaptionButtonEdgePadding = 0.5f;
+constexpr float kTitleTextLeft = 8.0f;
+constexpr float kTitleTextRightPadding = 6.0f;
+constexpr float kWindowBorderInset = 0.25f;
+constexpr float kWindowBorderMinimum = 0.25f;
+constexpr float kButtonCornerRadius = 3.0f;
+constexpr float kPanelPadding = 16.0f;
+constexpr float kPrimaryButtonTop = 64.0f;
+constexpr float kPrimaryButtonHeight = 22.0f;
+constexpr float kOpenButtonWidth = 100.0f;
+constexpr float kToolbarButtonSize = 22.0f;
+constexpr float kToolbarButtonGap = 1.0f;
+constexpr float kToolbarPadding = 4.0f;
+constexpr float kToolbarDragHandleWidth = 9.0f;
+constexpr float kToolbarBottomMargin = 14.0f;
+constexpr float kToolbarCornerRadius = 4.0f;
+constexpr float kBodyTextTop = 29.0f;
+constexpr float kBodyTextBottom = 49.0f;
+constexpr float kIconTextTop = 48.0f;
+constexpr float kIconTextBottom = 68.0f;
+constexpr float kIconPlaceholderSize = 48.0f;
+constexpr float kIconPlaceholderPadding = 12.0f;
+constexpr float kIconPlaceholderMinimumSize = 8.0f;
+constexpr float kPathIconStrokeWidth = 0.875f;
 
 } // namespace metrics
 
 namespace offset {
 
-constexpr float kButtonIconLeft = 14.0f;
-constexpr float kButtonIconTop = 10.0f;
-constexpr float kButtonIconRight = 38.0f;
-constexpr float kButtonTextLeft = 44.0f;
-constexpr float kButtonTextTop = 5.0f;
-constexpr float kButtonTextRight = 12.0f;
-constexpr float kCaptionIconLeft = 12.0f;
-constexpr float kCaptionIconTop = 10.0f;
+constexpr float kButtonIconLeft = 7.0f;
+constexpr float kButtonIconTop = 5.0f;
+constexpr float kButtonIconRight = 19.0f;
+constexpr float kButtonTextLeft = 22.0f;
+constexpr float kButtonTextTop = 2.5f;
+constexpr float kButtonTextRight = 6.0f;
+constexpr float kCaptionIconLeft = 6.0f;
+constexpr float kCaptionIconTop = 5.0f;
 
 } // namespace offset
 

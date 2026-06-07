@@ -10,13 +10,13 @@
 
 namespace {
 
-constexpr float kToastTop = ui_theme::metrics::kTitleBarHeight + 10.0f;
-constexpr float kToastViewportMargin = 16.0f;
-constexpr float kToastMaxWidth = 420.0f;
-constexpr float kToastMinWidth = 120.0f;
-constexpr float kToastPaddingX = 16.0f;
-constexpr float kToastPaddingY = 7.0f;
-constexpr float kToastCornerRadius = 8.0f;
+constexpr float kToastTop = ui_theme::metrics::kTitleBarHeight + 5.0f;
+constexpr float kToastViewportMargin = 8.0f;
+constexpr float kToastMaxWidth = 210.0f;
+constexpr float kToastMinWidth = 60.0f;
+constexpr float kToastPaddingX = 8.0f;
+constexpr float kToastPaddingY = 3.5f;
+constexpr float kToastCornerRadius = 4.0f;
 constexpr float kToastBackgroundOpacity = 0.92f;
 
 D2D1_COLOR_F ToastBackgroundColor()

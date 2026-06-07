@@ -16,9 +16,9 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
 namespace {
 
 constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
-constexpr float kMenuCornerRadius = 6.0f;
-constexpr float kMenuBodyFontSize = 17.0f;
-constexpr float kMenuIconFontSize = 20.0f;
+constexpr float kMenuCornerRadius = 3.0f;
+constexpr float kMenuBodyFontSize = 8.5f;
+constexpr float kMenuIconFontSize = 10.0f;
 
 PopupHost* GetPopupHost(HWND hwnd)
 {
@@ -241,9 +241,12 @@ bool PopupHost::Contains(D2D1_POINT_2F) const
 
 HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
 {
+    const float dpi_scale = static_cast<float>(GetDpiForWindow(owner_)) / 96.0f;
+    origin.x *= dpi_scale;
+    origin.y *= dpi_scale;
     POINT screen_origin = ClientToScreenPoint(owner_, origin);
-    const int width = static_cast<int>(std::ceil(size.width));
-    const int height = static_cast<int>(std::ceil(size.height));
+    const int width = static_cast<int>(std::ceil(size.width * dpi_scale));
+    const int height = static_cast<int>(std::ceil(size.height * dpi_scale));
 
     RECT work_area = {};
     HMONITOR monitor = MonitorFromPoint(screen_origin, MONITOR_DEFAULTTONEAREST);
@@ -272,7 +275,7 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
     RETURN_LAST_ERROR_IF_NULL(popup_hwnd_);
 
     if (content_ != nullptr && content_->CornerRadius() > 0.0f) {
-        const int diameter = static_cast<int>(std::ceil(content_->CornerRadius() * 2.0f));
+        const int diameter = static_cast<int>(std::ceil(content_->CornerRadius() * 2.0f * dpi_scale));
         HRGN region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
         RETURN_LAST_ERROR_IF_NULL(region);
         if (SetWindowRgn(popup_hwnd_, region, FALSE) == 0) {
@@ -318,17 +321,20 @@ void PopupHost::RenderNativePopup()
     }
     RECT rect = {};
     GetClientRect(popup_hwnd_, &rect);
+    const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
     const UiDrawContext draw_context{
         .d2d_context = native_render_target_.get(),
         .dwrite_factory = dwrite_factory_.get(),
         .body_text_format = body_text_format_,
         .icon_text_format = icon_text_format_,
         .viewport_size = D2D1::SizeF(
-            static_cast<float>((std::max)(1L, rect.right - rect.left)),
-            static_cast<float>((std::max)(1L, rect.bottom - rect.top))),
+            static_cast<float>((std::max)(1L, rect.right - rect.left)) / dpi_scale,
+            static_cast<float>((std::max)(1L, rect.bottom - rect.top)) / dpi_scale),
+        .dpi_scale = dpi_scale,
     };
 
     native_render_target_->BeginDraw();
+    native_render_target_->SetTransform(D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale));
     native_render_target_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
 
     if (content_ != nullptr) {
@@ -404,12 +410,14 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         if (host == nullptr) {
             break;
         }
+        const float dpi_scale2 = static_cast<float>(GetDpiForWindow(hwnd)) / 96.0f;
         const UiEventType type = message == WM_MOUSEMOVE
             ? UiEventType::PointerMove
             : message == WM_LBUTTONDOWN ? UiEventType::PointerDown : UiEventType::PointerUp;
         UiPointerEvent pointer{
             .type = type,
-            .point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam))),
+            .point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale2,
+                                   static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale2),
             .button = message == WM_MOUSEMOVE ? UiPointerButton::None : UiPointerButton::Left,
             .popup_host = host,
         };

@@ -13,6 +13,7 @@ struct UiDrawContext final {
     IDWriteTextFormat* body_text_format = nullptr;
     IDWriteTextFormat* icon_text_format = nullptr;
     D2D1_SIZE_F viewport_size = {};
+    float dpi_scale = 1.0f;
 };
 
 class UiDraw final {

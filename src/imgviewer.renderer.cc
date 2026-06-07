@@ -12,14 +12,15 @@
 
 namespace {
 
-constexpr float kCheckerboardCellSize = 16.0f;
+constexpr float kCheckerboardCellSize = 8.0f;
 
 struct ImageLayerRenderState final {
     ImgViewerSnapshot image;
     bool checkerboard_background = false;
+    float dpi_scale = 1.0f;
 };
 
-HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size)
+HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size, float cell_size)
 {
     RETURN_HR_IF_NULL(E_POINTER, context);
 
@@ -28,17 +29,17 @@ HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size)
     RETURN_IF_FAILED(context->CreateSolidColorBrush(ui_theme::color::kCheckerboardLight, light_brush.put()));
     RETURN_IF_FAILED(context->CreateSolidColorBrush(ui_theme::color::kCheckerboardDark, dark_brush.put()));
 
-    for (float y = 0.0f; y < size.height; y += kCheckerboardCellSize) {
-        const int row = static_cast<int>(y / kCheckerboardCellSize);
-        for (float x = 0.0f; x < size.width; x += kCheckerboardCellSize) {
-            const int column = static_cast<int>(x / kCheckerboardCellSize);
+    for (float y = 0.0f; y < size.height; y += cell_size) {
+        const int row = static_cast<int>(y / cell_size);
+        for (float x = 0.0f; x < size.width; x += cell_size) {
+            const int column = static_cast<int>(x / cell_size);
             ID2D1SolidColorBrush* brush = ((row + column) % 2 == 0) ? light_brush.get() : dark_brush.get();
             context->FillRectangle(
                 D2D1::RectF(
                     x,
                     y,
-                    (std::min)(x + kCheckerboardCellSize, size.width),
-                    (std::min)(y + kCheckerboardCellSize, size.height)),
+                    (std::min)(x + cell_size, size.width),
+                    (std::min)(y + cell_size, size.height)),
                 brush);
         }
     }
@@ -135,6 +136,7 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
     ImageLayerRenderState state{
         .image = image,
         .checkerboard_background = checkerboard_background_,
+        .dpi_scale = ui_renderer_.DpiScale(),
     };
     return ui_renderer_.DrawSurface(
         image_surface_,
@@ -157,7 +159,8 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
             const float height = context.draw.viewport_size.height;
             d2d_context->SetTransform(context.root_transform);
             if (state->checkerboard_background) {
-                RETURN_IF_FAILED(DrawCheckerboard(d2d_context, context.draw.viewport_size));
+                RETURN_IF_FAILED(DrawCheckerboard(
+                    d2d_context, context.draw.viewport_size, kCheckerboardCellSize * state->dpi_scale));
             }
 
             if (image->bitmap != nullptr) {
@@ -190,10 +193,10 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
             }
 
             const float icon_size = (std::max)(
-                ui_theme::metrics::kIconPlaceholderMinimumSize,
+                ui_theme::metrics::kIconPlaceholderMinimumSize * state->dpi_scale,
                 (std::min)(
-                    ui_theme::metrics::kIconPlaceholderSize,
-                    (std::min)(width, height) - ui_theme::metrics::kIconPlaceholderPadding));
+                    ui_theme::metrics::kIconPlaceholderSize * state->dpi_scale,
+                    (std::min)(width, height) - ui_theme::metrics::kIconPlaceholderPadding * state->dpi_scale));
             const float icon_width = icons::kImageIcon.view_box.right - icons::kImageIcon.view_box.left;
             const float icon_height = icons::kImageIcon.view_box.bottom - icons::kImageIcon.view_box.top;
             const float icon_viewport = (std::max)(icon_width, icon_height);

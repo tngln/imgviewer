@@ -26,13 +26,13 @@ namespace {
 constexpr wchar_t kAboutClassName[] = L"ImgViewerAboutWindow";
 constexpr wchar_t kCloseIcon[] = L"\xE711";
 constexpr wchar_t kCopyIcon[] = L"\xE8C8";
-constexpr int kAboutInitialWidth = 560;
-constexpr int kAboutInitialHeight = 520;
-constexpr int kAboutMinClientWidth = 480;
-constexpr int kAboutMinClientHeight = 420;
-constexpr float kAboutSidePadding = 28.0f;
-constexpr float kAboutFooterBottomPadding = 20.0f;
-constexpr float kAboutFooterButtonHeight = 48.0f;
+constexpr int kAboutInitialWidth = 280;
+constexpr int kAboutInitialHeight = 260;
+constexpr int kAboutMinClientWidth = 240;
+constexpr int kAboutMinClientHeight = 210;
+constexpr float kAboutSidePadding = 14.0f;
+constexpr float kAboutFooterBottomPadding = 10.0f;
+constexpr float kAboutFooterButtonHeight = 24.0f;
 
 struct NoticeLine final {
     const wchar_t* name;
@@ -120,48 +120,48 @@ public:
 
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(L"ImgViewer", 9, D2D1::RectF(28.0f, 24.0f, size.width - 28.0f, 58.0f), ui_theme::color::kBodyText);
+        draw.DrawBodyText(L"ImgViewer", 9, D2D1::RectF(14.0f, 12.0f, size.width - 14.0f, 29.0f), ui_theme::color::kBodyText);
         draw.DrawBodyText(
             L"Lightweight native image viewer.",
             32,
-            D2D1::RectF(28.0f, 66.0f, size.width - 28.0f, 94.0f),
+            D2D1::RectF(14.0f, 33.0f, size.width - 14.0f, 47.0f),
             ui_theme::color::kMutedText);
         draw.DrawBodyText(
             L"Development build",
             17,
-            D2D1::RectF(28.0f, 102.0f, size.width - 28.0f, 130.0f),
+            D2D1::RectF(14.0f, 51.0f, size.width - 14.0f, 65.0f),
             ui_theme::color::kMutedText);
 
         draw.DrawBodyText(
             L"Third-party notices",
             19,
-            D2D1::RectF(28.0f, 158.0f, size.width - 28.0f, 186.0f),
+            D2D1::RectF(14.0f, 79.0f, size.width - 14.0f, 93.0f),
             ui_theme::color::kBodyText);
-        draw.DrawRect(D2D1::RectF(28.0f, 194.0f, size.width - 28.0f, size.height - 92.0f), ui_theme::color::kBorder);
+        draw.DrawRect(D2D1::RectF(14.0f, 97.0f, size.width - 14.0f, size.height - 46.0f), ui_theme::color::kBorder);
 
-        float y = 210.0f;
+        float y = 105.0f;
         for (const NoticeLine& line : kNoticeLines) {
             draw.DrawBodyText(
                 line.name,
                 static_cast<UINT32>(wcslen(line.name)),
-                D2D1::RectF(44.0f, y, size.width - 44.0f, y + 24.0f),
+                D2D1::RectF(22.0f, y, size.width - 22.0f, y + 12.0f),
                 ui_theme::color::kBodyText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += 26.0f;
+            y += 13.0f;
             draw.DrawBodyText(
                 line.detail,
                 static_cast<UINT32>(wcslen(line.detail)),
-                D2D1::RectF(44.0f, y, size.width - 44.0f, y + 24.0f),
+                D2D1::RectF(22.0f, y, size.width - 22.0f, y + 12.0f),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += 24.0f;
+            y += 12.0f;
             draw.DrawBodyText(
                 line.license_path,
                 static_cast<UINT32>(wcslen(line.license_path)),
-                D2D1::RectF(44.0f, y, size.width - 44.0f, y + 24.0f),
+                D2D1::RectF(22.0f, y, size.width - 22.0f, y + 12.0f),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += 40.0f;
+            y += 20.0f;
         }
 
         DrawElement(*copy_button_, context, state);
@@ -201,8 +201,8 @@ private:
     std::unique_ptr<UiElement> root_;
     Button* copy_button_ = nullptr;
     Button* close_button_ = nullptr;
-    float copy_button_width_ = 162.0f;
-    float close_button_width_ = 112.0f;
+    float copy_button_width_ = 81.0f;
+    float close_button_width_ = 56.0f;
 };
 
 struct AboutWindowContext final : public UiWindowDelegate {
@@ -295,8 +295,8 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
                 .show_command = SW_SHOWNORMAL,
             },
             .action_message = kImgViewerUiActionMessage,
-            .body_font_size = 18.0f,
-            .icon_font_size = 22.0f,
+            .body_font_size = 9.0f,
+            .icon_font_size = 11.0f,
         },
         std::move(root),
         about_context);

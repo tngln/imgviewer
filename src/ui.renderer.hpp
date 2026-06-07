@@ -40,6 +40,7 @@ public:
     IDWriteTextFormat* BodyTextFormat() const;
     IDWriteTextFormat* IconTextFormat() const;
     ID2D1DeviceContext* BitmapDeviceContext() const;
+    float DpiScale() const;
 
 private:
     HRESULT ResizeSurfacesToClient();

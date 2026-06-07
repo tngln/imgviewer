@@ -131,9 +131,9 @@ void ImgViewerUiTitleBar::Arrange(D2D1_RECT_F final_rect)
 
     title_text_rect_ = D2D1::RectF(
         ui_theme::metrics::kCaptionButtonWidth + ui_theme::metrics::kTitleTextLeft,
-        1.0f,
+        0.5f,
         (std::max)(
-            ui_theme::metrics::kTitleTextLeft + 1.0f,
+            ui_theme::metrics::kTitleTextLeft + 0.5f,
             Button(ButtonKey::TopMost)->Rect().left - ui_theme::metrics::kTitleTextRightPadding),
         ui_theme::metrics::kTitleBarHeight);
 }

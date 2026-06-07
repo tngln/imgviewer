@@ -6,6 +6,7 @@
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
+#include "math.hpp"
 #include "ui.a11y.hpp"
 #include "ui.textbox.hpp"
 
@@ -166,8 +167,10 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     case WM_MOUSEMOVE: {
         TRACKMOUSEEVENT track = {.cbSize = sizeof(track), .dwFlags = TME_LEAVE, .hwndTrack = window_.Hwnd()};
         TrackMouseEvent(&track);
+        const float dpi_scale = math::CoordinateSpace::FromWindow(window_.Hwnd()).scale();
         const D2D1_POINT_2F point =
-            D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
+            D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale,
+                          static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale);
         UiPointerEvent pointer{
             .type = UiEventType::PointerMove,
             .point = point,
@@ -187,8 +190,10 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     case WM_LBUTTONUP: {
         SetFocus(window_.Hwnd());
         const UiEventType type = message == WM_LBUTTONDOWN ? UiEventType::PointerDown : UiEventType::PointerUp;
+        const float dpi_scale = math::CoordinateSpace::FromWindow(window_.Hwnd()).scale();
         const D2D1_POINT_2F point =
-            D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
+            D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale,
+                          static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale);
         UiPointerEvent pointer{
             .type = type,
             .point = point,
@@ -249,7 +254,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     case WM_CONTEXTMENU: {
         POINT point{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
         if (point.x == -1 && point.y == -1) {
-            point = POINT{32, 224};
+            point = POINT{16, 112};
         } else {
             ScreenToClient(window_.Hwnd(), &point);
         }
@@ -371,14 +376,21 @@ void UiWindowHost::Render()
     if (FAILED(EnsureRenderTarget())) {
         return;
     }
+    const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(window_.Hwnd());
+    const float dpi_scale = coordinates.scale();
+    const D2D1_SIZE_U client_pixel = ClientPixelSize(window_.Hwnd());
     const UiDrawContext draw_context{
         .d2d_context = render_target_.get(),
         .dwrite_factory = dwrite_factory_.get(),
         .body_text_format = body_text_format_.get(),
         .icon_text_format = icon_text_format_.get(),
-        .viewport_size = ClientRenderSize(window_.Hwnd()),
+        .viewport_size = D2D1::SizeF(
+            static_cast<float>(client_pixel.width) / dpi_scale,
+            static_cast<float>(client_pixel.height) / dpi_scale),
+        .dpi_scale = dpi_scale,
     };
     render_target_->BeginDraw();
+    render_target_->SetTransform(D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale));
     ui_.Render(draw_context);
     if (options_.enable_popup) {
         popup_.Render(draw_context);

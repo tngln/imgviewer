@@ -45,16 +45,16 @@ constexpr int kToolbarScaleMinimum = 80;
 constexpr int kToolbarScaleMaximum = 160;
 constexpr int kToolbarScaleSmallStep = 5;
 constexpr int kToolbarScaleLargeStep = 10;
-constexpr int kSettingsInitialWidth = 820;
-constexpr int kSettingsInitialHeight = 944;
-constexpr int kSettingsMinClientWidth = 620;
-constexpr int kSettingsMinClientHeight = 916;
+constexpr int kSettingsInitialWidth = 410;
+constexpr int kSettingsInitialHeight = 472;
+constexpr int kSettingsMinClientWidth = 310;
+constexpr int kSettingsMinClientHeight = 458;
 
-constexpr float kSettingsSidePadding = 28.0f;
-constexpr float kSettingsContentTopPadding = 18.0f;
-constexpr float kSettingsFooterBottomPadding = 20.0f;
-constexpr float kSettingsFooterButtonHeight = 48.0f;
-constexpr float kSettingsFooterButtonGap = 10.0f;
+constexpr float kSettingsSidePadding = 14.0f;
+constexpr float kSettingsContentTopPadding = 9.0f;
+constexpr float kSettingsFooterBottomPadding = 10.0f;
+constexpr float kSettingsFooterButtonHeight = 24.0f;
+constexpr float kSettingsFooterButtonGap = 5.0f;
 
 std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction action)
 {
@@ -313,13 +313,13 @@ private:
         // Title
         root_->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Settings", L"", L"settings-title", false, false),
-            L"Settings", LabelStyle::Title), 34.0f);
+            L"Settings", LabelStyle::Title), 17.0f);
 
         // Remember window size section (gap before = 16px)
         auto* section1 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section1->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
-        section1->SetGap(6.0f);
+        section1->SetPadding(UiThickness{0.0f, 8.0f, 0.0f, 0.0f});
+        section1->SetGap(3.0f);
 
         remember_checkbox_ = section1->AddItem(std::make_unique<Checkbox>(
             UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
@@ -328,7 +328,7 @@ private:
 
         auto* indent1 = section1->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        indent1->SetPadding(UiThickness{24.0f, 0.0f, 0.0f, 0.0f});
+        indent1->SetPadding(UiThickness{12.0f, 0.0f, 0.0f, 0.0f});
         indent1->SetGap(6.0f);
 
         indent1->AddItem(std::make_unique<Label>(
@@ -346,7 +346,7 @@ private:
         // Image rendering section (gap before = 16px)
         auto* section2 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section2->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section2->SetPadding(UiThickness{0.0f, 8.0f, 0.0f, 0.0f});
         section2->SetGap(6.0f);
 
         section2->AddItem(std::make_unique<Label>(
@@ -364,7 +364,7 @@ private:
         // Window frame section (gap before = 16px)
         auto* section3 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section3->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section3->SetPadding(UiThickness{0.0f, 8.0f, 0.0f, 0.0f});
         section3->SetGap(6.0f);
 
         section3->AddItem(std::make_unique<Label>(
@@ -378,8 +378,8 @@ private:
         // Opacity section (gap before = 16px)
         auto* section4 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section4->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
-        section4->SetGap(8.0f);
+        section4->SetPadding(UiThickness{0.0f, 8.0f, 0.0f, 0.0f});
+        section4->SetGap(4.0f);
 
         section4->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Opacity", L"", L"opacity-label", false, false),
@@ -393,8 +393,8 @@ private:
         // Toolbar size section (gap before = 16px)
         auto* section5 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section5->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
-        section5->SetGap(8.0f);
+        section5->SetPadding(UiThickness{0.0f, 8.0f, 0.0f, 0.0f});
+        section5->SetGap(4.0f);
 
         section5->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Toolbar size", L"", L"toolbar-size-label", false, false),
@@ -408,8 +408,8 @@ private:
         // Shortcut filter section (gap before = 16px)
         auto* section6 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section6->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
-        section6->SetGap(8.0f);
+        section6->SetPadding(UiThickness{0.0f, 8.0f, 0.0f, 0.0f});
+        section6->SetGap(4.0f);
 
         section6->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Shortcut filter", L"", L"shortcut-filter-label", false, false),
@@ -422,7 +422,7 @@ private:
         // Action shortcuts section (gap before = 24px)
         auto* section7 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section7->SetPadding(UiThickness{0.0f, 24.0f, 0.0f, 0.0f});
+        section7->SetPadding(UiThickness{0.0f, 12.0f, 0.0f, 0.0f});
         section7->SetGap(8.0f);
 
         section7->AddItem(std::make_unique<Label>(
@@ -608,9 +608,9 @@ private:
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
-    float reset_button_width_ = 138.0f;
-    float save_button_width_ = 126.0f;
-    float cancel_button_width_ = 128.0f;
+    float reset_button_width_ = 69.0f;
+    float save_button_width_ = 63.0f;
+    float cancel_button_width_ = 64.0f;
     std::wstring opacity_text_;
     std::wstring toolbar_scale_text_;
     std::wstring shortcut_text_;
@@ -811,8 +811,8 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
             },
             .action_message = kImgViewerUiActionMessage,
             .caret_timer_id = kCaretTimerId,
-            .body_font_size = 19.0f,
-            .icon_font_size = 22.0f,
+            .body_font_size = 9.5f,
+            .icon_font_size = 11.0f,
         },
         std::move(root),
         settings_context);

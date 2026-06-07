@@ -37,8 +37,8 @@ struct UiWindowOptions final {
     win32::NativeWindowOptions native;
     UINT action_message = 0;
     UINT_PTR caret_timer_id = 1;
-    float body_font_size = 17.0f;
-    float icon_font_size = 20.0f;
+    float body_font_size = 8.5f;
+    float icon_font_size = 10.0f;
     bool enable_accessibility = true;
     bool enable_popup = true;
     bool enable_ime = true;

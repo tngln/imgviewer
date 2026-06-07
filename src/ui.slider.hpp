@@ -37,7 +37,7 @@ private:
 class SliderRow final : public UiElement {
 public:
     SliderRow(UiElementMetadata metadata, int minimum, int maximum, int value,
-              int small_step, int large_step, float value_width = 72.0f);
+              int small_step, int large_step, float value_width = 36.0f);
 
     int Value() const;
     bool SetValue(int value);
@@ -52,7 +52,7 @@ public:
 private:
     Slider* slider_ = nullptr;  // owned via AddChild
     std::wstring value_text_;
-    float value_width_ = 72.0f;
+    float value_width_ = 36.0f;
     D2D1_RECT_F value_rect_ = {};
-    static constexpr float kGap = 16.0f;
+    static constexpr float kGap = 8.0f;
 };

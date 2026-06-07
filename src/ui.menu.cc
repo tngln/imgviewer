@@ -13,14 +13,14 @@
 
 namespace {
 
-constexpr float kMenuMinWidth = 220.0f;
-constexpr float kMenuItemHeight = 34.0f;
-constexpr float kMenuSeparatorHeight = 9.0f;
-constexpr float kMenuPadding = 6.0f;
-constexpr float kMenuTextLeft = 34.0f;
-constexpr float kMenuTextRight = 28.0f;
-constexpr float kMenuChildMarkWidth = 20.0f;
-constexpr float kMenuChildMarkGap = 10.0f;
+constexpr float kMenuMinWidth = 110.0f;
+constexpr float kMenuItemHeight = 17.0f;
+constexpr float kMenuSeparatorHeight = 4.5f;
+constexpr float kMenuPadding = 3.0f;
+constexpr float kMenuTextLeft = 17.0f;
+constexpr float kMenuTextRight = 14.0f;
+constexpr float kMenuChildMarkWidth = 10.0f;
+constexpr float kMenuChildMarkGap = 5.0f;
 
 float ItemHeight(const MenuItem& item)
 {
@@ -123,30 +123,30 @@ void MenuOverlay::Render(const UiDrawContext& context, UiRootState) const
     Measure(context, context.viewport_size);
     const UiDraw draw(context);
     const D2D1_RECT_F menu_rect = Bounds();
-    draw.FillRoundedRect(D2D1::RoundedRect(menu_rect, 6.0f, 6.0f), ui_theme::color::kButtonDefault);
-    draw.DrawRoundedRect(D2D1::RoundedRect(menu_rect, 6.0f, 6.0f), ui_theme::color::kBorder);
+    draw.FillRoundedRect(D2D1::RoundedRect(menu_rect, 3.0f, 3.0f), ui_theme::color::kButtonDefault);
+    draw.DrawRoundedRect(D2D1::RoundedRect(menu_rect, 3.0f, 3.0f), ui_theme::color::kBorder);
 
     for (size_t index = 0; index < items_.size(); ++index) {
         const MenuItem& item = items_[index];
         const D2D1_RECT_F rect = ItemRect(index);
         if (item.separator) {
             const float y = rect.top + rect.bottom;
-            draw.DrawRect(D2D1::RectF(rect.left + 12.0f, y * 0.5f, rect.right - 12.0f, y * 0.5f + 0.5f), ui_theme::color::kBorder);
+            draw.DrawRect(D2D1::RectF(rect.left + 6.0f, y * 0.5f, rect.right - 6.0f, y * 0.5f + 0.5f), ui_theme::color::kBorder);
             continue;
         }
         if (index == selected_) {
             draw.FillRect(rect, ui_theme::color::kButtonHovered);
         }
         if (item.checked) {
-            draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(rect.left + 11.0f, rect.top + 1.0f, rect.left + 30.0f, rect.bottom), ui_theme::color::kAccent);
+            draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(rect.left + 5.5f, rect.top + 0.5f, rect.left + 15.0f, rect.bottom), ui_theme::color::kAccent);
         }
         const D2D1_COLOR_F text_color = item.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent;
         const float text_right = item.children.empty()
             ? rect.right - kMenuTextRight
             : rect.right - kMenuTextRight - kMenuChildMarkWidth - kMenuChildMarkGap;
-        draw.DrawBodyText(item.text, static_cast<UINT32>(wcslen(item.text)), D2D1::RectF(rect.left + kMenuTextLeft, rect.top + 3.0f, text_right, rect.bottom), text_color, D2D1_DRAW_TEXT_OPTIONS_CLIP);
+        draw.DrawBodyText(item.text, static_cast<UINT32>(wcslen(item.text)), D2D1::RectF(rect.left + kMenuTextLeft, rect.top + 1.5f, text_right, rect.bottom), text_color, D2D1_DRAW_TEXT_OPTIONS_CLIP);
         if (!item.children.empty()) {
-            draw.DrawBodyText(L">", 1, D2D1::RectF(rect.right - kMenuTextRight - kMenuChildMarkWidth, rect.top + 3.0f, rect.right, rect.bottom), text_color);
+            draw.DrawBodyText(L">", 1, D2D1::RectF(rect.right - kMenuTextRight - kMenuChildMarkWidth, rect.top + 1.5f, rect.right, rect.bottom), text_color);
         }
     }
 }

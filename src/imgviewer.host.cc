@@ -33,7 +33,7 @@ D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam, bool screen_to_client = 
     if (screen_to_client) {
         ScreenToClient(hwnd, &point);
     }
-    return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+    return D2D1::Point2F(static_cast<float>(point.x), static_cast<float>(point.y));
 }
 
 D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
@@ -219,7 +219,10 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
 
     POINT client_point = screen_point;
     ScreenToClient(hwnd, &client_point);
-    const D2D1_POINT_2F render_point = math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(client_point);
+    const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd);
+    const D2D1_POINT_2F render_point = D2D1::Point2F(
+        static_cast<float>(client_point.x) / coordinates.scale(),
+        static_cast<float>(client_point.y) / coordinates.scale());
     ImgViewerContext* context = GetImgViewerContext(hwnd);
     if (context != nullptr && context->ui.IsPointInCaptionDragArea(render_point)) {
         return HTCAPTION;
@@ -420,9 +423,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         RenderIfNeeded(context, viewer_result);
         if (context != nullptr && !viewer_result.handled) {
+            const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd);
+            const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / coordinates.scale(), point.y / coordinates.scale());
             UiPointerEvent pointer{
                 .type = UiEventType::PointerMove,
-                .point = point,
+                .point = ui_point,
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
@@ -441,9 +446,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
     case WM_LBUTTONDOWN: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
+        const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
         UiPointerEvent pointer{
             .type = UiEventType::PointerDown,
-            .point = point,
+            .point = ui_point,
             .button = UiPointerButton::Left,
             .modifiers = UiModifiers::Current(),
             .popup_host = context != nullptr ? &context->popup : nullptr,
@@ -484,9 +491,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         RenderIfNeeded(context, viewer_result);
         UiEventResult ui_result = {};
         if (context != nullptr && !viewer_result.handled) {
+            const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
+            const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
             UiPointerEvent pointer{
                 .type = UiEventType::PointerUp,
-                .point = point,
+                .point = ui_point,
                 .button = UiPointerButton::Left,
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
@@ -541,9 +550,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return 0;
         }
         if (context != nullptr) {
+            const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
+            const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
             UiPointerEvent pointer{
                 .type = UiEventType::PointerWheel,
-                .point = point,
+                .point = ui_point,
                 .wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam),
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,

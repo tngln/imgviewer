@@ -10,10 +10,10 @@
 
 namespace {
 
-constexpr int kDefaultWindowWidth = 960;
-constexpr int kDefaultWindowHeight = 640;
-constexpr int kMinimumWindowWidth = 320;
-constexpr int kMinimumWindowHeight = 240;
+constexpr int kDefaultWindowWidth = 480;
+constexpr int kDefaultWindowHeight = 320;
+constexpr int kMinimumWindowWidth = 160;
+constexpr int kMinimumWindowHeight = 120;
 constexpr int kMinimumWindowOpacityPercent = 10;
 constexpr int kMaximumWindowOpacityPercent = 100;
 constexpr int kMinimumToolbarScalePercent = 80;

@@ -12,7 +12,7 @@
 
 namespace {
 
-constexpr D2D1_POINT_2F kMainMenuOrigin{6.0f, ui_theme::metrics::kTitleBarHeight + 4.0f};
+constexpr D2D1_POINT_2F kMainMenuOrigin{3.0f, ui_theme::metrics::kTitleBarHeight + 2.0f};
 
 } // namespace
 

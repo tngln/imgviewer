@@ -5,8 +5,8 @@
 #include "imgviewer.keybindings.hpp"
 
 struct WindowSizeConfig final {
-    int width = 960;
-    int height = 640;
+    int width = 480;
+    int height = 320;
 };
 
 struct ImgViewerConfig final {

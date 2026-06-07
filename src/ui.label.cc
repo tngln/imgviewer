@@ -9,8 +9,8 @@
 
 namespace {
 
-constexpr float kLabelTitleHeight = 34.0f;
-constexpr float kLabelBodyHeight = 26.0f;
+constexpr float kLabelTitleHeight = 17.0f;
+constexpr float kLabelBodyHeight = 13.0f;
 
 float LabelHeight(LabelStyle style)
 {

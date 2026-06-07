@@ -55,7 +55,7 @@ HRESULT UiRenderer::Initialize(HWND hwnd)
         DWRITE_FONT_WEIGHT_SEMI_BOLD,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        28.0f,
+        14.0f,
         L"",
         body_text_format_.put()));
     RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
@@ -64,7 +64,7 @@ HRESULT UiRenderer::Initialize(HWND hwnd)
         DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        24.0f,
+        12.0f,
         L"",
         icon_text_format_.put()));
     RETURN_IF_FAILED(body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
@@ -103,15 +103,17 @@ HRESULT UiRenderer::DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, 
     POINT offset = {};
     RETURN_IF_FAILED(BeginDrawSurface(id, target_bitmap.put(), &offset));
 
-    const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd_);
-    const D2D1_POINT_2F offset_render = coordinates.PhysicalToRender(offset);
+    const D2D1_POINT_2F offset_render = D2D1::Point2F(static_cast<float>(offset.x), static_cast<float>(offset.y));
     const UiSurfaceDrawContext draw_context{
         .draw = UiDrawContext{
             .d2d_context = d2d_context_.get(),
             .dwrite_factory = dwrite_factory_.get(),
             .body_text_format = body_text_format_.get(),
             .icon_text_format = icon_text_format_.get(),
-            .viewport_size = coordinates.PhysicalToRender(surfaces_.Width(), surfaces_.Height()),
+            .viewport_size = D2D1::SizeF(
+                static_cast<float>(surfaces_.Width()),
+                static_cast<float>(surfaces_.Height())),
+            .dpi_scale = 1.0f,
         },
         .d2d_factory = d2d_factory_.get(),
         .viewport_pixel_size = ViewportPixelSize(),
@@ -134,19 +136,35 @@ HRESULT UiRenderer::DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, 
 
 HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
 {
+    const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd_).scale();
+    struct UiOverlayState {
+        UiController* ui;
+        float dpi_scale;
+    } state{&ui, dpi_scale};
+
     return DrawSurface(
         id,
         [](const UiSurfaceDrawContext& context, void* user_data) -> HRESULT {
-            UiController* ui_controller = static_cast<UiController*>(user_data);
+            const auto* state = static_cast<const UiOverlayState*>(user_data);
+            UiController* ui_controller = state->ui;
+            const float dpi_scale = state->dpi_scale;
             RETURN_HR_IF_NULL(E_INVALIDARG, ui_controller);
 
-            const UiDraw draw(context.draw);
+            const auto& root = reinterpret_cast<const D2D1::Matrix3x2F&>(context.root_transform);
+            D2D1::Matrix3x2F ui_transform = D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale) * root;
+            UiDrawContext ui_draw = context.draw;
+            ui_draw.dpi_scale = dpi_scale;
+            ui_draw.viewport_size = D2D1::SizeF(
+                context.draw.viewport_size.width / dpi_scale,
+                context.draw.viewport_size.height / dpi_scale);
+
+            const UiDraw draw(ui_draw);
             draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
-            context.draw.d2d_context->SetTransform(context.root_transform);
-            ui_controller->Render(context.draw);
+            context.draw.d2d_context->SetTransform(&ui_transform);
+            ui_controller->Render(ui_draw);
             return S_OK;
         },
-        &ui);
+        &state);
 }
 
 HRESULT UiRenderer::SetSurfaceVisible(UiSurfaceId id, bool visible)
@@ -189,6 +207,11 @@ IDWriteTextFormat* UiRenderer::IconTextFormat() const
 ID2D1DeviceContext* UiRenderer::BitmapDeviceContext() const
 {
     return d2d_context_.get();
+}
+
+float UiRenderer::DpiScale() const
+{
+    return math::CoordinateSpace::FromWindow(hwnd_).scale();
 }
 
 HRESULT UiRenderer::ResizeSurfacesToClient()

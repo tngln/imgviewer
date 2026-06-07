@@ -10,8 +10,8 @@
 
 namespace {
 
-constexpr float kSliderTrackHeight = 8.0f;
-constexpr float kSliderThumbSize = 22.0f;
+constexpr float kSliderTrackHeight = 4.0f;
+constexpr float kSliderThumbSize = 11.0f;
 
 } // namespace
 
@@ -53,7 +53,7 @@ bool Slider::SetValue(int value)
 
 D2D1_SIZE_F Slider::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
-    return D2D1::SizeF((std::max)(1.0f, available_size.width), 36.0f);
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 18.0f);
 }
 
 void Slider::Render(const UiDrawContext& context, UiRootState root_state) const
