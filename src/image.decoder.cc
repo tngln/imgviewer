@@ -7,20 +7,14 @@
 #include <wil/result_macros.h>
 
 #include "image.stb_decoder.hpp"
+#include "image.utils.hpp"
 
 namespace {
 
 bool IsStbFallbackExtension(const wchar_t* path)
 {
-    if (path == nullptr) {
-        return false;
-    }
-
-    std::wstring extension = std::filesystem::path(path).extension().wstring();
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t value) {
-        return static_cast<wchar_t>(std::towlower(value));
-    });
-    return extension == L".tga" || extension == L".psd";
+    const std::wstring ext = image_utils::ToLowerExtension(path);
+    return ext == L".tga" || ext == L".psd";
 }
 
 } // namespace

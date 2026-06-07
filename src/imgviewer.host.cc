@@ -27,23 +27,18 @@ namespace {
 
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 
-D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam)
+D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam, bool screen_to_client = false)
 {
-    const POINT point{
-        GET_X_LPARAM(lparam),
-        GET_Y_LPARAM(lparam),
-    };
+    POINT point{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+    if (screen_to_client) {
+        ScreenToClient(hwnd, &point);
+    }
     return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
 }
 
 D2D1_POINT_2F GetScreenPointerPoint(HWND hwnd, LPARAM lparam)
 {
-    POINT point{
-        GET_X_LPARAM(lparam),
-        GET_Y_LPARAM(lparam),
-    };
-    ScreenToClient(hwnd, &point);
-    return math::CoordinateSpace::FromWindow(hwnd).PhysicalToRender(point);
+    return GetPointerPoint(hwnd, lparam, true);
 }
 
 ImgViewerContext* GetImgViewerContext(HWND hwnd)

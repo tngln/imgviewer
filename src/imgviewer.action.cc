@@ -1,6 +1,49 @@
 #include "imgviewer.action.hpp"
 
+#include <algorithm>
+#include <array>
 #include <string_view>
+
+namespace {
+
+struct ActionEntry {
+    std::string_view name;
+    ImgViewerAction action;
+};
+
+constexpr std::array kActionTable = std::array<ActionEntry, 30>{
+    {{"actualSize", ImgViewerAction::ActualSize},
+     {"close", ImgViewerAction::Close},
+     {"closeAbout", ImgViewerAction::CloseAbout},
+     {"closeSettings", ImgViewerAction::CloseSettings},
+     {"copyAboutNotices", ImgViewerAction::CopyAboutNotices},
+     {"fitWindow", ImgViewerAction::FitWindow},
+     {"flipHorizontal", ImgViewerAction::FlipHorizontal},
+     {"flipVertical", ImgViewerAction::FlipVertical},
+     {"minimize", ImgViewerAction::Minimize},
+     {"nextImage", ImgViewerAction::NextImage},
+     {"openAbout", ImgViewerAction::OpenAbout},
+     {"openImage", ImgViewerAction::OpenImage},
+     {"openMenu", ImgViewerAction::OpenMenu},
+     {"openSettings", ImgViewerAction::OpenSettings},
+     {"previousImage", ImgViewerAction::PreviousImage},
+     {"resetKeyBindings", ImgViewerAction::ResetKeyBindings},
+     {"resetView", ImgViewerAction::ResetView},
+     {"rotateClockwise", ImgViewerAction::RotateClockwise},
+     {"saveImageAs", ImgViewerAction::SaveImageAs},
+     {"saveSettings", ImgViewerAction::SaveSettings},
+     {"textCopy", ImgViewerAction::TextCopy},
+     {"textCut", ImgViewerAction::TextCut},
+     {"textPaste", ImgViewerAction::TextPaste},
+     {"textSelectAll", ImgViewerAction::TextSelectAll},
+     {"toggleColorPicker", ImgViewerAction::ToggleColorPicker},
+     {"toggleInfoPanel", ImgViewerAction::ToggleInfoPanel},
+     {"toggleMaximize", ImgViewerAction::ToggleMaximize},
+     {"toggleTopMost", ImgViewerAction::ToggleTopMost},
+     {"zoomIn", ImgViewerAction::ZoomIn},
+     {"zoomOut", ImgViewerAction::ZoomOut}},
+};
+} // namespace
 
 const char* ImgViewerActionName(ImgViewerAction action)
 {
@@ -73,96 +116,15 @@ const char* ImgViewerActionName(ImgViewerAction action)
 
 ImgViewerAction ImgViewerActionFromName(const char* name)
 {
-    const std::string_view value = name != nullptr ? std::string_view(name) : std::string_view();
-    if (value == "openImage") {
-        return ImgViewerAction::OpenImage;
+    if (name == nullptr) {
+        return ImgViewerAction::None;
     }
-    if (value == "saveImageAs") {
-        return ImgViewerAction::SaveImageAs;
-    }
-    if (value == "previousImage") {
-        return ImgViewerAction::PreviousImage;
-    }
-    if (value == "nextImage") {
-        return ImgViewerAction::NextImage;
-    }
-    if (value == "zoomIn") {
-        return ImgViewerAction::ZoomIn;
-    }
-    if (value == "zoomOut") {
-        return ImgViewerAction::ZoomOut;
-    }
-    if (value == "fitWindow") {
-        return ImgViewerAction::FitWindow;
-    }
-    if (value == "actualSize") {
-        return ImgViewerAction::ActualSize;
-    }
-    if (value == "rotateClockwise") {
-        return ImgViewerAction::RotateClockwise;
-    }
-    if (value == "flipHorizontal") {
-        return ImgViewerAction::FlipHorizontal;
-    }
-    if (value == "flipVertical") {
-        return ImgViewerAction::FlipVertical;
-    }
-    if (value == "resetView") {
-        return ImgViewerAction::ResetView;
-    }
-    if (value == "toggleColorPicker") {
-        return ImgViewerAction::ToggleColorPicker;
-    }
-    if (value == "toggleInfoPanel") {
-        return ImgViewerAction::ToggleInfoPanel;
-    }
-    if (value == "openMenu") {
-        return ImgViewerAction::OpenMenu;
-    }
-    if (value == "openSettings") {
-        return ImgViewerAction::OpenSettings;
-    }
-    if (value == "closeSettings") {
-        return ImgViewerAction::CloseSettings;
-    }
-    if (value == "saveSettings") {
-        return ImgViewerAction::SaveSettings;
-    }
-    if (value == "openAbout") {
-        return ImgViewerAction::OpenAbout;
-    }
-    if (value == "closeAbout") {
-        return ImgViewerAction::CloseAbout;
-    }
-    if (value == "copyAboutNotices") {
-        return ImgViewerAction::CopyAboutNotices;
-    }
-    if (value == "resetKeyBindings") {
-        return ImgViewerAction::ResetKeyBindings;
-    }
-    if (value == "textCopy") {
-        return ImgViewerAction::TextCopy;
-    }
-    if (value == "textCut") {
-        return ImgViewerAction::TextCut;
-    }
-    if (value == "textPaste") {
-        return ImgViewerAction::TextPaste;
-    }
-    if (value == "textSelectAll") {
-        return ImgViewerAction::TextSelectAll;
-    }
-    if (value == "toggleTopMost") {
-        return ImgViewerAction::ToggleTopMost;
-    }
-    if (value == "minimize") {
-        return ImgViewerAction::Minimize;
-    }
-    if (value == "toggleMaximize") {
-        return ImgViewerAction::ToggleMaximize;
-    }
-    if (value == "close") {
-        return ImgViewerAction::Close;
+
+    const std::string_view value(name);
+    for (const ActionEntry& entry : kActionTable) {
+        if (entry.name == value) {
+            return entry.action;
+        }
     }
     return ImgViewerAction::None;
 }

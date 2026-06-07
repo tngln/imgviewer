@@ -7,28 +7,9 @@
 #include <shlwapi.h>
 #include <wil/result_macros.h>
 
+#include "image.utils.hpp"
+
 namespace {
-
-bool IsImageExtension(std::wstring extension)
-{
-    std::transform(extension.begin(), extension.end(), extension.begin(), [](wchar_t value) {
-        return static_cast<wchar_t>(std::towlower(value));
-    });
-
-    return extension == L".bmp" ||
-        extension == L".dib" ||
-        extension == L".gif" ||
-        extension == L".ico" ||
-        extension == L".jpg" ||
-        extension == L".jpeg" ||
-        extension == L".jpe" ||
-        extension == L".png" ||
-        extension == L".psd" ||
-        extension == L".tif" ||
-        extension == L".tiff" ||
-        extension == L".tga" ||
-        extension == L".webp";
-}
 
 bool PathSortsBefore(const std::wstring& left, const std::wstring& right)
 {
@@ -75,7 +56,7 @@ HRESULT ImageSequence::SetCurrentPath(const wchar_t* path)
         }
 
         const std::filesystem::path entry_path = entry.path();
-        if (entry.is_regular_file(error) && !error && IsImageExtension(entry_path.extension().wstring())) {
+        if (entry.is_regular_file(error) && !error && image_utils::IsImageExtension(entry_path.c_str())) {
             files.push_back(entry_path.wstring());
         }
     }

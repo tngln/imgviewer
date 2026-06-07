@@ -13,6 +13,7 @@
 #include "imgviewer.action.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "win32.util.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
 #include "ui.layout.hpp"
@@ -247,15 +248,7 @@ struct AboutWindowContext final : public UiWindowDelegate {
         LPARAM lparam) override
     {
         if (message == WM_GETMINMAXINFO) {
-            auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
-            if (info != nullptr) {
-                RECT min_rect{0, 0, kAboutMinClientWidth, kAboutMinClientHeight};
-                const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window_host.Hwnd(), GWL_STYLE));
-                const DWORD ex_style = static_cast<DWORD>(GetWindowLongPtrW(window_host.Hwnd(), GWL_EXSTYLE));
-                AdjustWindowRectEx(&min_rect, style, FALSE, ex_style);
-                info->ptMinTrackSize.x = min_rect.right - min_rect.left;
-                info->ptMinTrackSize.y = min_rect.bottom - min_rect.top;
-            }
+            util::ApplyMinTrackSize(window_host.Hwnd(), lparam, kAboutMinClientWidth, kAboutMinClientHeight);
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();

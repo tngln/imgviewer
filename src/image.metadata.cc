@@ -128,40 +128,28 @@ bool TryReadRational(const PROPVARIANT& value, Rational* rational)
         return false;
     }
 
+    LONG high = 0;
+    LONG low = 0;
     if (value.vt == VT_UI8) {
-        const int numerator = static_cast<int>(value.uhVal.HighPart);
-        const int denominator = static_cast<int>(value.uhVal.LowPart);
-        if (denominator == 0) {
-            return false;
-        }
-        *rational = Rational{
-            .value = static_cast<double>(numerator) / static_cast<double>(denominator),
-            .numerator = numerator,
-            .denominator = denominator,
-        };
-        return true;
+        high = static_cast<LONG>(value.uhVal.HighPart);
+        low = static_cast<LONG>(value.uhVal.LowPart);
+    } else if (value.vt == VT_I8) {
+        high = value.hVal.HighPart;
+        low = value.hVal.LowPart;
+    } else {
+        return false;
     }
 
-    if (value.vt == VT_I8) {
-        const int numerator = value.hVal.HighPart;
-        const int denominator = value.hVal.LowPart;
-        if (denominator == 0) {
-            return false;
-        }
-        *rational = Rational{
-            .value = static_cast<double>(numerator) / static_cast<double>(denominator),
-            .numerator = numerator,
-            .denominator = denominator,
-        };
-        return true;
+    if (low == 0) {
+        return false;
     }
 
-    return false;
-}
-
-std::wstring FormatDateTime(const PROPVARIANT& value)
-{
-    return FormatStringValue(value);
+    *rational = Rational{
+        .value = static_cast<double>(high) / static_cast<double>(low),
+        .numerator = high,
+        .denominator = low,
+    };
+    return true;
 }
 
 std::wstring FormatText(const PROPVARIANT& value)
@@ -313,7 +301,7 @@ HRESULT ReadImageExifMetadata(IWICBitmapFrameDecode* frame, ImageMetadata* metad
     }
 
     const ExifFieldSpec kFields[] = {
-        {L"Date taken", {L"/app1/ifd/exif/{ushort=36867}", L"/ifd/exif/{ushort=36867}", L"/app1/ifd/{ushort=306}", L"/ifd/{ushort=306}"}, 4, FormatDateTime},
+        {L"Date taken", {L"/app1/ifd/exif/{ushort=36867}", L"/ifd/exif/{ushort=36867}", L"/app1/ifd/{ushort=306}", L"/ifd/{ushort=306}"}, 4, FormatText},
         {L"Camera make", {L"/app1/ifd/{ushort=271}", L"/ifd/{ushort=271}"}, 2, FormatText},
         {L"Camera model", {L"/app1/ifd/{ushort=272}", L"/ifd/{ushort=272}"}, 2, FormatText},
         {L"Lens", {L"/app1/ifd/exif/{ushort=42036}", L"/ifd/exif/{ushort=42036}"}, 2, FormatText},

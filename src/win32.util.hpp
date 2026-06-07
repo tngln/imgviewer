@@ -14,5 +14,7 @@ HRESULT ApplyDwmFrame(HWND hwnd, bool borderless);
 void DisableIme(HWND hwnd);
 void TrackMouseLeave(HWND hwnd);
 HRESULT InitializeDpiAwareness();
+bool CaptureWindowSize(HWND hwnd, int* width, int* height);
+void ApplyMinTrackSize(HWND hwnd, LPARAM lparam, int min_client_width, int min_client_height);
 
 } // namespace util

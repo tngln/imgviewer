@@ -79,3 +79,34 @@ HRESULT InitializeDpiAwareness()
 }
 
 } // namespace util
+
+bool util::CaptureWindowSize(HWND hwnd, int* width, int* height)
+{
+    if (hwnd == nullptr || width == nullptr || height == nullptr || IsIconic(hwnd) || IsZoomed(hwnd)) {
+        return false;
+    }
+
+    RECT window_rect = {};
+    if (!GetWindowRect(hwnd, &window_rect)) {
+        return false;
+    }
+
+    *width = static_cast<int>(window_rect.right - window_rect.left);
+    *height = static_cast<int>(window_rect.bottom - window_rect.top);
+    return true;
+}
+
+void util::ApplyMinTrackSize(HWND hwnd, LPARAM lparam, int min_client_width, int min_client_height)
+{
+    auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+    if (info == nullptr) {
+        return;
+    }
+
+    RECT min_rect{0, 0, min_client_width, min_client_height};
+    const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
+    const DWORD ex_style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_EXSTYLE));
+    AdjustWindowRectEx(&min_rect, style, FALSE, ex_style);
+    info->ptMinTrackSize.x = min_rect.right - min_rect.left;
+    info->ptMinTrackSize.y = min_rect.bottom - min_rect.top;
+}

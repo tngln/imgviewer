@@ -53,6 +53,7 @@ public:
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
     const UiElementMetadata* MetadataForElement(UiElementId id) const;
+    const UiElement* FindAccessibleElement(UiElementId id) const;
     UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
     UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
     void ApplyEventResult(const UiEventResult& result, UiElementId target);

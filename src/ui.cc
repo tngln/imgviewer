@@ -259,11 +259,17 @@ UiElementId UiController::HitTest(D2D1_POINT_2F point) const
     return root_->HitTest(point);
 }
 
-const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
+const UiElement* UiController::FindAccessibleElement(UiElementId id) const
 {
     const UiElement* ui_root = root_->Root();
     const UiElement* element = ui_root->FindById(id);
-    return element != nullptr && element != ui_root ? &element->Metadata() : nullptr;
+    return element != nullptr && element != ui_root ? element : nullptr;
+}
+
+const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
+{
+    const UiElement* element = FindAccessibleElement(id);
+    return element != nullptr ? &element->Metadata() : nullptr;
 }
 
 size_t UiController::ElementCount() const
@@ -285,16 +291,14 @@ const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
 
 D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 {
-    const UiElement* ui_root = root_->Root();
-    const UiElement* element = ui_root->FindById(id);
-    return element != nullptr && element != ui_root ? element->Rect() : D2D1::RectF();
+    const UiElement* element = FindAccessibleElement(id);
+    return element != nullptr ? element->Rect() : D2D1::RectF();
 }
 
 bool UiController::IsElementEnabled(UiElementId id) const
 {
-    const UiElement* ui_root = root_->Root();
-    const UiElement* element = ui_root->FindById(id);
-    return element != nullptr && element != ui_root && element->IsEnabled();
+    const UiElement* element = FindAccessibleElement(id);
+    return element != nullptr && element->IsEnabled();
 }
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const

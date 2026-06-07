@@ -131,13 +131,7 @@ UiSurfaceSize UiSurfaceManager::Size(UiSurfaceId id) const
 
 UiSurfaceManager::Layer* UiSurfaceManager::FindLayer(UiSurfaceId id)
 {
-    const auto found = std::find_if(
-        layers_.begin(),
-        layers_.end(),
-        [id](const Layer& layer) {
-            return layer.id == id;
-        });
-    return found != layers_.end() ? &*found : nullptr;
+    return const_cast<Layer*>(static_cast<const UiSurfaceManager*>(this)->FindLayer(id));
 }
 
 const UiSurfaceManager::Layer* UiSurfaceManager::FindLayer(UiSurfaceId id) const

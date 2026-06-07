@@ -19,6 +19,7 @@
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "win32.util.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
 #include "ui.layout.hpp"
@@ -908,17 +909,9 @@ struct SettingsWindowContext final : public UiWindowDelegate {
 
 void CaptureCurrentWindowSize(HWND hwnd, ImgViewerConfig* config)
 {
-    if (hwnd == nullptr || config == nullptr || !config->remember_window_size || IsIconic(hwnd) || IsZoomed(hwnd)) {
-        return;
+    if (config != nullptr && config->remember_window_size) {
+        util::CaptureWindowSize(hwnd, &config->window_size.width, &config->window_size.height);
     }
-
-    RECT window_rect = {};
-    if (!GetWindowRect(hwnd, &window_rect)) {
-        return;
-    }
-
-    config->window_size.width = static_cast<int>(window_rect.right - window_rect.left);
-    config->window_size.height = static_cast<int>(window_rect.bottom - window_rect.top);
 }
 
 void SaveSettings(HWND hwnd, SettingsWindowContext* context)
@@ -1005,18 +998,9 @@ win32::WindowMessageResult SettingsWindowContext::OnUnhandledMessage(
     LPARAM lparam)
 {
     switch (message) {
-    case WM_GETMINMAXINFO: {
-        auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
-        if (info != nullptr) {
-            RECT min_rect{0, 0, kSettingsMinClientWidth, kSettingsMinClientHeight};
-            const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window_host.Hwnd(), GWL_STYLE));
-            const DWORD ex_style = static_cast<DWORD>(GetWindowLongPtrW(window_host.Hwnd(), GWL_EXSTYLE));
-            AdjustWindowRectEx(&min_rect, style, FALSE, ex_style);
-            info->ptMinTrackSize.x = min_rect.right - min_rect.left;
-            info->ptMinTrackSize.y = min_rect.bottom - min_rect.top;
-        }
+    case WM_GETMINMAXINFO:
+        util::ApplyMinTrackSize(window_host.Hwnd(), lparam, kSettingsMinClientWidth, kSettingsMinClientHeight);
         return win32::WindowMessageResult::Handled();
-    }
     case kImgViewerSettingsOpacityChangedMessage: {
         if (ui != nullptr) {
             ui->SetOpacityPercent(static_cast<int>(wparam));

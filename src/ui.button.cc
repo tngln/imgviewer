@@ -13,27 +13,6 @@
 
 namespace {
 
-D2D1_COLOR_F ButtonFillColor(UiElementState state)
-{
-    if (!state.enabled) {
-        return ui_theme::color::kButtonDisabled;
-    }
-
-    if (state.danger && (state.hovered || state.pressed)) {
-        return state.pressed ? ui_theme::color::kDangerPressed : ui_theme::color::kDangerHovered;
-    }
-
-    if (state.pressed) {
-        return ui_theme::color::kButtonPressed;
-    }
-
-    if (state.hovered || state.active) {
-        return ui_theme::color::kButtonHovered;
-    }
-
-    return ui_theme::color::kButtonDefault;
-}
-
 UiEventResult ButtonPointerEvent(UiElement& button, const UiPointerEvent& event)
 {
     if (event.button != UiPointerButton::Left &&
@@ -117,7 +96,7 @@ void Button::Render(const UiDrawContext& context, UiRootState root_state) const
     const UiDraw draw(context);
     const D2D1_ROUNDED_RECT button =
         D2D1::RoundedRect(rect, ui_theme::metrics::kButtonCornerRadius, ui_theme::metrics::kButtonCornerRadius);
-    draw.FillRoundedRect(button, ButtonFillColor(state));
+    draw.FillRoundedRect(button, ui_theme::WidgetFillColor(state));
     draw.DrawRoundedRect(button, ui_theme::color::kBorder, 1.0f);
     const D2D1_COLOR_F content_color =
         state.enabled ? ui_theme::color::kAccent : ui_theme::color::kButtonDisabledContent;
@@ -189,7 +168,7 @@ void IconButton::Render(const UiDrawContext& context, UiRootState root_state) co
     const UiElementState state = VisualState(root_state);
     const D2D1_RECT_F rect = Rect();
     const UiDraw draw(context);
-    draw.FillRect(rect, ButtonFillColor(state));
+    draw.FillRect(rect, ui_theme::WidgetFillColor(state));
     const D2D1_COLOR_F icon_color = !state.enabled
         ? ui_theme::color::kButtonDisabledContent
         : state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent;

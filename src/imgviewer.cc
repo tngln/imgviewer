@@ -104,18 +104,10 @@ void SyncWindowState(HWND hwnd, UiController* ui)
 
 void SaveWindowSize(HWND hwnd, ImgViewerContext* context)
 {
-    if (context == nullptr || !context->config.remember_window_size || IsIconic(hwnd) || IsZoomed(hwnd)) {
-        return;
+    if (context != nullptr && context->config.remember_window_size &&
+        util::CaptureWindowSize(hwnd, &context->config.window_size.width, &context->config.window_size.height)) {
+        SaveImgViewerConfig(context->config);
     }
-
-    RECT window_rect = {};
-    if (!GetWindowRect(hwnd, &window_rect)) {
-        return;
-    }
-
-    context->config.window_size.width = static_cast<int>(window_rect.right - window_rect.left);
-    context->config.window_size.height = static_cast<int>(window_rect.bottom - window_rect.top);
-    SaveImgViewerConfig(context->config);
 }
 
 bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action)
@@ -152,18 +144,17 @@ void SyncActionStates(ImgViewerContext* context)
         return;
     }
 
-    context->ui.SetActionEnabled(
-        UiActionFromImgViewerAction(ImgViewerAction::PreviousImage),
-        IsImgViewerActionEnabled(context, ImgViewerAction::PreviousImage));
-    context->ui.SetActionEnabled(
-        UiActionFromImgViewerAction(ImgViewerAction::NextImage),
-        IsImgViewerActionEnabled(context, ImgViewerAction::NextImage));
-    context->ui.SetActionEnabled(
-        UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker),
-        IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker));
-    context->ui.SetActionEnabled(
-        UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs),
-        IsImgViewerActionEnabled(context, ImgViewerAction::SaveImageAs));
+    static constexpr std::array kSyncActions{
+        ImgViewerAction::PreviousImage,
+        ImgViewerAction::NextImage,
+        ImgViewerAction::ToggleColorPicker,
+        ImgViewerAction::SaveImageAs,
+    };
+    for (const ImgViewerAction action : kSyncActions) {
+        context->ui.SetActionEnabled(
+            UiActionFromImgViewerAction(action),
+            IsImgViewerActionEnabled(context, action));
+    }
 }
 
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text)
@@ -244,6 +235,13 @@ void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent)
     RenderImgViewer(context);
 }
 
+inline void TryViewerAction(ImgViewerContext* context, bool success)
+{
+    if (success) {
+        RenderImgViewer(context);
+    }
+}
+
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
 {
     if (!IsImgViewerActionEnabled(context, action)) {
@@ -270,44 +268,28 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         NavigateImageFile(hwnd, context, 1);
         break;
     case ImgViewerAction::ZoomIn:
-        if (context != nullptr && context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize())) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::ZoomOut:
-        if (context != nullptr && context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize())) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::FitWindow:
-        if (context != nullptr && context->viewer.FitWindow()) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.FitWindow());
         break;
     case ImgViewerAction::ActualSize:
-        if (context != nullptr && context->viewer.ActualSize(context->renderer.ViewportPixelSize())) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.ActualSize(context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::RotateClockwise:
-        if (context != nullptr && context->viewer.RotateClockwise()) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.RotateClockwise());
         break;
     case ImgViewerAction::FlipHorizontal:
-        if (context != nullptr && context->viewer.FlipHorizontal()) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.FlipHorizontal());
         break;
     case ImgViewerAction::FlipVertical:
-        if (context != nullptr && context->viewer.FlipVertical()) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.FlipVertical());
         break;
     case ImgViewerAction::ResetView:
-        if (context != nullptr && context->viewer.ResetView()) {
-            RenderImgViewer(context);
-        }
+        if (context != nullptr) TryViewerAction(context, context->viewer.ResetView());
         break;
     case ImgViewerAction::ToggleColorPicker:
         if (context != nullptr) {
@@ -405,10 +387,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     if (position.total > 0) {
         swprintf_s(position_text, L" (%zu/%zu)", position.index, position.total);
     }
-
-    wchar_t resolution_text[64] = {};
-    swprintf_s(resolution_text, L"  %ux%u", image_size.width, image_size.height);
-    const std::wstring title_text = file_name + position_text + resolution_text;
+    const std::wstring title_text = file_name + position_text + L"  " + util::FormatImageDimensions(image_size);
     context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     RenderImgViewer(context);
@@ -509,10 +488,9 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     SetColorPickerActive(context, false);
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
-    wchar_t title_text[96] = {};
-    swprintf_s(title_text, L"<Clipboard>  %ux%u", image_size.width, image_size.height);
-    context->ui.SetTitleText(title_text);
-    SetWindowTextW(hwnd, title_text);
+    const std::wstring title_text = L"<Clipboard>  " + util::FormatImageDimensions(image_size);
+    context->ui.SetTitleText(title_text.c_str());
+    SetWindowTextW(hwnd, title_text.c_str());
     RenderImgViewer(context);
 }
 

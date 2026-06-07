@@ -168,34 +168,14 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         TrackMouseEvent(&track);
         const D2D1_POINT_2F point =
             D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)), static_cast<float>(GET_Y_LPARAM(lparam)));
-        if (options_.enable_popup && popup_.IsOpen()) {
-            UiPointerEvent pointer{
-                .type = UiEventType::PointerMove,
-                .point = point,
-                .modifiers = CurrentModifiers(),
-                .popup_host = &popup_,
-            };
-            UiEventResult result = popup_.OnInputEvent(
-                UiInputEvent{
-                    .type = pointer.type,
-                    .pointer = pointer,
-                    .point = point,
-                    .hwnd = window_.Hwnd(),
-                    .popup_host = &popup_,
-                });
-            HandleUiResult(result);
-            if (result.handled) {
-                return win32::WindowMessageResult::Handled();
-            }
-        }
         UiPointerEvent pointer{
             .type = UiEventType::PointerMove,
             .point = point,
             .modifiers = CurrentModifiers(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
-        HandleUiResult(ui_.OnInputEvent(
-            UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()}));
+        DispatchInputEvent(
+            UiInputEvent{.type = pointer.type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()});
         PositionIme();
         return win32::WindowMessageResult::Handled();
     }
@@ -217,24 +197,8 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .modifiers = CurrentModifiers(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
-        if (options_.enable_popup && popup_.IsOpen()) {
-            UiEventResult popup_result = popup_.OnInputEvent(
-                UiInputEvent{
-                    .type = type,
-                    .pointer = pointer,
-                    .point = point,
-                    .hwnd = window_.Hwnd(),
-                    .popup_host = &popup_,
-                });
-            HandleUiResult(popup_result);
-            if (popup_result.handled) {
-                SyncCaretTimer();
-                PositionIme();
-                return win32::WindowMessageResult::Handled();
-            }
-        }
-        HandleUiResult(ui_.OnInputEvent(
-            UiInputEvent{.type = type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()}));
+        DispatchInputEvent(
+            UiInputEvent{.type = type, .pointer = pointer, .point = point, .hwnd = window_.Hwnd()});
         SyncCaretTimer();
         PositionIme();
         return win32::WindowMessageResult::Handled();
@@ -246,21 +210,8 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .modifiers = CurrentModifiers(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
-        if (options_.enable_popup && popup_.IsOpen()) {
-            UiEventResult popup_result =
-                popup_.OnInputEvent(UiInputEvent{
-                    .type = key.type,
-                    .key = key,
-                    .hwnd = window_.Hwnd(),
-                    .popup_host = &popup_,
-                });
-            HandleUiResult(popup_result);
-            if (popup_result.handled) {
-                return win32::WindowMessageResult::Handled();
-            }
-        }
-        UiEventResult result = ui_.OnInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = window_.Hwnd()});
-        HandleUiResult(result);
+        UiEventResult result =
+            DispatchInputEvent(UiInputEvent{.type = key.type, .key = key, .hwnd = window_.Hwnd()});
         SyncCaretTimer();
         PositionIme();
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
@@ -469,6 +420,27 @@ bool UiWindowHost::ExecuteAction(UiAction action)
         return false;
     }
     return delegate_->OnUiAction(*this, action);
+}
+
+UiEventResult UiWindowHost::DispatchInputEvent(const UiInputEvent& event)
+{
+    if (options_.enable_popup && popup_.IsOpen()) {
+        UiInputEvent popup_event = event;
+        popup_event.popup_host = &popup_;
+        if (event.type == UiEventType::KeyDown) {
+            popup_event.key.popup_host = &popup_;
+        } else {
+            popup_event.pointer.popup_host = &popup_;
+        }
+        UiEventResult result = popup_.OnInputEvent(popup_event);
+        HandleUiResult(result);
+        if (result.handled) {
+            return result;
+        }
+    }
+    UiEventResult result = ui_.OnInputEvent(event);
+    HandleUiResult(result);
+    return result;
 }
 
 UiModifiers UiWindowHost::CurrentModifiers() const

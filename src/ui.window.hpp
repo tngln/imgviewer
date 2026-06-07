@@ -81,6 +81,7 @@ private:
     D2D1_POINT_2F CaretPoint() const;
     bool IsFocusedTextElement() const;
     std::wstring ImeCompositionString(LPARAM lparam) const;
+    UiEventResult DispatchInputEvent(const UiInputEvent& event);
 
     UiWindowOptions options_ = {};
     UiWindowDelegate* delegate_ = nullptr;
