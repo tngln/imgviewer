@@ -1,6 +1,5 @@
 #include "imgviewer.ui.animation_toolbar.hpp"
 
-#include <algorithm>
 #include <cwchar>
 #include <memory>
 
@@ -19,26 +18,6 @@ constexpr wchar_t kPlayIcon[] = L"\xE768";
 constexpr wchar_t kPauseIcon[] = L"\xE769";
 constexpr float kFrameLabelWidth = 58.0f;
 constexpr float kToolbarGapAboveMain = 6.0f;
-
-struct AnimationToolbarMetrics final {
-    float button_size = ui_theme::metrics::kToolbarButtonSize;
-    float button_gap = ui_theme::metrics::kToolbarButtonGap;
-    float padding = ui_theme::metrics::kToolbarPadding;
-    float corner_radius = ui_theme::metrics::kToolbarCornerRadius;
-    float label_width = kFrameLabelWidth;
-};
-
-AnimationToolbarMetrics MetricsForScale(int percent)
-{
-    const float scale = static_cast<float>(ClampToolbarScalePercent(percent)) / 100.0f;
-    return AnimationToolbarMetrics{
-        .button_size = ui_theme::metrics::kToolbarButtonSize * scale,
-        .button_gap = ui_theme::metrics::kToolbarButtonGap * scale,
-        .padding = ui_theme::metrics::kToolbarPadding * scale,
-        .corner_radius = ui_theme::metrics::kToolbarCornerRadius * scale,
-        .label_width = kFrameLabelWidth * scale,
-    };
-}
 
 struct ButtonSpec final {
     ImgViewerUiAnimationToolbar::ButtonKey button = ImgViewerUiAnimationToolbar::ButtonKey::Loop;
@@ -81,10 +60,7 @@ constexpr size_t ImgViewerUiAnimationToolbar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
 {
-    panel_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, L"Animation toolbar", L"", L"animation-toolbar", false, false),
-        ui_layout::StackDirection::Horizontal)));
-    panel_->SetGap(ui_theme::metrics::kToolbarButtonGap);
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Animation toolbar", L"animation-toolbar");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -96,7 +72,7 @@ ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
                 spec.tooltip,
                 spec.automation_id),
             spec.icon);
-        button.element = panel_->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
+        button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
         button.id = button.element->Id();
     }
 
@@ -104,7 +80,7 @@ ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
         UiMetadata(UiElementRole::Text, kUiActionNone, L"Animation frame", L"", L"animation-frame-label", false, true),
         L"",
         LabelStyle::Muted);
-    frame_label_ = panel_->AddItem(std::move(label), kFrameLabelWidth);
+    frame_label_ = toolbar_->Panel()->AddItem(std::move(label), kFrameLabelWidth);
     SetScalePercent(scale_percent_);
     SetState(state_);
 }
@@ -112,6 +88,7 @@ ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
 void ImgViewerUiAnimationToolbar::SetScalePercent(int percent)
 {
     scale_percent_ = ClampToolbarScalePercent(percent);
+    toolbar_->SetScalePercent(scale_percent_);
     const float icon_scale = static_cast<float>(scale_percent_) / 100.0f;
     for (const ButtonInstance& button : buttons_) {
         if (button.element != nullptr) {
@@ -140,40 +117,23 @@ D2D1_SIZE_F ImgViewerUiAnimationToolbar::Measure(const UiDrawContext&, D2D1_SIZE
         return D2D1::SizeF();
     }
 
-    const AnimationToolbarMetrics metrics = MetricsForScale(scale_percent_);
-    const float item_count = static_cast<float>(kButtonSpecs.size() + 1);
-    return D2D1::SizeF(
-        metrics.button_size * static_cast<float>(kButtonSpecs.size()) +
-            metrics.label_width +
-            metrics.button_gap * (item_count - 1.0f) +
-            metrics.padding * 2.0f,
-        metrics.button_size + metrics.padding * 2.0f);
+    return toolbar_->Measure(kButtonSpecs.size(), toolbar_->ScaledValue(kFrameLabelWidth), 1);
 }
 
 void ImgViewerUiAnimationToolbar::Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F main_toolbar_rect)
 {
-    const AnimationToolbarMetrics metrics = MetricsForScale(scale_percent_);
-    const D2D1_SIZE_F toolbar_size = Measure(UiDrawContext{}, D2D1::SizeF());
     if (!state_.available) {
-        toolbar_rect_ = D2D1::RectF();
-        panel_->SetHitTestVisible(false);
-        panel_->Arrange(toolbar_rect_);
+        toolbar_->ArrangeHidden();
         return;
     }
 
-    const float viewport_width = final_rect.right - final_rect.left;
-    const float left = (std::max)(0.0f, (viewport_width - toolbar_size.width) * 0.5f);
-    const float preferred_top = main_toolbar_rect.top - toolbar_size.height - kToolbarGapAboveMain;
-    const float top = (std::max)(ui_theme::metrics::kTitleBarHeight + metrics.padding, preferred_top);
-    toolbar_rect_ = D2D1::RectF(left, top, left + toolbar_size.width, top + toolbar_size.height);
-    panel_->SetHitTestVisible(true);
-    panel_->SetGap(metrics.button_gap);
-    panel_->SetPadding(UiThickness{metrics.padding, metrics.padding, metrics.padding, metrics.padding});
-    for (size_t index = 0; index < kButtonSpecs.size(); ++index) {
-        panel_->SetItemFixedMainSize(index, metrics.button_size);
-    }
-    panel_->SetItemFixedMainSize(kButtonSpecs.size(), metrics.label_width);
-    panel_->Arrange(toolbar_rect_);
+    toolbar_->ArrangeAboveAnchor(
+        final_rect,
+        main_toolbar_rect,
+        kButtonSpecs.size(),
+        toolbar_->ScaledValue(kFrameLabelWidth),
+        1,
+        kToolbarGapAboveMain);
 }
 
 void ImgViewerUiAnimationToolbar::Render(const UiDrawContext& draw_context, UiRootState state)
@@ -182,18 +142,8 @@ void ImgViewerUiAnimationToolbar::Render(const UiDrawContext& draw_context, UiRo
         return;
     }
 
-    const UiDraw draw(draw_context);
-    const AnimationToolbarMetrics metrics = MetricsForScale(scale_percent_);
-    const D2D1_ROUNDED_RECT background = D2D1::RoundedRect(toolbar_rect_, metrics.corner_radius, metrics.corner_radius);
-    draw.FillRoundedRect(
-        background,
-        D2D1::ColorF(
-            ui_theme::color::kToolbarBackground.r,
-            ui_theme::color::kToolbarBackground.g,
-            ui_theme::color::kToolbarBackground.b,
-            ui_theme::color::kToolbarBackgroundOpacity));
-    draw.DrawRoundedRect(background, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
-    panel_->Render(draw_context, state);
+    toolbar_->RenderBackground(draw_context, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
+    toolbar_->Panel()->Render(draw_context, state);
 }
 
 UiEventResult ImgViewerUiAnimationToolbar::OnPointerEvent(const UiPointerEvent&)
@@ -208,7 +158,7 @@ IconButton* ImgViewerUiAnimationToolbar::Button(ButtonKey button)
 
 void ImgViewerUiAnimationToolbar::UpdateVisualState()
 {
-    panel_->SetEnabled(state_.available);
+    toolbar_->Panel()->SetEnabled(state_.available);
     Button(ButtonKey::Loop)->SetVisualActive(state_.available && state_.loop);
     Button(ButtonKey::PlayPause)->SetIcon(state_.playing ? kPauseIcon : kPlayIcon);
     for (const ButtonInstance& button : buttons_) {

@@ -2,13 +2,14 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 
 #include <d2d1_1.h>
 
 #include "imgviewer.edit.hpp"
+#include "imgviewer.ui.floating_toolbar.hpp"
 #include "ui.button.hpp"
 #include "ui.events.hpp"
-#include "ui.panel.hpp"
 
 struct ImgViewerUiEditToolbarState final {
     bool visible = false;
@@ -56,8 +57,7 @@ private:
     void UpdateVisualState();
 
     std::array<ButtonInstance, kButtonCount> buttons_{};
-    StackPanel* panel_ = nullptr;
-    D2D1_RECT_F toolbar_rect_ = {};
+    std::unique_ptr<ImgViewerFloatingToolbar> toolbar_;
     ImgViewerUiEditToolbarState state_;
     int scale_percent_ = 125;
 };

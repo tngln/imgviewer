@@ -2,14 +2,15 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 #include <string>
 
 #include <d2d1_1.h>
 
 #include "imgviewer.viewer.hpp"
+#include "imgviewer.ui.floating_toolbar.hpp"
 #include "ui.button.hpp"
 #include "ui.label.hpp"
-#include "ui.panel.hpp"
 
 class ImgViewerUiAnimationToolbar final {
 public:
@@ -43,9 +44,8 @@ private:
     void UpdateVisualState();
 
     std::array<ButtonInstance, kButtonCount> buttons_{};
-    StackPanel* panel_ = nullptr;
+    std::unique_ptr<ImgViewerFloatingToolbar> toolbar_;
     Label* frame_label_ = nullptr;
-    D2D1_RECT_F toolbar_rect_ = {};
     std::wstring frame_text_;
     ImgViewerAnimationState state_;
     int scale_percent_ = 125;
