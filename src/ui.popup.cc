@@ -415,13 +415,7 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         };
         UiEventResult result = {};
         if (host->content_ != nullptr) {
-            result = host->content_->OnInputEvent(UiInputEvent{
-                    .type = type,
-                    .pointer = pointer,
-                    .point = pointer.point,
-                    .hwnd = hwnd,
-                    .popup_host = host,
-                });
+            result = host->content_->OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
         }
         host->HandlePopupResult(result);
         return 0;
@@ -429,16 +423,13 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
     case WM_KEYDOWN: {
         PopupHost* host = GetPopupHost(hwnd);
         if (host != nullptr) {
-            const UiEventResult result = host->OnInputEvent(UiInputEvent{
+            const UiKeyEvent key{
                 .type = UiEventType::KeyDown,
-                .key = UiKeyEvent{
-                    .type = UiEventType::KeyDown,
-                    .virtual_key = static_cast<UINT>(wparam),
-                    .popup_host = host,
-                },
-                .hwnd = hwnd,
+                .virtual_key = static_cast<UINT>(wparam),
+                .modifiers = UiModifiers::Current(),
                 .popup_host = host,
-            });
+            };
+            const UiEventResult result = host->OnInputEvent(UiInputEvent::Key(key, hwnd));
             if (result.handled) {
                 return 0;
             }
