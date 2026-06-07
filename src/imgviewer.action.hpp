@@ -20,6 +20,10 @@
     X(ResetView, "resetView", L"Reset View", true, true) \
     X(ToggleColorPicker, "toggleColorPicker", L"Color Picker", false, false) \
     X(ToggleInfoPanel, "toggleInfoPanel", L"Info Panel", true, false) \
+    X(ToggleAnimationLoop, "toggleAnimationLoop", L"Loop Animation", false, false) \
+    X(ToggleAnimationPlayback, "toggleAnimationPlayback", L"Play or Pause Animation", false, false) \
+    X(PreviousAnimationFrame, "previousAnimationFrame", L"Previous Animation Frame", false, false) \
+    X(NextAnimationFrame, "nextAnimationFrame", L"Next Animation Frame", false, false) \
     X(OpenMenu, "openMenu", L"Menu", false, false) \
     X(OpenSettings, "openSettings", L"Settings", false, false) \
     X(CloseSettings, "closeSettings", L"Close Settings", false, false) \

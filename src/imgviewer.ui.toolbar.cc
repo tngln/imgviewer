@@ -186,6 +186,11 @@ void ImgViewerUiToolbar::SetScalePercent(int percent)
     }
 }
 
+D2D1_RECT_F ImgViewerUiToolbar::Rect() const
+{
+    return toolbar_rect_;
+}
+
 D2D1_SIZE_F ImgViewerUiToolbar::Measure(const UiDrawContext&, D2D1_SIZE_F) const
 {
     const ToolbarMetrics metrics = MetricsForScale(scale_percent_);

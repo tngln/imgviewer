@@ -47,6 +47,7 @@ struct ImgViewerContext final {
     bool current_image_from_screenshot = false;
     bool info_panel_visible = false;
     bool interactive_size_move_active = false;
+    DWORD animation_last_tick_ms = 0;
     int last_window_size_toast_width = 0;
     int last_window_size_toast_height = 0;
 };
@@ -59,6 +60,8 @@ void SaveWindowSize(HWND hwnd, ImgViewerContext* context);
 bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action);
 void SyncActionStates(ImgViewerContext* context);
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text);
+void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context);
+void InvalidateImgViewerInfoPanelAnalysis(ImgViewerContext* context);
 void ApplyWindowOpacity(HWND hwnd, int percent);
 void SetImgViewerWindowOpacity(HWND hwnd, ImgViewerContext* context, int percent);
 void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent);

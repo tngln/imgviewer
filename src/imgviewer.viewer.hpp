@@ -4,6 +4,8 @@
 
 #include <d2d1_1.h>
 
+#include <vector>
+
 #include "imgviewer.action.hpp"
 #include "image.analysis.hpp"
 #include "image.decoder.hpp"
@@ -34,6 +36,14 @@ struct ImgViewerColorSample final {
     BYTE alpha = 0;
 };
 
+struct ImgViewerAnimationState final {
+    bool available = false;
+    bool playing = false;
+    bool loop = true;
+    size_t current_frame = 0;
+    size_t total_frames = 0;
+};
+
 class ImgViewerController final {
 public:
     HRESULT Initialize();
@@ -45,6 +55,12 @@ public:
     D2D1_SIZE_U CurrentImagePixelSize() const;
     const ImageMetadata& CurrentImageMetadata() const;
     ImgViewerSnapshot Snapshot() const;
+    ImgViewerAnimationState AnimationState() const;
+    bool HasAnimation() const;
+    bool ToggleAnimationPlayback();
+    bool ToggleAnimationLoop();
+    bool StepAnimationFrame(int direction);
+    bool AdvanceAnimation(UINT elapsed_ms);
 
     ImgViewerEventResult OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size);
     ImgViewerEventResult OnPointerDown(float x, float y, D2D1_SIZE_U viewport_size);
@@ -65,6 +81,8 @@ public:
 
 private:
     void SetCurrentImage(DecodedImage image);
+    void SetCurrentImageSet(DecodedImageSet image_set);
+    void SetAnimationFrame(size_t index);
     float CurrentImageScale(D2D1_SIZE_U viewport_size) const;
     bool ImagePointFromViewportPoint(float x, float y, D2D1_SIZE_U viewport_size, D2D1_POINT_2F* image_point) const;
     bool ZoomAtPoint(float x, float y, float steps, D2D1_SIZE_U viewport_size);
@@ -72,6 +90,11 @@ private:
     ImageDecoder image_decoder_;
     ImageEncoder image_encoder_;
     DecodedImage current_image_;
+    std::vector<DecodedAnimationFrame> animation_frames_;
+    size_t current_animation_frame_ = 0;
+    UINT animation_elapsed_ms_ = 0;
+    bool animation_playing_ = false;
+    bool animation_loop_ = true;
     D2D1_POINT_2F image_view_center_ = {};
     float image_zoom_multiplier_ = 1.0f;
     float image_rotation_degrees_ = 0.0f;

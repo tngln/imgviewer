@@ -21,6 +21,7 @@ ImgViewerUi::ImgViewerUi() :
         UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_),
     toolbar_(*root_),
+    animation_toolbar_(*root_),
     info_panel_(*root_)
 {
 }
@@ -44,6 +45,7 @@ D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext& context, D2D1_SIZE_F avail
 {
     titlebar_.Measure(context, available_size);
     toolbar_.Measure(context, available_size);
+    animation_toolbar_.Measure(context, available_size);
     info_panel_.Measure(context, available_size);
     return available_size;
 }
@@ -53,6 +55,7 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
     root_->Arrange(final_rect);
     titlebar_.Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, final_rect.top + ui_theme::metrics::kTitleBarHeight));
     toolbar_.Arrange(final_rect);
+    animation_toolbar_.Arrange(final_rect, toolbar_.Rect());
     info_panel_.Arrange(final_rect);
 }
 
@@ -62,6 +65,7 @@ void ImgViewerUi::Render(
 {
     titlebar_.Render(draw_context, state, top_most_, maximized_);
     toolbar_.Render(draw_context, state, color_picker_active_);
+    animation_toolbar_.Render(draw_context, state);
     info_panel_.Render(draw_context);
     toast_.Render(draw_context);
 }
@@ -103,6 +107,10 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
             {L"About", UiActionFromImgViewerAction(ImgViewerAction::OpenAbout)},
             {L"", kUiActionNone, true},
             {L"Info Panel", UiActionFromImgViewerAction(ImgViewerAction::ToggleInfoPanel), false, info_panel_.IsVisible()},
+            {L"Loop Animation", UiActionFromImgViewerAction(ImgViewerAction::ToggleAnimationLoop), false, animation_state_.loop, animation_state_.available},
+            {animation_state_.playing ? L"Pause Animation" : L"Play Animation", UiActionFromImgViewerAction(ImgViewerAction::ToggleAnimationPlayback), false, false, animation_state_.available},
+            {L"Previous Animation Frame", UiActionFromImgViewerAction(ImgViewerAction::PreviousAnimationFrame), false, false, animation_state_.available},
+            {L"Next Animation Frame", UiActionFromImgViewerAction(ImgViewerAction::NextAnimationFrame), false, false, animation_state_.available},
             {L"", kUiActionNone, true},
             {L"Zoom In", UiActionFromImgViewerAction(ImgViewerAction::ZoomIn)},
             {L"Zoom Out", UiActionFromImgViewerAction(ImgViewerAction::ZoomOut)},
@@ -156,6 +164,7 @@ void ImgViewerUi::SetColorPickerActive(bool active)
 void ImgViewerUi::SetToolbarScalePercent(int percent)
 {
     toolbar_.SetScalePercent(percent);
+    animation_toolbar_.SetScalePercent(percent);
 }
 
 void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
@@ -171,4 +180,10 @@ void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
 void ImgViewerUi::SetInfoPanelState(ImgViewerUiInfoPanelState state)
 {
     info_panel_.SetState(std::move(state));
+}
+
+void ImgViewerUi::SetAnimationState(ImgViewerAnimationState state)
+{
+    animation_state_ = state;
+    animation_toolbar_.SetState(state);
 }

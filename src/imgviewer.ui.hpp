@@ -9,6 +9,7 @@
 #include "ui.events.hpp"
 #include "ui.root.hpp"
 
+#include "imgviewer.ui.animation_toolbar.hpp"
 #include "imgviewer.ui.info_panel.hpp"
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
@@ -39,11 +40,13 @@ public:
     void SetToolbarScalePercent(int percent) override;
     void SetActionEnabled(UiAction action, bool enabled) override;
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
+    void SetAnimationState(ImgViewerAnimationState state);
 
 private:
     std::unique_ptr<UiElement> root_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
+    ImgViewerUiAnimationToolbar animation_toolbar_;
     ImgViewerUiInfoPanel info_panel_;
     UiToast toast_;
     bool top_most_ = false;
@@ -51,4 +54,5 @@ private:
     bool color_picker_active_ = false;
     bool save_image_as_enabled_ = false;
     bool show_in_file_explorer_enabled_ = false;
+    ImgViewerAnimationState animation_state_;
 };

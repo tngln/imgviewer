@@ -29,10 +29,10 @@ HRESULT ImgViewerController::LoadImageFile(const wchar_t* path, ID2D1DeviceConte
     RETURN_HR_IF_NULL(E_INVALIDARG, path);
     RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
 
-    DecodedImage image;
-    RETURN_IF_FAILED(image_decoder_.DecodeFirstFrame(path, d2d_context, &image));
+    DecodedImageSet image_set;
+    RETURN_IF_FAILED(image_decoder_.DecodeImageFile(path, d2d_context, &image_set));
 
-    SetCurrentImage(std::move(image));
+    SetCurrentImageSet(std::move(image_set));
     return S_OK;
 }
 
@@ -69,6 +69,11 @@ bool ImgViewerController::HasCurrentImage() const
 void ImgViewerController::SetCurrentImage(DecodedImage image)
 {
     current_image_ = std::move(image);
+    animation_frames_.clear();
+    current_animation_frame_ = 0;
+    animation_elapsed_ms_ = 0;
+    animation_playing_ = false;
+    animation_loop_ = true;
     image_view_center_ = D2D1::Point2F(
         static_cast<float>(current_image_.pixel_size.width) * 0.5f,
         static_cast<float>(current_image_.pixel_size.height) * 0.5f);
@@ -80,6 +85,51 @@ void ImgViewerController::SetCurrentImage(DecodedImage image)
     image_is_rotating_ = false;
     r_key_is_down_ = false;
     r_key_started_rotation_ = false;
+}
+
+void ImgViewerController::SetCurrentImageSet(DecodedImageSet image_set)
+{
+    current_image_ = std::move(image_set.image);
+    animation_frames_ = std::move(image_set.animation_frames);
+    current_animation_frame_ = 0;
+    animation_elapsed_ms_ = 0;
+    animation_playing_ = animation_frames_.size() > 1;
+    animation_loop_ = image_set.animation_loop;
+    if (!animation_frames_.empty()) {
+        current_image_ = DecodedImage{
+            .bitmap = animation_frames_.front().image.bitmap,
+            .pixel_source = animation_frames_.front().image.pixel_source,
+            .pixel_size = animation_frames_.front().image.pixel_size,
+            .metadata = std::move(current_image_.metadata),
+        };
+    }
+    image_view_center_ = D2D1::Point2F(
+        static_cast<float>(current_image_.pixel_size.width) * 0.5f,
+        static_cast<float>(current_image_.pixel_size.height) * 0.5f);
+    image_zoom_multiplier_ = 1.0f;
+    image_rotation_degrees_ = 0.0f;
+    image_flipped_horizontal_ = false;
+    image_flipped_vertical_ = false;
+    image_is_panning_ = false;
+    image_is_rotating_ = false;
+    r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
+}
+
+void ImgViewerController::SetAnimationFrame(size_t index)
+{
+    if (animation_frames_.empty()) {
+        return;
+    }
+
+    current_animation_frame_ = (std::min)(index, animation_frames_.size() - 1);
+    ImageMetadata metadata = std::move(current_image_.metadata);
+    current_image_ = DecodedImage{
+        .bitmap = animation_frames_[current_animation_frame_].image.bitmap,
+        .pixel_source = animation_frames_[current_animation_frame_].image.pixel_source,
+        .pixel_size = animation_frames_[current_animation_frame_].image.pixel_size,
+        .metadata = std::move(metadata),
+    };
 }
 
 D2D1_SIZE_U ImgViewerController::CurrentImagePixelSize() const
@@ -104,6 +154,90 @@ ImgViewerSnapshot ImgViewerController::Snapshot() const
         .flipped_vertical = image_flipped_vertical_,
         .pixelated_sampling = pixelated_sampling_,
     };
+}
+
+ImgViewerAnimationState ImgViewerController::AnimationState() const
+{
+    return ImgViewerAnimationState{
+        .available = HasAnimation(),
+        .playing = animation_playing_,
+        .loop = animation_loop_,
+        .current_frame = current_animation_frame_ + (HasAnimation() ? 1 : 0),
+        .total_frames = animation_frames_.size(),
+    };
+}
+
+bool ImgViewerController::HasAnimation() const
+{
+    return animation_frames_.size() > 1;
+}
+
+bool ImgViewerController::ToggleAnimationPlayback()
+{
+    if (!HasAnimation()) {
+        return false;
+    }
+
+    animation_playing_ = !animation_playing_;
+    animation_elapsed_ms_ = 0;
+    return true;
+}
+
+bool ImgViewerController::ToggleAnimationLoop()
+{
+    if (!HasAnimation()) {
+        return false;
+    }
+
+    animation_loop_ = !animation_loop_;
+    return true;
+}
+
+bool ImgViewerController::StepAnimationFrame(int direction)
+{
+    if (!HasAnimation() || direction == 0) {
+        return false;
+    }
+
+    animation_playing_ = false;
+    animation_elapsed_ms_ = 0;
+    const size_t total = animation_frames_.size();
+    size_t next = current_animation_frame_;
+    if (direction > 0) {
+        next = current_animation_frame_ + 1 < total ? current_animation_frame_ + 1 : 0;
+    } else {
+        next = current_animation_frame_ == 0 ? total - 1 : current_animation_frame_ - 1;
+    }
+    SetAnimationFrame(next);
+    return true;
+}
+
+bool ImgViewerController::AdvanceAnimation(UINT elapsed_ms)
+{
+    if (!HasAnimation() || !animation_playing_ || elapsed_ms == 0) {
+        return false;
+    }
+
+    animation_elapsed_ms_ += elapsed_ms;
+    bool changed = false;
+    while (animation_elapsed_ms_ >= animation_frames_[current_animation_frame_].duration_ms) {
+        animation_elapsed_ms_ -= animation_frames_[current_animation_frame_].duration_ms;
+        if (current_animation_frame_ + 1 >= animation_frames_.size()) {
+            if (!animation_loop_) {
+                const bool was_playing = animation_playing_;
+                animation_playing_ = false;
+                animation_elapsed_ms_ = 0;
+                SetAnimationFrame(animation_frames_.size() - 1);
+                return changed || was_playing;
+            }
+            SetAnimationFrame(0);
+        } else {
+            SetAnimationFrame(current_animation_frame_ + 1);
+        }
+        changed = true;
+    }
+
+    return changed;
 }
 
 ImgViewerEventResult ImgViewerController::OnPointerMove(float x, float y, D2D1_SIZE_U viewport_size)

@@ -696,6 +696,25 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             return 0;
         }
 
+        if (wparam == kImgViewerAnimationTimerId) {
+            ImgViewerContext* context = GetImgViewerContext(hwnd);
+            if (context == nullptr) {
+                return 0;
+            }
+
+            const DWORD now = GetTickCount();
+            const UINT elapsed_ms = context->animation_last_tick_ms == 0
+                ? 0
+                : static_cast<UINT>(now - context->animation_last_tick_ms);
+            context->animation_last_tick_ms = now;
+            if (context->viewer.AdvanceAnimation(elapsed_ms)) {
+                InvalidateImgViewerInfoPanelAnalysis(context);
+                RenderImgViewer(context);
+            }
+            SyncImgViewerAnimationTimer(hwnd, context);
+            return 0;
+        }
+
         return DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
@@ -729,6 +748,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
     case WM_DESTROY:
         KillTimer(hwnd, kImgViewerToastTimerId);
+        KillTimer(hwnd, kImgViewerAnimationTimerId);
         if (ImgViewerContext* context = GetImgViewerContext(hwnd)) {
             context->popup.Close();
             SaveWindowSize(hwnd, context);

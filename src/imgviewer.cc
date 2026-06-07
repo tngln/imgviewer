@@ -22,6 +22,7 @@
 namespace {
 
 constexpr UINT kToastDurationMs = 2000;
+constexpr UINT kAnimationTickMs = 16;
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 bool HasCurrentImageFilePath(const ImgViewerContext* context);
@@ -42,6 +43,7 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
     }
 
     UpdateImgViewerInfoPanelState(context);
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetAnimationState(context->viewer.AnimationState());
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->ui));
     return S_OK;
 }
@@ -142,6 +144,13 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         return HasCurrentImageFilePath(context);
     }
 
+    if (action == ImgViewerAction::ToggleAnimationLoop ||
+        action == ImgViewerAction::ToggleAnimationPlayback ||
+        action == ImgViewerAction::PreviousAnimationFrame ||
+        action == ImgViewerAction::NextAnimationFrame) {
+        return context != nullptr && context->viewer.HasAnimation();
+    }
+
     return true;
 }
 
@@ -157,6 +166,10 @@ void SyncActionStates(ImgViewerContext* context)
         ImgViewerAction::ToggleColorPicker,
         ImgViewerAction::SaveImageAs,
         ImgViewerAction::ShowInFileExplorer,
+        ImgViewerAction::ToggleAnimationLoop,
+        ImgViewerAction::ToggleAnimationPlayback,
+        ImgViewerAction::PreviousAnimationFrame,
+        ImgViewerAction::NextAnimationFrame,
     };
     for (const ImgViewerAction action : kSyncActions) {
         context->ui.SetActionEnabled(
@@ -182,6 +195,23 @@ void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* tex
     context->ui.ShowToast(text);
     SetTimer(hwnd, kImgViewerToastTimerId, kToastDurationMs, nullptr);
     RenderImgViewer(context);
+}
+
+void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context)
+{
+    if (hwnd == nullptr || context == nullptr) {
+        return;
+    }
+
+    const ImgViewerAnimationState state = context->viewer.AnimationState();
+    if (state.available && state.playing) {
+        context->animation_last_tick_ms = GetTickCount();
+        SetTimer(hwnd, kImgViewerAnimationTimerId, kAnimationTickMs, nullptr);
+        return;
+    }
+
+    KillTimer(hwnd, kImgViewerAnimationTimerId);
+    context->animation_last_tick_ms = 0;
 }
 
 void ApplyWindowOpacity(HWND hwnd, int percent)
@@ -323,6 +353,31 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             RenderImgViewer(context);
         }
         break;
+    case ImgViewerAction::ToggleAnimationLoop:
+        if (context != nullptr && context->viewer.ToggleAnimationLoop()) {
+            RenderImgViewer(context);
+        }
+        break;
+    case ImgViewerAction::ToggleAnimationPlayback:
+        if (context != nullptr && context->viewer.ToggleAnimationPlayback()) {
+            SyncImgViewerAnimationTimer(hwnd, context);
+            RenderImgViewer(context);
+        }
+        break;
+    case ImgViewerAction::PreviousAnimationFrame:
+        if (context != nullptr && context->viewer.StepAnimationFrame(-1)) {
+            SyncImgViewerAnimationTimer(hwnd, context);
+            InvalidateInfoPanelAnalysis(context);
+            RenderImgViewer(context);
+        }
+        break;
+    case ImgViewerAction::NextAnimationFrame:
+        if (context != nullptr && context->viewer.StepAnimationFrame(1)) {
+            SyncImgViewerAnimationTimer(hwnd, context);
+            InvalidateInfoPanelAnalysis(context);
+            RenderImgViewer(context);
+        }
+        break;
     case ImgViewerAction::ToggleTopMost: {
         const bool top_most = !util::IsWindowTopMost(hwnd);
         SetWindowPos(
@@ -410,6 +465,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     const std::wstring title_text = file_name + position_text + L"  " + util::FormatImageDimensions(image_size);
     context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
+    SyncImgViewerAnimationTimer(hwnd, context);
     RenderImgViewer(context);
 }
 
@@ -550,6 +606,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
     const std::wstring title_text = L"<Screenshot>  " + util::FormatImageDimensions(image_size);
     context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
+    SyncImgViewerAnimationTimer(hwnd, context);
     RETURN_IF_FAILED(RenderImgViewer(context));
     return S_OK;
 }
@@ -629,6 +686,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     const std::wstring title_text = L"<Clipboard>  " + util::FormatImageDimensions(image_size);
     context->ui.SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
+    SyncImgViewerAnimationTimer(hwnd, context);
     RenderImgViewer(context);
 }
 
@@ -754,3 +812,8 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
 }
 
 } // namespace
+
+void InvalidateImgViewerInfoPanelAnalysis(ImgViewerContext* context)
+{
+    InvalidateInfoPanelAnalysis(context);
+}

@@ -37,6 +37,7 @@ public:
     explicit ImgViewerUiToolbar(UiElement& root);
 
     void SetScalePercent(int percent);
+    D2D1_RECT_F Rect() const;
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
     void Arrange(D2D1_RECT_F final_rect);
     void Render(const UiDrawContext& draw_context, UiRootState state, bool color_picker_active);
