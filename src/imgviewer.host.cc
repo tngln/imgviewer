@@ -354,6 +354,33 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return 0;
     }
 
+    case WM_DPICHANGED: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        ClosePopup(context);
+        const auto* suggested_rect = reinterpret_cast<const RECT*>(lparam);
+        if (suggested_rect != nullptr) {
+            SetWindowPos(
+                hwnd,
+                nullptr,
+                suggested_rect->left,
+                suggested_rect->top,
+                suggested_rect->right - suggested_rect->left,
+                suggested_rect->bottom - suggested_rect->top,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        if (context != nullptr && FAILED(context->renderer.Resize())) {
+            return -1;
+        }
+        if (context != nullptr) {
+            SyncWindowState(hwnd, &context->ui);
+            if (FAILED(RenderImgViewer(context))) {
+                return -1;
+            }
+            UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
+        }
+        return 0;
+    }
+
     case WM_MOVE:
         ClosePopup(GetImgViewerContext(hwnd));
         return DefWindowProcW(hwnd, message, wparam, lparam);

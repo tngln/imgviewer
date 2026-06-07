@@ -1,6 +1,7 @@
 #include "ui.window.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include <d2d1helper.h>
 #include <windowsx.h>
@@ -25,6 +26,33 @@ D2D1_SIZE_F ClientRenderSize(HWND hwnd)
 {
     const D2D1_SIZE_U size = ClientPixelSize(hwnd);
     return D2D1::SizeF(static_cast<float>(size.width), static_cast<float>(size.height));
+}
+
+float DpiScale(HWND hwnd)
+{
+    return math::CoordinateSpace::FromWindow(hwnd).scale();
+}
+
+D2D1_POINT_2F PhysicalClientPointToUi(HWND hwnd, POINT point)
+{
+    const float dpi_scale = DpiScale(hwnd);
+    return D2D1::Point2F(
+        static_cast<float>(point.x) / dpi_scale,
+        static_cast<float>(point.y) / dpi_scale);
+}
+
+D2D1_POINT_2F PhysicalClientPointToUi(HWND hwnd, LPARAM lparam)
+{
+    return PhysicalClientPointToUi(hwnd, POINT{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)});
+}
+
+POINT UiPointToPhysicalClient(HWND hwnd, D2D1_POINT_2F point)
+{
+    const float dpi_scale = DpiScale(hwnd);
+    return POINT{
+        static_cast<LONG>(std::floor(point.x * dpi_scale)),
+        static_cast<LONG>(std::floor(point.y * dpi_scale)),
+    };
 }
 
 } // namespace
@@ -155,6 +183,27 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         }
         Invalidate();
         return win32::WindowMessageResult::Handled();
+    case WM_DPICHANGED: {
+        if (options_.enable_popup && popup_.IsOpen()) {
+            popup_.Close();
+        }
+        const auto* suggested_rect = reinterpret_cast<const RECT*>(lparam);
+        if (suggested_rect != nullptr) {
+            SetWindowPos(
+                window_.Hwnd(),
+                nullptr,
+                suggested_rect->left,
+                suggested_rect->top,
+                suggested_rect->right - suggested_rect->left,
+                suggested_rect->bottom - suggested_rect->top,
+                SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        if (render_target_ != nullptr) {
+            render_target_->Resize(ClientPixelSize(window_.Hwnd()));
+        }
+        Invalidate();
+        return win32::WindowMessageResult::Handled();
+    }
     case WM_PAINT: {
         PAINTSTRUCT paint = {};
         BeginPaint(window_.Hwnd(), &paint);
@@ -167,10 +216,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     case WM_MOUSEMOVE: {
         TRACKMOUSEEVENT track = {.cbSize = sizeof(track), .dwFlags = TME_LEAVE, .hwndTrack = window_.Hwnd()};
         TrackMouseEvent(&track);
-        const float dpi_scale = math::CoordinateSpace::FromWindow(window_.Hwnd()).scale();
-        const D2D1_POINT_2F point =
-            D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale,
-                          static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale);
+        const D2D1_POINT_2F point = PhysicalClientPointToUi(window_.Hwnd(), lparam);
         UiPointerEvent pointer{
             .type = UiEventType::PointerMove,
             .point = point,
@@ -190,10 +236,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     case WM_LBUTTONUP: {
         SetFocus(window_.Hwnd());
         const UiEventType type = message == WM_LBUTTONDOWN ? UiEventType::PointerDown : UiEventType::PointerUp;
-        const float dpi_scale = math::CoordinateSpace::FromWindow(window_.Hwnd()).scale();
-        const D2D1_POINT_2F point =
-            D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale,
-                          static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale);
+        const D2D1_POINT_2F point = PhysicalClientPointToUi(window_.Hwnd(), lparam);
         UiPointerEvent pointer{
             .type = type,
             .point = point,
@@ -253,12 +296,13 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         break;
     case WM_CONTEXTMENU: {
         POINT point{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+        D2D1_POINT_2F client_point = {};
         if (point.x == -1 && point.y == -1) {
-            point = POINT{16, 112};
+            client_point = D2D1::Point2F(16.0f, 112.0f);
         } else {
             ScreenToClient(window_.Hwnd(), &point);
+            client_point = PhysicalClientPointToUi(window_.Hwnd(), point);
         }
-        const D2D1_POINT_2F client_point = D2D1::Point2F(static_cast<float>(point.x), static_cast<float>(point.y));
         UiEventResult result = ui_.OnInputEvent(UiInputEvent{
             .type = UiEventType::ContextMenu,
             .point = client_point,
@@ -483,7 +527,7 @@ void UiWindowHost::PositionIme()
     const D2D1_POINT_2F point = CaretPoint();
     COMPOSITIONFORM form = {};
     form.dwStyle = CFS_POINT;
-    form.ptCurrentPos = POINT{static_cast<LONG>(point.x), static_cast<LONG>(point.y)};
+    form.ptCurrentPos = UiPointToPhysicalClient(window_.Hwnd(), point);
     ImmSetCompositionWindow(ime, &form);
     ImmReleaseContext(window_.Hwnd(), ime);
 }

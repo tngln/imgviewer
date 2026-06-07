@@ -14,6 +14,7 @@
 #include <wil/result_macros.h>
 
 #include "com.rc.hpp"
+#include "math.hpp"
 namespace {
 
 SAFEARRAY* MakeRuntimeId(int local_id)
@@ -393,13 +394,14 @@ public:
         RETURN_HR_IF_NULL(E_POINTER, rect);
 
         const D2D1_RECT_F button_rect = root_->ui()->ElementRect(id_);
+        const float dpi_scale = math::CoordinateSpace::FromWindow(root_->hwnd()).scale();
         POINT origin = {};
         RETURN_IF_WIN32_BOOL_FALSE(ClientToScreen(root_->hwnd(), &origin));
 
-        rect->left = static_cast<double>(origin.x + button_rect.left);
-        rect->top = static_cast<double>(origin.y + button_rect.top);
-        rect->width = static_cast<double>(button_rect.right - button_rect.left);
-        rect->height = static_cast<double>(button_rect.bottom - button_rect.top);
+        rect->left = static_cast<double>(origin.x) + static_cast<double>(button_rect.left * dpi_scale);
+        rect->top = static_cast<double>(origin.y) + static_cast<double>(button_rect.top * dpi_scale);
+        rect->width = static_cast<double>((button_rect.right - button_rect.left) * dpi_scale);
+        rect->height = static_cast<double>((button_rect.bottom - button_rect.top) * dpi_scale);
 
         return S_OK;
     }
