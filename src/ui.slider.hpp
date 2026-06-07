@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
@@ -29,4 +31,28 @@ private:
     int small_step_ = 1;
     int large_step_ = 10;
     bool dragging_ = false;
+};
+
+// Horizontal composite: [Slider] [gap] [value text].
+class SliderRow final : public UiElement {
+public:
+    SliderRow(UiElementMetadata metadata, int minimum, int maximum, int value,
+              int small_step, int large_step, float value_width = 72.0f);
+
+    int Value() const;
+    bool SetValue(int value);
+    void SetValueText(const wchar_t* text);
+    Slider* GetSlider();
+
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Arrange(D2D1_RECT_F final_rect) override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
+    UiEventResult OnInputEvent(const UiInputEvent& event) override;
+
+private:
+    Slider* slider_ = nullptr;  // owned via AddChild
+    std::wstring value_text_;
+    float value_width_ = 72.0f;
+    D2D1_RECT_F value_rect_ = {};
+    static constexpr float kGap = 16.0f;
 };

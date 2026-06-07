@@ -1,6 +1,7 @@
 #include "ui.slider.hpp"
 
 #include <algorithm>
+#include <memory>
 
 #include <d2d1helper.h>
 
@@ -200,4 +201,70 @@ D2D1_RECT_F Slider::ThumbRect() const
         center_y - kSliderThumbSize * 0.5f,
         center_x + kSliderThumbSize * 0.5f,
         center_y + kSliderThumbSize * 0.5f);
+}
+
+// SliderRow
+
+SliderRow::SliderRow(UiElementMetadata metadata, int minimum, int maximum, int value,
+                     int small_step, int large_step, float value_width) :
+    UiElement(metadata),
+    value_width_(value_width)
+{
+    auto slider = std::make_unique<Slider>(
+        UiMetadata(UiElementRole::Slider, metadata.action, metadata.name,
+                   metadata.tooltip, metadata.automation_id),
+        minimum, maximum, value, small_step, large_step);
+    slider_ = static_cast<Slider*>(AddChild(std::move(slider)));
+}
+
+int SliderRow::Value() const
+{
+    return slider_->Value();
+}
+
+bool SliderRow::SetValue(int value)
+{
+    return slider_->SetValue(value);
+}
+
+void SliderRow::SetValueText(const wchar_t* text)
+{
+    value_text_ = text;
+}
+
+Slider* SliderRow::GetSlider()
+{
+    return slider_;
+}
+
+D2D1_SIZE_F SliderRow::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
+{
+    return D2D1::SizeF((std::max)(1.0f, available_size.width), 36.0f);
+}
+
+void SliderRow::Arrange(D2D1_RECT_F final_rect)
+{
+    UiElement::Arrange(final_rect);
+    const float slider_right = final_rect.right - value_width_ - kGap;
+    slider_->Arrange(D2D1::RectF(final_rect.left, final_rect.top, slider_right, final_rect.bottom));
+    value_rect_ = D2D1::RectF(slider_right + kGap, final_rect.top, final_rect.right, final_rect.bottom);
+}
+
+void SliderRow::Render(const UiDrawContext& context, UiRootState state) const
+{
+    slider_->Render(context, state);
+    if (!value_text_.empty()) {
+        const UiDraw draw(context);
+        draw.DrawBodyText(
+            value_text_.c_str(),
+            static_cast<UINT32>(value_text_.size()),
+            value_rect_,
+            ui_theme::color::kBodyText,
+            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+    }
+}
+
+UiEventResult SliderRow::OnInputEvent(const UiInputEvent& event)
+{
+    return slider_->OnInputEvent(event);
 }

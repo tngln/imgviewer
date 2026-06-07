@@ -22,7 +22,8 @@
 #include "win32.util.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
-#include "ui.layout.hpp"
+#include "ui.label.hpp"
+#include "ui.panel.hpp"
 #include "ui.selection.hpp"
 #include "ui.slider.hpp"
 #include "ui.textbox.hpp"
@@ -65,97 +66,10 @@ constexpr int kSettingsMinClientWidth = 620;
 constexpr int kSettingsMinClientHeight = 916;
 
 constexpr float kSettingsSidePadding = 28.0f;
+constexpr float kSettingsContentTopPadding = 18.0f;
 constexpr float kSettingsFooterBottomPadding = 20.0f;
 constexpr float kSettingsFooterButtonHeight = 48.0f;
 constexpr float kSettingsFooterButtonGap = 10.0f;
-constexpr float kSettingsLabelHeight = 26.0f;
-constexpr float kSettingsChoiceHeight = 36.0f;
-constexpr float kSettingsFieldHeight = 42.0f;
-constexpr float kSettingsValueWidth = 72.0f;
-constexpr float kSettingsRadioIndent = 24.0f;
-constexpr float kSettingsSliderValueGap = 16.0f;
-constexpr float kSettingsValueTextOffset = 4.0f;
-
-struct SettingsLayoutRects final {
-    D2D1_RECT_F title = {};
-    D2D1_RECT_F window_size_label = {};
-    D2D1_RECT_F image_rendering_label = {};
-    D2D1_RECT_F window_frame_label = {};
-    D2D1_RECT_F opacity_label = {};
-    D2D1_RECT_F opacity_value = {};
-    D2D1_RECT_F toolbar_scale_label = {};
-    D2D1_RECT_F toolbar_scale_value = {};
-    D2D1_RECT_F shortcut_filter_label = {};
-    D2D1_RECT_F action_shortcuts_label = {};
-    D2D1_RECT_F shortcut_text = {};
-    D2D1_RECT_F remember_checkbox = {};
-    D2D1_RECT_F remember_radio = {};
-    D2D1_RECT_F default_radio = {};
-    D2D1_RECT_F pixelated_checkbox = {};
-    D2D1_RECT_F checkerboard_checkbox = {};
-    D2D1_RECT_F borderless_checkbox = {};
-    D2D1_RECT_F opacity_slider = {};
-    D2D1_RECT_F toolbar_scale_slider = {};
-    D2D1_RECT_F filter_box = {};
-    D2D1_RECT_F action_dropdown = {};
-    D2D1_RECT_F reset_button = {};
-    D2D1_RECT_F save_button = {};
-    D2D1_RECT_F cancel_button = {};
-};
-
-D2D1_RECT_F FullWidthRect(float left, float top, float right, float height)
-{
-    return D2D1::RectF(left, top, right, top + height);
-}
-
-D2D1_RECT_F BelowFullWidth(D2D1_RECT_F anchor, float gap, float left, float right, float height)
-{
-    const D2D1_RECT_F rect = ui_layout::Below(anchor, gap, right - left, height);
-    return D2D1::RectF(left, rect.top, right, rect.bottom);
-}
-
-struct SettingsSliderRow final {
-    D2D1_RECT_F slider = {};
-    D2D1_RECT_F value = {};
-};
-
-struct SettingsLayoutCursor final {
-    float left = 0.0f;
-    float right = 0.0f;
-    float value_left = 0.0f;
-    D2D1_RECT_F last = {};
-
-    D2D1_RECT_F Start(float top, float height)
-    {
-        last = FullWidthRect(left, top, right, height);
-        return last;
-    }
-
-    D2D1_RECT_F Full(float gap, float height)
-    {
-        last = BelowFullWidth(last, gap, left, right, height);
-        return last;
-    }
-
-    D2D1_RECT_F Indented(float gap, float height, float indent)
-    {
-        last = BelowFullWidth(last, gap, left + indent, right, height);
-        return last;
-    }
-
-    SettingsSliderRow Slider(float gap)
-    {
-        SettingsSliderRow row;
-        row.slider = BelowFullWidth(last, gap, left, value_left - kSettingsSliderValueGap, kSettingsChoiceHeight);
-        row.value = D2D1::RectF(
-            value_left,
-            row.slider.top - kSettingsValueTextOffset,
-            right,
-            row.slider.bottom - kSettingsValueTextOffset);
-        last = row.slider;
-        return row;
-    }
-};
 
 const wchar_t* ActionDisplayName(ImgViewerAction action)
 {
@@ -202,240 +116,24 @@ std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction 
     return text.empty() ? L"No shortcut configured." : text;
 }
 
-SettingsLayoutRects CalculateSettingsLayout(
-    D2D1_SIZE_F size,
-    float reset_button_width,
-    float save_button_width,
-    float cancel_button_width)
-{
-    SettingsLayoutRects layout;
-    const float left = kSettingsSidePadding;
-    const float right = size.width - kSettingsSidePadding;
-    const float value_left = size.width - kSettingsSidePadding - kSettingsValueWidth;
-    const D2D1_RECT_F root = D2D1::RectF(0.0f, 0.0f, size.width, size.height);
-    SettingsLayoutCursor flow{left, right, value_left};
-
-    layout.title = flow.Start(18.0f, 34.0f);
-    layout.remember_checkbox = flow.Full(8.0f, kSettingsChoiceHeight);
-    layout.window_size_label = flow.Full(8.0f, kSettingsLabelHeight);
-    layout.remember_radio = flow.Indented(10.0f, kSettingsChoiceHeight, kSettingsRadioIndent);
-    layout.default_radio = flow.Indented(0.0f, kSettingsChoiceHeight, kSettingsRadioIndent);
-
-    layout.image_rendering_label = flow.Full(16.0f, kSettingsLabelHeight);
-    layout.pixelated_checkbox = flow.Full(6.0f, kSettingsChoiceHeight);
-    layout.checkerboard_checkbox = flow.Full(0.0f, kSettingsChoiceHeight);
-
-    layout.window_frame_label = flow.Full(24.0f, kSettingsLabelHeight);
-    layout.borderless_checkbox = flow.Full(6.0f, kSettingsChoiceHeight);
-
-    layout.opacity_label = flow.Full(16.0f, kSettingsLabelHeight);
-    const SettingsSliderRow opacity = flow.Slider(8.0f);
-    layout.opacity_slider = opacity.slider;
-    layout.opacity_value = opacity.value;
-
-    layout.toolbar_scale_label = flow.Full(16.0f, kSettingsLabelHeight);
-    const SettingsSliderRow toolbar_scale = flow.Slider(8.0f);
-    layout.toolbar_scale_slider = toolbar_scale.slider;
-    layout.toolbar_scale_value = toolbar_scale.value;
-
-    layout.shortcut_filter_label = flow.Full(16.0f, kSettingsLabelHeight);
-    layout.filter_box = flow.Full(8.0f, kSettingsFieldHeight);
-    layout.action_shortcuts_label = flow.Full(24.0f, kSettingsLabelHeight);
-    layout.action_dropdown = flow.Full(8.0f, kSettingsFieldHeight);
-    layout.shortcut_text = flow.Full(18.0f, 30.0f);
-
-    layout.reset_button = D2D1::RectF(
-        left,
-        size.height - kSettingsFooterBottomPadding - kSettingsFooterButtonHeight,
-        left + reset_button_width,
-        size.height - kSettingsFooterBottomPadding);
-    const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
-        root,
-        std::vector<float>{save_button_width, cancel_button_width},
-        kSettingsFooterButtonHeight,
-        kSettingsSidePadding - 8.0f,
-        kSettingsFooterBottomPadding,
-        kSettingsFooterButtonGap);
-    layout.save_button = primary_buttons[0];
-    layout.cancel_button = primary_buttons[1];
-    return layout;
-}
-
-class SettingsUi;
-using SettingsEffect = void (SettingsUi::*)();
-using SettingsChecked = bool (SettingsUi::*)() const;
-
-struct SettingsControl final {
-    UiElement* element = nullptr;
-    D2D1_RECT_F SettingsLayoutRects::* rect = nullptr;
-    SettingsEffect effect = nullptr;
-    SettingsChecked checked = nullptr;
-};
 
 class SettingsUi final : public UiRoot {
 public:
     explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
     {
-        root_ = std::make_unique<UiElement>(
+        auto root_panel = std::make_unique<StackPanel>(
             UiRootMetadata(
                 UiElementRole::Pane,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 L"Settings",
                 L"Settings",
                 L"settings-root"));
+        root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, 0.0f});
+        root_panel->SetGap(0.0f);
+        root_ = root_panel.get();
+        root_owner_ = std::move(root_panel);
 
-        remember_checkbox_ = AddControl(std::make_unique<Checkbox>(
-            UiMetadata(
-                UiElementRole::CheckBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Remember window size",
-                L"Remember window size",
-                L"remember-window-size"),
-            L"Remember window size",
-            draft_.remember_window_size),
-            &SettingsLayoutRects::remember_checkbox,
-            &SettingsUi::ToggleRememberWindowSize,
-            &SettingsUi::RememberWindowSizeChecked);
-        remember_radio_ = AddControl(std::make_unique<RadioButton>(
-            UiMetadata(
-                UiElementRole::RadioButton,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Remember last size",
-                L"Remember last size",
-                L"remember-last-size"),
-            L"Remember last size",
-            draft_.remember_window_size),
-            &SettingsLayoutRects::remember_radio,
-            &SettingsUi::SelectRememberWindowSize,
-            &SettingsUi::RememberWindowSizeSelected);
-        default_radio_ = AddControl(std::make_unique<RadioButton>(
-            UiMetadata(
-                UiElementRole::RadioButton,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Use default size",
-                L"Use default size",
-                L"use-default-size"),
-            L"Use default size",
-            !draft_.remember_window_size),
-            &SettingsLayoutRects::default_radio,
-            &SettingsUi::SelectDefaultWindowSize,
-            &SettingsUi::DefaultWindowSizeSelected);
-        pixelated_checkbox_ = AddControl(std::make_unique<Checkbox>(
-            UiMetadata(
-                UiElementRole::CheckBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Pixelated sampling",
-                L"Pixelated sampling",
-                L"pixelated-sampling"),
-            L"Pixelated sampling",
-            draft_.pixelated_sampling),
-            &SettingsLayoutRects::pixelated_checkbox,
-            &SettingsUi::TogglePixelatedSampling,
-            &SettingsUi::PixelatedSamplingChecked);
-        checkerboard_checkbox_ = AddControl(std::make_unique<Checkbox>(
-            UiMetadata(
-                UiElementRole::CheckBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Checkerboard background",
-                L"Checkerboard background",
-                L"checkerboard-background"),
-            L"Checkerboard background",
-            draft_.checkerboard_background),
-            &SettingsLayoutRects::checkerboard_checkbox,
-            &SettingsUi::ToggleCheckerboardBackground,
-            &SettingsUi::CheckerboardBackgroundChecked);
-        borderless_checkbox_ = AddControl(std::make_unique<Checkbox>(
-            UiMetadata(
-                UiElementRole::CheckBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Borderless window",
-                L"Borderless window",
-                L"borderless-window"),
-            L"Borderless window",
-            draft_.borderless_window),
-            &SettingsLayoutRects::borderless_checkbox,
-            &SettingsUi::ToggleBorderlessWindow,
-            &SettingsUi::BorderlessWindowChecked);
-        opacity_slider_ = AddControl(std::make_unique<Slider>(
-            UiMetadata(
-                UiElementRole::Slider,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Opacity",
-                L"Opacity",
-                L"window-opacity"),
-            kOpacityMinimum,
-            kOpacityMaximum,
-            draft_.window_opacity_percent,
-            kOpacitySmallStep,
-            kOpacityLargeStep),
-            &SettingsLayoutRects::opacity_slider,
-            &SettingsUi::ApplyOpacitySlider);
-        toolbar_scale_slider_ = AddControl(std::make_unique<Slider>(
-            UiMetadata(
-                UiElementRole::Slider,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Toolbar size",
-                L"Toolbar size",
-                L"toolbar-size"),
-            kToolbarScaleMinimum,
-            kToolbarScaleMaximum,
-            draft_.toolbar_scale_percent,
-            kToolbarScaleSmallStep,
-            kToolbarScaleLargeStep),
-            &SettingsLayoutRects::toolbar_scale_slider,
-            &SettingsUi::ApplyToolbarScaleSlider);
-
-        filter_box_ = AddControl(std::make_unique<TextBox>(
-            UiMetadata(
-                UiElementRole::Edit,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Shortcut filter",
-                L"Shortcut filter",
-                L"shortcut-filter"),
-            L"Filter actions"),
-            &SettingsLayoutRects::filter_box);
-        action_dropdown_ = AddControl(std::make_unique<Dropdown>(
-            UiMetadata(
-                UiElementRole::ComboBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"Action shortcuts",
-                L"Action shortcuts",
-            L"action-shortcuts"),
-            BuildDropdownOptions()),
-            &SettingsLayoutRects::action_dropdown,
-            &SettingsUi::UpdateShortcutText);
-
-        reset_button_ = AddControl(std::make_unique<Button>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(ImgViewerAction::ResetKeyBindings),
-                L"Reset Shortcuts",
-                L"Reset Shortcuts",
-                L"reset-shortcuts"),
-            kResetIcon,
-            L"Reset"),
-            &SettingsLayoutRects::reset_button);
-        save_button_ = AddControl(std::make_unique<Button>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(ImgViewerAction::SaveSettings),
-                L"Save",
-                L"Save",
-                L"save-settings"),
-            kSaveIcon,
-            L"Save"),
-            &SettingsLayoutRects::save_button);
-        cancel_button_ = AddControl(std::make_unique<Button>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(ImgViewerAction::CloseSettings),
-                L"Cancel",
-                L"Cancel",
-                L"cancel-settings"),
-            kCancelIcon,
-            L"Cancel"),
-            &SettingsLayoutRects::cancel_button);
-
+        BuildUiTree();
         SyncChoiceControls();
         UpdateOpacityText();
         UpdateToolbarScaleText();
@@ -450,19 +148,21 @@ public:
     void SetOpacityPercent(int percent)
     {
         draft_.window_opacity_percent = ClampWindowOpacityPercent(percent);
-        opacity_slider_->SetValue(draft_.window_opacity_percent);
+        opacity_slider_row_->SetValue(draft_.window_opacity_percent);
         UpdateOpacityText();
+        opacity_slider_row_->SetValueText(opacity_text_.c_str());
     }
 
-    void SetToolbarScalePercent(int percent)
+    void SetToolbarScalePercent(int percent) override
     {
         draft_.toolbar_scale_percent = ClampToolbarScalePercent(percent);
-        toolbar_scale_slider_->SetValue(draft_.toolbar_scale_percent);
+        toolbar_scale_slider_row_->SetValue(draft_.toolbar_scale_percent);
         UpdateToolbarScaleText();
+        toolbar_scale_slider_row_->SetValueText(toolbar_scale_text_.c_str());
     }
 
-    UiElement* Root() override { return root_.get(); }
-    const UiElement* Root() const override { return root_.get(); }
+    UiElement* Root() override { return root_; }
+    const UiElement* Root() const override { return root_; }
     const wchar_t* AccessibilityRootName() const override { return L"Settings"; }
 
     const wchar_t* ElementValue(UiElementId id) const override
@@ -470,10 +170,10 @@ public:
         if (id == filter_box_->Id()) {
             return filter_box_->Text().c_str();
         }
-        if (id == opacity_slider_->Id()) {
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
             return opacity_text_.c_str();
         }
-        if (id == toolbar_scale_slider_->Id()) {
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
             return toolbar_scale_text_.c_str();
         }
         return L"";
@@ -481,43 +181,43 @@ public:
 
     double ElementRangeValue(UiElementId id) const override
     {
-        if (id == opacity_slider_->Id()) {
-            return static_cast<double>(opacity_slider_->Value());
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
+            return static_cast<double>(opacity_slider_row_->Value());
         }
-        if (id == toolbar_scale_slider_->Id()) {
-            return static_cast<double>(toolbar_scale_slider_->Value());
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
+            return static_cast<double>(toolbar_scale_slider_row_->Value());
         }
         return 0.0;
     }
 
     double ElementRangeMinimum(UiElementId id) const override
     {
-        if (id == opacity_slider_->Id()) {
-            return static_cast<double>(opacity_slider_->Minimum());
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
+            return static_cast<double>(kOpacityMinimum);
         }
-        if (id == toolbar_scale_slider_->Id()) {
-            return static_cast<double>(toolbar_scale_slider_->Minimum());
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
+            return static_cast<double>(kToolbarScaleMinimum);
         }
         return 0.0;
     }
 
     double ElementRangeMaximum(UiElementId id) const override
     {
-        if (id == opacity_slider_->Id()) {
-            return static_cast<double>(opacity_slider_->Maximum());
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
+            return static_cast<double>(kOpacityMaximum);
         }
-        if (id == toolbar_scale_slider_->Id()) {
-            return static_cast<double>(toolbar_scale_slider_->Maximum());
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
+            return static_cast<double>(kToolbarScaleMaximum);
         }
         return 0.0;
     }
 
     double ElementRangeSmallChange(UiElementId id) const override
     {
-        if (id == opacity_slider_->Id()) {
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
             return static_cast<double>(kOpacitySmallStep);
         }
-        if (id == toolbar_scale_slider_->Id()) {
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
             return static_cast<double>(kToolbarScaleSmallStep);
         }
         return 1.0;
@@ -525,10 +225,10 @@ public:
 
     double ElementRangeLargeChange(UiElementId id) const override
     {
-        if (id == opacity_slider_->Id()) {
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
             return static_cast<double>(kOpacityLargeStep);
         }
-        if (id == toolbar_scale_slider_->Id()) {
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
             return static_cast<double>(kToolbarScaleLargeStep);
         }
         return 10.0;
@@ -536,11 +236,11 @@ public:
 
     HRESULT SetElementRangeValue(UiElementId id, double value) override
     {
-        if (id == opacity_slider_->Id()) {
+        if (id == opacity_slider_row_->GetSlider()->Id()) {
             SetOpacityPercent(static_cast<int>(value + 0.5));
             return S_OK;
         }
-        if (id == toolbar_scale_slider_->Id()) {
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) {
             SetToolbarScalePercent(static_cast<int>(value + 0.5));
             return S_OK;
         }
@@ -552,50 +252,41 @@ public:
         reset_button_width_ = reset_button_->PreferredWidth(context);
         save_button_width_ = save_button_->PreferredWidth(context);
         cancel_button_width_ = cancel_button_->PreferredWidth(context);
+        const float footer_height = kSettingsFooterButtonHeight + kSettingsFooterBottomPadding;
+        D2D1_SIZE_F content_available = D2D1::SizeF(available_size.width, available_size.height - footer_height);
+        root_->Measure(context, content_available);
         return available_size;
     }
 
     void Arrange(D2D1_RECT_F final_rect) override
     {
-        root_->Arrange(final_rect);
-        Layout(D2D1::SizeF(final_rect.right - final_rect.left, final_rect.bottom - final_rect.top));
+        const float footer_top = final_rect.bottom - kSettingsFooterButtonHeight - kSettingsFooterBottomPadding;
+        const float footer_bottom = footer_top + kSettingsFooterButtonHeight;
+
+        // Footer buttons: reset left, save+cancel right
+        reset_button_->Arrange(D2D1::RectF(
+            final_rect.left + kSettingsSidePadding,
+            footer_top,
+            final_rect.left + kSettingsSidePadding + reset_button_width_,
+            footer_bottom));
+        const float cancel_right = final_rect.right - kSettingsSidePadding;
+        const float save_right = cancel_right - cancel_button_width_ - kSettingsFooterButtonGap;
+        const float reset_right = save_right - save_button_width_ - kSettingsFooterButtonGap;
+        save_button_->Arrange(D2D1::RectF(reset_right, footer_top, save_right, footer_bottom));
+        cancel_button_->Arrange(D2D1::RectF(save_right + kSettingsFooterButtonGap, footer_top, cancel_right, footer_bottom));
+
+        // Content panel takes everything above the footer
+        root_->Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, footer_top));
     }
 
     void Render(const UiDrawContext& context, UiRootState state) override
     {
-        const D2D1_SIZE_F size = context.viewport_size;
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(L"Settings", 8, layout_.title, ui_theme::color::kBodyText);
-        draw.DrawBodyText(L"Window size", 11, layout_.window_size_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Image rendering", 15, layout_.image_rendering_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Window frame", 12, layout_.window_frame_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Opacity", 7, layout_.opacity_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(
-            opacity_text_.c_str(),
-            static_cast<UINT32>(opacity_text_.size()),
-            layout_.opacity_value,
-            ui_theme::color::kBodyText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Toolbar size", 12, layout_.toolbar_scale_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(
-            toolbar_scale_text_.c_str(),
-            static_cast<UINT32>(toolbar_scale_text_.size()),
-            layout_.toolbar_scale_value,
-            ui_theme::color::kBodyText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-        draw.DrawBodyText(L"Shortcut filter", 15, layout_.shortcut_filter_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(L"Action shortcuts", 16, layout_.action_shortcuts_label, ui_theme::color::kMutedText);
-        draw.DrawBodyText(
-            shortcut_text_.c_str(),
-            static_cast<UINT32>(shortcut_text_.size()),
-            layout_.shortcut_text,
-            ui_theme::color::kBodyText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-
-        for (const SettingsControl& control : controls_) {
-            DrawElement(*control.element, context, state);
-        }
+        root_->Render(context, state);
+        reset_button_->Render(context, state);
+        save_button_->Render(context, state);
+        cancel_button_->Render(context, state);
     }
 
     UiEventResult OnInputEvent(const UiInputEvent& event) override
@@ -662,39 +353,160 @@ public:
     }
 
 private:
-    template <typename T>
-    T* AddControl(
-        std::unique_ptr<T> control,
-        D2D1_RECT_F SettingsLayoutRects::* rect,
-        SettingsEffect effect = nullptr,
-        SettingsChecked checked = nullptr)
+    void BuildUiTree()
     {
-        T* typed_control = control.get();
-        UiElement* element = root_->AddChild(std::move(control));
-        controls_.push_back(SettingsControl{element, rect, effect, checked});
-        return typed_control;
-    }
+        // Title
+        root_->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Settings", L"", L"settings-title", false, false),
+            L"Settings", LabelStyle::Title), 34.0f);
 
-    void Layout(D2D1_SIZE_F size)
-    {
-        layout_ = CalculateSettingsLayout(
-            size,
-            reset_button_width_,
-            save_button_width_,
-            cancel_button_width_);
-        for (const SettingsControl& control : controls_) {
-            control.element->Arrange(layout_.*control.rect);
-        }
+        // Remember window size section (gap before = 16px)
+        auto* section1 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section1->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section1->SetGap(6.0f);
+
+        remember_checkbox_ = section1->AddItem(std::make_unique<Checkbox>(
+            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Remember window size", L"Remember window size", L"remember-window-size"),
+            L"Remember window size", draft_.remember_window_size));
+
+        auto* indent1 = section1->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        indent1->SetPadding(UiThickness{24.0f, 0.0f, 0.0f, 0.0f});
+        indent1->SetGap(6.0f);
+
+        indent1->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Window size", L"", L"window-size-label", false, false),
+            L"Window size", LabelStyle::Muted));
+        remember_radio_ = indent1->AddItem(std::make_unique<RadioButton>(
+            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Remember last size", L"Remember last size", L"remember-last-size"),
+            L"Remember last size", draft_.remember_window_size));
+        default_radio_ = indent1->AddItem(std::make_unique<RadioButton>(
+            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Use default size", L"Use default size", L"use-default-size"),
+            L"Use default size", !draft_.remember_window_size));
+
+        // Image rendering section (gap before = 16px)
+        auto* section2 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section2->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section2->SetGap(6.0f);
+
+        section2->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Image rendering", L"", L"image-rendering-label", false, false),
+            L"Image rendering", LabelStyle::Muted));
+        pixelated_checkbox_ = section2->AddItem(std::make_unique<Checkbox>(
+            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Pixelated sampling", L"Pixelated sampling", L"pixelated-sampling"),
+            L"Pixelated sampling", draft_.pixelated_sampling));
+        checkerboard_checkbox_ = section2->AddItem(std::make_unique<Checkbox>(
+            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Checkerboard background", L"Checkerboard background", L"checkerboard-background"),
+            L"Checkerboard background", draft_.checkerboard_background));
+
+        // Window frame section (gap before = 16px)
+        auto* section3 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section3->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section3->SetGap(6.0f);
+
+        section3->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Window frame", L"", L"window-frame-label", false, false),
+            L"Window frame", LabelStyle::Muted));
+        borderless_checkbox_ = section3->AddItem(std::make_unique<Checkbox>(
+            UiMetadata(UiElementRole::CheckBox, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Borderless window", L"Borderless window", L"borderless-window"),
+            L"Borderless window", draft_.borderless_window));
+
+        // Opacity section (gap before = 16px)
+        auto* section4 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section4->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section4->SetGap(8.0f);
+
+        section4->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Opacity", L"", L"opacity-label", false, false),
+            L"Opacity", LabelStyle::Muted));
+        opacity_slider_row_ = section4->AddItem(std::make_unique<SliderRow>(
+            UiMetadata(UiElementRole::Slider, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Opacity", L"Opacity", L"window-opacity"),
+            kOpacityMinimum, kOpacityMaximum, draft_.window_opacity_percent,
+            kOpacitySmallStep, kOpacityLargeStep));
+
+        // Toolbar size section (gap before = 16px)
+        auto* section5 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section5->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section5->SetGap(8.0f);
+
+        section5->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Toolbar size", L"", L"toolbar-size-label", false, false),
+            L"Toolbar size", LabelStyle::Muted));
+        toolbar_scale_slider_row_ = section5->AddItem(std::make_unique<SliderRow>(
+            UiMetadata(UiElementRole::Slider, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Toolbar size", L"Toolbar size", L"toolbar-size"),
+            kToolbarScaleMinimum, kToolbarScaleMaximum, draft_.toolbar_scale_percent,
+            kToolbarScaleSmallStep, kToolbarScaleLargeStep));
+
+        // Shortcut filter section (gap before = 16px)
+        auto* section6 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section6->SetPadding(UiThickness{0.0f, 16.0f, 0.0f, 0.0f});
+        section6->SetGap(8.0f);
+
+        section6->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Shortcut filter", L"", L"shortcut-filter-label", false, false),
+            L"Shortcut filter", LabelStyle::Muted));
+        filter_box_ = section6->AddItem(std::make_unique<TextBox>(
+            UiMetadata(UiElementRole::Edit, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Shortcut filter", L"Shortcut filter", L"shortcut-filter"),
+            L"Filter actions"));
+
+        // Action shortcuts section (gap before = 24px)
+        auto* section7 = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
+        section7->SetPadding(UiThickness{0.0f, 24.0f, 0.0f, 0.0f});
+        section7->SetGap(8.0f);
+
+        section7->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Action shortcuts", L"", L"action-shortcuts-label", false, false),
+            L"Action shortcuts", LabelStyle::Muted));
+        action_dropdown_ = section7->AddItem(std::make_unique<Dropdown>(
+            UiMetadata(UiElementRole::ComboBox, UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Action shortcuts", L"Action shortcuts", L"action-shortcuts"),
+            BuildDropdownOptions()));
+        shortcut_label_ = section7->AddItem(std::make_unique<Label>(
+            UiMetadata(UiElementRole::Text, kUiActionNone, L"Shortcut", L"", L"shortcut-text", false, false),
+            L"", LabelStyle::Body));
+
+        // Footer buttons owned separately
+        reset_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
+            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::ResetKeyBindings),
+                L"Reset Shortcuts", L"Reset Shortcuts", L"reset-shortcuts"),
+            kResetIcon, L"Reset")));
+        save_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
+            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::SaveSettings),
+                L"Save", L"Save", L"save-settings"),
+            kSaveIcon, L"Save")));
+        cancel_button_ = static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
+            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::CloseSettings),
+                L"Cancel", L"Cancel", L"cancel-settings"),
+            kCancelIcon, L"Cancel")));
     }
 
     void ApplyElementEffect(UiElementId id) override
     {
-        for (const SettingsControl& control : controls_) {
-            if (id == control.element->Id() && control.effect != nullptr) {
-                (this->*control.effect)();
-                return;
-            }
-        }
+        if (id == remember_checkbox_->Id()) { ToggleRememberWindowSize(); return; }
+        if (id == remember_radio_->Id()) { SelectRememberWindowSize(); return; }
+        if (id == default_radio_->Id()) { SelectDefaultWindowSize(); return; }
+        if (id == pixelated_checkbox_->Id()) { TogglePixelatedSampling(); return; }
+        if (id == checkerboard_checkbox_->Id()) { ToggleCheckerboardBackground(); return; }
+        if (id == borderless_checkbox_->Id()) { ToggleBorderlessWindow(); return; }
+        if (id == opacity_slider_row_->GetSlider()->Id()) { ApplyOpacitySlider(); return; }
+        if (id == toolbar_scale_slider_row_->GetSlider()->Id()) { ApplyToolbarScaleSlider(); return; }
+        if (id == action_dropdown_->Id()) { UpdateShortcutText(); return; }
     }
 
     void ToggleRememberWindowSize()
@@ -735,22 +547,17 @@ private:
 
     void ApplyOpacitySlider()
     {
-        draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_->Value());
+        draft_.window_opacity_percent = ClampWindowOpacityPercent(opacity_slider_row_->Value());
         UpdateOpacityText();
+        opacity_slider_row_->SetValueText(opacity_text_.c_str());
     }
 
     void ApplyToolbarScaleSlider()
     {
-        draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_->Value());
+        draft_.toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale_slider_row_->Value());
         UpdateToolbarScaleText();
+        toolbar_scale_slider_row_->SetValueText(toolbar_scale_text_.c_str());
     }
-
-    bool RememberWindowSizeChecked() const { return remember_checkbox_->IsChecked(); }
-    bool RememberWindowSizeSelected() const { return remember_radio_->IsSelected(); }
-    bool DefaultWindowSizeSelected() const { return default_radio_->IsSelected(); }
-    bool PixelatedSamplingChecked() const { return pixelated_checkbox_->IsChecked(); }
-    bool CheckerboardBackgroundChecked() const { return checkerboard_checkbox_->IsChecked(); }
-    bool BorderlessWindowChecked() const { return borderless_checkbox_->IsChecked(); }
 
     void SyncChoiceControls()
     {
@@ -768,6 +575,7 @@ private:
         shortcut_text_ = action != ImgViewerAction::None
             ? ShortcutsForAction(draft_.action_bindings, action)
             : std::wstring();
+        shortcut_label_->SetText(shortcut_text_.c_str());
     }
 
     bool MatchesFilter(ImgViewerAction action) const
@@ -813,6 +621,9 @@ private:
         wchar_t text[16] = {};
         swprintf_s(text, L"%d%%", draft_.window_opacity_percent);
         opacity_text_ = text;
+        if (opacity_slider_row_ != nullptr) {
+            opacity_slider_row_->SetValueText(opacity_text_.c_str());
+        }
     }
 
     void UpdateToolbarScaleText()
@@ -820,36 +631,25 @@ private:
         wchar_t text[16] = {};
         swprintf_s(text, L"%d%%", draft_.toolbar_scale_percent);
         toolbar_scale_text_ = text;
-    }
-
-    void DrawElement(UiElement& element, const UiDrawContext& context, UiRootState state) const
-    {
-        element.Render(context, state);
-    }
-
-    bool IsCheckedElement(UiElementId id) const
-    {
-        for (const SettingsControl& control : controls_) {
-            if (id == control.element->Id() && control.checked != nullptr) {
-                return (this->*control.checked)();
-            }
+        if (toolbar_scale_slider_row_ != nullptr) {
+            toolbar_scale_slider_row_->SetValueText(toolbar_scale_text_.c_str());
         }
-        return false;
     }
 
     ImgViewerConfig draft_;
-    std::unique_ptr<UiElement> root_;
-    std::vector<SettingsControl> controls_;
+    std::unique_ptr<StackPanel> root_owner_;
+    StackPanel* root_ = nullptr;
     Checkbox* remember_checkbox_ = nullptr;
     Checkbox* pixelated_checkbox_ = nullptr;
     Checkbox* checkerboard_checkbox_ = nullptr;
     Checkbox* borderless_checkbox_ = nullptr;
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
-    Slider* opacity_slider_ = nullptr;
-    Slider* toolbar_scale_slider_ = nullptr;
+    SliderRow* opacity_slider_row_ = nullptr;
+    SliderRow* toolbar_scale_slider_row_ = nullptr;
     Dropdown* action_dropdown_ = nullptr;
     TextBox* filter_box_ = nullptr;
+    Label* shortcut_label_ = nullptr;
     Button* reset_button_ = nullptr;
     Button* save_button_ = nullptr;
     Button* cancel_button_ = nullptr;
@@ -859,7 +659,6 @@ private:
     std::wstring opacity_text_;
     std::wstring toolbar_scale_text_;
     std::wstring shortcut_text_;
-    SettingsLayoutRects layout_;
 };
 
 struct SettingsWindowContext final : public UiWindowDelegate {
