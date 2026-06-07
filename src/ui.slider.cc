@@ -12,7 +12,6 @@ namespace {
 
 constexpr float kSliderTrackHeight = 4.0f;
 constexpr float kSliderThumbSize = 11.0f;
-constexpr float kSliderCenterLineHalfHeight = 0.5f;
 
 } // namespace
 
@@ -68,7 +67,7 @@ void Slider::Render(const UiDrawContext& context, UiRootState root_state) const
 
     draw.FillRoundedRect(D2D1::RoundedRect(track, kSliderTrackHeight * 0.5f, kSliderTrackHeight * 0.5f), ui_theme::color::kButtonDisabled);
     draw.FillRoundedRect(D2D1::RoundedRect(fill, kSliderTrackHeight * 0.5f, kSliderTrackHeight * 0.5f), ui_theme::color::kAccent);
-    draw.DrawRect(D2D1::RectF(track.left, center_y - kSliderCenterLineHalfHeight, track.right, center_y + kSliderCenterLineHalfHeight), ui_theme::color::kBorder);
+    draw.DrawRect(D2D1::RectF(track.left, center_y - ui_theme::metrics::kHalfPixel, track.right, center_y + ui_theme::metrics::kHalfPixel), ui_theme::color::kBorder);
 
     const D2D1_COLOR_F thumb_fill = !state.enabled
         ? ui_theme::color::kButtonDisabled

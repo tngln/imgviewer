@@ -50,12 +50,6 @@ constexpr int kSettingsInitialHeight = 472;
 constexpr int kSettingsMinClientWidth = 310;
 constexpr int kSettingsMinClientHeight = 458;
 
-constexpr float kSectionTopPadding = 8.0f;
-constexpr float kSectionGap = 6.0f;
-constexpr float kSlimSectionGap = 4.0f;
-constexpr float kIndentPadding = 12.0f;
-constexpr float kIndentGap = 6.0f;
-
 constexpr float kSettingsSidePadding = 14.0f;
 constexpr float kSettingsContentTopPadding = 9.0f;
 constexpr float kSettingsFooterBottomPadding = 10.0f;
@@ -324,7 +318,7 @@ private:
         // Remember window size section (gap before = 16px)
         auto* section1 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section1->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
+        section1->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
         section1->SetGap(3.0f);
 
         remember_checkbox_ = section1->AddItem(std::make_unique<Checkbox>(
@@ -334,8 +328,8 @@ private:
 
         auto* indent1 = section1->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        indent1->SetPadding(UiThickness{kIndentPadding, 0.0f, 0.0f, 0.0f});
-        indent1->SetGap(kIndentGap);
+        indent1->SetPadding(UiThickness{ui_theme::metrics::kSectionPadding, 0.0f, 0.0f, 0.0f});
+        indent1->SetGap(ui_theme::metrics::kStandardGap);
 
         indent1->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Window size", L"", L"window-size-label", false, false),
@@ -352,8 +346,8 @@ private:
         // Image rendering section (gap before = 16px)
         auto* section2 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section2->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
-        section2->SetGap(kSectionGap);
+        section2->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        section2->SetGap(ui_theme::metrics::kStandardGap);
 
         section2->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Image rendering", L"", L"image-rendering-label", false, false),
@@ -370,8 +364,8 @@ private:
         // Window frame section (gap before = 16px)
         auto* section3 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section3->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
-        section3->SetGap(kSectionGap);
+        section3->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        section3->SetGap(ui_theme::metrics::kStandardGap);
 
         section3->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Window frame", L"", L"window-frame-label", false, false),
@@ -384,8 +378,8 @@ private:
         // Opacity section (gap before = 16px)
         auto* section4 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section4->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
-        section4->SetGap(kSlimSectionGap);
+        section4->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        section4->SetGap(ui_theme::metrics::kSmallGap);
 
         section4->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Opacity", L"", L"opacity-label", false, false),
@@ -399,8 +393,8 @@ private:
         // Toolbar size section (gap before = 16px)
         auto* section5 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section5->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
-        section5->SetGap(kSlimSectionGap);
+        section5->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        section5->SetGap(ui_theme::metrics::kSmallGap);
 
         section5->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Toolbar size", L"", L"toolbar-size-label", false, false),
@@ -414,8 +408,8 @@ private:
         // Shortcut filter section (gap before = 16px)
         auto* section6 = root_->AddItem(std::make_unique<StackPanel>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false)));
-        section6->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
-        section6->SetGap(kSlimSectionGap);
+        section6->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        section6->SetGap(ui_theme::metrics::kSmallGap);
 
         section6->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, L"Shortcut filter", L"", L"shortcut-filter-label", false, false),

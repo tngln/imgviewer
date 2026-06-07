@@ -151,7 +151,7 @@ void Button::Render(const UiDrawContext& context, UiRootState root_state) const
         static_cast<UINT32>(wcslen(text_)),
         D2D1::RectF(
             rect.left + ui_theme::offset::kButtonTextLeft,
-            rect.top + ui_theme::offset::kButtonTextTop,
+            rect.top + ui_theme::metrics::kTextTopOffset,
             rect.right - ui_theme::offset::kButtonTextRight,
             rect.bottom),
         text_color,

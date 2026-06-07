@@ -46,9 +46,15 @@ constexpr float kToolbarBackgroundOpacity = 0.88f;
 
 namespace metrics {
 
+constexpr float kHalfPixel = 0.5f;
+constexpr float kSmallGap = 4.0f;
+constexpr float kStandardGap = 6.0f;
+constexpr float kLargeGap = 8.0f;
+constexpr float kSectionPadding = 12.0f;
+constexpr float kTextTopOffset = 2.5f;
+
 constexpr float kTitleBarHeight = 24.0f;
 constexpr float kCaptionButtonWidth = 24.0f;
-constexpr float kCaptionButtonEdgePadding = 0.5f;
 constexpr float kTitleTextLeft = 8.0f;
 constexpr float kTitleTextRightPadding = 6.0f;
 constexpr float kWindowBorderInset = 0.25f;
@@ -87,7 +93,6 @@ constexpr float kButtonIconLeft = 7.0f;
 constexpr float kButtonIconTop = 5.0f;
 constexpr float kButtonIconRight = 19.0f;
 constexpr float kButtonTextLeft = 22.0f;
-constexpr float kButtonTextTop = 2.5f;
 constexpr float kButtonTextRight = 6.0f;
 constexpr float kCaptionIconLeft = 6.0f;
 constexpr float kCaptionIconTop = 5.0f;

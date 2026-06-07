@@ -21,13 +21,10 @@ constexpr float kMenuTextLeft = 17.0f;
 constexpr float kMenuTextRight = 14.0f;
 constexpr float kMenuChildMarkWidth = 10.0f;
 constexpr float kMenuChildMarkGap = 5.0f;
-constexpr float kMenuCornerRadius = 3.0f;
-constexpr float kMenuSeparatorHorizontalMargin = 6.0f;
-constexpr float kMenuSeparatorHalfHeight = 0.5f;
 constexpr float kMenuCheckmarkLeft = 5.5f;
-constexpr float kMenuCheckmarkTop = 0.5f;
 constexpr float kMenuCheckmarkRight = 15.0f;
 constexpr float kMenuTextTopOffset = 1.5f;
+constexpr float kMenuCornerRadius = 3.0f;
 
 float ItemHeight(const MenuItem& item)
 {
@@ -138,14 +135,14 @@ void MenuOverlay::Render(const UiDrawContext& context, UiRootState) const
         const D2D1_RECT_F rect = ItemRect(index);
         if (item.separator) {
             const float y = rect.top + rect.bottom;
-            draw.DrawRect(D2D1::RectF(rect.left + kMenuSeparatorHorizontalMargin, y * 0.5f, rect.right - kMenuSeparatorHorizontalMargin, y * 0.5f + kMenuSeparatorHalfHeight), ui_theme::color::kBorder);
+            draw.DrawRect(D2D1::RectF(rect.left + ui_theme::metrics::kStandardGap, y * 0.5f, rect.right - ui_theme::metrics::kStandardGap, y * 0.5f + ui_theme::metrics::kHalfPixel), ui_theme::color::kBorder);
             continue;
         }
         if (index == selected_) {
             draw.FillRect(rect, ui_theme::color::kButtonHovered);
         }
         if (item.checked) {
-            draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(rect.left + kMenuCheckmarkLeft, rect.top + kMenuCheckmarkTop, rect.left + kMenuCheckmarkRight, rect.bottom), ui_theme::color::kAccent);
+            draw.DrawBodyText(L"\x2713", 1, D2D1::RectF(rect.left + kMenuCheckmarkLeft, rect.top + ui_theme::metrics::kHalfPixel, rect.left + kMenuCheckmarkRight, rect.bottom), ui_theme::color::kAccent);
         }
         const D2D1_COLOR_F text_color = item.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent;
         const float text_right = item.children.empty()

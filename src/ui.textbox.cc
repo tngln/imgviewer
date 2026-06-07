@@ -15,7 +15,6 @@
 namespace {
 
 constexpr float kTextPaddingX = 5.0f;
-constexpr float kTextPaddingY = 2.5f;
 constexpr float kCaretVerticalInset = 1.0f;
 constexpr float kCaretWidth = 1.5f;
 constexpr float kScrollOvershootMargin = 2.0f;
@@ -102,9 +101,9 @@ void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
 
     const D2D1_RECT_F text_rect = D2D1::RectF(
         rect.left + kTextPaddingX,
-        rect.top + kTextPaddingY,
+        rect.top + ui_theme::metrics::kTextTopOffset,
         rect.right - kTextPaddingX,
-        rect.bottom - kTextPaddingY);
+        rect.bottom - ui_theme::metrics::kTextTopOffset);
     const std::wstring display = DisplayText();
     const bool showing_placeholder = display.empty() && composition_.empty();
     const std::wstring draw_text = showing_placeholder ? std::wstring(placeholder_) : display;
@@ -148,7 +147,7 @@ void TextBox::Render(const UiDrawContext& context, UiRootState root_state) const
         layout->HitTestTextPosition(static_cast<UINT32>(caret_), FALSE, &x, &y, &metric);
         const float caret_x = text_rect.left - horizontal_scroll_ + x;
         const float caret_top = text_rect.top + kCaretVerticalInset;
-        const float caret_bottom = rect.bottom - kTextPaddingY - kCaretVerticalInset;
+        const float caret_bottom = rect.bottom - ui_theme::metrics::kTextTopOffset - kCaretVerticalInset;
         caret_point_ = D2D1::Point2F(caret_x, caret_bottom);
         draw.FillRect(D2D1::RectF(caret_x, caret_top, caret_x + kCaretWidth, caret_bottom), ui_theme::color::kBodyText);
     }
@@ -373,7 +372,7 @@ size_t TextBox::HitTest(D2D1_POINT_2F point) const
     DWRITE_HIT_TEST_METRICS metric = {};
     layout->HitTestPoint(
         point.x - rect.left - kTextPaddingX + horizontal_scroll_,
-        point.y - rect.top - kTextPaddingY,
+        point.y - rect.top - ui_theme::metrics::kTextTopOffset,
         &trailing,
         &inside,
         &metric);
