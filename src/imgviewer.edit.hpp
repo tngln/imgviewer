@@ -28,6 +28,18 @@ enum class ImgViewerCropEdge {
     Bottom,
 };
 
+enum class ImgViewerEditObjectKind {
+    None,
+    Stroke,
+    Text,
+    Mosaic,
+};
+
+struct ImgViewerEditObjectRef final {
+    ImgViewerEditObjectKind kind = ImgViewerEditObjectKind::None;
+    size_t index = 0;
+};
+
 struct ImgViewerEditStroke final {
     std::vector<D2D1_POINT_2F> points;
     D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);
@@ -75,6 +87,7 @@ struct ImgViewerEditSnapshot final {
     bool drawing_stroke = false;
     ImgViewerEditStroke current_stroke;
     bool drawing_crop = false;
+    bool has_crop = false;
     D2D1_RECT_F crop_rect = {};
     D2D1_RECT_F current_crop_rect = {};
     bool has_pending_crop = false;
@@ -85,6 +98,8 @@ struct ImgViewerEditSnapshot final {
     bool has_pixel_selection = false;
     D2D1_RECT_F pixel_selection_rect = {};
     D2D1_RECT_F current_pixel_selection_rect = {};
+    bool has_selected_object = false;
+    ImgViewerEditObjectRef selected_object;
     bool editing_text = false;
     size_t editing_text_index = 0;
 };
@@ -104,6 +119,10 @@ public:
     bool IsDrawing() const;
     bool HasTransientCapture() const;
     bool HasPixelSelection() const;
+    bool HasCrop() const;
+    D2D1_RECT_F CropRect() const;
+    bool HasSelection() const;
+    ImgViewerEditObjectRef SelectedObject() const;
     ImgViewerEditSnapshot Snapshot() const;
 
     HRESULT Begin(IWICBitmapSource* source, D2D1_SIZE_U source_size);
@@ -124,7 +143,10 @@ public:
     bool Redo();
     void MarkSaved();
     void CancelTransientTool();
+    void CancelSelection();
     void ClearPixelSelection();
+    bool DeleteSelection();
+    bool BeginTextEditOnSelection();
     HRESULT CopySelectedPixels(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const;
     bool MosaicSelection();
     bool OnTextInput(wchar_t character);
@@ -133,6 +155,7 @@ public:
     ImgViewerEventResult OnPointerDown(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
     ImgViewerEventResult OnPointerMove(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
     ImgViewerEventResult OnPointerUp(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
+    ImgViewerEventResult OnPointerDoubleClick(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
 
     HRESULT ExportPngSource(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const;
 
@@ -143,13 +166,19 @@ private:
         RotateClockwise,
         Crop,
         Mosaic,
+        DeleteObject,
+        MoveObject,
     };
 
     struct HistoryEntry final {
         HistoryKind kind = HistoryKind::Stroke;
+        ImgViewerEditObjectRef object;
         ImgViewerEditStroke stroke;
+        ImgViewerEditStroke after_stroke;
         ImgViewerEditText text;
+        ImgViewerEditText after_text;
         ImgViewerEditMosaic mosaic;
+        ImgViewerEditMosaic after_mosaic;
         D2D1_RECT_F previous_crop_rect = {};
         bool previous_has_crop = false;
         D2D1_RECT_F crop_rect = {};
@@ -164,6 +193,11 @@ private:
     ImgViewerCropEdge CropEdgeAt(D2D1_POINT_2F document_point, float hit_slop) const;
     D2D1_RECT_F ClampCropRect(D2D1_RECT_F rect) const;
     void UpdatePendingCropEdge(D2D1_POINT_2F document_point);
+    bool HitTestObject(D2D1_POINT_2F document_point, float hit_slop, ImgViewerEditObjectRef* object) const;
+    bool IsValidObject(ImgViewerEditObjectRef object) const;
+    bool CaptureMoveOriginal(ImgViewerEditObjectRef object);
+    bool ApplyObjectOffset(ImgViewerEditObjectRef object, D2D1_POINT_2F offset);
+    bool CommitObjectMove();
     void PushHistory(HistoryEntry entry);
 
     ImgViewerEditDocument document_;
@@ -181,7 +215,14 @@ private:
     bool drawing_pixel_selection_ = false;
     bool has_pixel_selection_ = false;
     bool editing_text_ = false;
+    bool has_selected_object_ = false;
+    bool moving_selected_object_ = false;
     size_t editing_text_index_ = 0;
+    ImgViewerEditObjectRef selected_object_;
+    D2D1_POINT_2F move_start_document_point_ = {};
+    ImgViewerEditStroke move_original_stroke_;
+    ImgViewerEditText move_original_text_;
+    ImgViewerEditMosaic move_original_mosaic_;
     D2D1_POINT_2F crop_start_ = {};
     D2D1_RECT_F current_crop_rect_ = {};
     D2D1_RECT_F pending_crop_rect_ = {};

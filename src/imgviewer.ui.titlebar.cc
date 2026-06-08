@@ -142,7 +142,8 @@ void ImgViewerUiTitleBar::Render(
     const UiDrawContext& draw_context,
     UiRootState state,
     bool top_most,
-    bool maximized)
+    bool maximized,
+    bool edit_mode)
 {
     const UiDraw draw(draw_context);
     Button(ButtonKey::MaximizeRestore)->SetIcon(maximized ? kRestoreIcon : kMaximizeIcon);
@@ -161,7 +162,7 @@ void ImgViewerUiTitleBar::Render(
                     draw_context.viewport_size.width - ui_theme::metrics::kWindowBorderInset),
                 (std::max)(ui_theme::metrics::kWindowBorderMinimum,
                     draw_context.viewport_size.height - ui_theme::metrics::kWindowBorderInset)),
-            ui_theme::color::kBorder,
+            edit_mode ? ui_theme::color::kEditModeBorder : ui_theme::color::kBorder,
             ui_theme::metrics::kStrokeWidth);
     }
 

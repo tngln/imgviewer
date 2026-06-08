@@ -60,6 +60,7 @@
     X(EditCancelCrop, "editCancelCrop", L"Cancel Crop", true, true) \
     X(EditCopySelection, "editCopySelection", L"Copy Pixel Selection", true, true) \
     X(EditMosaicSelection, "editMosaicSelection", L"Mosaic Pixel Selection", true, true) \
+    X(EditDeleteSelection, "editDeleteSelection", L"Delete Edit Selection", true, true) \
     X(EditRotateClockwise, "editRotateClockwise", L"Edit Rotate Clockwise", true, true) \
     X(EditUndo, "editUndo", L"Edit Undo", true, true) \
     X(EditRedo, "editRedo", L"Edit Redo", true, true) \

@@ -447,6 +447,22 @@ bool ImgViewerController::ActualSize(D2D1_SIZE_U viewport_size)
     return true;
 }
 
+bool ImgViewerController::CenterOnImagePoint(D2D1_POINT_2F point)
+{
+    if (!current_image_.bitmap) {
+        return false;
+    }
+
+    image_view_center_ = D2D1::Point2F(
+        std::clamp(point.x, 0.0f, static_cast<float>(current_image_.pixel_size.width)),
+        std::clamp(point.y, 0.0f, static_cast<float>(current_image_.pixel_size.height)));
+    image_is_panning_ = false;
+    image_is_rotating_ = false;
+    r_key_is_down_ = false;
+    r_key_started_rotation_ = false;
+    return true;
+}
+
 bool ImgViewerController::RotateClockwise()
 {
     if (!current_image_.bitmap) {

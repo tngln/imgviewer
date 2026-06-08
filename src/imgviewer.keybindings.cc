@@ -173,6 +173,7 @@ ActionBindings DefaultActionBindings()
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_PLUS, .ctrl = true}, ImgViewerAction::ZoomIn);
     SetBinding(&bindings, KeyGesture{.virtual_key = VK_OEM_MINUS, .ctrl = true}, ImgViewerAction::ZoomOut);
     SetBinding(&bindings, KeyGesture{.virtual_key = 'I'}, ImgViewerAction::ToggleInfoPanel);
+    SetBinding(&bindings, KeyGesture{.virtual_key = VK_DELETE}, ImgViewerAction::EditDeleteSelection);
     SetBinding(&bindings, KeyGesture{.virtual_key = '9', .ctrl = true}, ImgViewerAction::FitWindow);
     SetBinding(&bindings, KeyGesture{.virtual_key = '1', .ctrl = true}, ImgViewerAction::ActualSize);
     SetBinding(&bindings, KeyGesture{.virtual_key = '0', .ctrl = true}, ImgViewerAction::ResetView);

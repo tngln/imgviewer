@@ -598,6 +598,22 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
+    case WM_LBUTTONDBLCLK: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
+        ImgViewerEventResult edit_result = {};
+        if (context != nullptr &&
+            context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool &&
+            context->edit.Active()) {
+            edit_result = context->edit.OnPointerDoubleClick(
+                point,
+                context->viewer.Snapshot(),
+                context->renderer.ViewportPixelSize());
+        }
+        RenderIfNeeded(context, edit_result);
+        return edit_result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
     case WM_LBUTTONUP: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
@@ -754,6 +770,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             context->edit.Active() &&
             context->edit.Tool() == ImgViewerEditTool::Crop) {
             ExecuteImgViewerAction(hwnd, context, ImgViewerAction::EditCancelCrop);
+            return 0;
+        }
+        if (context != nullptr &&
+            wparam == VK_ESCAPE &&
+            !key.modifiers.ctrl &&
+            !key.modifiers.shift &&
+            !key.modifiers.alt &&
+            context->edit.Active() &&
+            context->edit.Tool() == ImgViewerEditTool::Select &&
+            context->edit.HasSelection()) {
+            context->edit.CancelSelection();
+            RenderImgViewer(context);
             return 0;
         }
 

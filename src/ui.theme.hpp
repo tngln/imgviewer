@@ -29,6 +29,7 @@ constexpr auto kCheckerboardDark = COLOR(0xcfd8e6);
 constexpr auto kTitleBarBackground = COLOR(0xffffff);
 constexpr float kTitleBarBackgroundOpacity = 0.86f;
 constexpr auto kBorder = COLOR(0xb8c7dc);
+constexpr auto kEditModeBorder = COLOR(0x8b3ff2);
 constexpr auto kBodyText = COLOR(0x172033);
 constexpr auto kMutedText = COLOR(0x697386);
 constexpr auto kAccent = COLOR(0x2f6fed);

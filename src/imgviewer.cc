@@ -200,6 +200,7 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         action == ImgViewerAction::EditCancelCrop ||
         action == ImgViewerAction::EditCopySelection ||
         action == ImgViewerAction::EditMosaicSelection ||
+        action == ImgViewerAction::EditDeleteSelection ||
         action == ImgViewerAction::EditRotateClockwise ||
         action == ImgViewerAction::EditUndo ||
         action == ImgViewerAction::EditRedo) {
@@ -208,6 +209,9 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         }
         if (action == ImgViewerAction::EditCopySelection || action == ImgViewerAction::EditMosaicSelection) {
             return context->edit.HasPixelSelection();
+        }
+        if (action == ImgViewerAction::EditDeleteSelection) {
+            return context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Select && context->edit.HasSelection();
         }
         return true;
     }
@@ -300,6 +304,24 @@ void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context)
     }
 }
 
+bool CommitImgViewerCropAndCenter(HWND, ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return false;
+    }
+
+    const bool committed = context->edit.CommitCropSession();
+    if (!context->edit.HasCrop()) {
+        return committed;
+    }
+
+    const D2D1_RECT_F crop_rect = context->edit.CropRect();
+    const D2D1_POINT_2F crop_center = D2D1::Point2F(
+        (crop_rect.left + crop_rect.right) * 0.5f,
+        (crop_rect.top + crop_rect.bottom) * 0.5f);
+    return context->viewer.CenterOnImagePoint(crop_center) || committed;
+}
+
 bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr || !EnsureEditDocument(context)) {
@@ -325,7 +347,7 @@ void ExitImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
         return;
     }
 
-    context->edit.CommitCropSession();
+    CommitImgViewerCropAndCenter(hwnd, context);
     ResetImgViewerTransientInput(hwnd, context);
     context->edit.SetActive(false);
     context->interaction.EnterViewing();
@@ -338,6 +360,9 @@ void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditToo
         return;
     }
 
+    if (context->edit.Tool() == ImgViewerEditTool::Crop && tool != ImgViewerEditTool::Crop) {
+        CommitImgViewerCropAndCenter(hwnd, context);
+    }
     ResetImgViewerTransientInput(hwnd, context);
     context->color_picker_active = false;
     context->ui.SetColorPickerActive(false);
@@ -452,6 +477,9 @@ void SetPenColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
         return;
     }
 
+    if (context->edit.Tool() == ImgViewerEditTool::Crop) {
+        CommitImgViewerCropAndCenter(hwnd, context);
+    }
     ResetImgViewerTransientInput(hwnd, context);
     context->color_picker_active = false;
     context->ui.SetColorPickerActive(false);
@@ -472,6 +500,9 @@ void SetPenWidth(HWND hwnd, ImgViewerContext* context, float width)
         return;
     }
 
+    if (context->edit.Tool() == ImgViewerEditTool::Crop) {
+        CommitImgViewerCropAndCenter(hwnd, context);
+    }
     ResetImgViewerTransientInput(hwnd, context);
     context->color_picker_active = false;
     context->ui.SetColorPickerActive(false);
@@ -499,6 +530,9 @@ void PrepareTextStyleEdit(HWND hwnd, ImgViewerContext* context)
             ReleaseCapture();
         }
     } else {
+        if (context->edit.Tool() == ImgViewerEditTool::Crop) {
+            CommitImgViewerCropAndCenter(hwnd, context);
+        }
         ResetImgViewerTransientInput(hwnd, context);
     }
     context->color_picker_active = false;
@@ -760,6 +794,9 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         break;
     case ImgViewerAction::EditMosaicSelection:
         if (context != nullptr) TryEditAction(context, context->edit.MosaicSelection());
+        break;
+    case ImgViewerAction::EditDeleteSelection:
+        if (context != nullptr) TryEditAction(context, context->edit.DeleteSelection());
         break;
     case ImgViewerAction::EditRotateClockwise:
         if (context != nullptr && EnsureEditDocument(context)) TryEditAction(context, context->edit.RotateClockwise());
@@ -1073,7 +1110,7 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     if (context->edit.HasDocument()) {
-        context->edit.CommitCropSession();
+        CommitImgViewerCropAndCenter(hwnd, context);
         wil::com_ptr<IWICBitmapSource> edited_source;
         const HRESULT export_hr = context->edit.ExportPngSource(context->viewer.WicFactory(), edited_source.put());
         ImageEncoder encoder;

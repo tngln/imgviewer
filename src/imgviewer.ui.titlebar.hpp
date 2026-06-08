@@ -35,7 +35,8 @@ public:
         const UiDrawContext& draw_context,
         UiRootState state,
         bool top_most,
-        bool maximized);
+        bool maximized,
+        bool edit_mode);
     bool IsPointInCaptionDragArea(const UiElement& root, D2D1_POINT_2F point) const;
     void SetTitleText(const wchar_t* title);
 

@@ -86,6 +86,7 @@ HRESULT NativeWindow::RegisterWindowClass(const NativeWindowOptions& options)
 {
     WNDCLASSEXW window_class = {};
     window_class.cbSize = sizeof(window_class);
+    window_class.style = CS_DBLCLKS;
     window_class.lpfnWndProc = NativeWindow::WindowProc;
     window_class.hInstance = options.instance;
     window_class.hCursor = options.cursor != nullptr ? options.cursor : LoadCursorW(nullptr, IDC_ARROW);

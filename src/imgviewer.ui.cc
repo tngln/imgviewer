@@ -91,7 +91,7 @@ void ImgViewerUi::Render(
     const UiDrawContext& draw_context,
     UiRootState state)
 {
-    titlebar_.Render(draw_context, state, top_most_, maximized_);
+    titlebar_.Render(draw_context, state, top_most_, maximized_, edit_toolbar_state_.visible);
     toolbar_.Render(draw_context, state, color_picker_active_);
     edit_toolbar_.Render(draw_context, state);
     text_toolstrip_.Render(draw_context, state);
@@ -211,6 +211,7 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
             {L"Cancel Crop", UiActionFromImgViewerAction(ImgViewerAction::EditCancelCrop), false, false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
             {L"Copy Pixel Selection", UiActionFromImgViewerAction(ImgViewerAction::EditCopySelection), false, false, selection_toolstrip_state_.visible},
             {L"Mosaic Pixel Selection", UiActionFromImgViewerAction(ImgViewerAction::EditMosaicSelection), false, false, selection_toolstrip_state_.visible},
+            {L"Delete Selection", UiActionFromImgViewerAction(ImgViewerAction::EditDeleteSelection), false, false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Select},
             {L"Edit Rotate Clockwise", UiActionFromImgViewerAction(ImgViewerAction::EditRotateClockwise)},
             {L"Undo Edit", UiActionFromImgViewerAction(ImgViewerAction::EditUndo)},
             {L"Redo Edit", UiActionFromImgViewerAction(ImgViewerAction::EditRedo)},

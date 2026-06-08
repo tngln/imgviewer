@@ -101,6 +101,62 @@ D2D1_RECT_F TextLayoutRect(
     return D2D1::RectF(origin.x, origin.y, origin.x + width, origin.y + height);
 }
 
+D2D1_RECT_F StrokeBounds(const ImgViewerEditStroke& stroke)
+{
+    if (stroke.points.empty()) {
+        return D2D1::RectF();
+    }
+
+    float left = stroke.points[0].x;
+    float top = stroke.points[0].y;
+    float right = stroke.points[0].x;
+    float bottom = stroke.points[0].y;
+    for (const D2D1_POINT_2F point : stroke.points) {
+        left = (std::min)(left, point.x);
+        top = (std::min)(top, point.y);
+        right = (std::max)(right, point.x);
+        bottom = (std::max)(bottom, point.y);
+    }
+
+    const float padding = (std::max)(2.0f, stroke.width * 0.5f + 2.0f);
+    return D2D1::RectF(left - padding, top - padding, right + padding, bottom + padding);
+}
+
+bool SelectedObjectRect(
+    IDWriteFactory* dwrite_factory,
+    const ImgViewerEditSnapshot& edit,
+    D2D1_RECT_F* rect)
+{
+    if (rect == nullptr || !edit.has_selected_object) {
+        return false;
+    }
+
+    const ImgViewerEditObjectRef object = edit.selected_object;
+    switch (object.kind) {
+    case ImgViewerEditObjectKind::Stroke:
+        if (object.index < edit.strokes.size()) {
+            *rect = StrokeBounds(edit.strokes[object.index]);
+            return rect->right > rect->left && rect->bottom > rect->top;
+        }
+        return false;
+    case ImgViewerEditObjectKind::Text:
+        if (object.index < edit.texts.size()) {
+            *rect = TextLayoutRect(dwrite_factory, edit.texts[object.index], edit.texts[object.index].origin);
+            return true;
+        }
+        return false;
+    case ImgViewerEditObjectKind::Mosaic:
+        if (object.index < edit.mosaics.size()) {
+            *rect = edit.mosaics[object.index].rect;
+            return rect->right > rect->left && rect->bottom > rect->top;
+        }
+        return false;
+    case ImgViewerEditObjectKind::None:
+        return false;
+    }
+    return false;
+}
+
 HRESULT DrawEditTextObject(
     ID2D1DeviceContext* d2d_context,
     IDWriteFactory* dwrite_factory,
@@ -500,7 +556,10 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 brush.reset();
             }
 
-            if (state->edit.tool == ImgViewerEditTool::Crop || state->edit.drawing_crop || state->edit.has_pending_crop) {
+            if (state->edit.tool == ImgViewerEditTool::Crop ||
+                state->edit.drawing_crop ||
+                state->edit.has_pending_crop ||
+                state->edit.has_crop) {
                 RETURN_IF_FAILED(DrawCropOverlay(
                     d2d_context,
                     context.draw.body_text_format,
@@ -570,6 +629,16 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                     text,
                     editing,
                     image_scale));
+            }
+
+            D2D1_RECT_F selected_rect = {};
+            if (SelectedObjectRect(context.draw.dwrite_factory, state->edit, &selected_rect)) {
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(ui_theme::color::kAccent, brush.put()));
+                d2d_context->DrawRectangle(
+                    selected_rect,
+                    brush.get(),
+                    1.5f / (std::max)(0.01f, image_scale));
+                brush.reset();
             }
 
             RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.55f), brush.put()));

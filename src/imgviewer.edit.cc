@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 
@@ -120,6 +121,63 @@ bool SameRect(D2D1_RECT_F left, D2D1_RECT_F right)
         std::abs(left.top - right.top) < kTolerance &&
         std::abs(left.right - right.right) < kTolerance &&
         std::abs(left.bottom - right.bottom) < kTolerance;
+}
+
+bool SamePoint(D2D1_POINT_2F left, D2D1_POINT_2F right)
+{
+    constexpr float kTolerance = 0.001f;
+    return std::abs(left.x - right.x) < kTolerance && std::abs(left.y - right.y) < kTolerance;
+}
+
+bool SameStroke(const ImgViewerEditStroke& left, const ImgViewerEditStroke& right)
+{
+    if (left.points.size() != right.points.size() ||
+        std::abs(left.width - right.width) >= 0.001f ||
+        left.color.r != right.color.r ||
+        left.color.g != right.color.g ||
+        left.color.b != right.color.b ||
+        left.color.a != right.color.a) {
+        return false;
+    }
+    for (size_t index = 0; index < left.points.size(); ++index) {
+        if (!SamePoint(left.points[index], right.points[index])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SameTextObject(const ImgViewerEditText& left, const ImgViewerEditText& right)
+{
+    return SamePoint(left.origin, right.origin) && left.text == right.text;
+}
+
+bool SameMosaic(const ImgViewerEditMosaic& left, const ImgViewerEditMosaic& right)
+{
+    return SameRect(left.rect, right.rect) && left.block_size == right.block_size;
+}
+
+D2D1_RECT_F OffsetRect(D2D1_RECT_F rect, D2D1_POINT_2F offset)
+{
+    return D2D1::RectF(rect.left + offset.x, rect.top + offset.y, rect.right + offset.x, rect.bottom + offset.y);
+}
+
+float DistanceSquaredToSegment(D2D1_POINT_2F point, D2D1_POINT_2F a, D2D1_POINT_2F b)
+{
+    const float dx = b.x - a.x;
+    const float dy = b.y - a.y;
+    const float length_squared = dx * dx + dy * dy;
+    if (length_squared <= 0.0001f) {
+        const float px = point.x - a.x;
+        const float py = point.y - a.y;
+        return px * px + py * py;
+    }
+
+    const float t = std::clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / length_squared, 0.0f, 1.0f);
+    const D2D1_POINT_2F projected = D2D1::Point2F(a.x + dx * t, a.y + dy * t);
+    const float px = point.x - projected.x;
+    const float py = point.y - projected.y;
+    return px * px + py * py;
 }
 
 D2D1_RECT_F PixelAlignedRect(D2D1_RECT_F rect, D2D1_SIZE_U bounds)
@@ -333,12 +391,32 @@ bool ImgViewerEditController::IsDrawing() const
 
 bool ImgViewerEditController::HasTransientCapture() const
 {
-    return IsDrawing() || drawing_pixel_selection_;
+    return IsDrawing() || drawing_pixel_selection_ || moving_selected_object_;
 }
 
 bool ImgViewerEditController::HasPixelSelection() const
 {
     return active_ && has_pixel_selection_ && IsUsefulRect(pixel_selection_rect_);
+}
+
+bool ImgViewerEditController::HasCrop() const
+{
+    return HasDocument() && document_.has_crop && IsUsefulRect(document_.crop_rect);
+}
+
+D2D1_RECT_F ImgViewerEditController::CropRect() const
+{
+    return document_.crop_rect;
+}
+
+bool ImgViewerEditController::HasSelection() const
+{
+    return active_ && has_selected_object_ && IsValidObject(selected_object_);
+}
+
+ImgViewerEditObjectRef ImgViewerEditController::SelectedObject() const
+{
+    return HasSelection() ? selected_object_ : ImgViewerEditObjectRef{};
 }
 
 ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
@@ -353,6 +431,7 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
         .drawing_stroke = drawing_stroke_,
         .current_stroke = current_stroke_,
         .drawing_crop = dragging_crop_edge_,
+        .has_crop = HasCrop(),
         .crop_rect = document_.crop_rect,
         .current_crop_rect = has_pending_crop_ ? pending_crop_rect_ : current_crop_rect_,
         .has_pending_crop = has_pending_crop_,
@@ -363,6 +442,8 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
         .has_pixel_selection = has_pixel_selection_,
         .pixel_selection_rect = pixel_selection_rect_,
         .current_pixel_selection_rect = current_pixel_selection_rect_,
+        .has_selected_object = HasSelection(),
+        .selected_object = SelectedObject(),
         .editing_text = editing_text_,
         .editing_text_index = editing_text_index_,
     };
@@ -389,6 +470,8 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     drawing_pixel_selection_ = false;
     has_pixel_selection_ = false;
     editing_text_ = false;
+    has_selected_object_ = false;
+    moving_selected_object_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
     pending_crop_rect_ = D2D1_RECT_F{};
@@ -398,6 +481,7 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     pixel_selection_rect_ = D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
+    selected_object_ = ImgViewerEditObjectRef{};
     active_ = true;
     tool_ = ImgViewerEditTool::Pen;
     return S_OK;
@@ -419,6 +503,8 @@ void ImgViewerEditController::Clear()
     drawing_pixel_selection_ = false;
     has_pixel_selection_ = false;
     editing_text_ = false;
+    has_selected_object_ = false;
+    moving_selected_object_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
     pending_crop_rect_ = D2D1_RECT_F{};
@@ -428,6 +514,7 @@ void ImgViewerEditController::Clear()
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     pixel_selection_rect_ = D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
+    selected_object_ = ImgViewerEditObjectRef{};
     active_ = false;
     tool_ = ImgViewerEditTool::Select;
 }
@@ -455,6 +542,7 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     drawing_pixel_selection_ = false;
     editing_text_ = false;
+    moving_selected_object_ = false;
     current_stroke_ = ImgViewerEditStroke{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
     if (tool_ == ImgViewerEditTool::Crop) {
@@ -465,6 +553,10 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     if (tool_ != ImgViewerEditTool::PixelSelect) {
         has_pixel_selection_ = false;
         pixel_selection_rect_ = D2D1_RECT_F{};
+    }
+    if (tool_ != ImgViewerEditTool::Select) {
+        has_selected_object_ = false;
+        selected_object_ = ImgViewerEditObjectRef{};
     }
 }
 
@@ -639,6 +731,44 @@ bool ImgViewerEditController::Undo()
             document_.mosaics.pop_back();
         }
         break;
+    case HistoryKind::DeleteObject:
+        switch (entry.object.kind) {
+        case ImgViewerEditObjectKind::Stroke:
+            document_.strokes.insert(
+                document_.strokes.begin() + static_cast<std::ptrdiff_t>((std::min)(entry.object.index, document_.strokes.size())),
+                entry.stroke);
+            break;
+        case ImgViewerEditObjectKind::Text:
+            document_.texts.insert(
+                document_.texts.begin() + static_cast<std::ptrdiff_t>((std::min)(entry.object.index, document_.texts.size())),
+                entry.text);
+            break;
+        case ImgViewerEditObjectKind::Mosaic:
+            document_.mosaics.insert(
+                document_.mosaics.begin() + static_cast<std::ptrdiff_t>((std::min)(entry.object.index, document_.mosaics.size())),
+                entry.mosaic);
+            break;
+        case ImgViewerEditObjectKind::None:
+            break;
+        }
+        CancelSelection();
+        break;
+    case HistoryKind::MoveObject:
+        switch (entry.object.kind) {
+        case ImgViewerEditObjectKind::Stroke:
+            if (entry.object.index < document_.strokes.size()) document_.strokes[entry.object.index] = entry.stroke;
+            break;
+        case ImgViewerEditObjectKind::Text:
+            if (entry.object.index < document_.texts.size()) document_.texts[entry.object.index] = entry.text;
+            break;
+        case ImgViewerEditObjectKind::Mosaic:
+            if (entry.object.index < document_.mosaics.size()) document_.mosaics[entry.object.index] = entry.mosaic;
+            break;
+        case ImgViewerEditObjectKind::None:
+            break;
+        }
+        CancelSelection();
+        break;
     }
     document_.dirty = !undo_stack_.empty();
     return true;
@@ -669,6 +799,44 @@ bool ImgViewerEditController::Redo()
     case HistoryKind::Mosaic:
         document_.mosaics.push_back(entry.mosaic);
         break;
+    case HistoryKind::DeleteObject:
+        switch (entry.object.kind) {
+        case ImgViewerEditObjectKind::Stroke:
+            if (entry.object.index < document_.strokes.size()) {
+                document_.strokes.erase(document_.strokes.begin() + static_cast<std::ptrdiff_t>(entry.object.index));
+            }
+            break;
+        case ImgViewerEditObjectKind::Text:
+            if (entry.object.index < document_.texts.size()) {
+                document_.texts.erase(document_.texts.begin() + static_cast<std::ptrdiff_t>(entry.object.index));
+            }
+            break;
+        case ImgViewerEditObjectKind::Mosaic:
+            if (entry.object.index < document_.mosaics.size()) {
+                document_.mosaics.erase(document_.mosaics.begin() + static_cast<std::ptrdiff_t>(entry.object.index));
+            }
+            break;
+        case ImgViewerEditObjectKind::None:
+            break;
+        }
+        CancelSelection();
+        break;
+    case HistoryKind::MoveObject:
+        switch (entry.object.kind) {
+        case ImgViewerEditObjectKind::Stroke:
+            if (entry.object.index < document_.strokes.size()) document_.strokes[entry.object.index] = entry.after_stroke;
+            break;
+        case ImgViewerEditObjectKind::Text:
+            if (entry.object.index < document_.texts.size()) document_.texts[entry.object.index] = entry.after_text;
+            break;
+        case ImgViewerEditObjectKind::Mosaic:
+            if (entry.object.index < document_.mosaics.size()) document_.mosaics[entry.object.index] = entry.after_mosaic;
+            break;
+        case ImgViewerEditObjectKind::None:
+            break;
+        }
+        CancelSelection();
+        break;
     }
     undo_stack_.push_back(entry);
     document_.dirty = true;
@@ -688,10 +856,18 @@ void ImgViewerEditController::CancelTransientTool()
     dragging_crop_edge_ = false;
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     drawing_pixel_selection_ = false;
+    moving_selected_object_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = has_pending_crop_ ? pending_crop_rect_ : D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
+}
+
+void ImgViewerEditController::CancelSelection()
+{
+    has_selected_object_ = false;
+    moving_selected_object_ = false;
+    selected_object_ = ImgViewerEditObjectRef{};
 }
 
 void ImgViewerEditController::ClearPixelSelection()
@@ -700,6 +876,52 @@ void ImgViewerEditController::ClearPixelSelection()
     drawing_pixel_selection_ = false;
     pixel_selection_rect_ = D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
+}
+
+bool ImgViewerEditController::DeleteSelection()
+{
+    if (!HasSelection()) {
+        return false;
+    }
+
+    const ImgViewerEditObjectRef object = selected_object_;
+    HistoryEntry entry{
+        .kind = HistoryKind::DeleteObject,
+        .object = object,
+    };
+    switch (object.kind) {
+    case ImgViewerEditObjectKind::Stroke:
+        entry.stroke = document_.strokes[object.index];
+        document_.strokes.erase(document_.strokes.begin() + static_cast<std::ptrdiff_t>(object.index));
+        break;
+    case ImgViewerEditObjectKind::Text:
+        entry.text = document_.texts[object.index];
+        document_.texts.erase(document_.texts.begin() + static_cast<std::ptrdiff_t>(object.index));
+        break;
+    case ImgViewerEditObjectKind::Mosaic:
+        entry.mosaic = document_.mosaics[object.index];
+        document_.mosaics.erase(document_.mosaics.begin() + static_cast<std::ptrdiff_t>(object.index));
+        break;
+    case ImgViewerEditObjectKind::None:
+        return false;
+    }
+
+    CancelSelection();
+    editing_text_ = false;
+    document_.dirty = true;
+    PushHistory(entry);
+    return true;
+}
+
+bool ImgViewerEditController::BeginTextEditOnSelection()
+{
+    if (!HasSelection() || selected_object_.kind != ImgViewerEditObjectKind::Text) {
+        return false;
+    }
+
+    editing_text_index_ = selected_object_.index;
+    editing_text_ = true;
+    return true;
 }
 
 HRESULT ImgViewerEditController::CopySelectedPixels(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const
@@ -771,6 +993,10 @@ bool ImgViewerEditController::OnTextKeyDown(UINT virtual_key)
         return true;
     }
 
+    if (virtual_key == VK_DELETE) {
+        return true;
+    }
+
     if (virtual_key == VK_ESCAPE || virtual_key == VK_RETURN) {
         editing_text_ = false;
         return true;
@@ -791,6 +1017,22 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
     D2D1_POINT_2F document_point = {};
     if (!DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
         return {};
+    }
+
+    if (tool_ == ImgViewerEditTool::Select) {
+        editing_text_ = false;
+        ImgViewerEditObjectRef object;
+        if (!HitTestObject(document_point, DocumentHitSlop(viewer, viewport_size), &object)) {
+            const bool had_selection = HasSelection();
+            CancelSelection();
+            return ImgViewerEventResult{.handled = had_selection, .needs_render = had_selection};
+        }
+
+        selected_object_ = object;
+        has_selected_object_ = true;
+        move_start_document_point_ = document_point;
+        moving_selected_object_ = CaptureMoveOriginal(object);
+        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = moving_selected_object_};
     }
 
     if (tool_ == ImgViewerEditTool::Pen) {
@@ -856,7 +1098,12 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !dragging_crop_edge_ && !drawing_pixel_selection_ && tool_ != ImgViewerEditTool::Crop)) {
+    if (!active_ ||
+        (!drawing_stroke_ &&
+            !dragging_crop_edge_ &&
+            !drawing_pixel_selection_ &&
+            !moving_selected_object_ &&
+            tool_ != ImgViewerEditTool::Crop)) {
         return {};
     }
 
@@ -867,6 +1114,16 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
             return ImgViewerEventResult{.handled = true, .needs_render = true};
         }
         return ImgViewerEventResult{.handled = true};
+    }
+
+    if (moving_selected_object_) {
+        const D2D1_POINT_2F offset = D2D1::Point2F(
+            document_point.x - move_start_document_point_.x,
+            document_point.y - move_start_document_point_.y);
+        return ImgViewerEventResult{
+            .handled = true,
+            .needs_render = ApplyObjectOffset(selected_object_, offset),
+        };
     }
 
     if (tool_ == ImgViewerEditTool::Crop && dragging_crop_edge_) {
@@ -902,12 +1159,24 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !dragging_crop_edge_ && !drawing_pixel_selection_)) {
+    if (!active_ || (!drawing_stroke_ && !dragging_crop_edge_ && !drawing_pixel_selection_ && !moving_selected_object_)) {
         return {};
     }
 
     D2D1_POINT_2F document_point = {};
-    if (DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
+    if (moving_selected_object_) {
+        if (DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
+            const D2D1_POINT_2F offset = D2D1::Point2F(
+                document_point.x - move_start_document_point_.x,
+                document_point.y - move_start_document_point_.y);
+            ApplyObjectOffset(selected_object_, offset);
+        }
+        CommitObjectMove();
+        moving_selected_object_ = false;
+        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+    }
+
+    if (drawing_stroke_ && DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
         current_stroke_.points.push_back(document_point);
     }
 
@@ -948,6 +1217,34 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+}
+
+ImgViewerEventResult ImgViewerEditController::OnPointerDoubleClick(
+    D2D1_POINT_2F point,
+    const ImgViewerSnapshot& viewer,
+    D2D1_SIZE_U viewport_size)
+{
+    if (!active_ || !HasDocument() || tool_ != ImgViewerEditTool::Select) {
+        return {};
+    }
+
+    D2D1_POINT_2F document_point = {};
+    if (!DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
+        return {};
+    }
+
+    ImgViewerEditObjectRef object;
+    if (!HitTestObject(document_point, DocumentHitSlop(viewer, viewport_size), &object)) {
+        return {};
+    }
+
+    selected_object_ = object;
+    has_selected_object_ = true;
+    if (object.kind == ImgViewerEditObjectKind::Text) {
+        editing_text_index_ = object.index;
+        editing_text_ = true;
+    }
+    return ImgViewerEventResult{.handled = true, .needs_render = true};
 }
 
 HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const
@@ -1126,6 +1423,159 @@ float ImgViewerEditController::DocumentHitSlop(const ImgViewerSnapshot& viewer, 
         imgviewer_edit_geometry::EditPreviewSize(document_.source_size, document_.rotation_quadrants);
     const float image_scale = math::FitScale(preview_size, viewport_size) * viewer.zoom_multiplier;
     return image_scale > 0.0f ? (std::max)(2.0f, 8.0f / image_scale) : 8.0f;
+}
+
+bool ImgViewerEditController::HitTestObject(
+    D2D1_POINT_2F document_point,
+    float hit_slop,
+    ImgViewerEditObjectRef* object) const
+{
+    if (object == nullptr) {
+        return false;
+    }
+
+    for (size_t offset = 0; offset < document_.texts.size(); ++offset) {
+        const size_t index = document_.texts.size() - 1 - offset;
+        if (math::Contains(TextLayoutRect(nullptr, document_.texts[index], document_.texts[index].origin), document_point)) {
+            *object = ImgViewerEditObjectRef{.kind = ImgViewerEditObjectKind::Text, .index = index};
+            return true;
+        }
+    }
+
+    for (size_t offset = 0; offset < document_.mosaics.size(); ++offset) {
+        const size_t index = document_.mosaics.size() - 1 - offset;
+        if (math::Contains(document_.mosaics[index].rect, document_point)) {
+            *object = ImgViewerEditObjectRef{.kind = ImgViewerEditObjectKind::Mosaic, .index = index};
+            return true;
+        }
+    }
+
+    const float slop_squared = hit_slop * hit_slop;
+    for (size_t offset = 0; offset < document_.strokes.size(); ++offset) {
+        const size_t index = document_.strokes.size() - 1 - offset;
+        const ImgViewerEditStroke& stroke = document_.strokes[index];
+        const float stroke_slop = hit_slop + stroke.width * 0.5f;
+        const float stroke_slop_squared = stroke_slop * stroke_slop;
+        if (stroke.points.size() == 1 && DistanceSquaredToSegment(document_point, stroke.points[0], stroke.points[0]) <= slop_squared) {
+            *object = ImgViewerEditObjectRef{.kind = ImgViewerEditObjectKind::Stroke, .index = index};
+            return true;
+        }
+        for (size_t point_index = 1; point_index < stroke.points.size(); ++point_index) {
+            if (DistanceSquaredToSegment(document_point, stroke.points[point_index - 1], stroke.points[point_index]) <= stroke_slop_squared) {
+                *object = ImgViewerEditObjectRef{.kind = ImgViewerEditObjectKind::Stroke, .index = index};
+                return true;
+            }
+        }
+    }
+
+    *object = ImgViewerEditObjectRef{};
+    return false;
+}
+
+bool ImgViewerEditController::IsValidObject(ImgViewerEditObjectRef object) const
+{
+    switch (object.kind) {
+    case ImgViewerEditObjectKind::Stroke:
+        return object.index < document_.strokes.size();
+    case ImgViewerEditObjectKind::Text:
+        return object.index < document_.texts.size();
+    case ImgViewerEditObjectKind::Mosaic:
+        return object.index < document_.mosaics.size();
+    case ImgViewerEditObjectKind::None:
+        return false;
+    }
+    return false;
+}
+
+bool ImgViewerEditController::CaptureMoveOriginal(ImgViewerEditObjectRef object)
+{
+    if (!IsValidObject(object)) {
+        return false;
+    }
+
+    switch (object.kind) {
+    case ImgViewerEditObjectKind::Stroke:
+        move_original_stroke_ = document_.strokes[object.index];
+        break;
+    case ImgViewerEditObjectKind::Text:
+        move_original_text_ = document_.texts[object.index];
+        break;
+    case ImgViewerEditObjectKind::Mosaic:
+        move_original_mosaic_ = document_.mosaics[object.index];
+        break;
+    case ImgViewerEditObjectKind::None:
+        return false;
+    }
+    return true;
+}
+
+bool ImgViewerEditController::ApplyObjectOffset(ImgViewerEditObjectRef object, D2D1_POINT_2F offset)
+{
+    if (!IsValidObject(object)) {
+        return false;
+    }
+
+    switch (object.kind) {
+    case ImgViewerEditObjectKind::Stroke:
+        document_.strokes[object.index] = move_original_stroke_;
+        for (D2D1_POINT_2F& point : document_.strokes[object.index].points) {
+            point.x = std::clamp(point.x + offset.x, 0.0f, static_cast<float>(document_.source_size.width));
+            point.y = std::clamp(point.y + offset.y, 0.0f, static_cast<float>(document_.source_size.height));
+        }
+        return true;
+    case ImgViewerEditObjectKind::Text:
+        document_.texts[object.index] = move_original_text_;
+        document_.texts[object.index].origin = D2D1::Point2F(
+            std::clamp(move_original_text_.origin.x + offset.x, 0.0f, static_cast<float>(document_.source_size.width)),
+            std::clamp(move_original_text_.origin.y + offset.y, 0.0f, static_cast<float>(document_.source_size.height)));
+        return true;
+    case ImgViewerEditObjectKind::Mosaic:
+        document_.mosaics[object.index] = move_original_mosaic_;
+        document_.mosaics[object.index].rect = ClampCropRect(OffsetRect(move_original_mosaic_.rect, offset));
+        return true;
+    case ImgViewerEditObjectKind::None:
+        return false;
+    }
+    return false;
+}
+
+bool ImgViewerEditController::CommitObjectMove()
+{
+    if (!IsValidObject(selected_object_)) {
+        return false;
+    }
+
+    HistoryEntry entry{
+        .kind = HistoryKind::MoveObject,
+        .object = selected_object_,
+    };
+    bool changed = false;
+    switch (selected_object_.kind) {
+    case ImgViewerEditObjectKind::Stroke:
+        entry.stroke = move_original_stroke_;
+        entry.after_stroke = document_.strokes[selected_object_.index];
+        changed = !SameStroke(entry.stroke, entry.after_stroke);
+        break;
+    case ImgViewerEditObjectKind::Text:
+        entry.text = move_original_text_;
+        entry.after_text = document_.texts[selected_object_.index];
+        changed = !SameTextObject(entry.text, entry.after_text);
+        break;
+    case ImgViewerEditObjectKind::Mosaic:
+        entry.mosaic = move_original_mosaic_;
+        entry.after_mosaic = document_.mosaics[selected_object_.index];
+        changed = !SameMosaic(entry.mosaic, entry.after_mosaic);
+        break;
+    case ImgViewerEditObjectKind::None:
+        break;
+    }
+
+    if (!changed) {
+        return false;
+    }
+    document_.dirty = true;
+    PushHistory(entry);
+    return true;
 }
 
 ImgViewerCropEdge ImgViewerEditController::CropEdgeAt(D2D1_POINT_2F document_point, float hit_slop) const
