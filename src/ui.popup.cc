@@ -216,6 +216,7 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
     if (content_ != nullptr) {
         UiEventResult result = content_->OnInputEvent(event);
         if (result.needs_render && popup_hwnd_ != nullptr) {
+            ResizeNativePopupToContent();
             InvalidateRect(popup_hwnd_, nullptr, FALSE);
         }
         return result;
@@ -274,19 +275,72 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
         this);
     RETURN_LAST_ERROR_IF_NULL(popup_hwnd_);
 
-    if (content_ != nullptr && content_->CornerRadius() > 0.0f) {
-        const int diameter = static_cast<int>(std::ceil(content_->CornerRadius() * 2.0f * dpi_scale));
-        HRGN region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
-        RETURN_LAST_ERROR_IF_NULL(region);
-        if (SetWindowRgn(popup_hwnd_, region, FALSE) == 0) {
-            DeleteObject(region);
-            RETURN_LAST_ERROR();
-        }
-    }
+    RETURN_IF_FAILED(ApplyNativePopupRegion(width, height, dpi_scale));
 
     native_open_ = true;
     ShowWindow(popup_hwnd_, SW_SHOWNOACTIVATE);
     UpdateWindow(popup_hwnd_);
+    return S_OK;
+}
+
+HRESULT PopupHost::ResizeNativePopupToContent()
+{
+    RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, content_);
+
+    const UiDrawContext measure_context{
+        .dwrite_factory = dwrite_factory_.get(),
+        .body_text_format = body_text_format_,
+        .icon_text_format = icon_text_format_,
+    };
+    const D2D1_SIZE_F size = content_->Measure(measure_context, D2D1::SizeF());
+    const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
+    const int width = (std::max)(1, static_cast<int>(std::ceil(size.width * dpi_scale)));
+    const int height = (std::max)(1, static_cast<int>(std::ceil(size.height * dpi_scale)));
+
+    RECT rect = {};
+    RETURN_IF_WIN32_BOOL_FALSE(GetWindowRect(popup_hwnd_, &rect));
+    if (rect.right - rect.left == width && rect.bottom - rect.top == height) {
+        return S_OK;
+    }
+
+    POINT origin{rect.left, rect.top};
+    HMONITOR monitor = MonitorFromPoint(origin, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO monitor_info = {.cbSize = sizeof(monitor_info)};
+    if (GetMonitorInfoW(monitor, &monitor_info)) {
+        const RECT work_area = monitor_info.rcWork;
+        origin.x = (std::min)(origin.x, work_area.right - width);
+        origin.y = (std::min)(origin.y, work_area.bottom - height);
+        origin.x = (std::max)(origin.x, work_area.left);
+        origin.y = (std::max)(origin.y, work_area.top);
+    }
+
+    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
+        popup_hwnd_,
+        HWND_TOPMOST,
+        origin.x,
+        origin.y,
+        width,
+        height,
+        SWP_NOACTIVATE));
+    native_render_target_.reset();
+    RETURN_IF_FAILED(ApplyNativePopupRegion(width, height, dpi_scale));
+    return S_OK;
+}
+
+HRESULT PopupHost::ApplyNativePopupRegion(int width, int height, float dpi_scale)
+{
+    if (content_ == nullptr || content_->CornerRadius() <= 0.0f || popup_hwnd_ == nullptr) {
+        return S_OK;
+    }
+
+    const int diameter = static_cast<int>(std::ceil(content_->CornerRadius() * 2.0f * dpi_scale));
+    HRGN region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+    RETURN_LAST_ERROR_IF_NULL(region);
+    if (SetWindowRgn(popup_hwnd_, region, FALSE) == 0) {
+        DeleteObject(region);
+        RETURN_LAST_ERROR();
+    }
     return S_OK;
 }
 
@@ -349,6 +403,7 @@ void PopupHost::RenderNativePopup()
 void PopupHost::HandlePopupResult(UiEventResult result)
 {
     if (result.needs_render && popup_hwnd_ != nullptr) {
+        ResizeNativePopupToContent();
         InvalidateRect(popup_hwnd_, nullptr, FALSE);
     }
     if (result.action != kUiActionNone) {

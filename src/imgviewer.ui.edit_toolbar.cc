@@ -13,6 +13,7 @@ namespace {
 
 constexpr wchar_t kSelectIcon[] = L"\xE8B0";
 constexpr wchar_t kPenIcon[] = L"\xED63";
+constexpr wchar_t kShapeIcon[] = L"\xF0E7";
 constexpr wchar_t kTextIcon[] = L"\xE8D2";
 constexpr wchar_t kCropIcon[] = L"\xE7A8";
 constexpr wchar_t kRotateIcon[] = L"\xE7AD";
@@ -40,6 +41,8 @@ constexpr std::array<ButtonSpec, ImgViewerUiEditToolbar::kButtonCount> kButtonSp
         L"Select pixels", L"edit-pixel-select", L"", &icons::kRegionScreenshotIcon},
     {ImgViewerUiEditToolbar::ButtonKey::Pen, ImgViewerAction::EditPen, L"Edit Pen",
         L"Pen annotation", L"edit-pen", kPenIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Shape, ImgViewerAction::EditShape, L"Edit Shape",
+        L"Shape annotation", L"edit-shape", kShapeIcon},
     {ImgViewerUiEditToolbar::ButtonKey::Text, ImgViewerAction::EditText, L"Edit Text",
         L"Text annotation", L"edit-text", kTextIcon},
     {ImgViewerUiEditToolbar::ButtonKey::Crop, ImgViewerAction::EditCrop, L"Edit Crop",
@@ -188,6 +191,7 @@ void ImgViewerUiEditToolbar::UpdateVisualState()
     Button(ButtonKey::Select)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Select);
     Button(ButtonKey::PixelSelect)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::PixelSelect);
     Button(ButtonKey::Pen)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Pen);
+    Button(ButtonKey::Shape)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Shape);
     Button(ButtonKey::Text)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Text);
     Button(ButtonKey::Crop)->SetVisualActive(state_.visible && state_.tool == ImgViewerEditTool::Crop);
     Button(ButtonKey::Undo)->SetEnabled(state_.visible && state_.can_undo);

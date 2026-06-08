@@ -35,6 +35,11 @@
     X(EditPenWidth4, "editPenWidth4", L"Pen Width 4px", true, true) \
     X(EditPenWidth8, "editPenWidth8", L"Pen Width 8px", true, true) \
     X(EditPenWidth12, "editPenWidth12", L"Pen Width 12px", true, true) \
+    X(EditShape, "editShape", L"Edit Shape", true, true) \
+    X(EditShapeRectangle, "editShapeRectangle", L"Shape Rectangle", true, true) \
+    X(EditShapeEllipse, "editShapeEllipse", L"Shape Ellipse", true, true) \
+    X(EditShapeLine, "editShapeLine", L"Shape Line", true, true) \
+    X(EditShapeArrow, "editShapeArrow", L"Shape Arrow", true, true) \
     X(EditText, "editText", L"Edit Text", true, true) \
     X(EditTextFontChanged, "editTextFontChanged", L"Text Font", false, false) \
     X(EditTextSize12, "editTextSize12", L"Text Size 12px", true, true) \

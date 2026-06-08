@@ -122,6 +122,70 @@ D2D1_RECT_F StrokeBounds(const ImgViewerEditStroke& stroke)
     return D2D1::RectF(left - padding, top - padding, right + padding, bottom + padding);
 }
 
+D2D1_RECT_F ShapeObjectBounds(const ImgViewerEditShape& shape)
+{
+    if (shape.kind == ImgViewerShapeKind::Rectangle || shape.kind == ImgViewerShapeKind::Ellipse) {
+        const float padding = (std::max)(2.0f, shape.width * 0.5f + 2.0f);
+        return D2D1::RectF(
+            shape.rect.left - padding,
+            shape.rect.top - padding,
+            shape.rect.right + padding,
+            shape.rect.bottom + padding);
+    }
+
+    const float padding = (std::max)(2.0f, shape.width * 0.5f + 8.0f);
+    return D2D1::RectF(
+        (std::min)(shape.start.x, shape.end.x) - padding,
+        (std::min)(shape.start.y, shape.end.y) - padding,
+        (std::max)(shape.start.x, shape.end.x) + padding,
+        (std::max)(shape.start.y, shape.end.y) + padding);
+}
+
+HRESULT DrawEditShapeObject(ID2D1DeviceContext* d2d_context, const ImgViewerEditShape& shape)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
+
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(shape.color, brush.put()));
+    const float width = (std::max)(1.0f, shape.width);
+    switch (shape.kind) {
+    case ImgViewerShapeKind::Rectangle:
+        d2d_context->DrawRectangle(shape.rect, brush.get(), width);
+        break;
+    case ImgViewerShapeKind::Ellipse:
+        d2d_context->DrawEllipse(
+            D2D1::Ellipse(
+                D2D1::Point2F((shape.rect.left + shape.rect.right) * 0.5f, (shape.rect.top + shape.rect.bottom) * 0.5f),
+                (shape.rect.right - shape.rect.left) * 0.5f,
+                (shape.rect.bottom - shape.rect.top) * 0.5f),
+            brush.get(),
+            width);
+        break;
+    case ImgViewerShapeKind::Line:
+    case ImgViewerShapeKind::Arrow: {
+        d2d_context->DrawLine(shape.start, shape.end, brush.get(), width);
+        if (shape.kind == ImgViewerShapeKind::Arrow) {
+            const float dx = shape.end.x - shape.start.x;
+            const float dy = shape.end.y - shape.start.y;
+            const float length = std::sqrt(dx * dx + dy * dy);
+            if (length > 0.001f) {
+                const float ux = dx / length;
+                const float uy = dy / length;
+                const float head = (std::max)(10.0f, width * 3.0f);
+                const float wing = head * 0.55f;
+                const D2D1_POINT_2F base = D2D1::Point2F(shape.end.x - ux * head, shape.end.y - uy * head);
+                const D2D1_POINT_2F left = D2D1::Point2F(base.x - uy * wing, base.y + ux * wing);
+                const D2D1_POINT_2F right = D2D1::Point2F(base.x + uy * wing, base.y - ux * wing);
+                d2d_context->DrawLine(shape.end, left, brush.get(), width);
+                d2d_context->DrawLine(shape.end, right, brush.get(), width);
+            }
+        }
+        break;
+    }
+    }
+    return S_OK;
+}
+
 bool SelectedObjectRect(
     IDWriteFactory* dwrite_factory,
     const ImgViewerEditSnapshot& edit,
@@ -136,6 +200,12 @@ bool SelectedObjectRect(
     case ImgViewerEditObjectKind::Stroke:
         if (object.index < edit.strokes.size()) {
             *rect = StrokeBounds(edit.strokes[object.index]);
+            return rect->right > rect->left && rect->bottom > rect->top;
+        }
+        return false;
+    case ImgViewerEditObjectKind::Shape:
+        if (object.index < edit.shapes.size()) {
+            *rect = ShapeObjectBounds(edit.shapes[object.index]);
             return rect->right > rect->left && rect->bottom > rect->top;
         }
         return false;
@@ -554,6 +624,13 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                     d2d_context->DrawLine(stroke.points[index - 1], stroke.points[index], brush.get(), stroke.width);
                 }
                 brush.reset();
+            }
+
+            for (const ImgViewerEditShape& shape : state->edit.shapes) {
+                RETURN_IF_FAILED(DrawEditShapeObject(d2d_context, shape));
+            }
+            if (state->edit.drawing_shape) {
+                RETURN_IF_FAILED(DrawEditShapeObject(d2d_context, state->edit.current_shape));
             }
 
             if (state->edit.tool == ImgViewerEditTool::Crop ||

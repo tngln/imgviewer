@@ -175,6 +175,11 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         action == ImgViewerAction::EditPenWidth4 ||
         action == ImgViewerAction::EditPenWidth8 ||
         action == ImgViewerAction::EditPenWidth12 ||
+        action == ImgViewerAction::EditShape ||
+        action == ImgViewerAction::EditShapeRectangle ||
+        action == ImgViewerAction::EditShapeEllipse ||
+        action == ImgViewerAction::EditShapeLine ||
+        action == ImgViewerAction::EditShapeArrow ||
         action == ImgViewerAction::EditText ||
         action == ImgViewerAction::EditTextFontChanged ||
         action == ImgViewerAction::EditTextSize12 ||
@@ -517,6 +522,29 @@ void SetPenWidth(HWND hwnd, ImgViewerContext* context, float width)
     RenderImgViewer(context);
 }
 
+void SetShapeKind(HWND hwnd, ImgViewerContext* context, ImgViewerShapeKind kind)
+{
+    if (context == nullptr || !EnsureEditDocument(context)) {
+        return;
+    }
+
+    if (context->edit.Tool() == ImgViewerEditTool::Crop) {
+        CommitImgViewerCropAndCenter(hwnd, context);
+    }
+    ResetImgViewerTransientInput(hwnd, context);
+    context->color_picker_active = false;
+    context->ui.SetColorPickerActive(false);
+    context->edit.SetTool(ImgViewerEditTool::Shape);
+    context->edit.SetActive(true);
+    context->edit.SetShapeKind(kind);
+    context->interaction.EnterEditing();
+    if (context->viewer.AnimationState().playing) {
+        context->viewer.ToggleAnimationPlayback();
+        SyncImgViewerAnimationTimer(hwnd, context);
+    }
+    RenderImgViewer(context);
+}
+
 void PrepareTextStyleEdit(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr || !EnsureEditDocument(context)) {
@@ -707,6 +735,21 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         break;
     case ImgViewerAction::EditPenWidth12:
         SetPenWidth(hwnd, context, 12.0f);
+        break;
+    case ImgViewerAction::EditShape:
+        SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Shape, L"Edit shape.");
+        break;
+    case ImgViewerAction::EditShapeRectangle:
+        SetShapeKind(hwnd, context, ImgViewerShapeKind::Rectangle);
+        break;
+    case ImgViewerAction::EditShapeEllipse:
+        SetShapeKind(hwnd, context, ImgViewerShapeKind::Ellipse);
+        break;
+    case ImgViewerAction::EditShapeLine:
+        SetShapeKind(hwnd, context, ImgViewerShapeKind::Line);
+        break;
+    case ImgViewerAction::EditShapeArrow:
+        SetShapeKind(hwnd, context, ImgViewerShapeKind::Arrow);
         break;
     case ImgViewerAction::EditText:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Text, L"Edit text.");

@@ -16,6 +16,7 @@ enum class ImgViewerEditTool {
     Select,
     PixelSelect,
     Pen,
+    Shape,
     Text,
     Crop,
 };
@@ -31,6 +32,7 @@ enum class ImgViewerCropEdge {
 enum class ImgViewerEditObjectKind {
     None,
     Stroke,
+    Shape,
     Text,
     Mosaic,
 };
@@ -42,6 +44,22 @@ struct ImgViewerEditObjectRef final {
 
 struct ImgViewerEditStroke final {
     std::vector<D2D1_POINT_2F> points;
+    D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);
+    float width = 4.0f;
+};
+
+enum class ImgViewerShapeKind {
+    Rectangle,
+    Ellipse,
+    Line,
+    Arrow,
+};
+
+struct ImgViewerEditShape final {
+    ImgViewerShapeKind kind = ImgViewerShapeKind::Rectangle;
+    D2D1_RECT_F rect = {};
+    D2D1_POINT_2F start = {};
+    D2D1_POINT_2F end = {};
     D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);
     float width = 4.0f;
 };
@@ -73,6 +91,7 @@ struct ImgViewerEditDocument final {
     int rotation_quadrants = 0;
     std::vector<ImgViewerEditMosaic> mosaics;
     std::vector<ImgViewerEditStroke> strokes;
+    std::vector<ImgViewerEditShape> shapes;
     std::vector<ImgViewerEditText> texts;
     bool dirty = false;
 };
@@ -82,10 +101,13 @@ struct ImgViewerEditSnapshot final {
     ImgViewerEditTool tool = ImgViewerEditTool::Select;
     int rotation_quadrants = 0;
     std::vector<ImgViewerEditStroke> strokes;
+    std::vector<ImgViewerEditShape> shapes;
     std::vector<ImgViewerEditText> texts;
     std::vector<ImgViewerEditMosaic> mosaics;
     bool drawing_stroke = false;
     ImgViewerEditStroke current_stroke;
+    bool drawing_shape = false;
+    ImgViewerEditShape current_shape;
     bool drawing_crop = false;
     bool has_crop = false;
     D2D1_RECT_F crop_rect = {};
@@ -114,6 +136,7 @@ public:
     ImgViewerEditTool Tool() const;
     D2D1_COLOR_F PenColor() const;
     float PenWidth() const;
+    ImgViewerShapeKind ShapeKind() const;
     const ImgViewerTextStyle& TextStyle() const;
     bool IsEditingText() const;
     bool IsDrawing() const;
@@ -131,6 +154,7 @@ public:
     void SetTool(ImgViewerEditTool tool);
     void SetPenColor(D2D1_COLOR_F color);
     void SetPenWidth(float width);
+    void SetShapeKind(ImgViewerShapeKind kind);
     void SetTextFontFamily(std::wstring font_family);
     void SetTextFontSize(float font_size);
     void SetTextColor(D2D1_COLOR_F color);
@@ -162,6 +186,7 @@ public:
 private:
     enum class HistoryKind {
         Stroke,
+        Shape,
         Text,
         RotateClockwise,
         Crop,
@@ -175,6 +200,8 @@ private:
         ImgViewerEditObjectRef object;
         ImgViewerEditStroke stroke;
         ImgViewerEditStroke after_stroke;
+        ImgViewerEditShape shape;
+        ImgViewerEditShape after_shape;
         ImgViewerEditText text;
         ImgViewerEditText after_text;
         ImgViewerEditMosaic mosaic;
@@ -206,9 +233,11 @@ private:
     ImgViewerEditTool tool_ = ImgViewerEditTool::Select;
     D2D1_COLOR_F pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);
     float pen_width_ = 4.0f;
+    ImgViewerShapeKind shape_kind_ = ImgViewerShapeKind::Rectangle;
     ImgViewerTextStyle text_style_;
     bool active_ = false;
     bool drawing_stroke_ = false;
+    bool drawing_shape_ = false;
     bool drawing_crop_ = false;
     bool has_pending_crop_ = false;
     bool dragging_crop_edge_ = false;
@@ -221,6 +250,7 @@ private:
     ImgViewerEditObjectRef selected_object_;
     D2D1_POINT_2F move_start_document_point_ = {};
     ImgViewerEditStroke move_original_stroke_;
+    ImgViewerEditShape move_original_shape_;
     ImgViewerEditText move_original_text_;
     ImgViewerEditMosaic move_original_mosaic_;
     D2D1_POINT_2F crop_start_ = {};
@@ -234,4 +264,5 @@ private:
     D2D1_RECT_F pixel_selection_rect_ = {};
     D2D1_RECT_F current_pixel_selection_rect_ = {};
     ImgViewerEditStroke current_stroke_;
+    ImgViewerEditShape current_shape_;
 };

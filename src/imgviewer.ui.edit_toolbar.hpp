@@ -25,6 +25,7 @@ public:
         Select,
         PixelSelect,
         Pen,
+        Shape,
         Text,
         Crop,
         RotateClockwise,

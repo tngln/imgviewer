@@ -41,6 +41,8 @@ private:
     friend LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
     HRESULT OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size);
+    HRESULT ResizeNativePopupToContent();
+    HRESULT ApplyNativePopupRegion(int width, int height, float dpi_scale);
     HRESULT EnsureNativeRenderTarget();
     void RenderNativePopup();
     void HandlePopupResult(UiEventResult result);

@@ -32,14 +32,27 @@ public:
     bool Contains(D2D1_POINT_2F point) const;
 
 private:
+    struct Panel final {
+        const std::vector<MenuItem>* items = nullptr;
+        D2D1_POINT_2F origin = {};
+        float width = 0.0f;
+    };
+
     D2D1_SIZE_F MeasuredSize() const;
-    size_t ItemAt(D2D1_POINT_2F point) const;
-    D2D1_RECT_F ItemRect(size_t index) const;
+    std::vector<Panel> Panels() const;
+    const std::vector<MenuItem>* ItemsAtDepth(size_t depth) const;
+    const MenuItem* SelectedItem(size_t depth) const;
+    size_t PanelAt(D2D1_POINT_2F point) const;
+    size_t ItemAt(size_t panel, D2D1_POINT_2F point) const;
+    D2D1_RECT_F PanelRect(size_t panel) const;
+    D2D1_RECT_F ItemRect(size_t panel, size_t index) const;
+    void OpenChild(size_t depth);
+    void TrimToDepth(size_t depth);
     void MoveSelection(int delta);
 
     D2D1_POINT_2F origin_ = {};
     std::vector<MenuItem> items_;
-    mutable float preferred_width_ = 0.0f;
+    mutable std::vector<float> preferred_widths_;
     bool open_ = false;
-    size_t selected_ = 0;
+    std::vector<size_t> selected_path_;
 };

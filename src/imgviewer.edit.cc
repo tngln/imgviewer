@@ -157,9 +157,94 @@ bool SameMosaic(const ImgViewerEditMosaic& left, const ImgViewerEditMosaic& righ
     return SameRect(left.rect, right.rect) && left.block_size == right.block_size;
 }
 
+bool SameShape(const ImgViewerEditShape& left, const ImgViewerEditShape& right)
+{
+    return left.kind == right.kind &&
+        SameRect(left.rect, right.rect) &&
+        SamePoint(left.start, right.start) &&
+        SamePoint(left.end, right.end) &&
+        std::abs(left.width - right.width) < 0.001f &&
+        left.color.r == right.color.r &&
+        left.color.g == right.color.g &&
+        left.color.b == right.color.b &&
+        left.color.a == right.color.a;
+}
+
 D2D1_RECT_F OffsetRect(D2D1_RECT_F rect, D2D1_POINT_2F offset)
 {
     return D2D1::RectF(rect.left + offset.x, rect.top + offset.y, rect.right + offset.x, rect.bottom + offset.y);
+}
+
+ImgViewerEditShape OffsetShape(ImgViewerEditShape shape, D2D1_POINT_2F offset)
+{
+    shape.rect = OffsetRect(shape.rect, offset);
+    shape.start = D2D1::Point2F(shape.start.x + offset.x, shape.start.y + offset.y);
+    shape.end = D2D1::Point2F(shape.end.x + offset.x, shape.end.y + offset.y);
+    return shape;
+}
+
+D2D1_RECT_F ShapeBounds(const ImgViewerEditShape& shape)
+{
+    if (shape.kind == ImgViewerShapeKind::Rectangle || shape.kind == ImgViewerShapeKind::Ellipse) {
+        const float padding = (std::max)(2.0f, shape.width * 0.5f + 2.0f);
+        return D2D1::RectF(
+            shape.rect.left - padding,
+            shape.rect.top - padding,
+            shape.rect.right + padding,
+            shape.rect.bottom + padding);
+    }
+    const float padding = (std::max)(2.0f, shape.width * 0.5f + 8.0f);
+    return D2D1::RectF(
+        (std::min)(shape.start.x, shape.end.x) - padding,
+        (std::min)(shape.start.y, shape.end.y) - padding,
+        (std::max)(shape.start.x, shape.end.x) + padding,
+        (std::max)(shape.start.y, shape.end.y) + padding);
+}
+
+bool IsUsefulShape(const ImgViewerEditShape& shape)
+{
+    if (shape.kind == ImgViewerShapeKind::Rectangle || shape.kind == ImgViewerShapeKind::Ellipse) {
+        return IsUsefulRect(shape.rect);
+    }
+    const float dx = shape.end.x - shape.start.x;
+    const float dy = shape.end.y - shape.start.y;
+    return dx * dx + dy * dy >= 4.0f;
+}
+
+float DistanceSquaredToSegment(D2D1_POINT_2F point, D2D1_POINT_2F a, D2D1_POINT_2F b);
+
+bool HitTestShape(const ImgViewerEditShape& shape, D2D1_POINT_2F point, float hit_slop)
+{
+    if (!IsUsefulShape(shape)) {
+        return false;
+    }
+
+    const float stroke_slop = hit_slop + shape.width * 0.5f;
+    if (shape.kind == ImgViewerShapeKind::Line || shape.kind == ImgViewerShapeKind::Arrow) {
+        return DistanceSquaredToSegment(point, shape.start, shape.end) <= stroke_slop * stroke_slop;
+    }
+
+    const D2D1_RECT_F rect = shape.rect;
+    if (shape.kind == ImgViewerShapeKind::Rectangle) {
+        const bool near_left = std::abs(point.x - rect.left) <= stroke_slop && point.y >= rect.top - stroke_slop && point.y <= rect.bottom + stroke_slop;
+        const bool near_right = std::abs(point.x - rect.right) <= stroke_slop && point.y >= rect.top - stroke_slop && point.y <= rect.bottom + stroke_slop;
+        const bool near_top = std::abs(point.y - rect.top) <= stroke_slop && point.x >= rect.left - stroke_slop && point.x <= rect.right + stroke_slop;
+        const bool near_bottom = std::abs(point.y - rect.bottom) <= stroke_slop && point.x >= rect.left - stroke_slop && point.x <= rect.right + stroke_slop;
+        return near_left || near_right || near_top || near_bottom;
+    }
+
+    const float rx = (rect.right - rect.left) * 0.5f;
+    const float ry = (rect.bottom - rect.top) * 0.5f;
+    if (rx <= 0.0f || ry <= 0.0f) {
+        return false;
+    }
+    const float cx = (rect.left + rect.right) * 0.5f;
+    const float cy = (rect.top + rect.bottom) * 0.5f;
+    const float nx = (point.x - cx) / rx;
+    const float ny = (point.y - cy) / ry;
+    const float distance = std::sqrt(nx * nx + ny * ny);
+    const float normalized_slop = stroke_slop / (std::max)(1.0f, (rx + ry) * 0.5f);
+    return std::abs(distance - 1.0f) <= normalized_slop;
 }
 
 float DistanceSquaredToSegment(D2D1_POINT_2F point, D2D1_POINT_2F a, D2D1_POINT_2F b)
@@ -332,6 +417,51 @@ HRESULT DrawTextObject(ID2D1RenderTarget* render_target, IDWriteFactory* dwrite_
     return S_OK;
 }
 
+HRESULT DrawShapeObject(ID2D1RenderTarget* render_target, const ImgViewerEditShape& shape)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, render_target);
+
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    RETURN_IF_FAILED(render_target->CreateSolidColorBrush(shape.color, brush.put()));
+    const float width = (std::max)(1.0f, shape.width);
+    switch (shape.kind) {
+    case ImgViewerShapeKind::Rectangle:
+        render_target->DrawRectangle(shape.rect, brush.get(), width);
+        break;
+    case ImgViewerShapeKind::Ellipse:
+        render_target->DrawEllipse(
+            D2D1::Ellipse(
+                D2D1::Point2F((shape.rect.left + shape.rect.right) * 0.5f, (shape.rect.top + shape.rect.bottom) * 0.5f),
+                (shape.rect.right - shape.rect.left) * 0.5f,
+                (shape.rect.bottom - shape.rect.top) * 0.5f),
+            brush.get(),
+            width);
+        break;
+    case ImgViewerShapeKind::Line:
+    case ImgViewerShapeKind::Arrow: {
+        render_target->DrawLine(shape.start, shape.end, brush.get(), width);
+        if (shape.kind == ImgViewerShapeKind::Arrow) {
+            const float dx = shape.end.x - shape.start.x;
+            const float dy = shape.end.y - shape.start.y;
+            const float length = std::sqrt(dx * dx + dy * dy);
+            if (length > 0.001f) {
+                const float ux = dx / length;
+                const float uy = dy / length;
+                const float head = (std::max)(10.0f, width * 3.0f);
+                const float wing = head * 0.55f;
+                const D2D1_POINT_2F base = D2D1::Point2F(shape.end.x - ux * head, shape.end.y - uy * head);
+                const D2D1_POINT_2F left = D2D1::Point2F(base.x - uy * wing, base.y + ux * wing);
+                const D2D1_POINT_2F right = D2D1::Point2F(base.x + uy * wing, base.y - ux * wing);
+                render_target->DrawLine(shape.end, left, brush.get(), width);
+                render_target->DrawLine(shape.end, right, brush.get(), width);
+            }
+        }
+        break;
+    }
+    }
+    return S_OK;
+}
+
 } // namespace
 
 bool ImgViewerEditController::Active() const
@@ -374,6 +504,11 @@ float ImgViewerEditController::PenWidth() const
     return pen_width_;
 }
 
+ImgViewerShapeKind ImgViewerEditController::ShapeKind() const
+{
+    return shape_kind_;
+}
+
 const ImgViewerTextStyle& ImgViewerEditController::TextStyle() const
 {
     return text_style_;
@@ -386,7 +521,7 @@ bool ImgViewerEditController::IsEditingText() const
 
 bool ImgViewerEditController::IsDrawing() const
 {
-    return active_ && (drawing_stroke_ || dragging_crop_edge_);
+    return active_ && (drawing_stroke_ || drawing_shape_ || dragging_crop_edge_);
 }
 
 bool ImgViewerEditController::HasTransientCapture() const
@@ -426,10 +561,13 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
         .tool = tool_,
         .rotation_quadrants = document_.rotation_quadrants,
         .strokes = document_.strokes,
+        .shapes = document_.shapes,
         .texts = document_.texts,
         .mosaics = document_.mosaics,
         .drawing_stroke = drawing_stroke_,
         .current_stroke = current_stroke_,
+        .drawing_shape = drawing_shape_,
+        .current_shape = current_shape_,
         .drawing_crop = dragging_crop_edge_,
         .has_crop = HasCrop(),
         .crop_rect = document_.crop_rect,
@@ -461,9 +599,12 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     redo_stack_.clear();
     pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);
     pen_width_ = 4.0f;
+    shape_kind_ = ImgViewerShapeKind::Rectangle;
     text_style_ = ImgViewerTextStyle{};
     current_stroke_ = ImgViewerEditStroke{};
+    current_shape_ = ImgViewerEditShape{};
     drawing_stroke_ = false;
+    drawing_shape_ = false;
     drawing_crop_ = false;
     has_pending_crop_ = false;
     dragging_crop_edge_ = false;
@@ -494,9 +635,12 @@ void ImgViewerEditController::Clear()
     redo_stack_.clear();
     pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);
     pen_width_ = 4.0f;
+    shape_kind_ = ImgViewerShapeKind::Rectangle;
     text_style_ = ImgViewerTextStyle{};
     current_stroke_ = ImgViewerEditStroke{};
+    current_shape_ = ImgViewerEditShape{};
     drawing_stroke_ = false;
+    drawing_shape_ = false;
     drawing_crop_ = false;
     has_pending_crop_ = false;
     dragging_crop_edge_ = false;
@@ -537,6 +681,7 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     }
     tool_ = tool;
     drawing_stroke_ = false;
+    drawing_shape_ = false;
     drawing_crop_ = false;
     dragging_crop_edge_ = false;
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
@@ -544,6 +689,7 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     editing_text_ = false;
     moving_selected_object_ = false;
     current_stroke_ = ImgViewerEditStroke{};
+    current_shape_ = ImgViewerEditShape{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
     if (tool_ == ImgViewerEditTool::Crop) {
         BeginCropSession();
@@ -568,6 +714,11 @@ void ImgViewerEditController::SetPenColor(D2D1_COLOR_F color)
 void ImgViewerEditController::SetPenWidth(float width)
 {
     pen_width_ = std::clamp(width, 1.0f, 32.0f);
+}
+
+void ImgViewerEditController::SetShapeKind(ImgViewerShapeKind kind)
+{
+    shape_kind_ = kind;
 }
 
 void ImgViewerEditController::SetTextFontFamily(std::wstring font_family)
@@ -714,6 +865,11 @@ bool ImgViewerEditController::Undo()
             document_.strokes.pop_back();
         }
         break;
+    case HistoryKind::Shape:
+        if (!document_.shapes.empty()) {
+            document_.shapes.pop_back();
+        }
+        break;
     case HistoryKind::Text:
         if (!document_.texts.empty()) {
             document_.texts.pop_back();
@@ -738,6 +894,11 @@ bool ImgViewerEditController::Undo()
                 document_.strokes.begin() + static_cast<std::ptrdiff_t>((std::min)(entry.object.index, document_.strokes.size())),
                 entry.stroke);
             break;
+        case ImgViewerEditObjectKind::Shape:
+            document_.shapes.insert(
+                document_.shapes.begin() + static_cast<std::ptrdiff_t>((std::min)(entry.object.index, document_.shapes.size())),
+                entry.shape);
+            break;
         case ImgViewerEditObjectKind::Text:
             document_.texts.insert(
                 document_.texts.begin() + static_cast<std::ptrdiff_t>((std::min)(entry.object.index, document_.texts.size())),
@@ -757,6 +918,9 @@ bool ImgViewerEditController::Undo()
         switch (entry.object.kind) {
         case ImgViewerEditObjectKind::Stroke:
             if (entry.object.index < document_.strokes.size()) document_.strokes[entry.object.index] = entry.stroke;
+            break;
+        case ImgViewerEditObjectKind::Shape:
+            if (entry.object.index < document_.shapes.size()) document_.shapes[entry.object.index] = entry.shape;
             break;
         case ImgViewerEditObjectKind::Text:
             if (entry.object.index < document_.texts.size()) document_.texts[entry.object.index] = entry.text;
@@ -786,6 +950,9 @@ bool ImgViewerEditController::Redo()
     case HistoryKind::Stroke:
         document_.strokes.push_back(entry.stroke);
         break;
+    case HistoryKind::Shape:
+        document_.shapes.push_back(entry.shape);
+        break;
     case HistoryKind::Text:
         document_.texts.push_back(entry.text);
         break;
@@ -804,6 +971,11 @@ bool ImgViewerEditController::Redo()
         case ImgViewerEditObjectKind::Stroke:
             if (entry.object.index < document_.strokes.size()) {
                 document_.strokes.erase(document_.strokes.begin() + static_cast<std::ptrdiff_t>(entry.object.index));
+            }
+            break;
+        case ImgViewerEditObjectKind::Shape:
+            if (entry.object.index < document_.shapes.size()) {
+                document_.shapes.erase(document_.shapes.begin() + static_cast<std::ptrdiff_t>(entry.object.index));
             }
             break;
         case ImgViewerEditObjectKind::Text:
@@ -825,6 +997,9 @@ bool ImgViewerEditController::Redo()
         switch (entry.object.kind) {
         case ImgViewerEditObjectKind::Stroke:
             if (entry.object.index < document_.strokes.size()) document_.strokes[entry.object.index] = entry.after_stroke;
+            break;
+        case ImgViewerEditObjectKind::Shape:
+            if (entry.object.index < document_.shapes.size()) document_.shapes[entry.object.index] = entry.after_shape;
             break;
         case ImgViewerEditObjectKind::Text:
             if (entry.object.index < document_.texts.size()) document_.texts[entry.object.index] = entry.after_text;
@@ -851,7 +1026,9 @@ void ImgViewerEditController::MarkSaved()
 void ImgViewerEditController::CancelTransientTool()
 {
     current_stroke_ = ImgViewerEditStroke{};
+    current_shape_ = ImgViewerEditShape{};
     drawing_stroke_ = false;
+    drawing_shape_ = false;
     drawing_crop_ = false;
     dragging_crop_edge_ = false;
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
@@ -893,6 +1070,10 @@ bool ImgViewerEditController::DeleteSelection()
     case ImgViewerEditObjectKind::Stroke:
         entry.stroke = document_.strokes[object.index];
         document_.strokes.erase(document_.strokes.begin() + static_cast<std::ptrdiff_t>(object.index));
+        break;
+    case ImgViewerEditObjectKind::Shape:
+        entry.shape = document_.shapes[object.index];
+        document_.shapes.erase(document_.shapes.begin() + static_cast<std::ptrdiff_t>(object.index));
         break;
     case ImgViewerEditObjectKind::Text:
         entry.text = document_.texts[object.index];
@@ -1045,6 +1226,19 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
     }
 
+    if (tool_ == ImgViewerEditTool::Shape) {
+        current_shape_ = ImgViewerEditShape{
+            .kind = shape_kind_,
+            .rect = NormalizedRect(document_point, document_point, document_.source_size),
+            .start = document_point,
+            .end = document_point,
+            .color = pen_color_,
+            .width = pen_width_,
+        };
+        drawing_shape_ = true;
+        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+    }
+
     if (tool_ == ImgViewerEditTool::PixelSelect) {
         pixel_selection_start_ = document_point;
         current_pixel_selection_rect_ = PixelAlignedRect(
@@ -1126,6 +1320,12 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
         };
     }
 
+    if (drawing_shape_) {
+        current_shape_.end = document_point;
+        current_shape_.rect = NormalizedRect(current_shape_.start, document_point, document_.source_size);
+        return ImgViewerEventResult{.handled = true, .needs_render = true};
+    }
+
     if (tool_ == ImgViewerEditTool::Crop && dragging_crop_edge_) {
         if (dragging_crop_edge_kind_ == ImgViewerCropEdge::None) {
             pending_crop_rect_ = ClampCropRect(NormalizedRect(crop_start_, document_point, document_.source_size));
@@ -1159,7 +1359,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !dragging_crop_edge_ && !drawing_pixel_selection_ && !moving_selected_object_)) {
+    if (!active_ || (!drawing_stroke_ && !drawing_shape_ && !dragging_crop_edge_ && !drawing_pixel_selection_ && !moving_selected_object_)) {
         return {};
     }
 
@@ -1178,6 +1378,21 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
 
     if (drawing_stroke_ && DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
         current_stroke_.points.push_back(document_point);
+    }
+
+    if (drawing_shape_) {
+        if (DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
+            current_shape_.end = document_point;
+            current_shape_.rect = NormalizedRect(current_shape_.start, document_point, document_.source_size);
+        }
+        if (IsUsefulShape(current_shape_)) {
+            document_.shapes.push_back(current_shape_);
+            document_.dirty = true;
+            PushHistory(HistoryEntry{.kind = HistoryKind::Shape, .shape = current_shape_});
+        }
+        current_shape_ = ImgViewerEditShape{};
+        drawing_shape_ = false;
+        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
     }
 
     if (dragging_crop_edge_) {
@@ -1326,7 +1541,7 @@ HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factor
         output_pixels.data(),
         memory_bitmap.put()));
 
-    if (!document_.texts.empty()) {
+    if (!document_.shapes.empty() || !document_.texts.empty()) {
         wil::com_ptr<ID2D1Factory> d2d_factory;
         RETURN_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d_factory.put()));
         wil::com_ptr<IDWriteFactory> dwrite_factory;
@@ -1355,6 +1570,11 @@ HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factor
 
         render_target->BeginDraw();
         render_target->SetTransform(transform);
+        for (const ImgViewerEditShape& shape : document_.shapes) {
+            RETURN_IF_FAILED(DrawShapeObject(
+                render_target.get(),
+                OffsetShape(shape, D2D1::Point2F(-crop.left, -crop.top))));
+        }
         for (const ImgViewerEditText& text : document_.texts) {
             const D2D1_POINT_2F origin = D2D1::Point2F(text.origin.x - crop.left, text.origin.y - crop.top);
             RETURN_IF_FAILED(DrawTextObject(render_target.get(), dwrite_factory.get(), text, origin));
@@ -1450,6 +1670,14 @@ bool ImgViewerEditController::HitTestObject(
         }
     }
 
+    for (size_t offset = 0; offset < document_.shapes.size(); ++offset) {
+        const size_t index = document_.shapes.size() - 1 - offset;
+        if (HitTestShape(document_.shapes[index], document_point, hit_slop)) {
+            *object = ImgViewerEditObjectRef{.kind = ImgViewerEditObjectKind::Shape, .index = index};
+            return true;
+        }
+    }
+
     const float slop_squared = hit_slop * hit_slop;
     for (size_t offset = 0; offset < document_.strokes.size(); ++offset) {
         const size_t index = document_.strokes.size() - 1 - offset;
@@ -1477,6 +1705,8 @@ bool ImgViewerEditController::IsValidObject(ImgViewerEditObjectRef object) const
     switch (object.kind) {
     case ImgViewerEditObjectKind::Stroke:
         return object.index < document_.strokes.size();
+    case ImgViewerEditObjectKind::Shape:
+        return object.index < document_.shapes.size();
     case ImgViewerEditObjectKind::Text:
         return object.index < document_.texts.size();
     case ImgViewerEditObjectKind::Mosaic:
@@ -1496,6 +1726,9 @@ bool ImgViewerEditController::CaptureMoveOriginal(ImgViewerEditObjectRef object)
     switch (object.kind) {
     case ImgViewerEditObjectKind::Stroke:
         move_original_stroke_ = document_.strokes[object.index];
+        break;
+    case ImgViewerEditObjectKind::Shape:
+        move_original_shape_ = document_.shapes[object.index];
         break;
     case ImgViewerEditObjectKind::Text:
         move_original_text_ = document_.texts[object.index];
@@ -1522,6 +1755,9 @@ bool ImgViewerEditController::ApplyObjectOffset(ImgViewerEditObjectRef object, D
             point.x = std::clamp(point.x + offset.x, 0.0f, static_cast<float>(document_.source_size.width));
             point.y = std::clamp(point.y + offset.y, 0.0f, static_cast<float>(document_.source_size.height));
         }
+        return true;
+    case ImgViewerEditObjectKind::Shape:
+        document_.shapes[object.index] = OffsetShape(move_original_shape_, offset);
         return true;
     case ImgViewerEditObjectKind::Text:
         document_.texts[object.index] = move_original_text_;
@@ -1555,6 +1791,11 @@ bool ImgViewerEditController::CommitObjectMove()
         entry.stroke = move_original_stroke_;
         entry.after_stroke = document_.strokes[selected_object_.index];
         changed = !SameStroke(entry.stroke, entry.after_stroke);
+        break;
+    case ImgViewerEditObjectKind::Shape:
+        entry.shape = move_original_shape_;
+        entry.after_shape = document_.shapes[selected_object_.index];
+        changed = !SameShape(entry.shape, entry.after_shape);
         break;
     case ImgViewerEditObjectKind::Text:
         entry.text = move_original_text_;
