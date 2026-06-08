@@ -86,6 +86,8 @@ struct ImgViewerEditMosaic final {
 struct ImgViewerEditDocument final {
     wil::com_ptr<IWICBitmapSource> source;
     D2D1_SIZE_U source_size = {};
+    std::wstring source_path;
+    ImageMetadata source_metadata;
     D2D1_RECT_F crop_rect = {};
     bool has_crop = false;
     int rotation_quadrants = 0;
@@ -145,10 +147,15 @@ public:
     bool HasCrop() const;
     D2D1_RECT_F CropRect() const;
     bool HasSelection() const;
+    bool SourceIsHdr() const;
     ImgViewerEditObjectRef SelectedObject() const;
     ImgViewerEditSnapshot Snapshot() const;
 
-    HRESULT Begin(IWICBitmapSource* source, D2D1_SIZE_U source_size);
+    HRESULT Begin(
+        IWICBitmapSource* source,
+        D2D1_SIZE_U source_size,
+        const ImageMetadata& source_metadata,
+        std::wstring source_path);
     void Clear();
     void SetActive(bool active);
     void SetTool(ImgViewerEditTool tool);

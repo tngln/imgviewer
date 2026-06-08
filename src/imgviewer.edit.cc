@@ -549,6 +549,11 @@ bool ImgViewerEditController::HasSelection() const
     return active_ && has_selected_object_ && IsValidObject(selected_object_);
 }
 
+bool ImgViewerEditController::SourceIsHdr() const
+{
+    return document_.source_metadata.color_info.dynamic_range.high_dynamic_range;
+}
+
 ImgViewerEditObjectRef ImgViewerEditController::SelectedObject() const
 {
     return HasSelection() ? selected_object_ : ImgViewerEditObjectRef{};
@@ -587,7 +592,11 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
     };
 }
 
-HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U source_size)
+HRESULT ImgViewerEditController::Begin(
+    IWICBitmapSource* source,
+    D2D1_SIZE_U source_size,
+    const ImageMetadata& source_metadata,
+    std::wstring source_path)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, source);
     RETURN_HR_IF(E_INVALIDARG, source_size.width == 0 || source_size.height == 0);
@@ -595,6 +604,8 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     document_ = ImgViewerEditDocument{};
     document_.source = source;
     document_.source_size = source_size;
+    document_.source_metadata = source_metadata;
+    document_.source_path = std::move(source_path);
     undo_stack_.clear();
     redo_stack_.clear();
     pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);

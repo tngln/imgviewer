@@ -21,6 +21,7 @@ struct ImgViewerEventResult final {
 struct ImgViewerSnapshot final {
     ID2D1Bitmap* bitmap = nullptr;
     D2D1_SIZE_U pixel_size = {};
+    DXGI_FORMAT display_format = DXGI_FORMAT_B8G8R8A8_UNORM;
     D2D1_POINT_2F view_center = {};
     float zoom_multiplier = 1.0f;
     float rotation_degrees = 0.0f;

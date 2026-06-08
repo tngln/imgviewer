@@ -32,6 +32,7 @@ public:
     HRESULT DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, void* user_data);
     HRESULT RenderUiOverlay(UiSurfaceId id, UiController& ui);
     HRESULT SetSurfaceVisible(UiSurfaceId id, bool visible);
+    HRESULT SetSurfaceFormat(UiSurfaceId id, DXGI_FORMAT format);
     HRESULT Commit();
 
     D2D1_SIZE_U ViewportPixelSize() const;

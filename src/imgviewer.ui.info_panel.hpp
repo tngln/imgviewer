@@ -29,6 +29,7 @@ struct ImgViewerUiInfoPanelState final {
     std::wstring type;
     std::wstring file_size;
     std::wstring modified_time;
+    std::vector<ImageMetadataRow> color_rows;
     std::vector<ImageMetadataRow> exif_rows;
     ImagePixelAnalysis analysis;
 };
@@ -66,6 +67,7 @@ private:
 
     UiElement* panel_ = nullptr;
     Table* basic_table_ = nullptr;
+    Table* color_table_ = nullptr;
     Table* exif_table_ = nullptr;
     UiElementId panel_id_ = UiElementId::None;
     ImgViewerUiInfoPanelState state_;

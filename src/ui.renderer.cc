@@ -173,6 +173,11 @@ HRESULT UiRenderer::SetSurfaceVisible(UiSurfaceId id, bool visible)
     return Commit();
 }
 
+HRESULT UiRenderer::SetSurfaceFormat(UiSurfaceId id, DXGI_FORMAT format)
+{
+    return surfaces_.SetFormat(id, format);
+}
+
 HRESULT UiRenderer::Commit()
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
@@ -248,7 +253,7 @@ HRESULT UiRenderer::BeginDrawSurface(UiSurfaceId id, ID2D1Bitmap1** target, POIN
 
     const D2D1_BITMAP_PROPERTIES1 bitmap_properties = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, static_cast<D2D1_ALPHA_MODE>(surfaces_.AlphaMode(id))),
+        D2D1::PixelFormat(surfaces_.Format(id), static_cast<D2D1_ALPHA_MODE>(surfaces_.AlphaMode(id))),
         96.0f,
         96.0f);
     return d2d_context_->CreateBitmapFromDxgiSurface(dxgi_surface.get(), bitmap_properties, target);

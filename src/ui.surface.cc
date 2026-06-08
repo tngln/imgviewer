@@ -24,6 +24,7 @@ HRESULT UiSurfaceManager::RegisterSurface(const UiSurfaceDescriptor& descriptor,
     Layer layer;
     layer.id = UiSurfaceId{next_id_++};
     layer.name = descriptor.name != nullptr ? descriptor.name : L"";
+    layer.format = descriptor.format;
     layer.alpha_mode = descriptor.alpha_mode;
     layer.z_order = descriptor.z_order;
     layer.auto_resize = descriptor.auto_resize;
@@ -109,10 +110,29 @@ HRESULT UiSurfaceManager::SetZOrder(UiSurfaceId id, int z_order)
     return S_OK;
 }
 
+HRESULT UiSurfaceManager::SetFormat(UiSurfaceId id, DXGI_FORMAT format)
+{
+    Layer* layer = FindLayer(id);
+    RETURN_HR_IF_NULL(E_INVALIDARG, layer);
+    if (layer->format == format) {
+        return S_OK;
+    }
+
+    layer->format = format;
+    RETURN_IF_FAILED(CreateLayerSurface(*layer, layer->allocated_width, layer->allocated_height));
+    return S_OK;
+}
+
 IDCompositionSurface* UiSurfaceManager::Surface(UiSurfaceId id) const
 {
     const Layer* layer = FindLayer(id);
     return layer != nullptr ? layer->surface.get() : nullptr;
+}
+
+DXGI_FORMAT UiSurfaceManager::Format(UiSurfaceId id) const
+{
+    const Layer* layer = FindLayer(id);
+    return layer != nullptr ? layer->format : DXGI_FORMAT_B8G8R8A8_UNORM;
 }
 
 DXGI_ALPHA_MODE UiSurfaceManager::AlphaMode(UiSurfaceId id) const
@@ -183,7 +203,10 @@ HRESULT UiSurfaceManager::CreateLayerSurface(Layer& layer, UINT width, UINT heig
 
     width = (std::max)(1U, width);
     height = (std::max)(1U, height);
-    if (layer.surface && layer.allocated_width == width && layer.allocated_height == height) {
+    if (layer.surface &&
+        layer.allocated_width == width &&
+        layer.allocated_height == height &&
+        layer.allocated_format == layer.format) {
         if (layer.visible) {
             RETURN_IF_FAILED(layer.visual->SetContent(layer.surface.get()));
         }
@@ -194,7 +217,7 @@ HRESULT UiSurfaceManager::CreateLayerSurface(Layer& layer, UINT width, UINT heig
     RETURN_IF_FAILED(device_->CreateSurface(
         width,
         height,
-        DXGI_FORMAT_B8G8R8A8_UNORM,
+        layer.format,
         layer.alpha_mode,
         layer.surface.put()));
 
@@ -203,7 +226,7 @@ HRESULT UiSurfaceManager::CreateLayerSurface(Layer& layer, UINT width, UINT heig
     RETURN_IF_FAILED(layer.visual->SetOffsetY(0.0f));
     layer.allocated_width = width;
     layer.allocated_height = height;
+    layer.allocated_format = layer.format;
 
     return S_OK;
 }
-

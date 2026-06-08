@@ -1163,11 +1163,22 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
             MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
             return;
         }
+        const bool exported_hdr_source = context->edit.SourceIsHdr();
         context->edit.MarkSaved();
+        ShowImgViewerToast(
+            hwnd,
+            context,
+            exported_hdr_source ? L"Saved SDR annotation export. HDR source preserved." : L"Saved image.");
+        return;
     } else {
+        const bool exported_hdr_source = context->viewer.CurrentImageMetadata().color_info.dynamic_range.high_dynamic_range;
         const HRESULT save_hr = context->viewer.SaveCurrentImagePng(path.c_str());
         if (FAILED(save_hr)) {
             MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+            return;
+        }
+        if (exported_hdr_source) {
+            ShowImgViewerToast(hwnd, context, L"Saved SDR copy. HDR source preserved.");
             return;
         }
     }
@@ -1261,7 +1272,11 @@ bool EnsureEditDocument(ImgViewerContext* context)
         return true;
     }
 
-    return SUCCEEDED(context->edit.Begin(context->viewer.CurrentPixelSource(), context->viewer.CurrentImagePixelSize()));
+    return SUCCEEDED(context->edit.Begin(
+        context->viewer.CurrentPixelSource(),
+        context->viewer.CurrentImagePixelSize(),
+        context->viewer.CurrentImageMetadata(),
+        context->current_image_path));
 }
 
 void EnsureInfoPanelAnalysis(ImgViewerContext* context)
@@ -1323,6 +1338,7 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
         state.type = screenshot ? L"Screenshot image" : util::FormatImageType(context->current_image_path, clipboard);
         state.file_size = L"Unavailable";
         state.modified_time = L"Unavailable";
+        state.color_rows = context->viewer.CurrentImageMetadata().color_rows;
         state.exif_rows = context->viewer.CurrentImageMetadata().exif_rows;
         if (context->current_image_analysis.has_value()) {
             state.has_analysis = true;

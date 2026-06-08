@@ -378,6 +378,7 @@ HRESULT ImgViewerRenderer::Initialize(HWND hwnd)
     RETURN_IF_FAILED(ui_renderer_.RegisterSurface(
         UiSurfaceDescriptor{
             .name = L"image",
+            .format = DXGI_FORMAT_B8G8R8A8_UNORM,
             .alpha_mode = DXGI_ALPHA_MODE_IGNORE,
             .z_order = 0,
             .auto_resize = true,
@@ -468,6 +469,11 @@ ID2D1DeviceContext* ImgViewerRenderer::BitmapDeviceContext() const
 
 HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit)
 {
+    const DXGI_FORMAT image_surface_format = image.bitmap != nullptr
+        ? image.display_format
+        : DXGI_FORMAT_B8G8R8A8_UNORM;
+    RETURN_IF_FAILED(ui_renderer_.SetSurfaceFormat(image_surface_, image_surface_format));
+
     ImageLayerRenderState state{
         .image = image,
         .edit = edit,
@@ -490,13 +496,16 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, cons
                 icons::kImageIcon.command_count,
                 icon_geometry.put()));
 
+            // Known issue: Windows HDR composition can present this SDR theme color differently on FP16 surfaces.
             draw.Clear(ui_theme::color::kWindowBackground);
             const float width = context.draw.viewport_size.width;
             const float height = context.draw.viewport_size.height;
             d2d_context->SetTransform(context.root_transform);
             if (state->checkerboard_background) {
                 RETURN_IF_FAILED(DrawCheckerboard(
-                    d2d_context, context.draw.viewport_size, kCheckerboardCellSize * state->dpi_scale));
+                    d2d_context,
+                    context.draw.viewport_size,
+                    kCheckerboardCellSize * state->dpi_scale));
             }
 
             if (image->bitmap != nullptr) {

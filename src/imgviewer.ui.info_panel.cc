@@ -147,6 +147,23 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
     basic_table_->SetSeparatorsVisible(false);
     basic_table_->SetHitTestVisible(false);
 
+    color_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
+        UiElementRole::Pane,
+        kUiActionNone,
+        L"Color and HDR",
+        L"Color and HDR",
+        L"info-panel-color",
+        false,
+        true))));
+    color_table_->SetColumns(std::vector<TableColumn>{
+        TableColumn{L"", kLabelWidth, false},
+        TableColumn{L"", 0.0f, true},
+    });
+    color_table_->SetRowHeight(kRowHeight);
+    color_table_->SetCellPadding(0.0f);
+    color_table_->SetSeparatorsVisible(false);
+    color_table_->SetHitTestVisible(false);
+
     exif_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
         kUiActionNone,
@@ -177,6 +194,14 @@ void ImgViewerUiInfoPanel::SetState(ImgViewerUiInfoPanelState state)
             TableRow{.cells = {L"File size", TableValue(state_.file_size)}},
             TableRow{.cells = {L"Modified", TableValue(state_.modified_time)}},
         });
+    }
+    if (color_table_ != nullptr) {
+        std::vector<TableRow> rows;
+        rows.reserve(state_.color_rows.size());
+        for (const ImageMetadataRow& row : state_.color_rows) {
+            rows.push_back(TableRow{.cells = {row.label, TableValue(row.value)}});
+        }
+        color_table_->SetRows(std::move(rows));
     }
     if (exif_table_ != nullptr) {
         std::vector<TableRow> rows;
@@ -255,6 +280,17 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
         basic_table_->Render(draw_context, UiRootState{});
     }
     top += basic_table_height + ui_theme::metrics::kLargeGap;
+    if (!state_.color_rows.empty()) {
+        DrawSectionHeader(draw, L"Color / HDR", top);
+        top += kSectionHeaderHeight;
+        const float color_table_height = kRowHeight * static_cast<float>(state_.color_rows.size());
+        if (color_table_ != nullptr) {
+            color_table_->Arrange(D2D1::RectF(content.left, top, content.right, top + color_table_height));
+            color_table_->Render(draw_context, UiRootState{});
+        }
+        top += color_table_height;
+        top += ui_theme::metrics::kLargeGap;
+    }
     if (!state_.exif_rows.empty()) {
         DrawSectionHeader(draw, L"EXIF", top);
         top += kSectionHeaderHeight;
@@ -472,6 +508,9 @@ bool ImgViewerUiInfoPanel::IsHistogramChannelVisible(ImgViewerHistogramChannel c
 float ImgViewerUiInfoPanel::BodyContentHeight() const
 {
     float height = kRowHeight * kInfoRowCount + ui_theme::metrics::kLargeGap;
+    if (!state_.color_rows.empty()) {
+        height += kSectionHeaderHeight + kRowHeight * static_cast<float>(state_.color_rows.size()) + ui_theme::metrics::kLargeGap;
+    }
     if (!state_.exif_rows.empty()) {
         height += kSectionHeaderHeight + kRowHeight * static_cast<float>(state_.exif_rows.size()) + ui_theme::metrics::kLargeGap;
     }
@@ -517,6 +556,9 @@ D2D1_RECT_F ImgViewerUiInfoPanel::HistogramTabRect(ImgViewerHistogramChannel cha
     const float right = panel_rect.right - ui_theme::metrics::kSectionPadding;
     const float tab_width = (right - left) / 4.0f;
     float tab_top = BodyTop() - EffectiveScrollOffset() + kRowHeight * kInfoRowCount + ui_theme::metrics::kLargeGap;
+    if (!state_.color_rows.empty()) {
+        tab_top += kSectionHeaderHeight + kRowHeight * static_cast<float>(state_.color_rows.size()) + ui_theme::metrics::kLargeGap;
+    }
     if (!state_.exif_rows.empty()) {
         tab_top += kSectionHeaderHeight + kRowHeight * static_cast<float>(state_.exif_rows.size()) + ui_theme::metrics::kLargeGap;
     }

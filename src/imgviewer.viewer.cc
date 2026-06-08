@@ -105,6 +105,7 @@ void ImgViewerController::SetCurrentImageSet(DecodedImageSet image_set)
             .bitmap = animation_frames_.front().image.bitmap,
             .pixel_source = animation_frames_.front().image.pixel_source,
             .pixel_size = animation_frames_.front().image.pixel_size,
+            .display_format = animation_frames_.front().image.display_format,
             .metadata = std::move(current_image_.metadata),
         };
     }
@@ -133,6 +134,7 @@ void ImgViewerController::SetAnimationFrame(size_t index)
         .bitmap = animation_frames_[current_animation_frame_].image.bitmap,
         .pixel_source = animation_frames_[current_animation_frame_].image.pixel_source,
         .pixel_size = animation_frames_[current_animation_frame_].image.pixel_size,
+        .display_format = animation_frames_[current_animation_frame_].image.display_format,
         .metadata = std::move(metadata),
     };
 }
@@ -152,6 +154,7 @@ ImgViewerSnapshot ImgViewerController::Snapshot() const
     return ImgViewerSnapshot{
         .bitmap = current_image_.bitmap.get(),
         .pixel_size = current_image_.pixel_size,
+        .display_format = current_image_.display_format,
         .view_center = image_view_center_,
         .zoom_multiplier = image_zoom_multiplier_,
         .rotation_degrees = image_rotation_degrees_,

@@ -30,6 +30,7 @@ constexpr UiSurfaceId kInvalidUiSurfaceId{};
 
 struct UiSurfaceDescriptor final {
     const wchar_t* name = L"";
+    DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
     DXGI_ALPHA_MODE alpha_mode = DXGI_ALPHA_MODE_PREMULTIPLIED;
     int z_order = 0;
     bool auto_resize = true;
@@ -50,8 +51,10 @@ public:
     HRESULT ResizeAutoSurfaces(UINT width, UINT height);
     HRESULT SetVisible(UiSurfaceId id, bool visible);
     HRESULT SetZOrder(UiSurfaceId id, int z_order);
+    HRESULT SetFormat(UiSurfaceId id, DXGI_FORMAT format);
 
     IDCompositionSurface* Surface(UiSurfaceId id) const;
+    DXGI_FORMAT Format(UiSurfaceId id) const;
     DXGI_ALPHA_MODE AlphaMode(UiSurfaceId id) const;
     UiSurfaceSize Size(UiSurfaceId id) const;
     UINT Width() const { return width_; }
@@ -61,6 +64,7 @@ private:
     struct Layer final {
         UiSurfaceId id;
         std::wstring name;
+        DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
         DXGI_ALPHA_MODE alpha_mode = DXGI_ALPHA_MODE_PREMULTIPLIED;
         int z_order = 0;
         bool auto_resize = true;
@@ -69,6 +73,7 @@ private:
         wil::com_ptr<IDCompositionSurface> surface;
         UINT allocated_width = 0;
         UINT allocated_height = 0;
+        DXGI_FORMAT allocated_format = DXGI_FORMAT_UNKNOWN;
     };
 
     Layer* FindLayer(UiSurfaceId id);
@@ -83,4 +88,3 @@ private:
     UINT height_ = 1;
     uint32_t next_id_ = 1;
 };
-
