@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <d2d1helper.h>
+#include <d3d11.h>
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
@@ -16,9 +17,9 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
 namespace {
 
 constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
-constexpr float kMenuCornerRadius = 3.0f;
 constexpr float kMenuBodyFontSize = 8.5f;
 constexpr float kMenuIconFontSize = 10.0f;
+constexpr float kPopupContentInset = 1.0f;
 
 PopupHost* GetPopupHost(HWND hwnd)
 {
@@ -47,6 +48,32 @@ POINT ClientToScreenPoint(HWND hwnd, D2D1_POINT_2F point)
     return screen_point;
 }
 
+D2D1_SIZE_F PopupWindowSize(D2D1_SIZE_F content_size)
+{
+    return D2D1::SizeF(
+        content_size.width + kPopupContentInset * 2.0f,
+        content_size.height + kPopupContentInset * 2.0f);
+}
+
+D2D1_POINT_2F PopupWindowOrigin(D2D1_POINT_2F content_origin)
+{
+    return D2D1::Point2F(content_origin.x - kPopupContentInset, content_origin.y - kPopupContentInset);
+}
+
+UiInputEvent OffsetPopupEvent(UiInputEvent event)
+{
+    if (event.type == UiEventType::PointerMove ||
+        event.type == UiEventType::PointerDown ||
+        event.type == UiEventType::PointerUp ||
+        event.type == UiEventType::PointerLeave ||
+        event.type == UiEventType::PointerWheel) {
+        event.point.x -= kPopupContentInset;
+        event.point.y -= kPopupContentInset;
+        event.pointer.point = event.point;
+    }
+    return event;
+}
+
 class MenuPopupContent final : public UiPopupContent {
 public:
     MenuPopupContent(
@@ -59,11 +86,6 @@ public:
     {
         menu_.Open(D2D1::Point2F(0.0f, 0.0f), std::move(items));
         menu_.UpdatePreferredWidth(MenuTextContext(context));
-    }
-
-    float CornerRadius() const override
-    {
-        return kMenuCornerRadius;
     }
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F) const override
@@ -112,6 +134,41 @@ HRESULT PopupHost::Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d
     action_message_ = action_message;
     d2d_factory_ = d2d_factory;
     dwrite_factory_ = dwrite_factory;
+
+    D2D1_FACTORY_OPTIONS factory_options = {};
+#if defined(_DEBUG)
+    factory_options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
+#endif
+    RETURN_IF_FAILED(D2D1CreateFactory(
+        D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        factory_options,
+        dcomp_d2d_factory_.put()));
+    constexpr UINT device_flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+    constexpr D3D_FEATURE_LEVEL feature_levels[] = {
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_10_1,
+        D3D_FEATURE_LEVEL_10_0,
+    };
+    RETURN_IF_FAILED(D3D11CreateDevice(
+        nullptr,
+        D3D_DRIVER_TYPE_HARDWARE,
+        nullptr,
+        device_flags,
+        feature_levels,
+        ARRAYSIZE(feature_levels),
+        D3D11_SDK_VERSION,
+        d3d_device_.put(),
+        nullptr,
+        d3d_context_.put()));
+    RETURN_IF_FAILED(d3d_device_->QueryInterface(IID_PPV_ARGS(dxgi_device_.put())));
+    RETURN_IF_FAILED(dcomp_d2d_factory_->CreateDevice(dxgi_device_.get(), d2d_device_.put()));
+    RETURN_IF_FAILED(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_context_.put()));
+    RETURN_IF_FAILED(DCompositionCreateDevice(
+        dxgi_device_.get(),
+        __uuidof(IDCompositionDevice),
+        reinterpret_cast<void**>(dcomp_device_.put())));
+
     RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
         L"Segoe UI",
         nullptr,
@@ -153,7 +210,7 @@ void PopupHost::Close()
         content_.reset();
     }
     native_open_ = false;
-    native_render_target_.reset();
+    ResetDCompPopupResources();
     if (popup_hwnd_ != nullptr) {
         DestroyWindow(popup_hwnd_);
         popup_hwnd_ = nullptr;
@@ -214,10 +271,13 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
     }
 
     if (content_ != nullptr) {
-        UiEventResult result = content_->OnInputEvent(event);
-        if (result.needs_render && popup_hwnd_ != nullptr) {
-            ResizeNativePopupToContent();
-            InvalidateRect(popup_hwnd_, nullptr, FALSE);
+        UiEventResult result = content_->OnInputEvent(OffsetPopupEvent(event));
+        if (result.needs_render && !result.close_popup && popup_hwnd_ != nullptr) {
+            bool resized = false;
+            ResizeNativePopupToContent(&resized);
+            if (!resized) {
+                RenderNativePopup();
+            }
         }
         return result;
     }
@@ -243,11 +303,13 @@ bool PopupHost::Contains(D2D1_POINT_2F) const
 HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
 {
     const float dpi_scale = static_cast<float>(GetDpiForWindow(owner_)) / 96.0f;
-    origin.x *= dpi_scale;
-    origin.y *= dpi_scale;
-    POINT screen_origin = ClientToScreenPoint(owner_, origin);
-    const int width = static_cast<int>(std::ceil(size.width * dpi_scale));
-    const int height = static_cast<int>(std::ceil(size.height * dpi_scale));
+    D2D1_POINT_2F window_origin = PopupWindowOrigin(origin);
+    window_origin.x *= dpi_scale;
+    window_origin.y *= dpi_scale;
+    POINT screen_origin = ClientToScreenPoint(owner_, window_origin);
+    const D2D1_SIZE_F window_size = PopupWindowSize(size);
+    const int width = static_cast<int>(std::ceil(window_size.width * dpi_scale));
+    const int height = static_cast<int>(std::ceil(window_size.height * dpi_scale));
 
     RECT work_area = {};
     HMONITOR monitor = MonitorFromPoint(screen_origin, MONITOR_DEFAULTTONEAREST);
@@ -261,7 +323,7 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
     }
 
     popup_hwnd_ = CreateWindowExW(
-        WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+        WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
         kPopupWindowClassName,
         L"",
         WS_POPUP,
@@ -275,16 +337,21 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
         this);
     RETURN_LAST_ERROR_IF_NULL(popup_hwnd_);
 
-    RETURN_IF_FAILED(ApplyNativePopupRegion(width, height, dpi_scale));
+    RETURN_IF_FAILED(EnsureDCompResources());
+    RETURN_IF_FAILED(EnsureDCompSurface(
+        static_cast<UINT>((std::max)(1, width)),
+        static_cast<UINT>((std::max)(1, height))));
 
     native_open_ = true;
+    RenderNativePopup();
     ShowWindow(popup_hwnd_, SW_SHOWNOACTIVATE);
-    UpdateWindow(popup_hwnd_);
     return S_OK;
 }
 
-HRESULT PopupHost::ResizeNativePopupToContent()
+HRESULT PopupHost::ResizeNativePopupToContent(bool* resized)
 {
+    RETURN_HR_IF_NULL(E_POINTER, resized);
+    *resized = false;
     RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
     RETURN_HR_IF_NULL(E_UNEXPECTED, content_);
 
@@ -293,7 +360,7 @@ HRESULT PopupHost::ResizeNativePopupToContent()
         .body_text_format = body_text_format_,
         .icon_text_format = icon_text_format_,
     };
-    const D2D1_SIZE_F size = content_->Measure(measure_context, D2D1::SizeF());
+    const D2D1_SIZE_F size = PopupWindowSize(content_->Measure(measure_context, D2D1::SizeF()));
     const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
     const int width = (std::max)(1, static_cast<int>(std::ceil(size.width * dpi_scale)));
     const int height = (std::max)(1, static_cast<int>(std::ceil(size.height * dpi_scale)));
@@ -315,6 +382,8 @@ HRESULT PopupHost::ResizeNativePopupToContent()
         origin.y = (std::max)(origin.y, work_area.top);
     }
 
+    RETURN_IF_FAILED(EnsureDCompSurface(static_cast<UINT>(width), static_cast<UINT>(height)));
+    RETURN_IF_FAILED(RenderDCompPopup(static_cast<UINT>(width), static_cast<UINT>(height)));
     RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
         popup_hwnd_,
         HWND_TOPMOST,
@@ -323,88 +392,146 @@ HRESULT PopupHost::ResizeNativePopupToContent()
         width,
         height,
         SWP_NOACTIVATE));
-    native_render_target_.reset();
-    RETURN_IF_FAILED(ApplyNativePopupRegion(width, height, dpi_scale));
+    *resized = true;
     return S_OK;
 }
 
-HRESULT PopupHost::ApplyNativePopupRegion(int width, int height, float dpi_scale)
-{
-    if (content_ == nullptr || content_->CornerRadius() <= 0.0f || popup_hwnd_ == nullptr) {
-        return S_OK;
-    }
-
-    const int diameter = static_cast<int>(std::ceil(content_->CornerRadius() * 2.0f * dpi_scale));
-    HRGN region = CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
-    RETURN_LAST_ERROR_IF_NULL(region);
-    if (SetWindowRgn(popup_hwnd_, region, FALSE) == 0) {
-        DeleteObject(region);
-        RETURN_LAST_ERROR();
-    }
-    return S_OK;
-}
-
-HRESULT PopupHost::EnsureNativeRenderTarget()
+HRESULT PopupHost::EnsureDCompResources()
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
-    if (native_render_target_ != nullptr) {
+    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
+    if (dcomp_target_ != nullptr && dcomp_visual_ != nullptr) {
         return S_OK;
     }
 
-    RECT rect = {};
-    RETURN_IF_WIN32_BOOL_FALSE(GetClientRect(popup_hwnd_, &rect));
-    RETURN_IF_FAILED(d2d_factory_->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1::PixelFormat(),
-            96.0f,
-            96.0f),
-        D2D1::HwndRenderTargetProperties(
-            popup_hwnd_,
-            D2D1::SizeU(
-                static_cast<UINT32>((std::max)(1L, rect.right - rect.left)),
-                static_cast<UINT32>((std::max)(1L, rect.bottom - rect.top)))),
-        native_render_target_.put()));
-    return S_OK;
+    RETURN_IF_FAILED(dcomp_device_->CreateTargetForHwnd(popup_hwnd_, TRUE, dcomp_target_.put()));
+    RETURN_IF_FAILED(dcomp_device_->CreateVisual(dcomp_visual_.put()));
+    RETURN_IF_FAILED(dcomp_target_->SetRoot(dcomp_visual_.get()));
+    return dcomp_device_->Commit();
+}
+
+HRESULT PopupHost::EnsureDCompSurface(UINT width, UINT height)
+{
+    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_visual_);
+
+    width = (std::max)(1U, width);
+    height = (std::max)(1U, height);
+    if (dcomp_surface_ != nullptr && dcomp_surface_width_ == width && dcomp_surface_height_ == height) {
+        return S_OK;
+    }
+
+    dcomp_surface_.reset();
+    RETURN_IF_FAILED(dcomp_device_->CreateSurface(
+        width,
+        height,
+        DXGI_FORMAT_B8G8R8A8_UNORM,
+        DXGI_ALPHA_MODE_PREMULTIPLIED,
+        dcomp_surface_.put()));
+    RETURN_IF_FAILED(dcomp_visual_->SetContent(dcomp_surface_.get()));
+    RETURN_IF_FAILED(dcomp_visual_->SetOffsetX(0.0f));
+    RETURN_IF_FAILED(dcomp_visual_->SetOffsetY(0.0f));
+    dcomp_surface_width_ = width;
+    dcomp_surface_height_ = height;
+    return dcomp_device_->Commit();
+}
+
+void PopupHost::ResetDCompPopupResources()
+{
+    dcomp_surface_.reset();
+    dcomp_visual_.reset();
+    dcomp_target_.reset();
+    dcomp_surface_width_ = 0;
+    dcomp_surface_height_ = 0;
 }
 
 void PopupHost::RenderNativePopup()
 {
-    if (FAILED(EnsureNativeRenderTarget())) {
-        return;
-    }
+    FAIL_FAST_IF_FAILED(RenderDCompPopup());
+}
+
+HRESULT PopupHost::RenderDCompPopup()
+{
+    RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
     RECT rect = {};
-    GetClientRect(popup_hwnd_, &rect);
-    const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
-    const UiDrawContext draw_context{
-        .d2d_context = native_render_target_.get(),
-        .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = body_text_format_,
-        .icon_text_format = icon_text_format_,
-        .viewport_size = D2D1::SizeF(
-            static_cast<float>((std::max)(1L, rect.right - rect.left)) / dpi_scale,
-            static_cast<float>((std::max)(1L, rect.bottom - rect.top)) / dpi_scale),
-        .dpi_scale = dpi_scale,
+    RETURN_IF_WIN32_BOOL_FALSE(GetClientRect(popup_hwnd_, &rect));
+    const UINT width = static_cast<UINT>((std::max)(1L, rect.right - rect.left));
+    const UINT height = static_cast<UINT>((std::max)(1L, rect.bottom - rect.top));
+    return RenderDCompPopup(width, height);
+}
+
+HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
+{
+    RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_surface_);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, d2d_context_);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
+
+    width = (std::max)(1U, width);
+    height = (std::max)(1U, height);
+    RETURN_IF_FAILED(EnsureDCompSurface(width, height));
+
+    wil::com_ptr<IDXGISurface> dxgi_surface;
+    POINT offset = {};
+    const RECT update_rect = {
+        0,
+        0,
+        static_cast<LONG>(width),
+        static_cast<LONG>(height),
     };
+    RETURN_IF_FAILED(dcomp_surface_->BeginDraw(
+        &update_rect,
+        __uuidof(IDXGISurface),
+        reinterpret_cast<void**>(dxgi_surface.put()),
+        &offset));
 
-    native_render_target_->BeginDraw();
-    native_render_target_->SetTransform(D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale));
-    native_render_target_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
+    wil::com_ptr<ID2D1Bitmap1> target_bitmap;
+    const D2D1_BITMAP_PROPERTIES1 bitmap_properties = D2D1::BitmapProperties1(
+        D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+        96.0f,
+        96.0f);
+    HRESULT hr = d2d_context_->CreateBitmapFromDxgiSurface(dxgi_surface.get(), bitmap_properties, target_bitmap.put());
+    if (SUCCEEDED(hr)) {
+        const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
+        const UiDrawContext draw_context{
+            .d2d_context = d2d_context_.get(),
+            .dwrite_factory = dwrite_factory_.get(),
+            .body_text_format = body_text_format_,
+            .icon_text_format = icon_text_format_,
+            .viewport_size = D2D1::SizeF(static_cast<float>(width) / dpi_scale, static_cast<float>(height) / dpi_scale),
+            .dpi_scale = dpi_scale,
+        };
 
-    if (content_ != nullptr) {
-        content_->Render(draw_context);
+        d2d_context_->SetTarget(target_bitmap.get());
+        d2d_context_->BeginDraw();
+        d2d_context_->SetTransform(
+            D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale) *
+            D2D1::Matrix3x2F::Translation(
+                static_cast<float>(offset.x) + kPopupContentInset * dpi_scale,
+                static_cast<float>(offset.y) + kPopupContentInset * dpi_scale));
+        d2d_context_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
+        if (content_ != nullptr) {
+            content_->Render(draw_context);
+        }
+        hr = d2d_context_->EndDraw();
+        d2d_context_->SetTarget(nullptr);
     }
 
-    if (native_render_target_->EndDraw() == D2DERR_RECREATE_TARGET) {
-        native_render_target_.reset();
-    }
+    const HRESULT end_surface_result = dcomp_surface_->EndDraw();
+    RETURN_IF_FAILED(hr);
+    RETURN_IF_FAILED(end_surface_result);
+    return dcomp_device_->Commit();
 }
 
 void PopupHost::HandlePopupResult(UiEventResult result)
 {
-    if (result.needs_render && popup_hwnd_ != nullptr) {
-        ResizeNativePopupToContent();
-        InvalidateRect(popup_hwnd_, nullptr, FALSE);
+    if (result.needs_render && !result.close_popup && popup_hwnd_ != nullptr) {
+        bool resized = false;
+        ResizeNativePopupToContent(&resized);
+        if (!resized) {
+            RenderNativePopup();
+        }
     }
     if (result.action != kUiActionNone) {
         ForwardAction(result.action, result.effect_target);
@@ -448,9 +575,6 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
     case WM_PAINT: {
         PAINTSTRUCT paint = {};
         BeginPaint(hwnd, &paint);
-        if (PopupHost* host = GetPopupHost(hwnd)) {
-            host->RenderNativePopup();
-        }
         EndPaint(hwnd, &paint);
         return 0;
     }
@@ -478,7 +602,7 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         };
         UiEventResult result = {};
         if (host->content_ != nullptr) {
-            result = host->content_->OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
+            result = host->content_->OnInputEvent(OffsetPopupEvent(UiInputEvent::Pointer(pointer, hwnd)));
         }
         host->HandlePopupResult(result);
         return 0;

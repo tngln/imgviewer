@@ -246,13 +246,17 @@ UiEventResult MenuOverlay::OnPointerEvent(const UiPointerEvent& event)
         const size_t item = ItemAt(panel, event.point);
         const std::vector<MenuItem>* items = ItemsAtDepth(panel);
         if (items != nullptr && item < items->size() && !(*items)[item].separator && (*items)[item].enabled) {
-            const bool changed = panel >= selected_path_.size() || selected_path_[panel] != item || selected_path_.size() != panel + 1;
+            const bool has_children = !(*items)[item].children.empty();
+            const bool child_open = selected_path_.size() > panel + 1;
+            const bool changed = panel >= selected_path_.size() ||
+                selected_path_[panel] != item ||
+                (has_children ? !child_open : selected_path_.size() != panel + 1);
             selected_path_.resize(panel + 1);
             selected_path_[panel] = item;
-            if (!(*items)[item].children.empty()) {
+            if (has_children) {
                 OpenChild(panel);
             }
-            return UiEventResult{.handled = true, .needs_render = changed || !(*items)[item].children.empty()};
+            return UiEventResult{.handled = true, .needs_render = changed};
         }
         return Contains(event.point) ? UiEventResult{.handled = true} : UiEventResult{};
     }
