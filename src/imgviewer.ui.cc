@@ -208,6 +208,7 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
             {L"Text Background Red", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundRed), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Red, 0.82f)), edit_toolbar_state_.visible},
             {L"Text Background Blue", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundBlue), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)), edit_toolbar_state_.visible},
             {L"Crop", UiActionFromImgViewerAction(ImgViewerAction::EditCrop), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
+            {L"Cancel Crop", UiActionFromImgViewerAction(ImgViewerAction::EditCancelCrop), false, false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
             {L"Copy Pixel Selection", UiActionFromImgViewerAction(ImgViewerAction::EditCopySelection), false, false, selection_toolstrip_state_.visible},
             {L"Mosaic Pixel Selection", UiActionFromImgViewerAction(ImgViewerAction::EditMosaicSelection), false, false, selection_toolstrip_state_.visible},
             {L"Edit Rotate Clockwise", UiActionFromImgViewerAction(ImgViewerAction::EditRotateClockwise)},

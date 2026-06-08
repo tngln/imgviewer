@@ -1,6 +1,8 @@
 #include "imgviewer.renderer.hpp"
 
 #include <algorithm>
+#include <cwchar>
+#include <cmath>
 #include <string>
 
 #include <d2d1helper.h>
@@ -168,6 +170,74 @@ HRESULT DrawEditTextObject(
             D2D1::Point2F(caret_x, rect.bottom - kPaddingY),
             brush.get(),
             1.0f / (std::max)(0.01f, image_scale));
+    }
+    return S_OK;
+}
+
+HRESULT DrawCropOverlay(
+    ID2D1DeviceContext* d2d_context,
+    IDWriteTextFormat* text_format,
+    const ImgViewerEditSnapshot& edit,
+    D2D1_RECT_F image_rect,
+    float image_scale)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
+
+    const D2D1_RECT_F crop_rect = edit.has_pending_crop
+        ? edit.pending_crop_rect
+        : (edit.drawing_crop ? edit.current_crop_rect : edit.crop_rect);
+    if (crop_rect.right <= crop_rect.left || crop_rect.bottom <= crop_rect.top) {
+        return S_OK;
+    }
+
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 0.42f), brush.put()));
+    d2d_context->FillRectangle(D2D1::RectF(image_rect.left, image_rect.top, image_rect.right, crop_rect.top), brush.get());
+    d2d_context->FillRectangle(D2D1::RectF(image_rect.left, crop_rect.bottom, image_rect.right, image_rect.bottom), brush.get());
+    d2d_context->FillRectangle(D2D1::RectF(image_rect.left, crop_rect.top, crop_rect.left, crop_rect.bottom), brush.get());
+    d2d_context->FillRectangle(D2D1::RectF(crop_rect.right, crop_rect.top, image_rect.right, crop_rect.bottom), brush.get());
+    brush.reset();
+
+    const float stroke_width = 2.0f / (std::max)(0.01f, image_scale);
+    const auto draw_edge = [&](ImgViewerCropEdge edge, D2D1_POINT_2F a, D2D1_POINT_2F b) -> HRESULT {
+        const bool active = edit.active_crop_edge == edge || (edit.dragging_crop_edge && edit.active_crop_edge == edge);
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(
+            active ? ui_theme::color::kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.95f),
+            brush.put()));
+        d2d_context->DrawLine(a, b, brush.get(), active ? stroke_width * 1.35f : stroke_width);
+        brush.reset();
+        return S_OK;
+    };
+    RETURN_IF_FAILED(draw_edge(ImgViewerCropEdge::Top, D2D1::Point2F(crop_rect.left, crop_rect.top), D2D1::Point2F(crop_rect.right, crop_rect.top)));
+    RETURN_IF_FAILED(draw_edge(ImgViewerCropEdge::Right, D2D1::Point2F(crop_rect.right, crop_rect.top), D2D1::Point2F(crop_rect.right, crop_rect.bottom)));
+    RETURN_IF_FAILED(draw_edge(ImgViewerCropEdge::Bottom, D2D1::Point2F(crop_rect.right, crop_rect.bottom), D2D1::Point2F(crop_rect.left, crop_rect.bottom)));
+    RETURN_IF_FAILED(draw_edge(ImgViewerCropEdge::Left, D2D1::Point2F(crop_rect.left, crop_rect.bottom), D2D1::Point2F(crop_rect.left, crop_rect.top)));
+
+    const int crop_width = (std::max)(1, static_cast<int>(std::ceil(crop_rect.right) - std::floor(crop_rect.left)));
+    const int crop_height = (std::max)(1, static_cast<int>(std::ceil(crop_rect.bottom) - std::floor(crop_rect.top)));
+    wchar_t size_text[64] = {};
+    swprintf_s(size_text, L"%d x %d", crop_width, crop_height);
+
+    const float label_padding = 6.0f / (std::max)(0.01f, image_scale);
+    const float label_width = 92.0f / (std::max)(0.01f, image_scale);
+    const float label_height = 24.0f / (std::max)(0.01f, image_scale);
+    const D2D1_RECT_F label_rect = D2D1::RectF(
+        crop_rect.left + label_padding,
+        crop_rect.top + label_padding,
+        (std::min)(crop_rect.right - label_padding, crop_rect.left + label_padding + label_width),
+        (std::min)(crop_rect.bottom - label_padding, crop_rect.top + label_padding + label_height));
+    if (label_rect.right > label_rect.left && label_rect.bottom > label_rect.top && text_format != nullptr) {
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 0.68f), brush.put()));
+        d2d_context->FillRectangle(label_rect, brush.get());
+        brush.reset();
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.96f), brush.put()));
+        d2d_context->DrawTextW(
+            size_text,
+            static_cast<UINT32>(wcslen(size_text)),
+            text_format,
+            D2D1::RectF(label_rect.left + label_padding, label_rect.top, label_rect.right, label_rect.bottom),
+            brush.get(),
+            D2D1_DRAW_TEXT_OPTIONS_CLIP);
     }
     return S_OK;
 }
@@ -410,11 +480,13 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 brush.reset();
             }
 
-            const D2D1_RECT_F crop_rect = state->edit.drawing_crop ? state->edit.current_crop_rect : state->edit.crop_rect;
-            if (crop_rect.right > crop_rect.left && crop_rect.bottom > crop_rect.top) {
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Cyan, 0.88f), brush.put()));
-                d2d_context->DrawRectangle(crop_rect, brush.get(), 2.0f / (std::max)(0.01f, image_scale));
-                brush.reset();
+            if (state->edit.tool == ImgViewerEditTool::Crop || state->edit.drawing_crop || state->edit.has_pending_crop) {
+                RETURN_IF_FAILED(DrawCropOverlay(
+                    d2d_context,
+                    context.draw.body_text_format,
+                    state->edit,
+                    image_rect,
+                    image_scale));
             }
 
             for (const ImgViewerEditMosaic& mosaic : state->edit.mosaics) {

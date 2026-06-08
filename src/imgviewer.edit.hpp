@@ -20,6 +20,14 @@ enum class ImgViewerEditTool {
     Crop,
 };
 
+enum class ImgViewerCropEdge {
+    None,
+    Left,
+    Top,
+    Right,
+    Bottom,
+};
+
 struct ImgViewerEditStroke final {
     std::vector<D2D1_POINT_2F> points;
     D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);
@@ -69,6 +77,10 @@ struct ImgViewerEditSnapshot final {
     bool drawing_crop = false;
     D2D1_RECT_F crop_rect = {};
     D2D1_RECT_F current_crop_rect = {};
+    bool has_pending_crop = false;
+    D2D1_RECT_F pending_crop_rect = {};
+    ImgViewerCropEdge active_crop_edge = ImgViewerCropEdge::None;
+    bool dragging_crop_edge = false;
     bool drawing_pixel_selection = false;
     bool has_pixel_selection = false;
     D2D1_RECT_F pixel_selection_rect = {};
@@ -104,6 +116,9 @@ public:
     void SetTextFontSize(float font_size);
     void SetTextColor(D2D1_COLOR_F color);
     void SetTextBackground(D2D1_COLOR_F color, bool has_background);
+    void BeginCropSession();
+    bool CommitCropSession();
+    bool CancelCropSession();
     bool RotateClockwise();
     bool Undo();
     bool Redo();
@@ -145,6 +160,10 @@ private:
         const ImgViewerSnapshot& viewer,
         D2D1_SIZE_U viewport_size,
         D2D1_POINT_2F* document_point) const;
+    float DocumentHitSlop(const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size) const;
+    ImgViewerCropEdge CropEdgeAt(D2D1_POINT_2F document_point, float hit_slop) const;
+    D2D1_RECT_F ClampCropRect(D2D1_RECT_F rect) const;
+    void UpdatePendingCropEdge(D2D1_POINT_2F document_point);
     void PushHistory(HistoryEntry entry);
 
     ImgViewerEditDocument document_;
@@ -157,12 +176,19 @@ private:
     bool active_ = false;
     bool drawing_stroke_ = false;
     bool drawing_crop_ = false;
+    bool has_pending_crop_ = false;
+    bool dragging_crop_edge_ = false;
     bool drawing_pixel_selection_ = false;
     bool has_pixel_selection_ = false;
     bool editing_text_ = false;
     size_t editing_text_index_ = 0;
     D2D1_POINT_2F crop_start_ = {};
     D2D1_RECT_F current_crop_rect_ = {};
+    D2D1_RECT_F pending_crop_rect_ = {};
+    D2D1_RECT_F crop_session_original_rect_ = {};
+    bool crop_session_original_has_crop_ = false;
+    ImgViewerCropEdge active_crop_edge_ = ImgViewerCropEdge::None;
+    ImgViewerCropEdge dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     D2D1_POINT_2F pixel_selection_start_ = {};
     D2D1_RECT_F pixel_selection_rect_ = {};
     D2D1_RECT_F current_pixel_selection_rect_ = {};

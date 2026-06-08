@@ -197,6 +197,7 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
         action == ImgViewerAction::EditTextBackgroundRed ||
         action == ImgViewerAction::EditTextBackgroundBlue ||
         action == ImgViewerAction::EditCrop ||
+        action == ImgViewerAction::EditCancelCrop ||
         action == ImgViewerAction::EditCopySelection ||
         action == ImgViewerAction::EditMosaicSelection ||
         action == ImgViewerAction::EditRotateClockwise ||
@@ -324,6 +325,7 @@ void ExitImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
         return;
     }
 
+    context->edit.CommitCropSession();
     ResetImgViewerTransientInput(hwnd, context);
     context->edit.SetActive(false);
     context->interaction.EnterViewing();
@@ -740,6 +742,11 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::EditCrop:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Crop, L"Edit crop.");
         break;
+    case ImgViewerAction::EditCancelCrop:
+        if (context != nullptr && context->edit.CancelCropSession()) {
+            RenderImgViewer(context);
+        }
+        break;
     case ImgViewerAction::EditCopySelection:
         if (context != nullptr) {
             wil::com_ptr<IWICBitmapSource> selected_pixels;
@@ -1066,6 +1073,7 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     if (context->edit.HasDocument()) {
+        context->edit.CommitCropSession();
         wil::com_ptr<IWICBitmapSource> edited_source;
         const HRESULT export_hr = context->edit.ExportPngSource(context->viewer.WicFactory(), edited_source.put());
         ImageEncoder encoder;

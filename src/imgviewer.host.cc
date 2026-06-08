@@ -538,6 +538,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {
                 canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool && context->edit.Active()) {
+                canvas_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer) {
                 canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
             }
@@ -742,6 +744,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 }
                 return 0;
             }
+        }
+
+        if (context != nullptr &&
+            wparam == VK_ESCAPE &&
+            !key.modifiers.ctrl &&
+            !key.modifiers.shift &&
+            !key.modifiers.alt &&
+            context->edit.Active() &&
+            context->edit.Tool() == ImgViewerEditTool::Crop) {
+            ExecuteImgViewerAction(hwnd, context, ImgViewerAction::EditCancelCrop);
+            return 0;
         }
 
         const UiEventResult ui_result = context != nullptr

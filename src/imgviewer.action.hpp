@@ -57,6 +57,7 @@
     X(EditTextBackgroundRed, "editTextBackgroundRed", L"Text Background Red", true, true) \
     X(EditTextBackgroundBlue, "editTextBackgroundBlue", L"Text Background Blue", true, true) \
     X(EditCrop, "editCrop", L"Edit Crop", true, true) \
+    X(EditCancelCrop, "editCancelCrop", L"Cancel Crop", true, true) \
     X(EditCopySelection, "editCopySelection", L"Copy Pixel Selection", true, true) \
     X(EditMosaicSelection, "editMosaicSelection", L"Mosaic Pixel Selection", true, true) \
     X(EditRotateClockwise, "editRotateClockwise", L"Edit Rotate Clockwise", true, true) \

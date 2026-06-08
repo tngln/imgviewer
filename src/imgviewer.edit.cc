@@ -112,6 +112,15 @@ bool IsUsefulRect(D2D1_RECT_F rect)
     return rect.right - rect.left >= 2.0f && rect.bottom - rect.top >= 2.0f;
 }
 
+bool SameRect(D2D1_RECT_F left, D2D1_RECT_F right)
+{
+    constexpr float kTolerance = 0.001f;
+    return std::abs(left.left - right.left) < kTolerance &&
+        std::abs(left.top - right.top) < kTolerance &&
+        std::abs(left.right - right.right) < kTolerance &&
+        std::abs(left.bottom - right.bottom) < kTolerance;
+}
+
 D2D1_RECT_F PixelAlignedRect(D2D1_RECT_F rect, D2D1_SIZE_U bounds)
 {
     return D2D1::RectF(
@@ -318,7 +327,7 @@ bool ImgViewerEditController::IsEditingText() const
 
 bool ImgViewerEditController::IsDrawing() const
 {
-    return active_ && (drawing_stroke_ || drawing_crop_);
+    return active_ && (drawing_stroke_ || dragging_crop_edge_);
 }
 
 bool ImgViewerEditController::HasTransientCapture() const
@@ -342,9 +351,13 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
         .mosaics = document_.mosaics,
         .drawing_stroke = drawing_stroke_,
         .current_stroke = current_stroke_,
-        .drawing_crop = drawing_crop_,
+        .drawing_crop = dragging_crop_edge_,
         .crop_rect = document_.crop_rect,
-        .current_crop_rect = current_crop_rect_,
+        .current_crop_rect = has_pending_crop_ ? pending_crop_rect_ : current_crop_rect_,
+        .has_pending_crop = has_pending_crop_,
+        .pending_crop_rect = pending_crop_rect_,
+        .active_crop_edge = active_crop_edge_,
+        .dragging_crop_edge = dragging_crop_edge_,
         .drawing_pixel_selection = drawing_pixel_selection_,
         .has_pixel_selection = has_pixel_selection_,
         .pixel_selection_rect = pixel_selection_rect_,
@@ -370,11 +383,18 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    has_pending_crop_ = false;
+    dragging_crop_edge_ = false;
     drawing_pixel_selection_ = false;
     has_pixel_selection_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
+    pending_crop_rect_ = D2D1_RECT_F{};
+    crop_session_original_rect_ = D2D1_RECT_F{};
+    crop_session_original_has_crop_ = false;
+    active_crop_edge_ = ImgViewerCropEdge::None;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     pixel_selection_rect_ = D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
     active_ = true;
@@ -393,11 +413,18 @@ void ImgViewerEditController::Clear()
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    has_pending_crop_ = false;
+    dragging_crop_edge_ = false;
     drawing_pixel_selection_ = false;
     has_pixel_selection_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = D2D1_RECT_F{};
+    pending_crop_rect_ = D2D1_RECT_F{};
+    crop_session_original_rect_ = D2D1_RECT_F{};
+    crop_session_original_has_crop_ = false;
+    active_crop_edge_ = ImgViewerCropEdge::None;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     pixel_selection_rect_ = D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
     active_ = false;
@@ -406,18 +433,34 @@ void ImgViewerEditController::Clear()
 
 void ImgViewerEditController::SetActive(bool active)
 {
+    if (!active && active_ && tool_ == ImgViewerEditTool::Crop) {
+        CommitCropSession();
+    }
     active_ = active && HasDocument();
+    if (active_ && tool_ == ImgViewerEditTool::Crop) {
+        BeginCropSession();
+    }
 }
 
 void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
 {
+    if (tool_ == ImgViewerEditTool::Crop && tool != ImgViewerEditTool::Crop) {
+        CommitCropSession();
+    }
     tool_ = tool;
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    dragging_crop_edge_ = false;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     drawing_pixel_selection_ = false;
     editing_text_ = false;
     current_stroke_ = ImgViewerEditStroke{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
+    if (tool_ == ImgViewerEditTool::Crop) {
+        BeginCropSession();
+    } else {
+        active_crop_edge_ = ImgViewerCropEdge::None;
+    }
     if (tool_ != ImgViewerEditTool::PixelSelect) {
         has_pixel_selection_ = false;
         pixel_selection_rect_ = D2D1_RECT_F{};
@@ -472,6 +515,83 @@ void ImgViewerEditController::SetTextBackground(D2D1_COLOR_F color, bool has_bac
         document_.texts[editing_text_index_].style = text_style_;
         document_.dirty = true;
     }
+}
+
+void ImgViewerEditController::BeginCropSession()
+{
+    if (!HasDocument()) {
+        return;
+    }
+    if (has_pending_crop_) {
+        current_crop_rect_ = pending_crop_rect_;
+        return;
+    }
+
+    crop_session_original_rect_ = document_.crop_rect;
+    crop_session_original_has_crop_ = document_.has_crop;
+    pending_crop_rect_ = document_.has_crop && IsUsefulRect(document_.crop_rect)
+        ? document_.crop_rect
+        : D2D1::RectF(0.0f, 0.0f, static_cast<float>(document_.source_size.width), static_cast<float>(document_.source_size.height));
+    pending_crop_rect_ = ClampCropRect(pending_crop_rect_);
+    current_crop_rect_ = pending_crop_rect_;
+    has_pending_crop_ = true;
+    dragging_crop_edge_ = false;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
+    active_crop_edge_ = ImgViewerCropEdge::None;
+}
+
+bool ImgViewerEditController::CommitCropSession()
+{
+    if (!HasDocument() || !has_pending_crop_ || !IsUsefulRect(pending_crop_rect_)) {
+        has_pending_crop_ = false;
+        dragging_crop_edge_ = false;
+        active_crop_edge_ = ImgViewerCropEdge::None;
+        dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
+        return false;
+    }
+
+    const D2D1_RECT_F crop_rect = ClampCropRect(pending_crop_rect_);
+    const D2D1_RECT_F default_crop_rect = D2D1::RectF(
+        0.0f,
+        0.0f,
+        static_cast<float>(document_.source_size.width),
+        static_cast<float>(document_.source_size.height));
+    const bool changed = crop_session_original_has_crop_
+        ? !SameRect(crop_rect, crop_session_original_rect_)
+        : !SameRect(crop_rect, default_crop_rect);
+    has_pending_crop_ = false;
+    dragging_crop_edge_ = false;
+    active_crop_edge_ = ImgViewerCropEdge::None;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
+    current_crop_rect_ = D2D1_RECT_F{};
+    if (!changed) {
+        return false;
+    }
+
+    PushHistory(HistoryEntry{
+        .kind = HistoryKind::Crop,
+        .previous_crop_rect = crop_session_original_rect_,
+        .previous_has_crop = crop_session_original_has_crop_,
+        .crop_rect = crop_rect,
+    });
+    document_.crop_rect = crop_rect;
+    document_.has_crop = true;
+    document_.dirty = true;
+    return true;
+}
+
+bool ImgViewerEditController::CancelCropSession()
+{
+    if (!has_pending_crop_ && !dragging_crop_edge_) {
+        return false;
+    }
+
+    has_pending_crop_ = false;
+    dragging_crop_edge_ = false;
+    active_crop_edge_ = ImgViewerCropEdge::None;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
+    current_crop_rect_ = D2D1_RECT_F{};
+    return true;
 }
 
 bool ImgViewerEditController::RotateClockwise()
@@ -564,10 +684,12 @@ void ImgViewerEditController::CancelTransientTool()
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
+    dragging_crop_edge_ = false;
+    dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     drawing_pixel_selection_ = false;
     editing_text_ = false;
     editing_text_index_ = 0;
-    current_crop_rect_ = D2D1_RECT_F{};
+    current_crop_rect_ = has_pending_crop_ ? pending_crop_rect_ : D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
 }
 
@@ -705,9 +827,23 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
     }
 
     if (tool_ == ImgViewerEditTool::Crop) {
+        BeginCropSession();
+        const float hit_slop = DocumentHitSlop(viewer, viewport_size);
+        const ImgViewerCropEdge edge = CropEdgeAt(document_point, hit_slop);
+        if (edge != ImgViewerCropEdge::None) {
+            active_crop_edge_ = edge;
+            dragging_crop_edge_kind_ = edge;
+            dragging_crop_edge_ = true;
+            return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+        }
+
         crop_start_ = document_point;
-        current_crop_rect_ = NormalizedRect(crop_start_, document_point, document_.source_size);
-        drawing_crop_ = true;
+        pending_crop_rect_ = NormalizedRect(crop_start_, document_point, document_.source_size);
+        current_crop_rect_ = pending_crop_rect_;
+        has_pending_crop_ = true;
+        active_crop_edge_ = ImgViewerCropEdge::None;
+        dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
+        dragging_crop_edge_ = true;
         return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
     }
 
@@ -719,18 +855,34 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !drawing_crop_ && !drawing_pixel_selection_)) {
+    if (!active_ || (!drawing_stroke_ && !dragging_crop_edge_ && !drawing_pixel_selection_ && tool_ != ImgViewerEditTool::Crop)) {
         return {};
     }
 
     D2D1_POINT_2F document_point = {};
     if (!DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
+        if (tool_ == ImgViewerEditTool::Crop && !dragging_crop_edge_ && active_crop_edge_ != ImgViewerCropEdge::None) {
+            active_crop_edge_ = ImgViewerCropEdge::None;
+            return ImgViewerEventResult{.handled = true, .needs_render = true};
+        }
         return ImgViewerEventResult{.handled = true};
     }
 
-    if (drawing_crop_) {
-        current_crop_rect_ = NormalizedRect(crop_start_, document_point, document_.source_size);
+    if (tool_ == ImgViewerEditTool::Crop && dragging_crop_edge_) {
+        if (dragging_crop_edge_kind_ == ImgViewerCropEdge::None) {
+            pending_crop_rect_ = ClampCropRect(NormalizedRect(crop_start_, document_point, document_.source_size));
+        } else {
+            UpdatePendingCropEdge(document_point);
+        }
+        current_crop_rect_ = pending_crop_rect_;
         return ImgViewerEventResult{.handled = true, .needs_render = true};
+    }
+
+    if (tool_ == ImgViewerEditTool::Crop && has_pending_crop_) {
+        const ImgViewerCropEdge edge = CropEdgeAt(document_point, DocumentHitSlop(viewer, viewport_size));
+        const bool changed = edge != active_crop_edge_;
+        active_crop_edge_ = edge;
+        return ImgViewerEventResult{.handled = edge != ImgViewerCropEdge::None, .needs_render = changed};
     }
 
     if (drawing_pixel_selection_) {
@@ -749,7 +901,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     const ImgViewerSnapshot& viewer,
     D2D1_SIZE_U viewport_size)
 {
-    if (!active_ || (!drawing_stroke_ && !drawing_crop_ && !drawing_pixel_selection_)) {
+    if (!active_ || (!drawing_stroke_ && !dragging_crop_edge_ && !drawing_pixel_selection_)) {
         return {};
     }
 
@@ -758,24 +910,18 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
         current_stroke_.points.push_back(document_point);
     }
 
-    if (drawing_crop_) {
-        D2D1_RECT_F crop_rect = current_crop_rect_;
+    if (dragging_crop_edge_) {
         if (DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
-            crop_rect = NormalizedRect(crop_start_, document_point, document_.source_size);
-        }
-        if (IsUsefulRect(crop_rect)) {
-            PushHistory(HistoryEntry{
-                .kind = HistoryKind::Crop,
-                .previous_crop_rect = document_.crop_rect,
-                .previous_has_crop = document_.has_crop,
-                .crop_rect = crop_rect,
-            });
-            document_.crop_rect = crop_rect;
-            document_.has_crop = true;
-            document_.dirty = true;
+            if (dragging_crop_edge_kind_ == ImgViewerCropEdge::None) {
+                pending_crop_rect_ = ClampCropRect(NormalizedRect(crop_start_, document_point, document_.source_size));
+            } else {
+                UpdatePendingCropEdge(document_point);
+            }
         }
         drawing_crop_ = false;
-        current_crop_rect_ = D2D1_RECT_F{};
+        dragging_crop_edge_ = false;
+        dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
+        current_crop_rect_ = pending_crop_rect_;
         return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
     }
 
@@ -956,6 +1102,91 @@ bool ImgViewerEditController::DocumentPointFromViewportPoint(
         document_point->y >= 0.0f &&
         document_point->x < static_cast<float>(document_.source_size.width) &&
         document_point->y < static_cast<float>(document_.source_size.height);
+}
+
+float ImgViewerEditController::DocumentHitSlop(const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size) const
+{
+    if (viewport_size.width == 0 || viewport_size.height == 0 || viewer.pixel_size.width == 0 || viewer.pixel_size.height == 0) {
+        return 8.0f;
+    }
+
+    const float image_scale = math::FitScale(viewer.pixel_size, viewport_size) * viewer.zoom_multiplier;
+    return image_scale > 0.0f ? (std::max)(2.0f, 8.0f / image_scale) : 8.0f;
+}
+
+ImgViewerCropEdge ImgViewerEditController::CropEdgeAt(D2D1_POINT_2F document_point, float hit_slop) const
+{
+    if (!has_pending_crop_ || !IsUsefulRect(pending_crop_rect_)) {
+        return ImgViewerCropEdge::None;
+    }
+
+    const bool within_vertical_span =
+        document_point.y >= pending_crop_rect_.top - hit_slop &&
+        document_point.y <= pending_crop_rect_.bottom + hit_slop;
+    const bool within_horizontal_span =
+        document_point.x >= pending_crop_rect_.left - hit_slop &&
+        document_point.x <= pending_crop_rect_.right + hit_slop;
+    const float left_distance = std::abs(document_point.x - pending_crop_rect_.left);
+    const float right_distance = std::abs(document_point.x - pending_crop_rect_.right);
+    const float top_distance = std::abs(document_point.y - pending_crop_rect_.top);
+    const float bottom_distance = std::abs(document_point.y - pending_crop_rect_.bottom);
+
+    ImgViewerCropEdge edge = ImgViewerCropEdge::None;
+    float best_distance = hit_slop;
+    if (within_vertical_span && left_distance <= best_distance) {
+        edge = ImgViewerCropEdge::Left;
+        best_distance = left_distance;
+    }
+    if (within_vertical_span && right_distance <= best_distance) {
+        edge = ImgViewerCropEdge::Right;
+        best_distance = right_distance;
+    }
+    if (within_horizontal_span && top_distance <= best_distance) {
+        edge = ImgViewerCropEdge::Top;
+        best_distance = top_distance;
+    }
+    if (within_horizontal_span && bottom_distance <= best_distance) {
+        edge = ImgViewerCropEdge::Bottom;
+    }
+    return edge;
+}
+
+D2D1_RECT_F ImgViewerEditController::ClampCropRect(D2D1_RECT_F rect) const
+{
+    constexpr float kMinimumCropSize = 2.0f;
+    const float width = static_cast<float>(document_.source_size.width);
+    const float height = static_cast<float>(document_.source_size.height);
+    rect.left = std::clamp(rect.left, 0.0f, (std::max)(0.0f, width - kMinimumCropSize));
+    rect.top = std::clamp(rect.top, 0.0f, (std::max)(0.0f, height - kMinimumCropSize));
+    rect.right = std::clamp(rect.right, rect.left + kMinimumCropSize, width);
+    rect.bottom = std::clamp(rect.bottom, rect.top + kMinimumCropSize, height);
+    return PixelAlignedRect(rect, document_.source_size);
+}
+
+void ImgViewerEditController::UpdatePendingCropEdge(D2D1_POINT_2F document_point)
+{
+    constexpr float kMinimumCropSize = 2.0f;
+    D2D1_RECT_F rect = pending_crop_rect_;
+    const float width = static_cast<float>(document_.source_size.width);
+    const float height = static_cast<float>(document_.source_size.height);
+    switch (dragging_crop_edge_kind_) {
+    case ImgViewerCropEdge::Left:
+        rect.left = std::clamp(document_point.x, 0.0f, rect.right - kMinimumCropSize);
+        break;
+    case ImgViewerCropEdge::Right:
+        rect.right = std::clamp(document_point.x, rect.left + kMinimumCropSize, width);
+        break;
+    case ImgViewerCropEdge::Top:
+        rect.top = std::clamp(document_point.y, 0.0f, rect.bottom - kMinimumCropSize);
+        break;
+    case ImgViewerCropEdge::Bottom:
+        rect.bottom = std::clamp(document_point.y, rect.top + kMinimumCropSize, height);
+        break;
+    case ImgViewerCropEdge::None:
+        break;
+    }
+    pending_crop_rect_ = ClampCropRect(rect);
+    active_crop_edge_ = dragging_crop_edge_kind_;
 }
 
 void ImgViewerEditController::PushHistory(HistoryEntry entry)
