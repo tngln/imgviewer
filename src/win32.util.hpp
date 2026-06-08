@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <imm.h>
 #include <string>
 
 namespace util {
@@ -12,7 +13,8 @@ int ResizeBorderThicknessForDpi(UINT dpi);
 std::wstring FileNameFromPath(const wchar_t* path, const wchar_t* fallback);
 HRESULT ApplyDwmFrame(HWND hwnd, bool borderless);
 HRESULT ShowFileInExplorer(const wchar_t* path);
-void DisableIme(HWND hwnd);
+HIMC DisableIme(HWND hwnd);
+void AssociateImeContext(HWND hwnd, HIMC context);
 void TrackMouseLeave(HWND hwnd);
 HRESULT InitializeDpiAwareness();
 bool CaptureWindowSize(HWND hwnd, int* width, int* height);

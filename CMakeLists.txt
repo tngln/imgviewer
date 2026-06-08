@@ -51,6 +51,7 @@ add_executable(imgviewer
     src/ui.surface.cc
     src/ui.table.cc
     src/ui.text.cc
+    src/ui.text_edit_state.cc
     src/ui.textbox.cc
     src/ui.toast.cc
     src/ui.tooltip.cc

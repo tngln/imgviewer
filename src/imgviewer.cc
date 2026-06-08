@@ -313,6 +313,7 @@ void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context)
     if (hwnd != nullptr && GetCapture() == hwnd) {
         ReleaseCapture();
     }
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
 bool CommitImgViewerCropAndCenter(HWND, ImgViewerContext* context)
@@ -348,6 +349,7 @@ bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
         SyncImgViewerAnimationTimer(hwnd, context);
     }
     ShowImgViewerToast(hwnd, context, L"Edit mode on.");
+    SyncImgViewerMainWindowIme(hwnd, context);
     return true;
 }
 
@@ -362,6 +364,7 @@ void ExitImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
     context->edit.SetActive(false);
     context->interaction.EnterViewing();
     ShowImgViewerToast(hwnd, context, L"Edit mode off.");
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
 void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditTool tool, const wchar_t* toast_text)
@@ -387,6 +390,7 @@ void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditToo
     } else {
         RenderImgViewer(context);
     }
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
 void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool active)
@@ -414,6 +418,7 @@ void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool ac
     } else {
         ClearImgViewerColorPickerState(context);
     }
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
 bool UpdateImgViewerColorPickerSample(ImgViewerContext* context, D2D1_POINT_2F point)
@@ -1176,6 +1181,7 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
 
     if (context->edit.HasDocument()) {
         CommitImgViewerCropAndCenter(hwnd, context);
+        context->edit.CommitTextEditSession();
         wil::com_ptr<IWICBitmapSource> edited_source;
         const HRESULT export_hr = context->edit.ExportPngSource(context->viewer.WicFactory(), edited_source.put());
         ImageEncoder encoder;

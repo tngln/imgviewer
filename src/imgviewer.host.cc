@@ -3,6 +3,7 @@
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "imgviewer.edit_geometry.hpp"
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.action.hpp"
@@ -16,10 +17,15 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include <algorithm>
 #include <commctrl.h>
+#include <cmath>
+#include <imm.h>
 #include <shellapi.h>
+#include <string>
 #include <vector>
 
+#include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
@@ -86,6 +92,140 @@ size_t KeyActionIndex(WPARAM wparam)
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
 }
 
+std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam)
+{
+    if ((lparam & GCS_COMPSTR) == 0) {
+        return {};
+    }
+
+    HIMC ime = ImmGetContext(hwnd);
+    if (ime == nullptr) {
+        return {};
+    }
+
+    const LONG bytes = ImmGetCompositionStringW(ime, GCS_COMPSTR, nullptr, 0);
+    std::wstring text(bytes > 0 ? static_cast<size_t>(bytes) / sizeof(wchar_t) : 0, L'\0');
+    if (!text.empty()) {
+        ImmGetCompositionStringW(ime, GCS_COMPSTR, text.data(), bytes);
+    }
+    ImmReleaseContext(hwnd, ime);
+    return text;
+}
+
+bool EditingTextCaretPoint(ImgViewerContext* context, D2D1_POINT_2F* point)
+{
+    if (context == nullptr || point == nullptr) {
+        return false;
+    }
+
+    const ImgViewerEditSnapshot edit = context->edit.Snapshot();
+    if (!edit.active || !edit.editing_text || edit.editing_text_index >= edit.texts.size()) {
+        return false;
+    }
+
+    constexpr float kPaddingX = 6.0f;
+    constexpr float kPaddingY = 4.0f;
+    const ImgViewerEditText& text = edit.texts[edit.editing_text_index];
+    const float font_size = (std::max)(6.0f, text.style.font_size);
+    wil::com_ptr<IDWriteTextFormat> format;
+    if (FAILED(context->renderer.DWriteFactory()->CreateTextFormat(
+            text.style.font_family.c_str(),
+            nullptr,
+            DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            font_size,
+            L"",
+            format.put()))) {
+        return false;
+    }
+    if (FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP))) {
+        return false;
+    }
+
+    const TextEditState& edit_state = edit.editing_text_state;
+    const std::wstring display_text = edit_state.DisplayText().empty() ? L" " : edit_state.DisplayText();
+    const float width = (std::max)(48.0f, static_cast<float>(display_text.size()) * font_size * 0.55f + kPaddingX * 2.0f);
+    wil::com_ptr<IDWriteTextLayout> layout;
+    if (FAILED(context->renderer.DWriteFactory()->CreateTextLayout(
+            display_text.c_str(),
+            static_cast<UINT32>(display_text.size()),
+            format.get(),
+            width,
+            4096.0f,
+            layout.put()))) {
+        return false;
+    }
+
+    const D2D1_POINT_2F origin = D2D1::Point2F(text.origin.x + kPaddingX, text.origin.y + kPaddingY);
+    D2D1_POINT_2F caret_top = origin;
+    D2D1_POINT_2F caret_bottom = origin;
+    if (!edit_state.CaretMetrics(layout.get(), origin, &caret_top, &caret_bottom)) {
+        return false;
+    }
+    *point = caret_bottom;
+    return true;
+}
+
+D2D1_POINT_2F DocumentPointToViewportPoint(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit, D2D1_POINT_2F point, D2D1_SIZE_U viewport_size)
+{
+    const D2D1_SIZE_U preview_size = imgviewer_edit_geometry::EditPreviewSize(image.pixel_size, edit.rotation_quadrants);
+    const float image_scale = math::FitScale(preview_size, viewport_size) * image.zoom_multiplier;
+    const D2D1_POINT_2F viewport_center = D2D1::Point2F(
+        static_cast<float>(viewport_size.width) * 0.5f,
+        static_cast<float>(viewport_size.height) * 0.5f);
+    const D2D1_POINT_2F preview_view_center = imgviewer_edit_geometry::SourcePointToEditPreviewPoint(
+        image.view_center,
+        image.pixel_size,
+        edit.rotation_quadrants);
+    const D2D1_MATRIX_3X2_F transform =
+        imgviewer_edit_geometry::SourceToEditPreviewTransform(image.pixel_size, edit.rotation_quadrants) *
+        D2D1::Matrix3x2F::Translation(-preview_view_center.x, -preview_view_center.y) *
+        D2D1::Matrix3x2F::Scale(image_scale, image_scale) *
+        D2D1::Matrix3x2F::Scale(
+            image.flipped_horizontal ? -1.0f : 1.0f,
+            image.flipped_vertical ? -1.0f : 1.0f,
+            D2D1::Point2F(0.0f, 0.0f)) *
+        D2D1::Matrix3x2F::Rotation(image.rotation_degrees, D2D1::Point2F(0.0f, 0.0f)) *
+        D2D1::Matrix3x2F::Translation(viewport_center.x, viewport_center.y);
+    return D2D1::Point2F(
+        point.x * transform._11 + point.y * transform._21 + transform._31,
+        point.x * transform._12 + point.y * transform._22 + transform._32);
+}
+
+void PositionMainWindowIme(HWND hwnd, ImgViewerContext* context)
+{
+    if (context == nullptr || !context->edit.IsEditingText()) {
+        return;
+    }
+
+    D2D1_POINT_2F caret_document_point = {};
+    if (!EditingTextCaretPoint(context, &caret_document_point)) {
+        return;
+    }
+
+    const ImgViewerSnapshot image = context->viewer.Snapshot();
+    const ImgViewerEditSnapshot edit = context->edit.Snapshot();
+    const D2D1_SIZE_U viewport_size = context->renderer.ViewportPixelSize();
+    if (image.bitmap == nullptr || viewport_size.width == 0 || viewport_size.height == 0) {
+        return;
+    }
+
+    const D2D1_POINT_2F caret_viewport_point = DocumentPointToViewportPoint(image, edit, caret_document_point, viewport_size);
+    HIMC ime = ImmGetContext(hwnd);
+    if (ime == nullptr) {
+        return;
+    }
+    COMPOSITIONFORM form = {};
+    form.dwStyle = CFS_POINT;
+    form.ptCurrentPos = POINT{
+        static_cast<LONG>(std::floor(caret_viewport_point.x)),
+        static_cast<LONG>(std::floor(caret_viewport_point.y)),
+    };
+    ImmSetCompositionWindow(ime, &form);
+    ImmReleaseContext(hwnd, ime);
+}
+
 void SyncPopupModal(ImgViewerContext* context);
 
 void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
@@ -97,6 +237,7 @@ void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
     if (context->ui.Root() != nullptr && context->ui.Root()->HandleUiAction(action, &context->popup)) {
         SyncPopupModal(context);
         RenderImgViewer(context);
+        SyncImgViewerMainWindowIme(hwnd, context);
         return;
     }
 
@@ -108,6 +249,7 @@ void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
 
     ExecuteImgViewerAction(hwnd, context, viewer_action);
     SyncPopupModal(context);
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
 void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
@@ -130,12 +272,14 @@ void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
 
     if (result.needs_render) {
         RenderImgViewer(context);
+        PositionMainWindowIme(hwnd, context);
     }
 
     DispatchUiAction(hwnd, context, result.action);
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
-void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
+void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, ImgViewerEventResult result)
 {
     if (context == nullptr) {
         return;
@@ -150,7 +294,10 @@ void RenderIfNeeded(ImgViewerContext* context, ImgViewerEventResult result)
 
     if (result.needs_render) {
         RenderImgViewer(context);
+        PositionMainWindowIme(hwnd, context);
     }
+
+    SyncImgViewerMainWindowIme(hwnd, context);
 }
 
 void ClosePopup(ImgViewerContext* context)
@@ -548,7 +695,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer) {
                 canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
             }
-            RenderIfNeeded(context, canvas_result);
+            RenderIfNeeded(hwnd, context, canvas_result);
         }
         return 0;
     }
@@ -602,7 +749,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             SetCapture(hwnd);
         }
         RenderIfNeeded(hwnd, context, ui_result);
-        RenderIfNeeded(context, viewer_result);
+        RenderIfNeeded(hwnd, context, viewer_result);
         return (ui_result.handled || viewer_result.handled) ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
@@ -618,7 +765,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 context->viewer.Snapshot(),
                 context->renderer.ViewportPixelSize());
         }
-        RenderIfNeeded(context, edit_result);
+        RenderIfNeeded(hwnd, context, edit_result);
         return edit_result.handled ? 0 : DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
@@ -640,7 +787,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
             }
         }
-        RenderIfNeeded(context, viewer_result);
+        RenderIfNeeded(hwnd, context, viewer_result);
         UiEventResult ui_result = {};
         if (context != nullptr &&
             !viewer_result.handled &&
@@ -766,9 +913,29 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
 
         SyncKeyboardOwner(context);
         if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
+            if (!key.modifiers.alt && key.modifiers.ctrl) {
+                UiAction text_action = kUiActionNone;
+                if (wparam == 'A') {
+                    text_action = kUiActionTextSelectAll;
+                } else if (wparam == 'C') {
+                    text_action = kUiActionTextCopy;
+                } else if (wparam == 'X') {
+                    text_action = kUiActionTextCut;
+                } else if (wparam == 'V') {
+                    text_action = kUiActionTextPaste;
+                }
+                if (text_action != kUiActionNone) {
+                    if (context->edit.ExecuteTextEditAction(text_action, hwnd)) {
+                        RenderImgViewer(context);
+                        PositionMainWindowIme(hwnd, context);
+                    }
+                    return 0;
+                }
+            }
             if (!key.modifiers.ctrl && !key.modifiers.alt) {
-                if (context->edit.OnTextKeyDown(static_cast<UINT>(wparam))) {
+                if (context->edit.OnTextKeyDown(static_cast<UINT>(wparam), key.modifiers.shift)) {
                     RenderImgViewer(context);
+                    PositionMainWindowIme(hwnd, context);
                 }
                 return 0;
             }
@@ -794,6 +961,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             context->edit.HasSelection()) {
             context->edit.CancelSelection();
             RenderImgViewer(context);
+            SyncImgViewerMainWindowIme(hwnd, context);
             return 0;
         }
 
@@ -829,6 +997,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         }
         if (action != ImgViewerAction::None) {
             ExecuteImgViewerAction(hwnd, context, action);
+            SyncImgViewerMainWindowIme(hwnd, context);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -841,6 +1010,42 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText &&
             context->edit.OnTextInput(static_cast<wchar_t>(wparam))) {
             RenderImgViewer(context);
+            PositionMainWindowIme(hwnd, context);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_IME_STARTCOMPOSITION: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        SyncKeyboardOwner(context);
+        if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
+            PositionMainWindowIme(hwnd, context);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_IME_COMPOSITION: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        SyncKeyboardOwner(context);
+        if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
+            if (context->edit.UpdateTextImeComposition(ImeCompositionString(hwnd, lparam))) {
+                RenderImgViewer(context);
+                PositionMainWindowIme(hwnd, context);
+            }
+            return 0;
+        }
+        return DefWindowProcW(hwnd, message, wparam, lparam);
+    }
+
+    case WM_IME_ENDCOMPOSITION: {
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        SyncKeyboardOwner(context);
+        if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
+            if (context->edit.EndTextImeComposition()) {
+                RenderImgViewer(context);
+            }
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -881,7 +1086,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 ? context->viewer.OnActionUp(action)
                 : ImgViewerEventResult{};
         if (viewer_result.handled) {
-            RenderIfNeeded(context, viewer_result);
+            RenderIfNeeded(hwnd, context, viewer_result);
             return 0;
         }
         return DefWindowProcW(hwnd, message, wparam, lparam);
@@ -952,6 +1157,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         KillTimer(hwnd, kImgViewerAnimationTimerId);
         if (ImgViewerContext* context = GetImgViewerContext(hwnd)) {
             context->popup.Close();
+            if (context->main_window_ime_context != nullptr) {
+                util::AssociateImeContext(hwnd, context->main_window_ime_context);
+                context->main_window_ime_enabled = true;
+            }
             SaveWindowSize(hwnd, context);
         }
         PostQuitMessage(0);
@@ -1011,7 +1220,8 @@ HRESULT RunImgViewerApplicationAsHresult()
         },
         &window_delegate));
     DragAcceptFiles(window.Hwnd(), TRUE);
-    util::DisableIme(window.Hwnd());
+    context.main_window_ime_context = util::DisableIme(window.Hwnd());
+    context.main_window_ime_enabled = false;
     RETURN_IF_FAILED(ApplyImgViewerWindowFrame(window.Hwnd(), &context, false));
 
     window.Show(SW_SHOWDEFAULT);
@@ -1048,6 +1258,34 @@ HRESULT RunImgViewerApplicationAsHresult()
 }
 
 } // namespace
+
+void SyncImgViewerMainWindowIme(HWND hwnd, ImgViewerContext* context)
+{
+    if (hwnd == nullptr || context == nullptr) {
+        return;
+    }
+
+    const bool should_enable = context->edit.IsEditingText() && context->main_window_ime_context != nullptr;
+    if (context->main_window_ime_enabled == should_enable) {
+        if (should_enable) {
+            PositionMainWindowIme(hwnd, context);
+        }
+        return;
+    }
+
+    if (!should_enable) {
+        if (HIMC ime = ImmGetContext(hwnd)) {
+            ImmNotifyIME(ime, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+            ImmReleaseContext(hwnd, ime);
+        }
+    }
+
+    util::AssociateImeContext(hwnd, should_enable ? context->main_window_ime_context : nullptr);
+    context->main_window_ime_enabled = should_enable;
+    if (should_enable) {
+        PositionMainWindowIme(hwnd, context);
+    }
+}
 
 int RunImgViewerApplication()
 {

@@ -11,6 +11,8 @@
 #include <wil/com.h>
 
 #include "imgviewer.viewer.hpp"
+#include "ui.action.hpp"
+#include "ui.text_edit_state.hpp"
 
 enum class ImgViewerEditTool {
     Select,
@@ -126,6 +128,7 @@ struct ImgViewerEditSnapshot final {
     ImgViewerEditObjectRef selected_object;
     bool editing_text = false;
     size_t editing_text_index = 0;
+    TextEditState editing_text_state;
 };
 
 class ImgViewerEditController final {
@@ -169,6 +172,7 @@ public:
     void BeginCropSession();
     bool CommitCropSession();
     bool CancelCropSession();
+    bool CommitTextEditSession();
     bool RotateClockwise();
     bool Undo();
     bool Redo();
@@ -178,10 +182,13 @@ public:
     void ClearPixelSelection();
     bool DeleteSelection();
     bool BeginTextEditOnSelection();
+    bool ExecuteTextEditAction(UiAction action, HWND hwnd);
     HRESULT CopySelectedPixels(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const;
     bool MosaicSelection();
     bool OnTextInput(wchar_t character);
-    bool OnTextKeyDown(UINT virtual_key);
+    bool OnTextKeyDown(UINT virtual_key, bool shift = false);
+    bool UpdateTextImeComposition(std::wstring composition);
+    bool EndTextImeComposition();
 
     ImgViewerEventResult OnPointerDown(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
     ImgViewerEventResult OnPointerMove(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
@@ -200,6 +207,7 @@ private:
         Mosaic,
         DeleteObject,
         MoveObject,
+        EditTextObject,
     };
 
     struct HistoryEntry final {
@@ -232,6 +240,9 @@ private:
     bool CaptureMoveOriginal(ImgViewerEditObjectRef object);
     bool ApplyObjectOffset(ImgViewerEditObjectRef object, D2D1_POINT_2F offset);
     bool CommitObjectMove();
+    bool BeginTextEditSession(size_t index, bool created_new_object);
+    bool CancelTextEditSession();
+    void SyncTextEditObject();
     void PushHistory(HistoryEntry entry);
 
     ImgViewerEditDocument document_;
@@ -254,6 +265,9 @@ private:
     bool has_selected_object_ = false;
     bool moving_selected_object_ = false;
     size_t editing_text_index_ = 0;
+    TextEditState text_edit_;
+    ImgViewerEditText text_edit_original_;
+    bool text_edit_created_new_object_ = false;
     ImgViewerEditObjectRef selected_object_;
     D2D1_POINT_2F move_start_document_point_ = {};
     ImgViewerEditStroke move_original_stroke_;

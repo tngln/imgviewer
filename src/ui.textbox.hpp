@@ -8,6 +8,7 @@
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 #include "ui.menu.hpp"
+#include "ui.text_edit_state.hpp"
 
 class TextBox final : public UiElement {
 public:
@@ -32,25 +33,14 @@ private:
     UiEventResult InsertCharacter(wchar_t ch);
     UiEventResult UpdateImeComposition(std::wstring composition);
     UiEventResult EndImeComposition();
-    bool HasSelection() const;
-    size_t SelectionStart() const;
-    size_t SelectionEnd() const;
-    void DeleteSelection();
-    void InsertText(const std::wstring& text);
-    void MoveCaret(size_t index, bool extend_selection);
     size_t HitTest(D2D1_POINT_2F point) const;
     wil::com_ptr<IDWriteTextLayout> CreateLayout(const std::wstring& value, float width) const;
-    std::wstring DisplayText() const;
     void UpdateHorizontalScroll();
-    std::wstring SelectedText() const;
     bool CopySelection(HWND hwnd) const;
     bool PasteClipboard(HWND hwnd);
 
     const wchar_t* placeholder_ = L"";
-    std::wstring text_;
-    std::wstring composition_;
-    size_t caret_ = 0;
-    size_t anchor_ = 0;
+    TextEditState edit_;
     float horizontal_scroll_ = 0.0f;
     mutable bool caret_visible_ = true;
     bool dragging_ = false;

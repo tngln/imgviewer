@@ -12,6 +12,7 @@
 
 #include "imgviewer.edit_geometry.hpp"
 #include "math.hpp"
+#include "win32.clipboard.hpp"
 
 namespace {
 
@@ -149,7 +150,19 @@ bool SameStroke(const ImgViewerEditStroke& left, const ImgViewerEditStroke& righ
 
 bool SameTextObject(const ImgViewerEditText& left, const ImgViewerEditText& right)
 {
-    return SamePoint(left.origin, right.origin) && left.text == right.text;
+    return SamePoint(left.origin, right.origin) &&
+        left.text == right.text &&
+        left.style.font_family == right.style.font_family &&
+        std::abs(left.style.font_size - right.style.font_size) < 0.001f &&
+        left.style.has_background == right.style.has_background &&
+        left.style.text_color.r == right.style.text_color.r &&
+        left.style.text_color.g == right.style.text_color.g &&
+        left.style.text_color.b == right.style.text_color.b &&
+        left.style.text_color.a == right.style.text_color.a &&
+        left.style.background_color.r == right.style.background_color.r &&
+        left.style.background_color.g == right.style.background_color.g &&
+        left.style.background_color.b == right.style.background_color.b &&
+        left.style.background_color.a == right.style.background_color.a;
 }
 
 bool SameMosaic(const ImgViewerEditMosaic& left, const ImgViewerEditMosaic& right)
@@ -589,6 +602,7 @@ ImgViewerEditSnapshot ImgViewerEditController::Snapshot() const
         .selected_object = SelectedObject(),
         .editing_text = editing_text_,
         .editing_text_index = editing_text_index_,
+        .editing_text_state = text_edit_,
     };
 }
 
@@ -625,6 +639,9 @@ HRESULT ImgViewerEditController::Begin(
     has_selected_object_ = false;
     moving_selected_object_ = false;
     editing_text_index_ = 0;
+    text_edit_ = TextEditState{};
+    text_edit_original_ = ImgViewerEditText{};
+    text_edit_created_new_object_ = false;
     current_crop_rect_ = D2D1_RECT_F{};
     pending_crop_rect_ = D2D1_RECT_F{};
     crop_session_original_rect_ = D2D1_RECT_F{};
@@ -661,6 +678,9 @@ void ImgViewerEditController::Clear()
     has_selected_object_ = false;
     moving_selected_object_ = false;
     editing_text_index_ = 0;
+    text_edit_ = TextEditState{};
+    text_edit_original_ = ImgViewerEditText{};
+    text_edit_created_new_object_ = false;
     current_crop_rect_ = D2D1_RECT_F{};
     pending_crop_rect_ = D2D1_RECT_F{};
     crop_session_original_rect_ = D2D1_RECT_F{};
@@ -679,6 +699,9 @@ void ImgViewerEditController::SetActive(bool active)
     if (!active && active_ && tool_ == ImgViewerEditTool::Crop) {
         CommitCropSession();
     }
+    if (!active && active_) {
+        CommitTextEditSession();
+    }
     active_ = active && HasDocument();
     if (active_ && tool_ == ImgViewerEditTool::Crop) {
         BeginCropSession();
@@ -690,6 +713,9 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     if (tool_ == ImgViewerEditTool::Crop && tool != ImgViewerEditTool::Crop) {
         CommitCropSession();
     }
+    if (tool_ != tool) {
+        CommitTextEditSession();
+    }
     tool_ = tool;
     drawing_stroke_ = false;
     drawing_shape_ = false;
@@ -697,7 +723,6 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     dragging_crop_edge_ = false;
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     drawing_pixel_selection_ = false;
-    editing_text_ = false;
     moving_selected_object_ = false;
     current_stroke_ = ImgViewerEditStroke{};
     current_shape_ = ImgViewerEditShape{};
@@ -740,7 +765,6 @@ void ImgViewerEditController::SetTextFontFamily(std::wstring font_family)
     text_style_.font_family = std::move(font_family);
     if (IsEditingText()) {
         document_.texts[editing_text_index_].style = text_style_;
-        document_.dirty = true;
     }
 }
 
@@ -749,7 +773,6 @@ void ImgViewerEditController::SetTextFontSize(float font_size)
     text_style_.font_size = std::clamp(font_size, 6.0f, 256.0f);
     if (IsEditingText()) {
         document_.texts[editing_text_index_].style = text_style_;
-        document_.dirty = true;
     }
 }
 
@@ -758,7 +781,6 @@ void ImgViewerEditController::SetTextColor(D2D1_COLOR_F color)
     text_style_.text_color = color;
     if (IsEditingText()) {
         document_.texts[editing_text_index_].style = text_style_;
-        document_.dirty = true;
     }
 }
 
@@ -768,7 +790,6 @@ void ImgViewerEditController::SetTextBackground(D2D1_COLOR_F color, bool has_bac
     text_style_.has_background = has_background;
     if (IsEditingText()) {
         document_.texts[editing_text_index_].style = text_style_;
-        document_.dirty = true;
     }
 }
 
@@ -863,6 +884,7 @@ bool ImgViewerEditController::RotateClockwise()
 
 bool ImgViewerEditController::Undo()
 {
+    CommitTextEditSession();
     if (undo_stack_.empty()) {
         return false;
     }
@@ -944,6 +966,12 @@ bool ImgViewerEditController::Undo()
         }
         CancelSelection();
         break;
+    case HistoryKind::EditTextObject:
+        if (entry.object.index < document_.texts.size()) {
+            document_.texts[entry.object.index] = entry.text;
+        }
+        CancelSelection();
+        break;
     }
     document_.dirty = !undo_stack_.empty();
     return true;
@@ -951,6 +979,7 @@ bool ImgViewerEditController::Undo()
 
 bool ImgViewerEditController::Redo()
 {
+    CommitTextEditSession();
     if (redo_stack_.empty()) {
         return false;
     }
@@ -1023,6 +1052,12 @@ bool ImgViewerEditController::Redo()
         }
         CancelSelection();
         break;
+    case HistoryKind::EditTextObject:
+        if (entry.object.index < document_.texts.size()) {
+            document_.texts[entry.object.index] = entry.after_text;
+        }
+        CancelSelection();
+        break;
     }
     undo_stack_.push_back(entry);
     document_.dirty = true;
@@ -1036,6 +1071,7 @@ void ImgViewerEditController::MarkSaved()
 
 void ImgViewerEditController::CancelTransientTool()
 {
+    CommitTextEditSession();
     current_stroke_ = ImgViewerEditStroke{};
     current_shape_ = ImgViewerEditShape{};
     drawing_stroke_ = false;
@@ -1045,7 +1081,6 @@ void ImgViewerEditController::CancelTransientTool()
     dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
     drawing_pixel_selection_ = false;
     moving_selected_object_ = false;
-    editing_text_ = false;
     editing_text_index_ = 0;
     current_crop_rect_ = has_pending_crop_ ? pending_crop_rect_ : D2D1_RECT_F{};
     current_pixel_selection_rect_ = D2D1_RECT_F{};
@@ -1068,6 +1103,7 @@ void ImgViewerEditController::ClearPixelSelection()
 
 bool ImgViewerEditController::DeleteSelection()
 {
+    CommitTextEditSession();
     if (!HasSelection()) {
         return false;
     }
@@ -1111,9 +1147,45 @@ bool ImgViewerEditController::BeginTextEditOnSelection()
         return false;
     }
 
-    editing_text_index_ = selected_object_.index;
-    editing_text_ = true;
-    return true;
+    return BeginTextEditSession(selected_object_.index, false);
+}
+
+bool ImgViewerEditController::ExecuteTextEditAction(UiAction action, HWND hwnd)
+{
+    if (!IsEditingText()) {
+        return false;
+    }
+
+    if (action == kUiActionTextCopy) {
+        const std::wstring selected = text_edit_.SelectedText();
+        return !selected.empty() && win32::CopyTextToClipboard(hwnd, selected.c_str());
+    }
+
+    if (action == kUiActionTextCut) {
+        const std::wstring selected = text_edit_.SelectedText();
+        if (selected.empty() || !win32::CopyTextToClipboard(hwnd, selected.c_str())) {
+            return false;
+        }
+        const bool changed = text_edit_.Delete();
+        SyncTextEditObject();
+        return changed;
+    }
+
+    if (action == kUiActionTextPaste) {
+        std::wstring text;
+        if (!win32::ReadClipboardText(hwnd, &text) || !text_edit_.InsertText(text)) {
+            return false;
+        }
+        SyncTextEditObject();
+        return true;
+    }
+
+    if (action == kUiActionTextSelectAll) {
+        text_edit_.SelectAll();
+        return true;
+    }
+
+    return false;
 }
 
 HRESULT ImgViewerEditController::CopySelectedPixels(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const
@@ -1153,48 +1225,87 @@ bool ImgViewerEditController::MosaicSelection()
 
 bool ImgViewerEditController::OnTextInput(wchar_t character)
 {
-    if (!active_ || !editing_text_ || editing_text_index_ >= document_.texts.size()) {
+    if (!IsEditingText()) {
         return false;
     }
 
-    if (character < L' ' || character == 0x7F) {
+    if (!text_edit_.InsertCharacter(character)) {
         return false;
     }
 
-    document_.texts[editing_text_index_].text.push_back(character);
-    document_.dirty = true;
+    SyncTextEditObject();
     return true;
 }
 
-bool ImgViewerEditController::OnTextKeyDown(UINT virtual_key)
+bool ImgViewerEditController::OnTextKeyDown(UINT virtual_key, bool shift)
 {
-    if (!active_ || !editing_text_ || editing_text_index_ >= document_.texts.size()) {
+    if (!IsEditingText()) {
         return false;
     }
 
     if (virtual_key == VK_BACK) {
-        std::wstring& text = document_.texts[editing_text_index_].text;
-        if (!text.empty()) {
-            text.pop_back();
-            document_.dirty = true;
-        }
-        return true;
-    }
-
-    if (virtual_key == VK_SPACE) {
+        text_edit_.Backspace();
+        SyncTextEditObject();
         return true;
     }
 
     if (virtual_key == VK_DELETE) {
+        text_edit_.Delete();
+        SyncTextEditObject();
         return true;
     }
 
-    if (virtual_key == VK_ESCAPE || virtual_key == VK_RETURN) {
-        editing_text_ = false;
+    if (virtual_key == VK_LEFT) {
+        text_edit_.MoveLeft(shift);
+        return true;
+    }
+
+    if (virtual_key == VK_RIGHT) {
+        text_edit_.MoveRight(shift);
+        return true;
+    }
+
+    if (virtual_key == VK_HOME) {
+        text_edit_.MoveHome(shift);
+        return true;
+    }
+
+    if (virtual_key == VK_END) {
+        text_edit_.MoveEnd(shift);
+        return true;
+    }
+
+    if (virtual_key == VK_ESCAPE) {
+        CancelTextEditSession();
+        return true;
+    }
+
+    if (virtual_key == VK_RETURN) {
+        CommitTextEditSession();
         return true;
     }
 
     return false;
+}
+
+bool ImgViewerEditController::UpdateTextImeComposition(std::wstring composition)
+{
+    if (!IsEditingText()) {
+        return false;
+    }
+
+    text_edit_.SetComposition(std::move(composition));
+    return true;
+}
+
+bool ImgViewerEditController::EndTextImeComposition()
+{
+    if (!IsEditingText()) {
+        return false;
+    }
+
+    text_edit_.ClearComposition();
+    return true;
 }
 
 ImgViewerEventResult ImgViewerEditController::OnPointerDown(
@@ -1212,7 +1323,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
     }
 
     if (tool_ == ImgViewerEditTool::Select) {
-        editing_text_ = false;
+        CommitTextEditSession();
         ImgViewerEditObjectRef object;
         if (!HitTestObject(document_point, DocumentHitSlop(viewer, viewport_size), &object)) {
             const bool had_selection = HasSelection();
@@ -1261,16 +1372,14 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
     }
 
     if (tool_ == ImgViewerEditTool::Text) {
+        CommitTextEditSession();
         ImgViewerEditText text{
             .origin = document_point,
             .text = L"",
             .style = text_style_,
         };
         document_.texts.push_back(text);
-        document_.dirty = true;
-        PushHistory(HistoryEntry{.kind = HistoryKind::Text, .text = text});
-        editing_text_index_ = document_.texts.size() - 1;
-        editing_text_ = true;
+        BeginTextEditSession(document_.texts.size() - 1, true);
         return ImgViewerEventResult{.handled = true, .needs_render = true};
     }
 
@@ -1467,8 +1576,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDoubleClick(
     selected_object_ = object;
     has_selected_object_ = true;
     if (object.kind == ImgViewerEditObjectKind::Text) {
-        editing_text_index_ = object.index;
-        editing_text_ = true;
+        BeginTextEditSession(object.index, false);
     }
     return ImgViewerEventResult{.handled = true, .needs_render = true};
 }
@@ -1828,6 +1936,102 @@ bool ImgViewerEditController::CommitObjectMove()
     document_.dirty = true;
     PushHistory(entry);
     return true;
+}
+
+bool ImgViewerEditController::BeginTextEditSession(size_t index, bool created_new_object)
+{
+    if (!active_ || index >= document_.texts.size()) {
+        return false;
+    }
+
+    if (IsEditingText() && editing_text_index_ == index) {
+        return true;
+    }
+    CommitTextEditSession();
+
+    editing_text_index_ = index;
+    editing_text_ = true;
+    text_edit_original_ = document_.texts[index];
+    text_edit_created_new_object_ = created_new_object;
+    text_edit_ = TextEditState{};
+    text_edit_.SetText(document_.texts[index].text);
+    text_edit_.MoveEnd(false);
+    text_style_ = document_.texts[index].style;
+    return true;
+}
+
+bool ImgViewerEditController::CommitTextEditSession()
+{
+    if (!IsEditingText()) {
+        return false;
+    }
+
+    SyncTextEditObject();
+    const ImgViewerEditText after = document_.texts[editing_text_index_];
+    const size_t index = editing_text_index_;
+    const bool created_new_object = text_edit_created_new_object_;
+    const bool changed = !SameTextObject(text_edit_original_, after);
+    editing_text_ = false;
+    editing_text_index_ = 0;
+    text_edit_ = TextEditState{};
+    text_edit_created_new_object_ = false;
+
+    if (created_new_object && after.text.empty()) {
+        if (index < document_.texts.size()) {
+            document_.texts.erase(document_.texts.begin() + static_cast<std::ptrdiff_t>(index));
+        }
+        CancelSelection();
+        return true;
+    }
+
+    if (!changed && !created_new_object) {
+        return false;
+    }
+
+    document_.dirty = true;
+    if (created_new_object) {
+        PushHistory(HistoryEntry{.kind = HistoryKind::Text, .text = after});
+    } else {
+        PushHistory(HistoryEntry{
+            .kind = HistoryKind::EditTextObject,
+            .object = ImgViewerEditObjectRef{.kind = ImgViewerEditObjectKind::Text, .index = index},
+            .text = text_edit_original_,
+            .after_text = after,
+        });
+    }
+    return true;
+}
+
+bool ImgViewerEditController::CancelTextEditSession()
+{
+    if (!IsEditingText()) {
+        return false;
+    }
+
+    const size_t index = editing_text_index_;
+    const bool created_new_object = text_edit_created_new_object_;
+    if (created_new_object) {
+        if (index < document_.texts.size()) {
+            document_.texts.erase(document_.texts.begin() + static_cast<std::ptrdiff_t>(index));
+        }
+        CancelSelection();
+    } else {
+        document_.texts[index] = text_edit_original_;
+    }
+    editing_text_ = false;
+    editing_text_index_ = 0;
+    text_edit_ = TextEditState{};
+    text_edit_created_new_object_ = false;
+    return true;
+}
+
+void ImgViewerEditController::SyncTextEditObject()
+{
+    if (!IsEditingText()) {
+        return;
+    }
+    document_.texts[editing_text_index_].text = text_edit_.Text();
+    document_.texts[editing_text_index_].style = text_style_;
 }
 
 ImgViewerCropEdge ImgViewerEditController::CropEdgeAt(D2D1_POINT_2F document_point, float hit_slop) const

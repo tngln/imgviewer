@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <imm.h>
 #include <ole2.h>
 #include <UIAutomationCore.h>
 
@@ -41,6 +42,8 @@ struct ImgViewerContext final {
     int current_window_opacity_percent = 100;
     int current_toolbar_scale_percent = 125;
     std::array<ImgViewerAction, 256> pressed_key_actions = {};
+    HIMC main_window_ime_context = nullptr;
+    bool main_window_ime_enabled = true;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
@@ -67,6 +70,7 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
 void SyncActionStates(ImgViewerContext* context);
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text);
 void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context);
+void SyncImgViewerMainWindowIme(HWND hwnd, ImgViewerContext* context);
 void InvalidateImgViewerInfoPanelAnalysis(ImgViewerContext* context);
 void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context);
 bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context);

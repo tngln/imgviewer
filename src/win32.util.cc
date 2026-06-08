@@ -65,9 +65,14 @@ HRESULT ShowFileInExplorer(const wchar_t* path)
     return S_OK;
 }
 
-void DisableIme(HWND hwnd)
+HIMC DisableIme(HWND hwnd)
 {
-    ImmAssociateContext(hwnd, nullptr);
+    return ImmAssociateContext(hwnd, nullptr);
+}
+
+void AssociateImeContext(HWND hwnd, HIMC context)
+{
+    ImmAssociateContext(hwnd, context);
 }
 
 void TrackMouseLeave(HWND hwnd)

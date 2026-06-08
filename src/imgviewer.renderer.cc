@@ -232,6 +232,7 @@ HRESULT DrawEditTextObject(
     IDWriteFactory* dwrite_factory,
     const ImgViewerEditText& text,
     bool editing,
+    const TextEditState* edit_state,
     float image_scale)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
@@ -264,38 +265,43 @@ HRESULT DrawEditTextObject(
         L"",
         format.put()));
     RETURN_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
-    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(text.style.text_color, brush.put()));
-    const std::wstring text_to_draw = text.text.empty() && editing ? L" " : text.text;
-    d2d_context->DrawTextW(
+    const D2D1_RECT_F text_rect = D2D1::RectF(rect.left + kPaddingX, rect.top + kPaddingY, rect.right - kPaddingX, rect.bottom - kPaddingY);
+    const std::wstring text_to_draw = editing && edit_state != nullptr
+        ? (edit_state->DisplayText().empty() ? L" " : edit_state->DisplayText())
+        : (text.text.empty() && editing ? L" " : text.text);
+    wil::com_ptr<IDWriteTextLayout> layout;
+    RETURN_IF_FAILED(dwrite_factory->CreateTextLayout(
         text_to_draw.c_str(),
         static_cast<UINT32>(text_to_draw.size()),
         format.get(),
-        D2D1::RectF(rect.left + kPaddingX, rect.top + kPaddingY, rect.right - kPaddingX, rect.bottom - kPaddingY),
-        brush.get(),
-        D2D1_DRAW_TEXT_OPTIONS_CLIP);
+        (std::max)(1.0f, rect.right - rect.left),
+        4096.0f,
+        layout.put()));
+
+    if (editing && edit_state != nullptr && edit_state->HasSelection()) {
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(ui_theme::color::kAccent.r, ui_theme::color::kAccent.g, ui_theme::color::kAccent.b, 0.32f), brush.put()));
+        for (const DWRITE_HIT_TEST_METRICS& metric : edit_state->SelectionMetrics(layout.get(), D2D1::Point2F(text_rect.left, text_rect.top))) {
+            d2d_context->FillRectangle(
+                D2D1::RectF(metric.left, metric.top, metric.left + metric.width, metric.top + metric.height),
+                brush.get());
+        }
+        brush.reset();
+    }
+
+    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(text.style.text_color, brush.put()));
+    d2d_context->DrawTextLayout(D2D1::Point2F(text_rect.left, text_rect.top), layout.get(), brush.get(), D2D1_DRAW_TEXT_OPTIONS_CLIP);
     brush.reset();
 
     if (editing) {
-        float caret_x = rect.left + kPaddingX;
-        if (!text.text.empty()) {
-            wil::com_ptr<IDWriteTextLayout> layout;
-            if (SUCCEEDED(dwrite_factory->CreateTextLayout(
-                    text.text.c_str(),
-                    static_cast<UINT32>(text.text.size()),
-                    format.get(),
-                    4096.0f,
-                    4096.0f,
-                    layout.put()))) {
-                DWRITE_TEXT_METRICS metrics = {};
-                if (SUCCEEDED(layout->GetMetrics(&metrics))) {
-                    caret_x += metrics.widthIncludingTrailingWhitespace;
-                }
-            }
+        D2D1_POINT_2F caret_top = D2D1::Point2F(text_rect.left, text_rect.top);
+        D2D1_POINT_2F caret_bottom = D2D1::Point2F(text_rect.left, rect.bottom - kPaddingY);
+        if (edit_state != nullptr) {
+            edit_state->CaretMetrics(layout.get(), D2D1::Point2F(text_rect.left, text_rect.top), &caret_top, &caret_bottom);
         }
         RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(text.style.text_color, brush.put()));
         d2d_context->DrawLine(
-            D2D1::Point2F(caret_x, rect.top + kPaddingY),
-            D2D1::Point2F(caret_x, rect.bottom - kPaddingY),
+            caret_top,
+            caret_bottom,
             brush.get(),
             1.0f / (std::max)(0.01f, image_scale));
     }
@@ -714,6 +720,7 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                     context.draw.dwrite_factory,
                     text,
                     editing,
+                    editing ? &state->edit.editing_text_state : nullptr,
                     image_scale));
             }
 
