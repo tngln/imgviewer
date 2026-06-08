@@ -6,16 +6,12 @@
 #include <utility>
 
 #include <d2d1helper.h>
+#include <dwrite.h>
 #include <wil/result_macros.h>
 
 #include "math.hpp"
 
 namespace {
-
-constexpr BYTE kTextMarkerAlpha = 210;
-constexpr BYTE kTextMarkerBlue = 32;
-constexpr BYTE kTextMarkerGreen = 224;
-constexpr BYTE kTextMarkerRed = 255;
 
 int NormalizeQuadrants(int quadrants)
 {
@@ -85,26 +81,6 @@ void DrawLine(std::vector<BYTE>* pixels, UINT width, UINT height, D2D1_POINT_2F 
             static_cast<int>(std::round(a.y + dy * t)),
             radius,
             color);
-    }
-}
-
-void DrawRectMarker(std::vector<BYTE>* pixels, UINT width, UINT height, D2D1_POINT_2F origin, size_t text_length)
-{
-    const int left = static_cast<int>(std::floor(origin.x));
-    const int top = static_cast<int>(std::floor(origin.y));
-    const int rect_width = (std::max)(48, static_cast<int>(text_length) * 8 + 12);
-    constexpr int kRectHeight = 24;
-    for (int y = top; y < top + kRectHeight; ++y) {
-        if (y < 0 || y >= static_cast<int>(height)) {
-            continue;
-        }
-        for (int x = left; x < left + rect_width; ++x) {
-            if (x < 0 || x >= static_cast<int>(width)) {
-                continue;
-            }
-            BYTE* pixel = pixels->data() + (static_cast<size_t>(y) * width + static_cast<size_t>(x)) * 4;
-            BlendPixel(pixel, kTextMarkerBlue, kTextMarkerGreen, kTextMarkerRed, kTextMarkerAlpha);
-        }
     }
 }
 
@@ -206,6 +182,88 @@ void DrawMosaic(std::vector<BYTE>* pixels, UINT width, UINT height, D2D1_RECT_F 
     }
 }
 
+D2D1_RECT_F TextLayoutRect(
+    IDWriteFactory* dwrite_factory,
+    const ImgViewerEditText& text,
+    D2D1_POINT_2F origin)
+{
+    constexpr float kPaddingX = 6.0f;
+    constexpr float kPaddingY = 4.0f;
+    const float font_size = (std::max)(6.0f, text.style.font_size);
+    const std::wstring text_to_measure = text.text.empty() ? L" " : text.text;
+    float width = (std::max)(48.0f, static_cast<float>(text_to_measure.size()) * font_size * 0.55f + kPaddingX * 2.0f);
+    float height = font_size * 1.35f + kPaddingY * 2.0f;
+
+    if (dwrite_factory != nullptr) {
+        wil::com_ptr<IDWriteTextFormat> format;
+        if (SUCCEEDED(dwrite_factory->CreateTextFormat(
+                text.style.font_family.c_str(),
+                nullptr,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                font_size,
+                L"",
+                format.put()))) {
+            format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            wil::com_ptr<IDWriteTextLayout> layout;
+            if (SUCCEEDED(dwrite_factory->CreateTextLayout(
+                    text_to_measure.c_str(),
+                    static_cast<UINT32>(text_to_measure.size()),
+                    format.get(),
+                    4096.0f,
+                    4096.0f,
+                    layout.put()))) {
+                DWRITE_TEXT_METRICS metrics = {};
+                if (SUCCEEDED(layout->GetMetrics(&metrics))) {
+                    width = (std::max)(48.0f, metrics.widthIncludingTrailingWhitespace + kPaddingX * 2.0f);
+                    height = (std::max)(font_size + kPaddingY * 2.0f, metrics.height + kPaddingY * 2.0f);
+                }
+            }
+        }
+    }
+
+    return D2D1::RectF(origin.x, origin.y, origin.x + width, origin.y + height);
+}
+
+HRESULT DrawTextObject(ID2D1RenderTarget* render_target, IDWriteFactory* dwrite_factory, const ImgViewerEditText& text, D2D1_POINT_2F origin)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, render_target);
+    RETURN_HR_IF_NULL(E_INVALIDARG, dwrite_factory);
+
+    constexpr float kPaddingX = 6.0f;
+    constexpr float kPaddingY = 4.0f;
+    const D2D1_RECT_F rect = TextLayoutRect(dwrite_factory, text, origin);
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    if (text.style.has_background) {
+        RETURN_IF_FAILED(render_target->CreateSolidColorBrush(text.style.background_color, brush.put()));
+        render_target->FillRectangle(rect, brush.get());
+        brush.reset();
+    }
+
+    wil::com_ptr<IDWriteTextFormat> format;
+    RETURN_IF_FAILED(dwrite_factory->CreateTextFormat(
+        text.style.font_family.c_str(),
+        nullptr,
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        (std::max)(6.0f, text.style.font_size),
+        L"",
+        format.put()));
+    RETURN_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    RETURN_IF_FAILED(render_target->CreateSolidColorBrush(text.style.text_color, brush.put()));
+    const std::wstring text_to_draw = text.text.empty() ? L" " : text.text;
+    render_target->DrawTextW(
+        text_to_draw.c_str(),
+        static_cast<UINT32>(text_to_draw.size()),
+        format.get(),
+        D2D1::RectF(rect.left + kPaddingX, rect.top + kPaddingY, rect.right - kPaddingX, rect.bottom - kPaddingY),
+        brush.get(),
+        D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    return S_OK;
+}
+
 } // namespace
 
 bool ImgViewerEditController::Active() const
@@ -236,6 +294,21 @@ bool ImgViewerEditController::CanRedo() const
 ImgViewerEditTool ImgViewerEditController::Tool() const
 {
     return tool_;
+}
+
+D2D1_COLOR_F ImgViewerEditController::PenColor() const
+{
+    return pen_color_;
+}
+
+float ImgViewerEditController::PenWidth() const
+{
+    return pen_width_;
+}
+
+const ImgViewerTextStyle& ImgViewerEditController::TextStyle() const
+{
+    return text_style_;
 }
 
 bool ImgViewerEditController::IsEditingText() const
@@ -291,6 +364,9 @@ HRESULT ImgViewerEditController::Begin(IWICBitmapSource* source, D2D1_SIZE_U sou
     document_.source_size = source_size;
     undo_stack_.clear();
     redo_stack_.clear();
+    pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);
+    pen_width_ = 4.0f;
+    text_style_ = ImgViewerTextStyle{};
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
@@ -311,6 +387,9 @@ void ImgViewerEditController::Clear()
     document_ = ImgViewerEditDocument{};
     undo_stack_.clear();
     redo_stack_.clear();
+    pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);
+    pen_width_ = 4.0f;
+    text_style_ = ImgViewerTextStyle{};
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
     drawing_crop_ = false;
@@ -342,6 +421,56 @@ void ImgViewerEditController::SetTool(ImgViewerEditTool tool)
     if (tool_ != ImgViewerEditTool::PixelSelect) {
         has_pixel_selection_ = false;
         pixel_selection_rect_ = D2D1_RECT_F{};
+    }
+}
+
+void ImgViewerEditController::SetPenColor(D2D1_COLOR_F color)
+{
+    pen_color_ = color;
+}
+
+void ImgViewerEditController::SetPenWidth(float width)
+{
+    pen_width_ = std::clamp(width, 1.0f, 32.0f);
+}
+
+void ImgViewerEditController::SetTextFontFamily(std::wstring font_family)
+{
+    if (font_family.empty()) {
+        font_family = L"Segoe UI";
+    }
+    text_style_.font_family = std::move(font_family);
+    if (IsEditingText()) {
+        document_.texts[editing_text_index_].style = text_style_;
+        document_.dirty = true;
+    }
+}
+
+void ImgViewerEditController::SetTextFontSize(float font_size)
+{
+    text_style_.font_size = std::clamp(font_size, 6.0f, 256.0f);
+    if (IsEditingText()) {
+        document_.texts[editing_text_index_].style = text_style_;
+        document_.dirty = true;
+    }
+}
+
+void ImgViewerEditController::SetTextColor(D2D1_COLOR_F color)
+{
+    text_style_.text_color = color;
+    if (IsEditingText()) {
+        document_.texts[editing_text_index_].style = text_style_;
+        document_.dirty = true;
+    }
+}
+
+void ImgViewerEditController::SetTextBackground(D2D1_COLOR_F color, bool has_background)
+{
+    text_style_.background_color = color;
+    text_style_.has_background = has_background;
+    if (IsEditingText()) {
+        document_.texts[editing_text_index_].style = text_style_;
+        document_.dirty = true;
     }
 }
 
@@ -542,7 +671,10 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
     }
 
     if (tool_ == ImgViewerEditTool::Pen) {
-        current_stroke_ = ImgViewerEditStroke{};
+        current_stroke_ = ImgViewerEditStroke{
+            .color = pen_color_,
+            .width = pen_width_,
+        };
         current_stroke_.points.push_back(document_point);
         drawing_stroke_ = true;
         return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
@@ -562,6 +694,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         ImgViewerEditText text{
             .origin = document_point,
             .text = L"",
+            .style = text_style_,
         };
         document_.texts.push_back(text);
         document_.dirty = true;
@@ -739,25 +872,51 @@ HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factor
                 stroke.color);
         }
     }
-    for (const ImgViewerEditText& text : document_.texts) {
-        const D2D1_POINT_2F origin = D2D1::Point2F(text.origin.x - crop.left, text.origin.y - crop.top);
-        DrawRectMarker(
-            &output_pixels,
-            output_width,
-            output_height,
-            RotateDocumentPoint(origin, crop_width, crop_height, rotation),
-            text.text.size());
-    }
-
     wil::com_ptr<IWICBitmap> memory_bitmap;
     RETURN_IF_FAILED(wic_factory->CreateBitmapFromMemory(
         output_width,
         output_height,
-        GUID_WICPixelFormat32bppBGRA,
+        GUID_WICPixelFormat32bppPBGRA,
         output_width * 4,
         static_cast<UINT>(output_pixels.size()),
         output_pixels.data(),
         memory_bitmap.put()));
+
+    if (!document_.texts.empty()) {
+        wil::com_ptr<ID2D1Factory> d2d_factory;
+        RETURN_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d_factory.put()));
+        wil::com_ptr<IDWriteFactory> dwrite_factory;
+        RETURN_IF_FAILED(DWriteCreateFactory(
+            DWRITE_FACTORY_TYPE_SHARED,
+            __uuidof(IDWriteFactory),
+            reinterpret_cast<IUnknown**>(dwrite_factory.put())));
+
+        D2D1_RENDER_TARGET_PROPERTIES properties = D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_DEFAULT,
+            D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        wil::com_ptr<ID2D1RenderTarget> render_target;
+        RETURN_IF_FAILED(d2d_factory->CreateWicBitmapRenderTarget(memory_bitmap.get(), properties, render_target.put()));
+
+        D2D1_MATRIX_3X2_F transform = D2D1::Matrix3x2F::Identity();
+        if (rotation == 1) {
+            transform = D2D1::Matrix3x2F::Rotation(90.0f) *
+                D2D1::Matrix3x2F::Translation(static_cast<float>(crop_height), 0.0f);
+        } else if (rotation == 2) {
+            transform = D2D1::Matrix3x2F::Rotation(180.0f) *
+                D2D1::Matrix3x2F::Translation(static_cast<float>(crop_width), static_cast<float>(crop_height));
+        } else if (rotation == 3) {
+            transform = D2D1::Matrix3x2F::Rotation(270.0f) *
+                D2D1::Matrix3x2F::Translation(0.0f, static_cast<float>(crop_width));
+        }
+
+        render_target->BeginDraw();
+        render_target->SetTransform(transform);
+        for (const ImgViewerEditText& text : document_.texts) {
+            const D2D1_POINT_2F origin = D2D1::Point2F(text.origin.x - crop.left, text.origin.y - crop.top);
+            RETURN_IF_FAILED(DrawTextObject(render_target.get(), dwrite_factory.get(), text, origin));
+        }
+        RETURN_IF_FAILED(render_target->EndDraw());
+    }
 
     wil::com_ptr<IWICBitmap> cached_bitmap;
     RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(memory_bitmap.get(), WICBitmapCacheOnLoad, cached_bitmap.put()));

@@ -53,6 +53,125 @@ HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size, float ce
     return S_OK;
 }
 
+D2D1_RECT_F TextLayoutRect(
+    IDWriteFactory* dwrite_factory,
+    const ImgViewerEditText& text,
+    D2D1_POINT_2F origin)
+{
+    constexpr float kPaddingX = 6.0f;
+    constexpr float kPaddingY = 4.0f;
+    const float font_size = (std::max)(6.0f, text.style.font_size);
+    const std::wstring text_to_measure = text.text.empty() ? L" " : text.text;
+    float width = (std::max)(48.0f, static_cast<float>(text_to_measure.size()) * font_size * 0.55f + kPaddingX * 2.0f);
+    float height = font_size * 1.35f + kPaddingY * 2.0f;
+
+    if (dwrite_factory != nullptr) {
+        wil::com_ptr<IDWriteTextFormat> format;
+        if (SUCCEEDED(dwrite_factory->CreateTextFormat(
+                text.style.font_family.c_str(),
+                nullptr,
+                DWRITE_FONT_WEIGHT_NORMAL,
+                DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL,
+                font_size,
+                L"",
+                format.put()))) {
+            format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+            wil::com_ptr<IDWriteTextLayout> layout;
+            if (SUCCEEDED(dwrite_factory->CreateTextLayout(
+                    text_to_measure.c_str(),
+                    static_cast<UINT32>(text_to_measure.size()),
+                    format.get(),
+                    4096.0f,
+                    4096.0f,
+                    layout.put()))) {
+                DWRITE_TEXT_METRICS metrics = {};
+                if (SUCCEEDED(layout->GetMetrics(&metrics))) {
+                    width = (std::max)(48.0f, metrics.widthIncludingTrailingWhitespace + kPaddingX * 2.0f);
+                    height = (std::max)(font_size + kPaddingY * 2.0f, metrics.height + kPaddingY * 2.0f);
+                }
+            }
+        }
+    }
+
+    return D2D1::RectF(origin.x, origin.y, origin.x + width, origin.y + height);
+}
+
+HRESULT DrawEditTextObject(
+    ID2D1DeviceContext* d2d_context,
+    IDWriteFactory* dwrite_factory,
+    const ImgViewerEditText& text,
+    bool editing,
+    float image_scale)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, d2d_context);
+    RETURN_HR_IF_NULL(E_INVALIDARG, dwrite_factory);
+
+    constexpr float kPaddingX = 6.0f;
+    constexpr float kPaddingY = 4.0f;
+    const D2D1_RECT_F rect = TextLayoutRect(dwrite_factory, text, text.origin);
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    if (text.style.has_background) {
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(text.style.background_color, brush.put()));
+        d2d_context->FillRectangle(rect, brush.get());
+        brush.reset();
+    }
+
+    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(
+        editing ? ui_theme::color::kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.7f),
+        brush.put()));
+    d2d_context->DrawRectangle(rect, brush.get(), 1.0f / (std::max)(0.01f, image_scale));
+    brush.reset();
+
+    wil::com_ptr<IDWriteTextFormat> format;
+    RETURN_IF_FAILED(dwrite_factory->CreateTextFormat(
+        text.style.font_family.c_str(),
+        nullptr,
+        DWRITE_FONT_WEIGHT_NORMAL,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        (std::max)(6.0f, text.style.font_size),
+        L"",
+        format.put()));
+    RETURN_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(text.style.text_color, brush.put()));
+    const std::wstring text_to_draw = text.text.empty() && editing ? L" " : text.text;
+    d2d_context->DrawTextW(
+        text_to_draw.c_str(),
+        static_cast<UINT32>(text_to_draw.size()),
+        format.get(),
+        D2D1::RectF(rect.left + kPaddingX, rect.top + kPaddingY, rect.right - kPaddingX, rect.bottom - kPaddingY),
+        brush.get(),
+        D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    brush.reset();
+
+    if (editing) {
+        float caret_x = rect.left + kPaddingX;
+        if (!text.text.empty()) {
+            wil::com_ptr<IDWriteTextLayout> layout;
+            if (SUCCEEDED(dwrite_factory->CreateTextLayout(
+                    text.text.c_str(),
+                    static_cast<UINT32>(text.text.size()),
+                    format.get(),
+                    4096.0f,
+                    4096.0f,
+                    layout.put()))) {
+                DWRITE_TEXT_METRICS metrics = {};
+                if (SUCCEEDED(layout->GetMetrics(&metrics))) {
+                    caret_x += metrics.widthIncludingTrailingWhitespace;
+                }
+            }
+        }
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(text.style.text_color, brush.put()));
+        d2d_context->DrawLine(
+            D2D1::Point2F(caret_x, rect.top + kPaddingY),
+            D2D1::Point2F(caret_x, rect.bottom - kPaddingY),
+            brush.get(),
+            1.0f / (std::max)(0.01f, image_scale));
+    }
+    return S_OK;
+}
+
 } // namespace
 
 HRESULT ImgViewerRenderer::Initialize(HWND hwnd)
@@ -353,41 +472,12 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
             for (size_t text_index = 0; text_index < state->edit.texts.size(); ++text_index) {
                 const ImgViewerEditText& text = state->edit.texts[text_index];
                 const bool editing = state->edit.editing_text && state->edit.editing_text_index == text_index;
-                const float marker_width = (std::max)(48.0f, static_cast<float>(text.text.size()) * 8.0f + 12.0f);
-                const D2D1_RECT_F marker = D2D1::RectF(
-                    text.origin.x,
-                    text.origin.y,
-                    text.origin.x + marker_width,
-                    text.origin.y + 26.0f);
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Yellow, editing ? 0.82f : 0.55f), brush.put()));
-                d2d_context->FillRectangle(marker, brush.get());
-                brush.reset();
-
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(editing ? ui_theme::color::kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.7f), brush.put()));
-                d2d_context->DrawRectangle(marker, brush.get(), 1.0f / (std::max)(0.01f, image_scale));
-                brush.reset();
-
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 0.95f), brush.put()));
-                const std::wstring text_to_draw = text.text.empty() && editing ? L" " : text.text;
-                d2d_context->DrawTextW(
-                    text_to_draw.c_str(),
-                    static_cast<UINT32>(text_to_draw.size()),
-                    context.draw.body_text_format,
-                    D2D1::RectF(marker.left + 6.0f, marker.top + 2.0f, marker.right - 6.0f, marker.bottom),
-                    brush.get(),
-                    D2D1_DRAW_TEXT_OPTIONS_CLIP);
-                brush.reset();
-
-                if (editing) {
-                    const float caret_x = marker.left + 6.0f + (std::max)(0.0f, static_cast<float>(text.text.size()) * 8.0f);
-                    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), brush.put()));
-                    d2d_context->DrawLine(
-                        D2D1::Point2F(caret_x, marker.top + 4.0f),
-                        D2D1::Point2F(caret_x, marker.bottom - 4.0f),
-                        brush.get(),
-                        1.0f / (std::max)(0.01f, image_scale));
-                    brush.reset();
-                }
+                RETURN_IF_FAILED(DrawEditTextObject(
+                    d2d_context,
+                    context.draw.dwrite_factory,
+                    text,
+                    editing,
+                    image_scale));
             }
 
             RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White, 0.55f), brush.put()));

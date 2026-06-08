@@ -1,5 +1,6 @@
 #include "imgviewer.ui.hpp"
 
+#include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -14,6 +15,15 @@ namespace {
 
 constexpr D2D1_POINT_2F kMainMenuOrigin{3.0f, ui_theme::metrics::kTitleBarHeight + 2.0f};
 
+bool SameColor(D2D1_COLOR_F left, D2D1_COLOR_F right)
+{
+    constexpr float kTolerance = 0.001f;
+    return std::abs(left.r - right.r) < kTolerance &&
+        std::abs(left.g - right.g) < kTolerance &&
+        std::abs(left.b - right.b) < kTolerance &&
+        std::abs(left.a - right.a) < kTolerance;
+}
+
 } // namespace
 
 ImgViewerUi::ImgViewerUi() :
@@ -22,6 +32,8 @@ ImgViewerUi::ImgViewerUi() :
     titlebar_(*root_),
     toolbar_(*root_),
     edit_toolbar_(*root_),
+    pen_toolstrip_(*root_),
+    text_toolstrip_(*root_),
     selection_toolstrip_(*root_),
     animation_toolbar_(*root_),
     info_panel_(*root_)
@@ -48,6 +60,8 @@ D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext& context, D2D1_SIZE_F avail
     titlebar_.Measure(context, available_size);
     toolbar_.Measure(context, available_size);
     edit_toolbar_.Measure(context, available_size);
+    pen_toolstrip_.Measure(context, available_size);
+    text_toolstrip_.Measure(context, available_size);
     selection_toolstrip_.Measure(context, available_size);
     animation_toolbar_.Measure(context, available_size);
     info_panel_.Measure(context, available_size);
@@ -61,9 +75,15 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
     toolbar_.Arrange(final_rect);
     edit_toolbar_.Arrange(final_rect, toolbar_.Rect());
     selection_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
+    pen_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
+    text_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     animation_toolbar_.Arrange(
         final_rect,
-        selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect()));
+        text_toolstrip_state_.visible
+            ? text_toolstrip_.Rect()
+            : (pen_toolstrip_state_.visible
+            ? pen_toolstrip_.Rect()
+            : (selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect()))));
     info_panel_.Arrange(final_rect);
 }
 
@@ -74,6 +94,8 @@ void ImgViewerUi::Render(
     titlebar_.Render(draw_context, state, top_most_, maximized_);
     toolbar_.Render(draw_context, state, color_picker_active_);
     edit_toolbar_.Render(draw_context, state);
+    text_toolstrip_.Render(draw_context, state);
+    pen_toolstrip_.Render(draw_context, state);
     selection_toolstrip_.Render(draw_context, state);
     animation_toolbar_.Render(draw_context, state);
     info_panel_.Render(draw_context);
@@ -89,6 +111,14 @@ UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
     UiEventResult selection_toolstrip_result = selection_toolstrip_.OnPointerEvent(event);
     if (selection_toolstrip_result.handled) {
         return selection_toolstrip_result;
+    }
+    UiEventResult text_toolstrip_result = text_toolstrip_.OnPointerEvent(event);
+    if (text_toolstrip_result.handled) {
+        return text_toolstrip_result;
+    }
+    UiEventResult pen_toolstrip_result = pen_toolstrip_.OnPointerEvent(event);
+    if (pen_toolstrip_result.handled) {
+        return pen_toolstrip_result;
     }
     UiEventResult edit_toolbar_result = edit_toolbar_.OnPointerEvent(event);
     if (edit_toolbar_result.handled) {
@@ -145,7 +175,38 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
             {L"Select", UiActionFromImgViewerAction(ImgViewerAction::EditSelect), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Select},
             {L"Pixel Select", UiActionFromImgViewerAction(ImgViewerAction::EditPixelSelect), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::PixelSelect},
             {L"Pen", UiActionFromImgViewerAction(ImgViewerAction::EditPen), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Pen},
+            {L"Pen Red", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorRed), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Red)), edit_toolbar_state_.visible},
+            {L"Pen Yellow", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorYellow), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Yellow)), edit_toolbar_state_.visible},
+            {L"Pen Green", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorGreen), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Lime)), edit_toolbar_state_.visible},
+            {L"Pen Cyan", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorCyan), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Cyan)), edit_toolbar_state_.visible},
+            {L"Pen Blue", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorBlue), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::DodgerBlue)), edit_toolbar_state_.visible},
+            {L"Pen Magenta", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorMagenta), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Magenta)), edit_toolbar_state_.visible},
+            {L"Pen White", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorWhite), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::White)), edit_toolbar_state_.visible},
+            {L"Pen Black", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorBlack), false, SameColor(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Black)), edit_toolbar_state_.visible},
+            {L"Pen 2 px", UiActionFromImgViewerAction(ImgViewerAction::EditPenWidth2), false, std::abs(pen_toolstrip_state_.width - 2.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Pen 4 px", UiActionFromImgViewerAction(ImgViewerAction::EditPenWidth4), false, std::abs(pen_toolstrip_state_.width - 4.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Pen 8 px", UiActionFromImgViewerAction(ImgViewerAction::EditPenWidth8), false, std::abs(pen_toolstrip_state_.width - 8.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Pen 12 px", UiActionFromImgViewerAction(ImgViewerAction::EditPenWidth12), false, std::abs(pen_toolstrip_state_.width - 12.0f) < 0.01f, edit_toolbar_state_.visible},
             {L"Text", UiActionFromImgViewerAction(ImgViewerAction::EditText), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Text},
+            {L"Text 12 px", UiActionFromImgViewerAction(ImgViewerAction::EditTextSize12), false, std::abs(text_toolstrip_state_.style.font_size - 12.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Text 16 px", UiActionFromImgViewerAction(ImgViewerAction::EditTextSize16), false, std::abs(text_toolstrip_state_.style.font_size - 16.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Text 20 px", UiActionFromImgViewerAction(ImgViewerAction::EditTextSize20), false, std::abs(text_toolstrip_state_.style.font_size - 20.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Text 28 px", UiActionFromImgViewerAction(ImgViewerAction::EditTextSize28), false, std::abs(text_toolstrip_state_.style.font_size - 28.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Text 36 px", UiActionFromImgViewerAction(ImgViewerAction::EditTextSize36), false, std::abs(text_toolstrip_state_.style.font_size - 36.0f) < 0.01f, edit_toolbar_state_.visible},
+            {L"Text Red", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorRed), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Red)), edit_toolbar_state_.visible},
+            {L"Text Yellow", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorYellow), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Yellow)), edit_toolbar_state_.visible},
+            {L"Text Green", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorGreen), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Lime)), edit_toolbar_state_.visible},
+            {L"Text Cyan", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorCyan), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Cyan)), edit_toolbar_state_.visible},
+            {L"Text Blue", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorBlue), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::DodgerBlue)), edit_toolbar_state_.visible},
+            {L"Text Magenta", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorMagenta), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Magenta)), edit_toolbar_state_.visible},
+            {L"Text White", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorWhite), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::White)), edit_toolbar_state_.visible},
+            {L"Text Black", UiActionFromImgViewerAction(ImgViewerAction::EditTextColorBlack), false, SameColor(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Black)), edit_toolbar_state_.visible},
+            {L"Text Background Transparent", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundTransparent), false, !text_toolstrip_state_.style.has_background, edit_toolbar_state_.visible},
+            {L"Text Background Yellow", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundYellow), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)), edit_toolbar_state_.visible},
+            {L"Text Background White", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundWhite), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::White, 0.82f)), edit_toolbar_state_.visible},
+            {L"Text Background Black", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundBlack), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Black, 0.82f)), edit_toolbar_state_.visible},
+            {L"Text Background Red", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundRed), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Red, 0.82f)), edit_toolbar_state_.visible},
+            {L"Text Background Blue", UiActionFromImgViewerAction(ImgViewerAction::EditTextBackgroundBlue), false, text_toolstrip_state_.style.has_background && SameColor(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)), edit_toolbar_state_.visible},
             {L"Crop", UiActionFromImgViewerAction(ImgViewerAction::EditCrop), false, edit_toolbar_state_.visible && edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
             {L"Copy Pixel Selection", UiActionFromImgViewerAction(ImgViewerAction::EditCopySelection), false, false, selection_toolstrip_state_.visible},
             {L"Mosaic Pixel Selection", UiActionFromImgViewerAction(ImgViewerAction::EditMosaicSelection), false, false, selection_toolstrip_state_.visible},
@@ -199,6 +260,8 @@ void ImgViewerUi::SetToolbarScalePercent(int percent)
 {
     toolbar_.SetScalePercent(percent);
     edit_toolbar_.SetScalePercent(percent);
+    pen_toolstrip_.SetScalePercent(percent);
+    text_toolstrip_.SetScalePercent(percent);
     selection_toolstrip_.SetScalePercent(percent);
     animation_toolbar_.SetScalePercent(percent);
 }
@@ -230,8 +293,25 @@ void ImgViewerUi::SetEditToolbarState(ImgViewerUiEditToolbarState state)
     edit_toolbar_.SetState(state);
 }
 
+void ImgViewerUi::SetPenToolstripState(ImgViewerUiPenToolstripState state)
+{
+    pen_toolstrip_state_ = state;
+    pen_toolstrip_.SetState(state);
+}
+
+void ImgViewerUi::SetTextToolstripState(ImgViewerUiTextToolstripState state)
+{
+    text_toolstrip_state_ = std::move(state);
+    text_toolstrip_.SetState(text_toolstrip_state_);
+}
+
 void ImgViewerUi::SetSelectionToolstripState(ImgViewerUiSelectionToolstripState state)
 {
     selection_toolstrip_state_ = state;
     selection_toolstrip_.SetState(state);
+}
+
+const std::wstring& ImgViewerUi::SelectedTextFontFamily() const
+{
+    return text_toolstrip_.SelectedFontFamily();
 }

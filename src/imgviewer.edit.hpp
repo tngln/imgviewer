@@ -26,10 +26,18 @@ struct ImgViewerEditStroke final {
     float width = 4.0f;
 };
 
+struct ImgViewerTextStyle final {
+    std::wstring font_family = L"Segoe UI";
+    float font_size = 20.0f;
+    D2D1_COLOR_F text_color = D2D1::ColorF(D2D1::ColorF::Black);
+    D2D1_COLOR_F background_color = D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f);
+    bool has_background = true;
+};
+
 struct ImgViewerEditText final {
     D2D1_POINT_2F origin = {};
     std::wstring text;
-    D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Yellow);
+    ImgViewerTextStyle style;
 };
 
 struct ImgViewerEditMosaic final {
@@ -77,6 +85,9 @@ public:
     bool CanUndo() const;
     bool CanRedo() const;
     ImgViewerEditTool Tool() const;
+    D2D1_COLOR_F PenColor() const;
+    float PenWidth() const;
+    const ImgViewerTextStyle& TextStyle() const;
     bool IsEditingText() const;
     bool IsDrawing() const;
     bool HasTransientCapture() const;
@@ -87,6 +98,12 @@ public:
     void Clear();
     void SetActive(bool active);
     void SetTool(ImgViewerEditTool tool);
+    void SetPenColor(D2D1_COLOR_F color);
+    void SetPenWidth(float width);
+    void SetTextFontFamily(std::wstring font_family);
+    void SetTextFontSize(float font_size);
+    void SetTextColor(D2D1_COLOR_F color);
+    void SetTextBackground(D2D1_COLOR_F color, bool has_background);
     bool RotateClockwise();
     bool Undo();
     bool Redo();
@@ -134,6 +151,9 @@ private:
     std::vector<HistoryEntry> undo_stack_;
     std::vector<HistoryEntry> redo_stack_;
     ImgViewerEditTool tool_ = ImgViewerEditTool::Select;
+    D2D1_COLOR_F pen_color_ = D2D1::ColorF(D2D1::ColorF::Red);
+    float pen_width_ = 4.0f;
+    ImgViewerTextStyle text_style_;
     bool active_ = false;
     bool drawing_stroke_ = false;
     bool drawing_crop_ = false;

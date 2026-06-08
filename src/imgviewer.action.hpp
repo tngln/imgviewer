@@ -23,7 +23,39 @@
     X(EditSelect, "editSelect", L"Edit Select", true, true) \
     X(EditPixelSelect, "editPixelSelect", L"Edit Pixel Select", true, true) \
     X(EditPen, "editPen", L"Edit Pen", true, true) \
+    X(EditPenColorRed, "editPenColorRed", L"Pen Color Red", true, true) \
+    X(EditPenColorYellow, "editPenColorYellow", L"Pen Color Yellow", true, true) \
+    X(EditPenColorGreen, "editPenColorGreen", L"Pen Color Green", true, true) \
+    X(EditPenColorCyan, "editPenColorCyan", L"Pen Color Cyan", true, true) \
+    X(EditPenColorBlue, "editPenColorBlue", L"Pen Color Blue", true, true) \
+    X(EditPenColorMagenta, "editPenColorMagenta", L"Pen Color Magenta", true, true) \
+    X(EditPenColorWhite, "editPenColorWhite", L"Pen Color White", true, true) \
+    X(EditPenColorBlack, "editPenColorBlack", L"Pen Color Black", true, true) \
+    X(EditPenWidth2, "editPenWidth2", L"Pen Width 2px", true, true) \
+    X(EditPenWidth4, "editPenWidth4", L"Pen Width 4px", true, true) \
+    X(EditPenWidth8, "editPenWidth8", L"Pen Width 8px", true, true) \
+    X(EditPenWidth12, "editPenWidth12", L"Pen Width 12px", true, true) \
     X(EditText, "editText", L"Edit Text", true, true) \
+    X(EditTextFontChanged, "editTextFontChanged", L"Text Font", false, false) \
+    X(EditTextSize12, "editTextSize12", L"Text Size 12px", true, true) \
+    X(EditTextSize16, "editTextSize16", L"Text Size 16px", true, true) \
+    X(EditTextSize20, "editTextSize20", L"Text Size 20px", true, true) \
+    X(EditTextSize28, "editTextSize28", L"Text Size 28px", true, true) \
+    X(EditTextSize36, "editTextSize36", L"Text Size 36px", true, true) \
+    X(EditTextColorRed, "editTextColorRed", L"Text Color Red", true, true) \
+    X(EditTextColorYellow, "editTextColorYellow", L"Text Color Yellow", true, true) \
+    X(EditTextColorGreen, "editTextColorGreen", L"Text Color Green", true, true) \
+    X(EditTextColorCyan, "editTextColorCyan", L"Text Color Cyan", true, true) \
+    X(EditTextColorBlue, "editTextColorBlue", L"Text Color Blue", true, true) \
+    X(EditTextColorMagenta, "editTextColorMagenta", L"Text Color Magenta", true, true) \
+    X(EditTextColorWhite, "editTextColorWhite", L"Text Color White", true, true) \
+    X(EditTextColorBlack, "editTextColorBlack", L"Text Color Black", true, true) \
+    X(EditTextBackgroundTransparent, "editTextBackgroundTransparent", L"Text Background Transparent", true, true) \
+    X(EditTextBackgroundYellow, "editTextBackgroundYellow", L"Text Background Yellow", true, true) \
+    X(EditTextBackgroundWhite, "editTextBackgroundWhite", L"Text Background White", true, true) \
+    X(EditTextBackgroundBlack, "editTextBackgroundBlack", L"Text Background Black", true, true) \
+    X(EditTextBackgroundRed, "editTextBackgroundRed", L"Text Background Red", true, true) \
+    X(EditTextBackgroundBlue, "editTextBackgroundBlue", L"Text Background Blue", true, true) \
     X(EditCrop, "editCrop", L"Edit Crop", true, true) \
     X(EditCopySelection, "editCopySelection", L"Copy Pixel Selection", true, true) \
     X(EditMosaicSelection, "editMosaicSelection", L"Mosaic Pixel Selection", true, true) \
