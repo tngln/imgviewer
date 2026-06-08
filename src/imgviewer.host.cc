@@ -531,7 +531,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             }
 
             ImgViewerEventResult canvas_result = {};
-            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
+            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
+                if (UpdateImgViewerColorPickerSample(context, point)) {
+                    RenderImgViewer(context);
+                    return 0;
+                }
+            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditPixelSelection) {
                 canvas_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
@@ -575,8 +580,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
             if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::ColorPicker &&
-                HandleImgViewerColorPick(hwnd, context, point)) {
+                UpdateImgViewerColorPickerSample(context, point)) {
+                context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
+                SetCapture(hwnd);
                 ui_result.handled = true;
+                ui_result.needs_render = true;
             } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool && context->edit.Active()) {
                 viewer_result = context->edit.OnPointerDown(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else {
@@ -619,7 +627,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
-            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
+            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
+                context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
+                ReleaseCapture();
+                viewer_result = ImgViewerEventResult{.handled = true};
+            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop ||
                 context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditPixelSelection) {
                 viewer_result = context->edit.OnPointerUp(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());

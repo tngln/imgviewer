@@ -31,6 +31,7 @@ ImgViewerUi::ImgViewerUi() :
         UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
     titlebar_(*root_),
     toolbar_(*root_),
+    color_picker_toolstrip_(*root_),
     edit_toolbar_(*root_),
     pen_toolstrip_(*root_),
     text_toolstrip_(*root_),
@@ -59,6 +60,7 @@ D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext& context, D2D1_SIZE_F avail
 {
     titlebar_.Measure(context, available_size);
     toolbar_.Measure(context, available_size);
+    color_picker_toolstrip_.Measure(context, available_size);
     edit_toolbar_.Measure(context, available_size);
     pen_toolstrip_.Measure(context, available_size);
     text_toolstrip_.Measure(context, available_size);
@@ -73,17 +75,20 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
     root_->Arrange(final_rect);
     titlebar_.Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, final_rect.top + ui_theme::metrics::kTitleBarHeight));
     toolbar_.Arrange(final_rect);
+    color_picker_toolstrip_.Arrange(final_rect, toolbar_.Rect());
     edit_toolbar_.Arrange(final_rect, toolbar_.Rect());
     selection_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     pen_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     text_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     animation_toolbar_.Arrange(
         final_rect,
-        text_toolstrip_state_.visible
+        color_picker_toolstrip_state_.visible
+            ? color_picker_toolstrip_.Rect()
+            : (text_toolstrip_state_.visible
             ? text_toolstrip_.Rect()
             : (pen_toolstrip_state_.visible
-            ? pen_toolstrip_.Rect()
-            : (selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect()))));
+                ? pen_toolstrip_.Rect()
+                : (selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect())))));
     info_panel_.Arrange(final_rect);
 }
 
@@ -93,6 +98,7 @@ void ImgViewerUi::Render(
 {
     titlebar_.Render(draw_context, state, top_most_, maximized_, edit_toolbar_state_.visible);
     toolbar_.Render(draw_context, state, color_picker_active_);
+    color_picker_toolstrip_.Render(draw_context, state);
     edit_toolbar_.Render(draw_context, state);
     text_toolstrip_.Render(draw_context, state);
     pen_toolstrip_.Render(draw_context, state);
@@ -107,6 +113,10 @@ UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
     UiEventResult info_panel_result = info_panel_.OnPointerEvent(event);
     if (info_panel_result.handled) {
         return info_panel_result;
+    }
+    UiEventResult color_picker_toolstrip_result = color_picker_toolstrip_.OnPointerEvent(event);
+    if (color_picker_toolstrip_result.handled) {
+        return color_picker_toolstrip_result;
     }
     UiEventResult selection_toolstrip_result = selection_toolstrip_.OnPointerEvent(event);
     if (selection_toolstrip_result.handled) {
@@ -284,11 +294,14 @@ void ImgViewerUi::SetWindowState(bool top_most, bool maximized)
 void ImgViewerUi::SetColorPickerActive(bool active)
 {
     color_picker_active_ = active;
+    color_picker_toolstrip_state_.visible = active;
+    color_picker_toolstrip_.SetState(color_picker_toolstrip_state_);
 }
 
 void ImgViewerUi::SetToolbarScalePercent(int percent)
 {
     toolbar_.SetScalePercent(percent);
+    color_picker_toolstrip_.SetScalePercent(percent);
     edit_toolbar_.SetScalePercent(percent);
     pen_toolstrip_.SetScalePercent(percent);
     text_toolstrip_.SetScalePercent(percent);
@@ -306,6 +319,19 @@ void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
     }
 }
 
+const wchar_t* ImgViewerUi::ElementValue(UiElementId id) const
+{
+    if (color_picker_toolstrip_.IsValueElement(id)) {
+        return color_picker_toolstrip_.ValueText();
+    }
+    return L"";
+}
+
+bool ImgViewerUi::IsElementReadOnly(UiElementId id) const
+{
+    return color_picker_toolstrip_.IsValueElement(id);
+}
+
 void ImgViewerUi::SetInfoPanelState(ImgViewerUiInfoPanelState state)
 {
     info_panel_.SetState(std::move(state));
@@ -321,6 +347,13 @@ void ImgViewerUi::SetEditToolbarState(ImgViewerUiEditToolbarState state)
 {
     edit_toolbar_state_ = state;
     edit_toolbar_.SetState(state);
+}
+
+void ImgViewerUi::SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState state)
+{
+    color_picker_toolstrip_state_ = std::move(state);
+    color_picker_active_ = color_picker_toolstrip_state_.visible;
+    color_picker_toolstrip_.SetState(color_picker_toolstrip_state_);
 }
 
 void ImgViewerUi::SetPenToolstripState(ImgViewerUiPenToolstripState state)

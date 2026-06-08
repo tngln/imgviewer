@@ -35,6 +35,7 @@ public:
     D2D1_RECT_F ElementRect(UiElementId id) const override;
     bool IsElementEnabled(UiElementId id) const override;
     const wchar_t* ElementValue(UiElementId id) const override;
+    bool IsElementReadOnly(UiElementId id) const override;
     double ElementRangeValue(UiElementId id) const override;
     double ElementRangeMinimum(UiElementId id) const override;
     double ElementRangeMaximum(UiElementId id) const override;

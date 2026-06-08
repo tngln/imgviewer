@@ -36,6 +36,7 @@ public:
     virtual void SetToolbarScalePercent(int) {}
     virtual void SetActionEnabled(UiAction, bool) {}
     virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
+    virtual bool IsElementReadOnly(UiElementId) const { return false; }
     virtual double ElementRangeValue(UiElementId) const { return 0.0; }
     virtual double ElementRangeMinimum(UiElementId) const { return 0.0; }
     virtual double ElementRangeMaximum(UiElementId) const { return 0.0; }

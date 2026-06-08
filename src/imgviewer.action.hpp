@@ -19,6 +19,7 @@
     X(FlipVertical, "flipVertical", L"Flip Vertical", true, true) \
     X(ResetView, "resetView", L"Reset View", true, true) \
     X(ToggleColorPicker, "toggleColorPicker", L"Color Picker", false, false) \
+    X(CopyColorPickerValue, "copyColorPickerValue", L"Copy Color Picker Value", false, false) \
     X(ToggleEditMode, "toggleEditMode", L"Edit Mode", true, true) \
     X(EditSelect, "editSelect", L"Edit Select", true, true) \
     X(EditPixelSelect, "editPixelSelect", L"Edit Pixel Select", true, true) \

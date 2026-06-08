@@ -27,6 +27,7 @@ constexpr UINT kAnimationTickMs = 16;
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 bool HasCurrentImageFilePath(const ImgViewerContext* context);
 bool EnsureEditDocument(ImgViewerContext* context);
+void ClearImgViewerColorPickerState(ImgViewerContext* context);
 void EnsureInfoPanelAnalysis(ImgViewerContext* context);
 void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
@@ -62,6 +63,11 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
     });
     static_cast<ImgViewerUi*>(context->ui.Root())->SetSelectionToolstripState(ImgViewerUiSelectionToolstripState{
         .visible = context->edit.Active() && context->edit.HasPixelSelection(),
+    });
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+        .visible = context->color_picker_active,
+        .has_sample = context->color_picker_has_sample,
+        .hex_text = context->color_picker_hex_text,
     });
     RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->edit, context->ui));
     return S_OK;
@@ -334,8 +340,7 @@ bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
     }
 
     ResetImgViewerTransientInput(hwnd, context);
-    context->color_picker_active = false;
-    context->ui.SetColorPickerActive(false);
+    ClearImgViewerColorPickerState(context);
     context->edit.SetActive(true);
     context->interaction.EnterEditing();
     if (context->viewer.AnimationState().playing) {
@@ -369,8 +374,7 @@ void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditToo
         CommitImgViewerCropAndCenter(hwnd, context);
     }
     ResetImgViewerTransientInput(hwnd, context);
-    context->color_picker_active = false;
-    context->ui.SetColorPickerActive(false);
+    ClearImgViewerColorPickerState(context);
     context->edit.SetTool(tool);
     context->edit.SetActive(true);
     context->interaction.EnterEditing();
@@ -399,8 +403,40 @@ void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool ac
     } else {
         context->interaction.EndColorPick();
     }
-    context->color_picker_active = enabled;
-    context->ui.SetColorPickerActive(context->color_picker_active);
+    if (enabled) {
+        context->color_picker_active = true;
+        context->color_picker_has_sample = false;
+        context->color_picker_hex_text.clear();
+        static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+            .visible = true,
+            .has_sample = false,
+        });
+    } else {
+        ClearImgViewerColorPickerState(context);
+    }
+}
+
+bool UpdateImgViewerColorPickerSample(ImgViewerContext* context, D2D1_POINT_2F point)
+{
+    if (context == nullptr || !context->color_picker_active) {
+        return false;
+    }
+
+    ImgViewerColorSample color;
+    if (!context->viewer.SampleColorAt(point.x, point.y, context->renderer.ViewportPixelSize(), &color)) {
+        return true;
+    }
+
+    wchar_t hex_text[8] = {};
+    swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
+    context->color_picker_has_sample = true;
+    context->color_picker_hex_text = hex_text;
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+        .visible = context->color_picker_active,
+        .has_sample = context->color_picker_has_sample,
+        .hex_text = context->color_picker_hex_text,
+    });
+    return true;
 }
 
 void ApplyWindowOpacity(HWND hwnd, int percent)
@@ -486,8 +522,7 @@ void SetPenColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
         CommitImgViewerCropAndCenter(hwnd, context);
     }
     ResetImgViewerTransientInput(hwnd, context);
-    context->color_picker_active = false;
-    context->ui.SetColorPickerActive(false);
+    ClearImgViewerColorPickerState(context);
     context->edit.SetTool(ImgViewerEditTool::Pen);
     context->edit.SetActive(true);
     context->edit.SetPenColor(color);
@@ -509,8 +544,7 @@ void SetPenWidth(HWND hwnd, ImgViewerContext* context, float width)
         CommitImgViewerCropAndCenter(hwnd, context);
     }
     ResetImgViewerTransientInput(hwnd, context);
-    context->color_picker_active = false;
-    context->ui.SetColorPickerActive(false);
+    ClearImgViewerColorPickerState(context);
     context->edit.SetTool(ImgViewerEditTool::Pen);
     context->edit.SetActive(true);
     context->edit.SetPenWidth(width);
@@ -532,8 +566,7 @@ void SetShapeKind(HWND hwnd, ImgViewerContext* context, ImgViewerShapeKind kind)
         CommitImgViewerCropAndCenter(hwnd, context);
     }
     ResetImgViewerTransientInput(hwnd, context);
-    context->color_picker_active = false;
-    context->ui.SetColorPickerActive(false);
+    ClearImgViewerColorPickerState(context);
     context->edit.SetTool(ImgViewerEditTool::Shape);
     context->edit.SetActive(true);
     context->edit.SetShapeKind(kind);
@@ -563,8 +596,7 @@ void PrepareTextStyleEdit(HWND hwnd, ImgViewerContext* context)
         }
         ResetImgViewerTransientInput(hwnd, context);
     }
-    context->color_picker_active = false;
-    context->ui.SetColorPickerActive(false);
+    ClearImgViewerColorPickerState(context);
     if (!context->edit.IsEditingText()) {
         context->edit.SetTool(ImgViewerEditTool::Text);
     }
@@ -680,6 +712,16 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         if (context != nullptr) {
             SetImgViewerColorPickerActive(hwnd, context, !context->color_picker_active);
             RenderImgViewer(context);
+        }
+        break;
+    case ImgViewerAction::CopyColorPickerValue:
+        if (context != nullptr && context->color_picker_has_sample && !context->color_picker_hex_text.empty()) {
+            if (win32::CopyTextToClipboard(hwnd, context->color_picker_hex_text.c_str())) {
+                const std::wstring toast_text = std::wstring(L"Copied ") + context->color_picker_hex_text;
+                ShowImgViewerToast(hwnd, context, toast_text.c_str());
+            } else {
+                ShowImgViewerToast(hwnd, context, L"Could not copy color.");
+            }
         }
         break;
     case ImgViewerAction::ToggleEditMode:
@@ -914,26 +956,6 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     default:
         break;
     }
-}
-
-bool HandleImgViewerColorPick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point)
-{
-    if (context == nullptr || !context->color_picker_active) {
-        return false;
-    }
-
-    ImgViewerColorSample color;
-    if (!context->viewer.SampleColorAt(point.x, point.y, context->renderer.ViewportPixelSize(), &color)) {
-        return true;
-    }
-
-    wchar_t hex_text[8] = {};
-    swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
-    win32::CopyTextToClipboard(hwnd, hex_text);
-    SetImgViewerColorPickerActive(hwnd, context, false);
-    const std::wstring toast_text = std::wstring(L"Copied ") + hex_text;
-    ShowImgViewerToast(hwnd, context, toast_text.c_str());
-    return true;
 }
 
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path)
@@ -1277,6 +1299,21 @@ bool EnsureEditDocument(ImgViewerContext* context)
         context->viewer.CurrentImagePixelSize(),
         context->viewer.CurrentImageMetadata(),
         context->current_image_path));
+}
+
+void ClearImgViewerColorPickerState(ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    context->color_picker_active = false;
+    context->color_picker_has_sample = false;
+    context->color_picker_hex_text.clear();
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+        .visible = false,
+        .has_sample = false,
+    });
 }
 
 void EnsureInfoPanelAnalysis(ImgViewerContext* context)

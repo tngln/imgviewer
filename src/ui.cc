@@ -336,6 +336,11 @@ const wchar_t* UiController::ElementValue(UiElementId id) const
     return root_->ElementValue(id);
 }
 
+bool UiController::IsElementReadOnly(UiElementId id) const
+{
+    return root_->IsElementReadOnly(id);
+}
+
 double UiController::ElementRangeValue(UiElementId id) const
 {
     return root_->ElementRangeValue(id);

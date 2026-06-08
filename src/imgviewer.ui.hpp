@@ -12,6 +12,7 @@
 
 #include "imgviewer.ui.animation_toolbar.hpp"
 #include "imgviewer.edit.hpp"
+#include "imgviewer.ui.color_picker_toolstrip.hpp"
 #include "imgviewer.ui.edit_toolbar.hpp"
 #include "imgviewer.ui.info_panel.hpp"
 #include "imgviewer.ui.pen_toolstrip.hpp"
@@ -45,9 +46,12 @@ public:
     void SetColorPickerActive(bool active) override;
     void SetToolbarScalePercent(int percent) override;
     void SetActionEnabled(UiAction action, bool enabled) override;
+    const wchar_t* ElementValue(UiElementId id) const override;
+    bool IsElementReadOnly(UiElementId id) const override;
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
     void SetAnimationState(ImgViewerAnimationState state);
     void SetEditToolbarState(ImgViewerUiEditToolbarState state);
+    void SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState state);
     void SetPenToolstripState(ImgViewerUiPenToolstripState state);
     void SetTextToolstripState(ImgViewerUiTextToolstripState state);
     void SetSelectionToolstripState(ImgViewerUiSelectionToolstripState state);
@@ -57,6 +61,7 @@ private:
     std::unique_ptr<UiElement> root_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;
+    ImgViewerUiColorPickerToolstrip color_picker_toolstrip_;
     ImgViewerUiEditToolbar edit_toolbar_;
     ImgViewerUiPenToolstrip pen_toolstrip_;
     ImgViewerUiTextToolstrip text_toolstrip_;
@@ -70,6 +75,7 @@ private:
     bool save_image_as_enabled_ = false;
     bool show_in_file_explorer_enabled_ = false;
     ImgViewerUiEditToolbarState edit_toolbar_state_;
+    ImgViewerUiColorPickerToolstripState color_picker_toolstrip_state_;
     ImgViewerUiPenToolstripState pen_toolstrip_state_;
     ImgViewerUiTextToolstripState text_toolstrip_state_;
     ImgViewerUiSelectionToolstripState selection_toolstrip_state_;
