@@ -10,6 +10,7 @@
 #include <wil/result_macros.h>
 
 #include "math.hpp"
+#include "imgviewer.edit_geometry.hpp"
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
 
@@ -19,6 +20,7 @@ constexpr float kCheckerboardCellSize = 8.0f;
 
 struct ImageLayerRenderState final {
     ImgViewerSnapshot image;
+    ImgViewerEditSnapshot edit;
     bool checkerboard_background = false;
     float dpi_scale = 1.0f;
 };
@@ -285,8 +287,9 @@ HRESULT ImgViewerRenderer::Resize()
 HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, UiController& ui)
 {
     const ImgViewerSnapshot image = viewer.Snapshot();
-    RETURN_IF_FAILED(RenderImageLayer(image));
-    RETURN_IF_FAILED(RenderEditLayer(image, edit.Snapshot()));
+    const ImgViewerEditSnapshot edit_snapshot = edit.Snapshot();
+    RETURN_IF_FAILED(RenderImageLayer(image, edit_snapshot));
+    RETURN_IF_FAILED(RenderEditLayer(image, edit_snapshot));
     RETURN_IF_FAILED(ui_renderer_.RenderUiOverlay(ui_overlay_surface_, ui));
     return ui_renderer_.Commit();
 }
@@ -337,10 +340,11 @@ ID2D1DeviceContext* ImgViewerRenderer::BitmapDeviceContext() const
     return ui_renderer_.BitmapDeviceContext();
 }
 
-HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
+HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit)
 {
     ImageLayerRenderState state{
         .image = image,
+        .edit = edit,
         .checkerboard_background = checkerboard_background_,
         .dpi_scale = ui_renderer_.DpiScale(),
     };
@@ -372,25 +376,31 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image)
             if (image->bitmap != nullptr) {
                 const float image_width = static_cast<float>(image->pixel_size.width);
                 const float image_height = static_cast<float>(image->pixel_size.height);
+                const int edit_rotation = state->edit.active ? state->edit.rotation_quadrants : 0;
+                const D2D1_SIZE_U preview_size =
+                    imgviewer_edit_geometry::EditPreviewSize(image->pixel_size, edit_rotation);
                 const float image_scale =
-                    math::FitScale(image->pixel_size, context.viewport_pixel_size) * image->zoom_multiplier;
-                const float draw_width = image_width * image_scale;
-                const float draw_height = image_height * image_scale;
+                    math::FitScale(preview_size, context.viewport_pixel_size) * image->zoom_multiplier;
                 const D2D1_POINT_2F viewport_center = D2D1::Point2F(width * 0.5f, height * 0.5f);
-                const D2D1_RECT_F destination = D2D1::RectF(
-                    viewport_center.x - image->view_center.x * image_scale,
-                    viewport_center.y - image->view_center.y * image_scale,
-                    viewport_center.x - image->view_center.x * image_scale + draw_width,
-                    viewport_center.y - image->view_center.y * image_scale + draw_height);
+                const D2D1_POINT_2F preview_view_center =
+                    imgviewer_edit_geometry::SourcePointToEditPreviewPoint(
+                        image->view_center,
+                        image->pixel_size,
+                        edit_rotation);
                 const float flip_x = image->flipped_horizontal ? -1.0f : 1.0f;
                 const float flip_y = image->flipped_vertical ? -1.0f : 1.0f;
-                d2d_context->SetTransform(
-                    D2D1::Matrix3x2F::Scale(flip_x, flip_y, viewport_center) *
-                        D2D1::Matrix3x2F::Rotation(image->rotation_degrees, viewport_center) *
-                        context.root_transform);
+                const D2D1_MATRIX_3X2_F source_to_viewport =
+                    imgviewer_edit_geometry::SourceToEditPreviewTransform(image->pixel_size, edit_rotation) *
+                    D2D1::Matrix3x2F::Translation(-preview_view_center.x, -preview_view_center.y) *
+                    D2D1::Matrix3x2F::Scale(image_scale, image_scale) *
+                    D2D1::Matrix3x2F::Scale(flip_x, flip_y, D2D1::Point2F(0.0f, 0.0f)) *
+                    D2D1::Matrix3x2F::Rotation(image->rotation_degrees, D2D1::Point2F(0.0f, 0.0f)) *
+                    D2D1::Matrix3x2F::Translation(viewport_center.x, viewport_center.y) *
+                    context.root_transform;
+                d2d_context->SetTransform(source_to_viewport);
                 d2d_context->DrawBitmap(
                     image->bitmap,
-                    destination,
+                    D2D1::RectF(0.0f, 0.0f, image_width, image_height),
                     1.0f,
                     image->pixelated_sampling
                         ? D2D1_INTERPOLATION_MODE_NEAREST_NEIGHBOR
@@ -447,12 +457,22 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
             const float height = context.draw.viewport_size.height;
             const float image_width = static_cast<float>(state->image.pixel_size.width);
             const float image_height = static_cast<float>(state->image.pixel_size.height);
+            const D2D1_SIZE_U preview_size =
+                imgviewer_edit_geometry::EditPreviewSize(state->image.pixel_size, state->edit.rotation_quadrants);
             const float image_scale =
-                math::FitScale(state->image.pixel_size, context.viewport_pixel_size) * state->image.zoom_multiplier;
+                math::FitScale(preview_size, context.viewport_pixel_size) * state->image.zoom_multiplier;
             const D2D1_POINT_2F viewport_center = D2D1::Point2F(width * 0.5f, height * 0.5f);
+            const D2D1_POINT_2F preview_view_center =
+                imgviewer_edit_geometry::SourcePointToEditPreviewPoint(
+                    state->image.view_center,
+                    state->image.pixel_size,
+                    state->edit.rotation_quadrants);
             const D2D1_RECT_F image_rect = D2D1::RectF(0.0f, 0.0f, image_width, image_height);
             const D2D1_MATRIX_3X2_F document_transform =
-                D2D1::Matrix3x2F::Translation(-state->image.view_center.x, -state->image.view_center.y) *
+                imgviewer_edit_geometry::SourceToEditPreviewTransform(
+                    state->image.pixel_size,
+                    state->edit.rotation_quadrants) *
+                D2D1::Matrix3x2F::Translation(-preview_view_center.x, -preview_view_center.y) *
                 D2D1::Matrix3x2F::Scale(image_scale, image_scale) *
                 D2D1::Matrix3x2F::Scale(
                     state->image.flipped_horizontal ? -1.0f : 1.0f,

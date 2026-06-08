@@ -23,7 +23,7 @@ public:
     ID2D1DeviceContext* BitmapDeviceContext() const;
 
 private:
-    HRESULT RenderImageLayer(const ImgViewerSnapshot& image);
+    HRESULT RenderImageLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit);
     HRESULT RenderEditLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit);
 
     UiRenderer ui_renderer_;

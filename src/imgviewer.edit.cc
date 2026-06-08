@@ -9,6 +9,7 @@
 #include <dwrite.h>
 #include <wil/result_macros.h>
 
+#include "imgviewer.edit_geometry.hpp"
 #include "math.hpp"
 
 namespace {
@@ -1080,7 +1081,9 @@ bool ImgViewerEditController::DocumentPointFromViewportPoint(
         return false;
     }
 
-    const float image_scale = math::FitScale(viewer.pixel_size, viewport_size) * viewer.zoom_multiplier;
+    const D2D1_SIZE_U preview_size =
+        imgviewer_edit_geometry::EditPreviewSize(document_.source_size, document_.rotation_quadrants);
+    const float image_scale = math::FitScale(preview_size, viewport_size) * viewer.zoom_multiplier;
     if (image_scale <= 0.0f) {
         return false;
     }
@@ -1095,9 +1098,18 @@ bool ImgViewerEditController::DocumentPointFromViewportPoint(
         D2D1::Matrix3x2F::Rotation(-viewer.rotation_degrees) *
             D2D1::Matrix3x2F::Scale(flip_x, flip_y),
         screen_delta);
-    *document_point = D2D1::Point2F(
-        viewer.view_center.x + image_delta.x / image_scale,
-        viewer.view_center.y + image_delta.y / image_scale);
+    const D2D1_POINT_2F preview_view_center =
+        imgviewer_edit_geometry::SourcePointToEditPreviewPoint(
+            viewer.view_center,
+            document_.source_size,
+            document_.rotation_quadrants);
+    const D2D1_POINT_2F preview_point = D2D1::Point2F(
+        preview_view_center.x + image_delta.x / image_scale,
+        preview_view_center.y + image_delta.y / image_scale);
+    *document_point = imgviewer_edit_geometry::EditPreviewPointToSourcePoint(
+        preview_point,
+        document_.source_size,
+        document_.rotation_quadrants);
     return document_point->x >= 0.0f &&
         document_point->y >= 0.0f &&
         document_point->x < static_cast<float>(document_.source_size.width) &&
@@ -1110,7 +1122,9 @@ float ImgViewerEditController::DocumentHitSlop(const ImgViewerSnapshot& viewer, 
         return 8.0f;
     }
 
-    const float image_scale = math::FitScale(viewer.pixel_size, viewport_size) * viewer.zoom_multiplier;
+    const D2D1_SIZE_U preview_size =
+        imgviewer_edit_geometry::EditPreviewSize(document_.source_size, document_.rotation_quadrants);
+    const float image_scale = math::FitScale(preview_size, viewport_size) * viewer.zoom_multiplier;
     return image_scale > 0.0f ? (std::max)(2.0f, 8.0f / image_scale) : 8.0f;
 }
 
