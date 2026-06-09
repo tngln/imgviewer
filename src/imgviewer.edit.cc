@@ -148,6 +148,38 @@ bool SameStroke(const ImgViewerEditStroke& left, const ImgViewerEditStroke& righ
     return true;
 }
 
+float StrokeSampleSpacing(const ImgViewerEditStroke& stroke)
+{
+    return (std::max)(0.75f, stroke.width * 0.25f);
+}
+
+void AppendStrokePoint(ImgViewerEditStroke* stroke, D2D1_POINT_2F point)
+{
+    if (stroke == nullptr) {
+        return;
+    }
+
+    if (stroke->points.empty()) {
+        stroke->points.push_back(point);
+        return;
+    }
+
+    const D2D1_POINT_2F last = stroke->points.back();
+    const float dx = point.x - last.x;
+    const float dy = point.y - last.y;
+    const float distance = std::sqrt(dx * dx + dy * dy);
+    if (distance <= 0.001f) {
+        return;
+    }
+
+    const float spacing = StrokeSampleSpacing(*stroke);
+    const int steps = (std::max)(1, static_cast<int>(std::ceil(distance / spacing)));
+    for (int step = 1; step <= steps; ++step) {
+        const float t = static_cast<float>(step) / static_cast<float>(steps);
+        stroke->points.push_back(D2D1::Point2F(last.x + dx * t, last.y + dy * t));
+    }
+}
+
 bool SameTextObject(const ImgViewerEditText& left, const ImgViewerEditText& right)
 {
     return SamePoint(left.origin, right.origin) &&
@@ -1358,7 +1390,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
             .color = pen_color_,
             .width = pen_width_,
         };
-        current_stroke_.points.push_back(document_point);
+        AppendStrokePoint(&current_stroke_, document_point);
         drawing_stroke_ = true;
         return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
     }
@@ -1486,7 +1518,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
         return ImgViewerEventResult{.handled = true, .needs_render = true};
     }
 
-    current_stroke_.points.push_back(document_point);
+    AppendStrokePoint(&current_stroke_, document_point);
     return ImgViewerEventResult{.handled = true, .needs_render = true};
 }
 
@@ -1513,7 +1545,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     }
 
     if (drawing_stroke_ && DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
-        current_stroke_.points.push_back(document_point);
+        AppendStrokePoint(&current_stroke_, document_point);
     }
 
     if (drawing_shape_) {

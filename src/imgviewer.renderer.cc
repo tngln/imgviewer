@@ -18,6 +18,73 @@ namespace {
 
 constexpr float kCheckerboardCellSize = 8.0f;
 
+HRESULT CreateStrokeBrushAndStyle(
+    const UiSurfaceDrawContext& context,
+    ID2D1DeviceContext* d2d_context,
+    D2D1_COLOR_F color,
+    ID2D1SolidColorBrush** brush,
+    ID2D1StrokeStyle** stroke_style)
+{
+    RETURN_HR_IF_NULL(E_POINTER, d2d_context);
+    RETURN_HR_IF_NULL(E_POINTER, brush);
+    RETURN_HR_IF_NULL(E_POINTER, stroke_style);
+    *brush = nullptr;
+    *stroke_style = nullptr;
+
+    wil::com_ptr<ID2D1SolidColorBrush> local_brush;
+    RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(color, local_brush.put()));
+
+    D2D1_STROKE_STYLE_PROPERTIES properties = D2D1::StrokeStyleProperties();
+    properties.startCap = D2D1_CAP_STYLE_ROUND;
+    properties.endCap = D2D1_CAP_STYLE_ROUND;
+    properties.dashCap = D2D1_CAP_STYLE_ROUND;
+    properties.lineJoin = D2D1_LINE_JOIN_ROUND;
+
+    wil::com_ptr<ID2D1StrokeStyle> local_style;
+    RETURN_IF_FAILED(context.d2d_factory->CreateStrokeStyle(&properties, nullptr, 0, local_style.put()));
+
+    *brush = local_brush.detach();
+    *stroke_style = local_style.detach();
+    return S_OK;
+}
+
+HRESULT DrawStrokePath(
+    const UiSurfaceDrawContext& context,
+    ID2D1DeviceContext* d2d_context,
+    const ImgViewerEditStroke& stroke)
+{
+    RETURN_HR_IF_NULL(E_POINTER, d2d_context);
+    if (stroke.points.empty()) {
+        return S_OK;
+    }
+
+    wil::com_ptr<ID2D1SolidColorBrush> brush;
+    wil::com_ptr<ID2D1StrokeStyle> stroke_style;
+    RETURN_IF_FAILED(CreateStrokeBrushAndStyle(
+        context,
+        d2d_context,
+        stroke.color,
+        brush.put(),
+        stroke_style.put()));
+
+    if (stroke.points.size() == 1) {
+        const float radius = (std::max)(0.5f, stroke.width * 0.5f);
+        const D2D1_ELLIPSE dot = D2D1::Ellipse(stroke.points[0], radius, radius);
+        d2d_context->FillEllipse(dot, brush.get());
+        return S_OK;
+    }
+
+    for (size_t index = 1; index < stroke.points.size(); ++index) {
+        d2d_context->DrawLine(
+            stroke.points[index - 1],
+            stroke.points[index],
+            brush.get(),
+            stroke.width,
+            stroke_style.get());
+    }
+    return S_OK;
+}
+
 struct ImageLayerRenderState final {
     ImgViewerSnapshot image;
     ImgViewerEditSnapshot edit;
@@ -624,21 +691,11 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 context.root_transform;
             d2d_context->SetTransform(document_transform);
 
-            wil::com_ptr<ID2D1SolidColorBrush> brush;
             for (const ImgViewerEditStroke& stroke : state->edit.strokes) {
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(stroke.color, brush.put()));
-                for (size_t index = 1; index < stroke.points.size(); ++index) {
-                    d2d_context->DrawLine(stroke.points[index - 1], stroke.points[index], brush.get(), stroke.width);
-                }
-                brush.reset();
+                RETURN_IF_FAILED(DrawStrokePath(context, d2d_context, stroke));
             }
             if (state->edit.drawing_stroke) {
-                const ImgViewerEditStroke& stroke = state->edit.current_stroke;
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(stroke.color, brush.put()));
-                for (size_t index = 1; index < stroke.points.size(); ++index) {
-                    d2d_context->DrawLine(stroke.points[index - 1], stroke.points[index], brush.get(), stroke.width);
-                }
-                brush.reset();
+                RETURN_IF_FAILED(DrawStrokePath(context, d2d_context, state->edit.current_stroke));
             }
 
             for (const ImgViewerEditShape& shape : state->edit.shapes) {
@@ -688,6 +745,7 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 }
             }
 
+            wil::com_ptr<ID2D1SolidColorBrush> brush;
             const D2D1_RECT_F pixel_selection_rect = state->edit.drawing_pixel_selection
                 ? state->edit.current_pixel_selection_rect
                 : state->edit.pixel_selection_rect;
