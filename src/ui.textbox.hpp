@@ -16,6 +16,7 @@ public:
 
     const std::wstring& Text() const;
     void SetText(std::wstring text);
+    void SelectAll();
     void SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format) const;
     void SetCaretVisible(bool visible);
     bool IsEditing() const;

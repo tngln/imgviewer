@@ -78,6 +78,9 @@
     X(OpenSettings, "openSettings", L"Settings", false, false) \
     X(CloseSettings, "closeSettings", L"Close Settings", false, false) \
     X(SaveSettings, "saveSettings", L"Save Settings", false, false) \
+    X(OpenDeveloper, "openDeveloper", L"Developer", false, false) \
+    X(CloseDeveloper, "closeDeveloper", L"Close Developer", false, false) \
+    X(DeveloperSampleButton, "developerSampleButton", L"Developer Sample Button", false, false) \
     X(OpenAbout, "openAbout", L"About", false, false) \
     X(CloseAbout, "closeAbout", L"Close About", false, false) \
     X(CopyAboutNotices, "copyAboutNotices", L"Copy About Notices", false, false) \

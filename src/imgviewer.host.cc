@@ -3,6 +3,7 @@
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "imgviewer.developer.hpp"
 #include "imgviewer.edit_geometry.hpp"
 #include "imgviewer.host.internal.hpp"
 #include "imgviewer.keybindings.hpp"
@@ -19,6 +20,7 @@
 
 #include <algorithm>
 #include <commctrl.h>
+#include <cwchar>
 #include <cmath>
 #include <imm.h>
 #include <shellapi.h>
@@ -31,6 +33,24 @@
 
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 constexpr float kEdgeClickDragCancelDistance = 6.0f;
+
+bool IsDeveloperCommandLineArgument(const wchar_t* arg)
+{
+    return arg != nullptr &&
+        (_wcsicmp(arg, L"/developer") == 0 ||
+            _wcsicmp(arg, L"-developer") == 0 ||
+            _wcsicmp(arg, L"--developer") == 0);
+}
+
+bool CommandLineRequestsDeveloperWindow(wchar_t** argv, int argc)
+{
+    for (int index = 1; index < argc; ++index) {
+        if (IsDeveloperCommandLineArgument(argv[index])) {
+            return true;
+        }
+    }
+    return false;
+}
 
 D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam, bool screen_to_client)
 {
@@ -579,6 +599,19 @@ public:
 
 HRESULT RunImgViewerApplicationAsHresult()
 {
+    int argc = 0;
+    wil::unique_hlocal command_line_args{reinterpret_cast<HLOCAL>(CommandLineToArgvW(GetCommandLineW(), &argc))};
+    RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
+    auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
+    if (CommandLineRequestsDeveloperWindow(argv, argc)) {
+#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
+        return RunImgViewerDeveloperWindowApplication();
+#else
+        MessageBoxW(nullptr, L"The Developer window is not enabled in this build.", kImgViewerWindowTitle, MB_OK | MB_ICONINFORMATION);
+        return E_NOTIMPL;
+#endif
+    }
+
     INITCOMMONCONTROLSEX common_controls = {
         .dwSize = sizeof(common_controls),
         .dwICC = ICC_WIN95_CLASSES,
@@ -625,10 +658,6 @@ HRESULT RunImgViewerApplicationAsHresult()
         context.tooltip.reset(tooltip);
     }
 
-    int argc = 0;
-    wil::unique_hlocal command_line_args{reinterpret_cast<HLOCAL>(CommandLineToArgvW(GetCommandLineW(), &argc))};
-    RETURN_LAST_ERROR_IF_NULL(command_line_args.get());
-    auto** argv = reinterpret_cast<wchar_t**>(command_line_args.get());
     if (argc > 1) {
         LoadImgViewerImageFile(window.Hwnd(), &context, argv[1]);
     }

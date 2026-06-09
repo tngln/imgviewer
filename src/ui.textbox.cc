@@ -37,7 +37,14 @@ const std::wstring& TextBox::Text() const
 void TextBox::SetText(std::wstring text)
 {
     edit_.SetText(std::move(text));
-    UpdateHorizontalScroll();
+    edit_.MoveHome(false);
+    horizontal_scroll_ = 0.0f;
+}
+
+void TextBox::SelectAll()
+{
+    edit_.SelectAll();
+    horizontal_scroll_ = 0.0f;
 }
 
 void TextBox::SetTextServices(IDWriteFactory* factory, IDWriteTextFormat* format) const

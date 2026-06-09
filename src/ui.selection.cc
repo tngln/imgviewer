@@ -131,9 +131,9 @@ public:
         case UiEventType::PointerMove:
             return OnPointerMove(event.point);
         case UiEventType::PointerDown:
-            return UiEventResult{.handled = true};
+            return SelectOptionAt(event.point);
         case UiEventType::PointerUp:
-            return OnPointerUp(event.point);
+            return SelectOptionAt(event.point);
         case UiEventType::KeyDown:
             return OnKeyDown(event.key.virtual_key);
         default:
@@ -159,7 +159,7 @@ private:
         };
     }
 
-    UiEventResult OnPointerUp(D2D1_POINT_2F point)
+    UiEventResult SelectOptionAt(D2D1_POINT_2F point)
     {
         const size_t option = OptionAt(point);
         if (option >= dropdown_->options_.size()) {

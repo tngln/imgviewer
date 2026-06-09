@@ -125,6 +125,7 @@ UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
 {
     UiEventResult menu_result = root_->OnKeyEvent(event);
     if (menu_result.handled) {
+        ApplyEventResult(menu_result, event.focused);
         return menu_result;
     }
     UiEventResult result = DispatchKeyEvent(event);
@@ -188,8 +189,14 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
 
     UiEventResult result = root_result;
     if (UiElement* target = root_->Root()->FindById(target_id)) {
-        result = target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
-        result.needs_render = result.needs_render || root_result.needs_render;
+        UiEventResult target_result =
+            target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
+        target_result.needs_render = target_result.needs_render || root_result.needs_render;
+        if (target_result.focus == UiFocusRequest::None && root_result.focus != UiFocusRequest::None) {
+            target_result.focus = root_result.focus;
+            target_result.focus_target = root_result.focus_target;
+        }
+        result = target_result;
     }
 
     if (!result.handled && target_id != UiElementId::None) {

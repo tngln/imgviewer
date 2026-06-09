@@ -52,6 +52,7 @@ struct ImgViewerContext final {
     HWND settings_window = nullptr;
     void* settings_context = nullptr;
     void* about_context = nullptr;
+    void* developer_context = nullptr;
     bool color_picker_active = false;
     bool color_picker_has_sample = false;
     std::wstring color_picker_hex_text;
@@ -97,3 +98,5 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);
 void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_context);
 HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context);
 void CleanupImgViewerAboutWindow(ImgViewerContext* context, void* about_context);
+HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context);
+void CleanupImgViewerDeveloperWindow(ImgViewerContext* context, void* developer_context);

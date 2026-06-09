@@ -533,13 +533,22 @@ void PopupHost::HandlePopupResult(UiEventResult result)
             RenderNativePopup();
         }
     }
-    if (result.action != kUiActionNone) {
-        ForwardAction(result.action, result.effect_target);
-    } else if (result.effect_target != UiElementId::None) {
-        PostMessageW(owner_, action_message_, 0, static_cast<LPARAM>(UiElementIdValue(result.effect_target)));
-    }
-    if (result.close_popup) {
+
+    const UiAction action = result.action;
+    const UiElementId effect_target = result.effect_target;
+    const bool close_popup = result.close_popup;
+    if (close_popup) {
         Close();
+    }
+
+    if (action != kUiActionNone) {
+        SendMessageW(
+            owner_,
+            action_message_,
+            static_cast<WPARAM>(UiActionValue(action)),
+            static_cast<LPARAM>(UiElementIdValue(effect_target)));
+    } else if (effect_target != UiElementId::None) {
+        SendMessageW(owner_, action_message_, 0, static_cast<LPARAM>(UiElementIdValue(effect_target)));
     }
 }
 

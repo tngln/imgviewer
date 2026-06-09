@@ -167,9 +167,7 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
     }
 
     const bool edit_enabled = edit_toolbar_state_.visible;
-    return SUCCEEDED(popup_host->OpenMenu(
-        kMainMenuOrigin,
-        std::vector<MenuItem>{
+    std::vector<MenuItem> menu_items{
             {L"Open Image", UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
             {L"Region Screenshot", UiActionFromImgViewerAction(ImgViewerAction::CaptureRegion)},
             {L"Save As", UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false, save_image_as_enabled_},
@@ -280,7 +278,13 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
             {L"Minimize", UiActionFromImgViewerAction(ImgViewerAction::Minimize)},
             {L"Maximize or Restore", UiActionFromImgViewerAction(ImgViewerAction::ToggleMaximize)},
             {L"Close", UiActionFromImgViewerAction(ImgViewerAction::Close)},
-        }));
+        };
+#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
+    menu_items.insert(
+        menu_items.begin() + 6,
+        MenuItem{L"Developer", UiActionFromImgViewerAction(ImgViewerAction::OpenDeveloper)});
+#endif
+    return SUCCEEDED(popup_host->OpenMenu(kMainMenuOrigin, std::move(menu_items)));
 }
 
 bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const

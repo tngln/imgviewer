@@ -38,6 +38,13 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
         return win32::WindowMessageResult::Handled();
     }
 
+    case kImgViewerDeveloperDestroyedMessage: {
+        CleanupImgViewerDeveloperWindow(
+            GetImgViewerContext(hwnd),
+            reinterpret_cast<void*>(lparam));
+        return win32::WindowMessageResult::Handled();
+    }
+
     case WM_TIMER: {
         if (wparam == kImgViewerToastTimerId) {
             KillTimer(hwnd, kImgViewerToastTimerId);

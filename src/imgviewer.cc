@@ -9,6 +9,7 @@
 #include <wil/resource.h>
 
 #include "imgviewer.about.hpp"
+#include "imgviewer.developer.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.settings.hpp"
 #include "imgviewer.ui.action.hpp"
@@ -696,6 +697,11 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::OpenSettings:
         OpenImgViewerSettingsWindow(hwnd, context);
         break;
+#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
+    case ImgViewerAction::OpenDeveloper:
+        OpenImgViewerDeveloperWindow(hwnd, context);
+        break;
+#endif
     case ImgViewerAction::OpenAbout:
         OpenImgViewerAboutWindow(hwnd, context);
         break;
