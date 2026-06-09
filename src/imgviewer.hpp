@@ -90,7 +90,6 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);
-void HandleImgViewerCaptureDesktop(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);

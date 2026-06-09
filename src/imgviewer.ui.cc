@@ -171,7 +171,6 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
         kMainMenuOrigin,
         std::vector<MenuItem>{
             {L"Open Image", UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
-            {L"Desktop Screenshot", UiActionFromImgViewerAction(ImgViewerAction::CaptureDesktop)},
             {L"Region Screenshot", UiActionFromImgViewerAction(ImgViewerAction::CaptureRegion)},
             {L"Save As", UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false, save_image_as_enabled_},
             {L"Show in File Explorer", UiActionFromImgViewerAction(ImgViewerAction::ShowInFileExplorer), false, false, show_in_file_explorer_enabled_},

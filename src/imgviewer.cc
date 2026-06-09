@@ -682,9 +682,6 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::OpenImage:
     case ImgViewerAction::OpenMenu:
         break;
-    case ImgViewerAction::CaptureDesktop:
-        HandleImgViewerCaptureDesktop(hwnd, context);
-        break;
     case ImgViewerAction::CaptureRegion:
         HandleImgViewerCaptureRegion(hwnd, context);
         break;
@@ -1045,50 +1042,6 @@ void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     LoadImgViewerImageFile(hwnd, context, path.c_str());
-}
-
-void HandleImgViewerCaptureDesktop(HWND hwnd, ImgViewerContext* context)
-{
-    if (context == nullptr) {
-        return;
-    }
-    ResetImgViewerTransientInput(hwnd, context);
-    context->interaction.SetModal(ImgViewerModalOwner::ScreenCapture);
-    auto clear_modal = wil::scope_exit([&] {
-        context->interaction.ClearModal(ImgViewerModalOwner::ScreenCapture);
-    });
-
-    const bool was_visible = IsWindowVisible(hwnd) != FALSE;
-    const bool was_iconic = IsIconic(hwnd) != FALSE;
-    const bool was_zoomed = IsZoomed(hwnd) != FALSE;
-    if (was_visible) {
-        ShowWindow(hwnd, SW_HIDE);
-        Sleep(120);
-    }
-    bool restored = false;
-    const auto restore_window = [&] {
-        if (restored) {
-            return;
-        }
-        restored = true;
-        if (!was_visible) {
-            return;
-        }
-        ShowWindow(hwnd, was_iconic ? SW_SHOWMINIMIZED : (was_zoomed ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL));
-        SetForegroundWindow(hwnd);
-    };
-
-    wil::com_ptr<IWICBitmapSource> screenshot;
-    const HRESULT capture_hr = win32::CaptureVirtualDesktop(context->viewer.WicFactory(), screenshot.put());
-    restore_window();
-    if (FAILED(capture_hr)) {
-        ShowImgViewerToast(hwnd, context, L"Could not capture desktop.");
-        return;
-    }
-
-    if (FAILED(LoadImgViewerScreenshotBitmap(hwnd, context, screenshot.get()))) {
-        ShowImgViewerToast(hwnd, context, L"Could not capture desktop.");
-    }
 }
 
 void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context)

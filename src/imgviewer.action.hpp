@@ -4,7 +4,6 @@
 
 #define IMGVIEWER_ACTIONS(X) \
     X(OpenImage, "openImage", L"Open Image", true, true) \
-    X(CaptureDesktop, "captureDesktop", L"Desktop Screenshot", true, true) \
     X(CaptureRegion, "captureRegion", L"Region Screenshot", true, true) \
     X(SaveImageAs, "saveImageAs", L"Save As", false, false) \
     X(ShowInFileExplorer, "showInFileExplorer", L"Show in File Explorer", true, true) \

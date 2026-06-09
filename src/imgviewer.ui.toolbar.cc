@@ -97,8 +97,6 @@ constexpr std::array<ButtonSpec, ImgViewerUiToolbar::kButtonCount> kButtonSpecs{
         L"previous-image", GlyphIcon(kPreviousIcon), false},
     {ImgViewerUiToolbar::ButtonKey::NextImage, ImgViewerAction::NextImage, L"Next Image", L"Next image", L"next-image",
         GlyphIcon(kNextIcon), false},
-    {ImgViewerUiToolbar::ButtonKey::CaptureDesktop, ImgViewerAction::CaptureDesktop, L"Desktop Screenshot",
-        L"Desktop screenshot", L"desktop-screenshot", PathIcon(icons::kDesktopScreenshotIcon)},
     {ImgViewerUiToolbar::ButtonKey::CaptureRegion, ImgViewerAction::CaptureRegion, L"Region Screenshot",
         L"Region screenshot", L"region-screenshot", PathIcon(icons::kRegionScreenshotIcon)},
     {ImgViewerUiToolbar::ButtonKey::ZoomIn, ImgViewerAction::ZoomIn, L"Zoom In", L"Zoom in", L"zoom-in",

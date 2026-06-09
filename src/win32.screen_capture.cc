@@ -304,16 +304,4 @@ HRESULT CaptureScreenRect(IWICImagingFactory2* wic_factory, const RECT& region, 
     return S_OK;
 }
 
-HRESULT CaptureVirtualDesktop(IWICImagingFactory2* wic_factory, IWICBitmapSource** source)
-{
-    const RECT desktop_rect{
-        GetSystemMetrics(SM_XVIRTUALSCREEN),
-        GetSystemMetrics(SM_YVIRTUALSCREEN),
-        GetSystemMetrics(SM_XVIRTUALSCREEN) + GetSystemMetrics(SM_CXVIRTUALSCREEN),
-        GetSystemMetrics(SM_YVIRTUALSCREEN) + GetSystemMetrics(SM_CYVIRTUALSCREEN),
-    };
-    RETURN_IF_FAILED(CaptureScreenRect(wic_factory, desktop_rect, source));
-    return S_OK;
-}
-
 } // namespace win32

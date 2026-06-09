@@ -101,34 +101,6 @@ constexpr PathCommand kColorPickerIconPath[] = {
 
 constexpr PathIcon kColorPickerIcon = MakePathIcon(kColorPickerIconPath, {0.0f, 0.0f, 24.0f, 24.0f});
 
-constexpr PathCommand kDesktopScreenshotIconPath[] = {
-    {PathVerb::MoveTo, {{4.0f, 5.0f}, {}, {}}},
-    {PathVerb::LineTo, {{20.0f, 5.0f}, {}, {}}},
-    {PathVerb::LineTo, {{20.0f, 17.0f}, {}, {}}},
-    {PathVerb::LineTo, {{4.0f, 17.0f}, {}, {}}},
-    {PathVerb::Close, {{}, {}, {}}},
-    {PathVerb::MoveTo, {{9.0f, 20.0f}, {}, {}}},
-    {PathVerb::LineTo, {{15.0f, 20.0f}, {}, {}}},
-    {PathVerb::MoveTo, {{12.0f, 17.0f}, {}, {}}},
-    {PathVerb::LineTo, {{12.0f, 20.0f}, {}, {}}},
-    {PathVerb::MoveTo, {{8.0f, 9.0f}, {}, {}}},
-    {PathVerb::LineTo, {{8.0f, 7.0f}, {}, {}}},
-    {PathVerb::LineTo, {{10.0f, 7.0f}, {}, {}}},
-    {PathVerb::MoveTo, {{16.0f, 9.0f}, {}, {}}},
-    {PathVerb::LineTo, {{16.0f, 7.0f}, {}, {}}},
-    {PathVerb::LineTo, {{14.0f, 7.0f}, {}, {}}},
-    {PathVerb::MoveTo, {{8.0f, 13.0f}, {}, {}}},
-    {PathVerb::LineTo, {{8.0f, 15.0f}, {}, {}}},
-    {PathVerb::LineTo, {{10.0f, 15.0f}, {}, {}}},
-    {PathVerb::MoveTo, {{16.0f, 13.0f}, {}, {}}},
-    {PathVerb::LineTo, {{16.0f, 15.0f}, {}, {}}},
-    {PathVerb::LineTo, {{14.0f, 15.0f}, {}, {}}},
-    {PathVerb::MoveTo, {{10.0f, 11.0f}, {}, {}}},
-    {PathVerb::LineTo, {{14.0f, 11.0f}, {}, {}}},
-};
-
-constexpr PathIcon kDesktopScreenshotIcon = MakePathIcon(kDesktopScreenshotIconPath, {0.0f, 0.0f, 24.0f, 24.0f});
-
 constexpr PathCommand kRegionScreenshotIconPath[] = {
     {PathVerb::MoveTo, {{6.0f, 6.0f}, {}, {}}},
     {PathVerb::LineTo, {{18.0f, 6.0f}, {}, {}}},
