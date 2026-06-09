@@ -56,6 +56,7 @@ constexpr float kTextTopOffset = 2.5f;
 
 constexpr float kTitleBarHeight = 24.0f;
 constexpr float kCaptionButtonWidth = 24.0f;
+constexpr float kCaptionButtonEdgePadding = 1.0f;
 constexpr float kTitleTextLeft = 8.0f;
 constexpr float kTitleTextRightPadding = 6.0f;
 constexpr float kWindowBorderInset = 0.25f;

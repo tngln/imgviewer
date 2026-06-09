@@ -109,7 +109,7 @@ D2D1_SIZE_F ImgViewerUiTitleBar::Measure(const UiDrawContext&, D2D1_SIZE_F avail
 void ImgViewerUiTitleBar::Arrange(D2D1_RECT_F final_rect)
 {
     titlebar_rect_ = final_rect;
-    const float caption_edge_padding = ui_theme::metrics::kHalfPixel;
+    const float caption_edge_padding = ui_theme::metrics::kCaptionButtonEdgePadding;
     const D2D1_RECT_F caption_button_area = D2D1::RectF(
         titlebar_rect_.left,
         titlebar_rect_.top + caption_edge_padding,
