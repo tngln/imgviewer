@@ -32,6 +32,7 @@
 namespace {
 
 constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
+constexpr float kEdgeClickDragCancelDistance = 6.0f;
 
 D2D1_POINT_2F GetPointerPoint(HWND hwnd, LPARAM lparam, bool screen_to_client = false)
 {
@@ -349,6 +350,85 @@ ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditControll
         return ImgViewerPointerCaptureOwner::EditPixelSelection;
     }
     return ImgViewerPointerCaptureOwner::EditStroke;
+}
+
+float DistanceSquared(D2D1_POINT_2F left, D2D1_POINT_2F right)
+{
+    const float dx = left.x - right.x;
+    const float dy = left.y - right.y;
+    return dx * dx + dy * dy;
+}
+
+void ClearPendingEdgeClick(HWND hwnd, ImgViewerContext* context)
+{
+    if (context == nullptr) {
+        return;
+    }
+
+    context->pending_edge_click_action = ImgViewerAction::None;
+    context->pending_edge_click_point = {};
+    context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::EdgeClickNavigation);
+    if (hwnd != nullptr && GetCapture() == hwnd) {
+        ReleaseCapture();
+    }
+}
+
+ImgViewerAction EdgeClickActionAtPoint(const ImgViewerContext* context, D2D1_POINT_2F point, bool require_no_capture = true)
+{
+    if (context == nullptr ||
+        !context->config.edge_click_navigation ||
+        context->interaction.Modal() != ImgViewerModalOwner::None ||
+        (require_no_capture && context->interaction.HasPointerCapture()) ||
+        context->interaction.CanvasOwner() != ImgViewerCanvasOwner::Viewer) {
+        return ImgViewerAction::None;
+    }
+
+    const D2D1_SIZE_U viewport_size = context->renderer.ViewportPixelSize();
+    if (viewport_size.width == 0 || viewport_size.height == 0) {
+        return ImgViewerAction::None;
+    }
+
+    const int zone_percent = ClampEdgeClickNavigationZonePercent(context->config.edge_click_navigation_zone_percent);
+    const float zone_width = (std::max)(1.0f, static_cast<float>(viewport_size.width) * static_cast<float>(zone_percent) / 100.0f);
+    if (point.x >= 0.0f && point.x < zone_width) {
+        return ImgViewerAction::PreviousImage;
+    }
+    if (point.x >= static_cast<float>(viewport_size.width) - zone_width &&
+        point.x < static_cast<float>(viewport_size.width)) {
+        return ImgViewerAction::NextImage;
+    }
+
+    return ImgViewerAction::None;
+}
+
+bool CancelPendingEdgeClickIfDragged(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point)
+{
+    if (context == nullptr ||
+        context->interaction.PointerCapture() != ImgViewerPointerCaptureOwner::EdgeClickNavigation) {
+        return false;
+    }
+
+    if (DistanceSquared(context->pending_edge_click_point, point) >
+        kEdgeClickDragCancelDistance * kEdgeClickDragCancelDistance) {
+        ClearPendingEdgeClick(hwnd, context);
+    }
+    return true;
+}
+
+bool CommitPendingEdgeClick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point)
+{
+    if (context == nullptr ||
+        context->interaction.PointerCapture() != ImgViewerPointerCaptureOwner::EdgeClickNavigation) {
+        return false;
+    }
+
+    const ImgViewerAction action = context->pending_edge_click_action;
+    const bool still_in_same_zone = action != ImgViewerAction::None && EdgeClickActionAtPoint(context, point, false) == action;
+    ClearPendingEdgeClick(hwnd, context);
+    if (still_in_same_zone) {
+        ExecuteImgViewerAction(hwnd, context, action);
+    }
+    return true;
 }
 
 void ShowWindowSizeToast(HWND hwnd, ImgViewerContext* context)
@@ -677,6 +757,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
                 }
             }
 
+            if (CancelPendingEdgeClickIfDragged(hwnd, context, point)) {
+                return 0;
+            }
+
             ImgViewerEventResult canvas_result = {};
             if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
                 if (UpdateImgViewerColorPickerSample(context, point)) {
@@ -726,7 +810,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
-            if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::ColorPicker &&
+            const ImgViewerAction edge_click_action = EdgeClickActionAtPoint(context, point);
+            if (edge_click_action != ImgViewerAction::None) {
+                context->pending_edge_click_action = edge_click_action;
+                context->pending_edge_click_point = point;
+                context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::EdgeClickNavigation);
+                SetCapture(hwnd);
+                ui_result.handled = true;
+            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::ColorPicker &&
                 UpdateImgViewerColorPickerSample(context, point)) {
                 context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
                 SetCapture(hwnd);
@@ -774,7 +865,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
-            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
+            if (CommitPendingEdgeClick(hwnd, context, point)) {
+                viewer_result = ImgViewerEventResult{.handled = true};
+            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
                 context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
                 ReleaseCapture();
                 viewer_result = ImgViewerEventResult{.handled = true};

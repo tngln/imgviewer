@@ -314,6 +314,8 @@ void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context)
 
     context->edit.CancelTransientTool();
     context->viewer.CancelTransientViewGesture();
+    context->pending_edge_click_action = ImgViewerAction::None;
+    context->pending_edge_click_point = {};
     context->interaction.ResetTransientInput();
     if (hwnd != nullptr && GetCapture() == hwnd) {
         ReleaseCapture();

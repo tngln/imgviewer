@@ -47,10 +47,14 @@ constexpr int kToolbarScaleMinimum = 80;
 constexpr int kToolbarScaleMaximum = 160;
 constexpr int kToolbarScaleSmallStep = 5;
 constexpr int kToolbarScaleLargeStep = 10;
+constexpr int kEdgeClickZoneMinimum = 5;
+constexpr int kEdgeClickZoneMaximum = 40;
+constexpr int kEdgeClickZoneSmallStep = 1;
+constexpr int kEdgeClickZoneLargeStep = 5;
 constexpr int kSettingsInitialWidth = 500;
-constexpr int kSettingsInitialHeight = 570;
+constexpr int kSettingsInitialHeight = 650;
 constexpr int kSettingsMinClientWidth = 400;
-constexpr int kSettingsMinClientHeight = 540;
+constexpr int kSettingsMinClientHeight = 620;
 
 constexpr float kSettingsSidePadding = 14.0f;
 constexpr float kSettingsContentTopPadding = 9.0f;
@@ -115,20 +119,26 @@ private:
     static constexpr size_t kPixelatedSamplingSetting = 1;
     static constexpr size_t kCheckerboardBackgroundSetting = 2;
     static constexpr size_t kBorderlessWindowSetting = 3;
-    static constexpr std::array<BooleanSettingSpec, 4> kBooleanSettingSpecs{{
+    static constexpr size_t kEdgeClickNavigationSetting = 4;
+    static constexpr std::array<BooleanSettingSpec, 5> kBooleanSettingSpecs{{
         {L"Remember window size", L"remember-window-size", &ImgViewerConfig::remember_window_size},
         {L"Pixelated sampling", L"pixelated-sampling", &ImgViewerConfig::pixelated_sampling},
         {L"Checkerboard background", L"checkerboard-background", &ImgViewerConfig::checkerboard_background},
         {L"Borderless window", L"borderless-window", &ImgViewerConfig::borderless_window},
+        {L"Edge click navigation", L"edge-click-navigation", &ImgViewerConfig::edge_click_navigation},
     }};
 
     static constexpr size_t kOpacitySliderSetting = 0;
     static constexpr size_t kToolbarScaleSliderSetting = 1;
-    static constexpr std::array<SliderSettingSpec, 2> kSliderSettingSpecs{{
+    static constexpr size_t kEdgeClickZoneSliderSetting = 2;
+    static constexpr std::array<SliderSettingSpec, 3> kSliderSettingSpecs{{
         {L"Opacity", L"window-opacity", &ImgViewerConfig::window_opacity_percent,
             kOpacityMinimum, kOpacityMaximum, kOpacitySmallStep, kOpacityLargeStep, ClampWindowOpacityPercent},
         {L"Toolbar size", L"toolbar-size", &ImgViewerConfig::toolbar_scale_percent,
             kToolbarScaleMinimum, kToolbarScaleMaximum, kToolbarScaleSmallStep, kToolbarScaleLargeStep, ClampToolbarScalePercent},
+        {L"Edge click zone", L"edge-click-zone", &ImgViewerConfig::edge_click_navigation_zone_percent,
+            kEdgeClickZoneMinimum, kEdgeClickZoneMaximum, kEdgeClickZoneSmallStep, kEdgeClickZoneLargeStep,
+            ClampEdgeClickNavigationZonePercent},
     }};
 
 public:
@@ -424,6 +434,10 @@ private:
 
         StackPanel* toolbar_section = AddSection(L"Toolbar size", L"toolbar-size-label", ui_theme::metrics::kSmallGap);
         AddSliderSetting(toolbar_section, kToolbarScaleSliderSetting);
+
+        StackPanel* navigation_section = AddSection(L"Navigation", L"navigation-label", ui_theme::metrics::kSmallGap);
+        AddCheckboxSetting(navigation_section, kEdgeClickNavigationSetting);
+        AddSliderSetting(navigation_section, kEdgeClickZoneSliderSetting);
 
         StackPanel* filter_section = AddSection(L"Shortcut filter", L"shortcut-filter-label", ui_theme::metrics::kSmallGap);
         filter_box_ = filter_section->AddItem(std::make_unique<TextBox>(

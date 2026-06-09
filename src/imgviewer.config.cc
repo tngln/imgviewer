@@ -18,6 +18,8 @@ constexpr int kMinimumWindowOpacityPercent = 10;
 constexpr int kMaximumWindowOpacityPercent = 100;
 constexpr int kMinimumToolbarScalePercent = 80;
 constexpr int kMaximumToolbarScalePercent = 160;
+constexpr int kMinimumEdgeClickNavigationZonePercent = 5;
+constexpr int kMaximumEdgeClickNavigationZonePercent = 40;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.jsonc";
 
 std::filesystem::path ConfigFilePath()
@@ -66,6 +68,11 @@ int ClampToolbarScalePercent(int percent)
     return (std::clamp)(percent, kMinimumToolbarScalePercent, kMaximumToolbarScalePercent);
 }
 
+int ClampEdgeClickNavigationZonePercent(int percent)
+{
+    return (std::clamp)(percent, kMinimumEdgeClickNavigationZonePercent, kMaximumEdgeClickNavigationZonePercent);
+}
+
 HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
 {
     RETURN_HR_IF_NULL(E_POINTER, config);
@@ -100,6 +107,11 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
             config->borderless_window = borderless->get<bool>();
         }
 
+        if (const auto edge_click = root.find("edgeClickNavigation");
+            edge_click != root.end() && edge_click->is_boolean()) {
+            config->edge_click_navigation = edge_click->get<bool>();
+        }
+
         if (const auto opacity = root.find("windowOpacity");
             opacity != root.end() && opacity->is_number_integer()) {
             config->window_opacity_percent = ClampWindowOpacityPercent(opacity->get<int>());
@@ -108,6 +120,12 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
         if (const auto toolbar_scale = root.find("toolbarScale");
             toolbar_scale != root.end() && toolbar_scale->is_number_integer()) {
             config->toolbar_scale_percent = ClampToolbarScalePercent(toolbar_scale->get<int>());
+        }
+
+        if (const auto edge_click_zone = root.find("edgeClickNavigationZone");
+            edge_click_zone != root.end() && edge_click_zone->is_number_integer()) {
+            config->edge_click_navigation_zone_percent =
+                ClampEdgeClickNavigationZonePercent(edge_click_zone->get<int>());
         }
 
         if (const auto window = root.find("window");
@@ -141,10 +159,15 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "  \"checkerboardBackground\": " << (config.checkerboard_background ? "true" : "false") << ",\n";
     output << "  // When true, the main viewer window uses no native border or shadow.\n";
     output << "  \"borderlessWindow\": " << (config.borderless_window ? "true" : "false") << ",\n";
+    output << "  // When true, clicking the left or right window edge navigates images.\n";
+    output << "  \"edgeClickNavigation\": " << (config.edge_click_navigation ? "true" : "false") << ",\n";
     output << "  // Main viewer window opacity, clamped from 10 to 100 percent.\n";
     output << "  \"windowOpacity\": " << ClampWindowOpacityPercent(config.window_opacity_percent) << ",\n";
     output << "  // Main viewer toolbar size, clamped from 80 to 160 percent.\n";
     output << "  \"toolbarScale\": " << ClampToolbarScalePercent(config.toolbar_scale_percent) << ",\n";
+    output << "  // Left and right edge click areas, clamped from 5 to 40 percent of window width.\n";
+    output << "  \"edgeClickNavigationZone\": "
+        << ClampEdgeClickNavigationZonePercent(config.edge_click_navigation_zone_percent) << ",\n";
     output << "  \"window\": {\n";
     output << "    \"width\": " << (std::max)(kMinimumWindowWidth, config.window_size.width) << ",\n";
     output << "    \"height\": " << (std::max)(kMinimumWindowHeight, config.window_size.height) << "\n";
