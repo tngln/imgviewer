@@ -1,5 +1,6 @@
 #include "imgviewer.host.internal.hpp"
 
+#include "imgviewer.host.pointer_router.hpp"
 #include "math.hpp"
 #include "win32.util.hpp"
 
@@ -34,8 +35,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                     return win32::WindowMessageResult::Handled();
                 }
             }
-            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::Ui ||
-                !context->interaction.HasPointerCapture()) {
+            if (CanUiReceivePointer(context->interaction)) {
                 UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
                 RenderIfNeeded(hwnd, context, ui_result);
                 if (ui_result.handled) {
@@ -48,22 +48,21 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             }
 
             ImgViewerEventResult canvas_result = {};
-            if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
+            switch (ActivePointerTarget(context->interaction, context->edit.Active())) {
+            case ImgViewerPointerTarget::ColorPicker:
                 if (UpdateImgViewerColorPickerSample(context, point)) {
                     RenderImgViewer(context);
                     return win32::WindowMessageResult::Handled();
                 }
-            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditPixelSelection) {
+                break;
+            case ImgViewerPointerTarget::EditTool:
                 canvas_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
-            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {
+                break;
+            case ImgViewerPointerTarget::Viewer:
                 canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
-            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool && context->edit.Active()) {
-                canvas_result = context->edit.OnPointerMove(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
-            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer) {
-                canvas_result = context->viewer.OnPointerMove(point.x, point.y, context->renderer.ViewportPixelSize());
+                break;
+            default:
+                break;
             }
             RenderIfNeeded(hwnd, context, canvas_result);
         }
@@ -97,19 +96,20 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
             const ImgViewerAction edge_click_action = EdgeClickActionAtPoint(context, point);
+            const ImgViewerPointerTarget canvas_target = CanvasPointerTarget(context->interaction, context->edit.Active());
             if (edge_click_action != ImgViewerAction::None) {
                 context->pending_edge_click_action = edge_click_action;
                 context->pending_edge_click_point = point;
                 context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::EdgeClickNavigation);
                 SetCapture(hwnd);
                 ui_result.handled = true;
-            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::ColorPicker &&
+            } else if (canvas_target == ImgViewerPointerTarget::ColorPicker &&
                 UpdateImgViewerColorPickerSample(context, point)) {
                 context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
                 SetCapture(hwnd);
                 ui_result.handled = true;
                 ui_result.needs_render = true;
-            } else if (context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool && context->edit.Active()) {
+            } else if (canvas_target == ImgViewerPointerTarget::EditTool) {
                 viewer_result = context->edit.OnPointerDown(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else {
                 viewer_result = context->viewer.OnPointerDown(point.x, point.y, context->renderer.ViewportPixelSize());
@@ -137,8 +137,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         ImgViewerEventResult edit_result = {};
         if (context != nullptr &&
-            context->interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool &&
-            context->edit.Active()) {
+            CanvasPointerTarget(context->interaction, context->edit.Active()) == ImgViewerPointerTarget::EditTool) {
             edit_result = context->edit.OnPointerDoubleClick(
                 point,
                 context->viewer.Snapshot(),
@@ -155,18 +154,16 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
+            const ImgViewerPointerTarget captured_target = CapturedPointerTarget(context->interaction.PointerCapture());
             if (CommitPendingEdgeClick(hwnd, context, point)) {
                 viewer_result = ImgViewerEventResult{.handled = true};
-            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ColorPicker) {
+            } else if (captured_target == ImgViewerPointerTarget::ColorPicker) {
                 context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
                 ReleaseCapture();
                 viewer_result = ImgViewerEventResult{.handled = true};
-            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditStroke ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditCrop ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::EditPixelSelection) {
+            } else if (captured_target == ImgViewerPointerTarget::EditTool) {
                 viewer_result = context->edit.OnPointerUp(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
-            } else if (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerPan ||
-                context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::ViewerRotate) {
+            } else if (captured_target == ImgViewerPointerTarget::Viewer) {
                 viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
             }
         }
@@ -174,8 +171,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         UiEventResult ui_result = {};
         if (context != nullptr &&
             !viewer_result.handled &&
-            (context->interaction.PointerCapture() == ImgViewerPointerCaptureOwner::Ui ||
-                !context->interaction.HasPointerCapture())) {
+            CanUiReceivePointer(context->interaction)) {
             const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
             const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
             UiPointerEvent pointer{
@@ -264,7 +260,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             }
         }
         if (context != nullptr &&
-            context->interaction.CanvasOwner() == ImgViewerCanvasOwner::Viewer &&
+            CanvasPointerTarget(context->interaction, context->edit.Active()) == ImgViewerPointerTarget::Viewer &&
             context->viewer.OnMouseWheel(
                 point.x,
                 point.y,

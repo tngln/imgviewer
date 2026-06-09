@@ -16,6 +16,7 @@ add_executable(imgviewer
     src/imgviewer.host.keyboard.cc
     src/imgviewer.host.lifecycle.cc
     src/imgviewer.host.pointer.cc
+    src/imgviewer.host.pointer_router.cc
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
