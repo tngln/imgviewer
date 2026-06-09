@@ -57,6 +57,11 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
         .color = context->edit.PenColor(),
         .width = context->edit.PenWidth(),
     });
+    static_cast<ImgViewerUi*>(context->ui.Root())->SetShapeToolstripState(ImgViewerUiShapeToolstripState{
+        .visible = context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Shape,
+        .kind = context->edit.ShapeKind(),
+        .color = context->edit.PenColor(),
+    });
     static_cast<ImgViewerUi*>(context->ui.Root())->SetTextToolstripState(ImgViewerUiTextToolstripState{
         .visible = context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Text,
         .style = context->edit.TextStyle(),
@@ -528,7 +533,9 @@ void SetPenColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
     }
     ResetImgViewerTransientInput(hwnd, context);
     ClearImgViewerColorPickerState(context);
-    context->edit.SetTool(ImgViewerEditTool::Pen);
+    if (context->edit.Tool() != ImgViewerEditTool::Shape) {
+        context->edit.SetTool(ImgViewerEditTool::Pen);
+    }
     context->edit.SetActive(true);
     context->edit.SetPenColor(color);
     context->interaction.EnterEditing();

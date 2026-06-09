@@ -1298,6 +1298,21 @@ bool ImgViewerEditController::UpdateTextImeComposition(std::wstring composition)
     return true;
 }
 
+bool ImgViewerEditController::CommitTextImeResult(std::wstring text)
+{
+    if (!IsEditingText()) {
+        return false;
+    }
+
+    text_edit_.ClearComposition();
+    if (!text_edit_.InsertText(text)) {
+        return true;
+    }
+
+    SyncTextEditObject();
+    return true;
+}
+
 bool ImgViewerEditController::EndTextImeComposition()
 {
     if (!IsEditingText()) {
@@ -1414,6 +1429,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
 {
     if (!active_ ||
         (!drawing_stroke_ &&
+            !drawing_shape_ &&
             !dragging_crop_edge_ &&
             !drawing_pixel_selection_ &&
             !moving_selected_object_ &&

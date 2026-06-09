@@ -34,6 +34,7 @@ ImgViewerUi::ImgViewerUi() :
     color_picker_toolstrip_(*root_),
     edit_toolbar_(*root_),
     pen_toolstrip_(*root_),
+    shape_toolstrip_(*root_),
     text_toolstrip_(*root_),
     selection_toolstrip_(*root_),
     animation_toolbar_(*root_),
@@ -63,6 +64,7 @@ D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext& context, D2D1_SIZE_F avail
     color_picker_toolstrip_.Measure(context, available_size);
     edit_toolbar_.Measure(context, available_size);
     pen_toolstrip_.Measure(context, available_size);
+    shape_toolstrip_.Measure(context, available_size);
     text_toolstrip_.Measure(context, available_size);
     selection_toolstrip_.Measure(context, available_size);
     animation_toolbar_.Measure(context, available_size);
@@ -79,6 +81,7 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
     edit_toolbar_.Arrange(final_rect, toolbar_.Rect());
     selection_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     pen_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
+    shape_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     text_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     animation_toolbar_.Arrange(
         final_rect,
@@ -88,7 +91,9 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
             ? text_toolstrip_.Rect()
             : (pen_toolstrip_state_.visible
                 ? pen_toolstrip_.Rect()
-                : (selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect())))));
+                : (shape_toolstrip_state_.visible
+                    ? shape_toolstrip_.Rect()
+                    : (selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect()))))));
     info_panel_.Arrange(final_rect);
 }
 
@@ -102,6 +107,7 @@ void ImgViewerUi::Render(
     edit_toolbar_.Render(draw_context, state);
     text_toolstrip_.Render(draw_context, state);
     pen_toolstrip_.Render(draw_context, state);
+    shape_toolstrip_.Render(draw_context, state);
     selection_toolstrip_.Render(draw_context, state);
     animation_toolbar_.Render(draw_context, state);
     info_panel_.Render(draw_context);
@@ -129,6 +135,10 @@ UiEventResult ImgViewerUi::OnPointerEvent(const UiPointerEvent& event)
     UiEventResult pen_toolstrip_result = pen_toolstrip_.OnPointerEvent(event);
     if (pen_toolstrip_result.handled) {
         return pen_toolstrip_result;
+    }
+    UiEventResult shape_toolstrip_result = shape_toolstrip_.OnPointerEvent(event);
+    if (shape_toolstrip_result.handled) {
+        return shape_toolstrip_result;
     }
     UiEventResult edit_toolbar_result = edit_toolbar_.OnPointerEvent(event);
     if (edit_toolbar_result.handled) {
@@ -209,10 +219,19 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
                     {L"Pen 12 px", UiActionFromImgViewerAction(ImgViewerAction::EditPenWidth12), false, std::abs(pen_toolstrip_state_.width - 12.0f) < 0.01f, edit_enabled},
                 }},
                 {L"Shape", kUiActionNone, false, edit_toolbar_state_.tool == ImgViewerEditTool::Shape, edit_enabled, std::vector<MenuItem>{
-                    {L"Shape Rectangle", UiActionFromImgViewerAction(ImgViewerAction::EditShapeRectangle), false, false, edit_enabled},
-                    {L"Shape Ellipse", UiActionFromImgViewerAction(ImgViewerAction::EditShapeEllipse), false, false, edit_enabled},
-                    {L"Shape Line", UiActionFromImgViewerAction(ImgViewerAction::EditShapeLine), false, false, edit_enabled},
-                    {L"Shape Arrow", UiActionFromImgViewerAction(ImgViewerAction::EditShapeArrow), false, false, edit_enabled},
+                    {L"Shape Rectangle", UiActionFromImgViewerAction(ImgViewerAction::EditShapeRectangle), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Rectangle, edit_enabled},
+                    {L"Shape Ellipse", UiActionFromImgViewerAction(ImgViewerAction::EditShapeEllipse), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Ellipse, edit_enabled},
+                    {L"Shape Line", UiActionFromImgViewerAction(ImgViewerAction::EditShapeLine), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Line, edit_enabled},
+                    {L"Shape Arrow", UiActionFromImgViewerAction(ImgViewerAction::EditShapeArrow), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Arrow, edit_enabled},
+                    {L"", kUiActionNone, true},
+                    {L"Shape Red", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorRed), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Red)), edit_enabled},
+                    {L"Shape Yellow", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorYellow), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Yellow)), edit_enabled},
+                    {L"Shape Green", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorGreen), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Lime)), edit_enabled},
+                    {L"Shape Cyan", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorCyan), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Cyan)), edit_enabled},
+                    {L"Shape Blue", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorBlue), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::DodgerBlue)), edit_enabled},
+                    {L"Shape Magenta", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorMagenta), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Magenta)), edit_enabled},
+                    {L"Shape White", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorWhite), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::White)), edit_enabled},
+                    {L"Shape Black", UiActionFromImgViewerAction(ImgViewerAction::EditPenColorBlack), false, SameColor(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Black)), edit_enabled},
                 }},
                 {L"Text", kUiActionNone, false, edit_toolbar_state_.tool == ImgViewerEditTool::Text, edit_enabled, std::vector<MenuItem>{
                     {L"Size", kUiActionNone, false, false, edit_enabled, std::vector<MenuItem>{
@@ -304,6 +323,7 @@ void ImgViewerUi::SetToolbarScalePercent(int percent)
     color_picker_toolstrip_.SetScalePercent(percent);
     edit_toolbar_.SetScalePercent(percent);
     pen_toolstrip_.SetScalePercent(percent);
+    shape_toolstrip_.SetScalePercent(percent);
     text_toolstrip_.SetScalePercent(percent);
     selection_toolstrip_.SetScalePercent(percent);
     animation_toolbar_.SetScalePercent(percent);
@@ -360,6 +380,12 @@ void ImgViewerUi::SetPenToolstripState(ImgViewerUiPenToolstripState state)
 {
     pen_toolstrip_state_ = state;
     pen_toolstrip_.SetState(state);
+}
+
+void ImgViewerUi::SetShapeToolstripState(ImgViewerUiShapeToolstripState state)
+{
+    shape_toolstrip_state_ = state;
+    shape_toolstrip_.SetState(state);
 }
 
 void ImgViewerUi::SetTextToolstripState(ImgViewerUiTextToolstripState state)

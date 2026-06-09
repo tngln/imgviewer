@@ -17,6 +17,7 @@
 #include "imgviewer.ui.info_panel.hpp"
 #include "imgviewer.ui.pen_toolstrip.hpp"
 #include "imgviewer.ui.selection_toolstrip.hpp"
+#include "imgviewer.ui.shape_toolstrip.hpp"
 #include "imgviewer.ui.text_toolstrip.hpp"
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
@@ -53,6 +54,7 @@ public:
     void SetEditToolbarState(ImgViewerUiEditToolbarState state);
     void SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState state);
     void SetPenToolstripState(ImgViewerUiPenToolstripState state);
+    void SetShapeToolstripState(ImgViewerUiShapeToolstripState state);
     void SetTextToolstripState(ImgViewerUiTextToolstripState state);
     void SetSelectionToolstripState(ImgViewerUiSelectionToolstripState state);
     const std::wstring& SelectedTextFontFamily() const;
@@ -64,6 +66,7 @@ private:
     ImgViewerUiColorPickerToolstrip color_picker_toolstrip_;
     ImgViewerUiEditToolbar edit_toolbar_;
     ImgViewerUiPenToolstrip pen_toolstrip_;
+    ImgViewerUiShapeToolstrip shape_toolstrip_;
     ImgViewerUiTextToolstrip text_toolstrip_;
     ImgViewerUiSelectionToolstrip selection_toolstrip_;
     ImgViewerUiAnimationToolbar animation_toolbar_;
@@ -77,6 +80,7 @@ private:
     ImgViewerUiEditToolbarState edit_toolbar_state_;
     ImgViewerUiColorPickerToolstripState color_picker_toolstrip_state_;
     ImgViewerUiPenToolstripState pen_toolstrip_state_;
+    ImgViewerUiShapeToolstripState shape_toolstrip_state_;
     ImgViewerUiTextToolstripState text_toolstrip_state_;
     ImgViewerUiSelectionToolstripState selection_toolstrip_state_;
     ImgViewerAnimationState animation_state_;

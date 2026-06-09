@@ -188,6 +188,7 @@ public:
     bool OnTextInput(wchar_t character);
     bool OnTextKeyDown(UINT virtual_key, bool shift = false);
     bool UpdateTextImeComposition(std::wstring composition);
+    bool CommitTextImeResult(std::wstring text);
     bool EndTextImeComposition();
 
     ImgViewerEventResult OnPointerDown(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);

@@ -92,9 +92,9 @@ size_t KeyActionIndex(WPARAM wparam)
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
 }
 
-std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam)
+std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam, DWORD string_type)
 {
-    if ((lparam & GCS_COMPSTR) == 0) {
+    if ((lparam & string_type) == 0) {
         return {};
     }
 
@@ -103,10 +103,10 @@ std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam)
         return {};
     }
 
-    const LONG bytes = ImmGetCompositionStringW(ime, GCS_COMPSTR, nullptr, 0);
+    const LONG bytes = ImmGetCompositionStringW(ime, string_type, nullptr, 0);
     std::wstring text(bytes > 0 ? static_cast<size_t>(bytes) / sizeof(wchar_t) : 0, L'\0');
     if (!text.empty()) {
-        ImmGetCompositionStringW(ime, GCS_COMPSTR, text.data(), bytes);
+        ImmGetCompositionStringW(ime, string_type, text.data(), bytes);
     }
     ImmReleaseContext(hwnd, ime);
     return text;
@@ -1030,7 +1030,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         SyncKeyboardOwner(context);
         if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
-            if (context->edit.UpdateTextImeComposition(ImeCompositionString(hwnd, lparam))) {
+            bool changed = false;
+            if ((lparam & GCS_RESULTSTR) != 0) {
+                changed = context->edit.CommitTextImeResult(ImeCompositionString(hwnd, lparam, GCS_RESULTSTR)) || changed;
+            }
+            if ((lparam & GCS_COMPSTR) != 0) {
+                changed = context->edit.UpdateTextImeComposition(ImeCompositionString(hwnd, lparam, GCS_COMPSTR)) || changed;
+            } else if ((lparam & GCS_RESULTSTR) != 0) {
+                changed = context->edit.EndTextImeComposition() || changed;
+            }
+            if (changed) {
                 RenderImgViewer(context);
                 PositionMainWindowIme(hwnd, context);
             }
