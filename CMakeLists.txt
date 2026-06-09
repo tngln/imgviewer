@@ -10,7 +10,12 @@ add_executable(imgviewer
     src/imgviewer.action.cc
     src/imgviewer.config.cc
     src/imgviewer.edit.cc
+    src/imgviewer.host.app_messages.cc
+    src/imgviewer.host.chrome.cc
     src/imgviewer.host.cc
+    src/imgviewer.host.keyboard.cc
+    src/imgviewer.host.lifecycle.cc
+    src/imgviewer.host.pointer.cc
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
