@@ -460,6 +460,7 @@ HRESULT RunImgViewerDeveloperWindowApplication()
 
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
+    SetImgViewerLanguage(context.config.language);
 
     RETURN_IF_FAILED(OpenImgViewerDeveloperWindow(nullptr, &context));
     auto* developer_context = static_cast<DeveloperWindowContext*>(context.developer_context);

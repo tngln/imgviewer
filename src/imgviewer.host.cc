@@ -7,6 +7,7 @@
 #include "imgviewer.edit_geometry.hpp"
 #include "imgviewer.host.internal.hpp"
 #include "imgviewer.keybindings.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
 #include "imgviewer.viewer.hpp"
@@ -628,9 +629,10 @@ HRESULT RunImgViewerApplicationAsHresult()
 
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
+    SetImgViewerLanguage(context.config.language);
     context.current_window_opacity_percent = context.config.window_opacity_percent;
     context.current_toolbar_scale_percent = context.config.toolbar_scale_percent;
-    context.main_ui->SetToolbarScalePercent(context.current_toolbar_scale_percent);
+    RETURN_IF_FAILED(ResetImgViewerUi(nullptr, &context));
     const WindowSizeConfig initial_window_size =
         context.config.remember_window_size ? context.config.window_size : WindowSizeConfig{};
     ImgViewerWindowDelegate window_delegate;

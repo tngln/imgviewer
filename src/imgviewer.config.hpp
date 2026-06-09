@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "imgviewer.keybindings.hpp"
+#include "imgviewer.strings.hpp"
 
 struct WindowSizeConfig final {
     int width = 480;
@@ -10,6 +11,7 @@ struct WindowSizeConfig final {
 };
 
 struct ImgViewerConfig final {
+    ImgViewerLanguage language = ImgViewerLanguage::English;
     bool remember_window_size = true;
     bool pixelated_sampling = false;
     bool checkerboard_background = false;

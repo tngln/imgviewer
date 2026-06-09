@@ -23,6 +23,7 @@ constexpr wchar_t kMinimizeIcon[] = L"\xE921";
 constexpr wchar_t kMaximizeIcon[] = L"\xE922";
 constexpr wchar_t kRestoreIcon[] = L"\xE923";
 constexpr wchar_t kCloseIcon[] = L"\xE8BB";
+constexpr wchar_t kDefaultTitleText[] = L"ImgViewer";
 
 struct ButtonSpec final {
     ImgViewerUiTitleBar::ButtonKey button = ImgViewerUiTitleBar::ButtonKey::TopMost;
@@ -100,6 +101,7 @@ ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
             : caption_buttons_->AddItem(std::move(element), ui_theme::metrics::kCaptionButtonWidth);
         button.id = button.element->Id();
     }
+    SetTitleText(nullptr);
 }
 
 D2D1_SIZE_F ImgViewerUiTitleBar::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
@@ -194,7 +196,7 @@ bool ImgViewerUiTitleBar::IsPointInCaptionDragArea(const UiElement& root, D2D1_P
 
 void ImgViewerUiTitleBar::SetTitleText(const wchar_t* title)
 {
-    title_text_ = title != nullptr && title[0] != L'\0' ? title : ImgViewerString(ImgViewerStringId::AppName);
+    title_text_ = title != nullptr && title[0] != L'\0' ? title : kDefaultTitleText;
 }
 
 IconButton* ImgViewerUiTitleBar::Button(ButtonKey button)

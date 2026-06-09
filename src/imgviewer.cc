@@ -49,6 +49,37 @@ std::unique_ptr<ImgViewerUi> CreateMainUi(ImgViewerUi** main_ui)
 
 ImgViewerContext::ImgViewerContext() : ui(CreateMainUi(&main_ui)) {}
 
+HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
+{
+    RETURN_HR_IF_NULL(E_POINTER, context);
+
+    std::wstring title_text;
+    if (hwnd != nullptr) {
+        const int title_length = GetWindowTextLengthW(hwnd);
+        if (title_length > 0) {
+            title_text.resize(static_cast<size_t>(title_length) + 1);
+            GetWindowTextW(hwnd, title_text.data(), title_length + 1);
+            title_text.resize(static_cast<size_t>(title_length));
+        }
+    }
+
+    context->popup.Close();
+    context->ui.ResetRoot(CreateMainUi(&context->main_ui));
+    context->main_ui->SetTitleText(title_text.empty() ? kImgViewerWindowTitle : title_text.c_str());
+    context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);
+    SyncActionStates(context);
+    if (hwnd != nullptr) {
+        SyncWindowState(hwnd, context);
+        RETURN_IF_FAILED(RenderImgViewer(context));
+
+        context->tooltip.reset();
+        HWND tooltip = nullptr;
+        RETURN_IF_FAILED(InitializeUiTooltips(hwnd, &tooltip, context->ui));
+        context->tooltip.reset(tooltip);
+    }
+    return S_OK;
+}
+
 HRESULT RenderImgViewer(ImgViewerContext* context)
 {
     if (context == nullptr) {

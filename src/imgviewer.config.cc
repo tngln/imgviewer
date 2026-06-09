@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <string_view>
 
 #include <nlohmann/json.hpp>
 
@@ -21,6 +22,8 @@ constexpr int kMaximumToolbarScalePercent = 160;
 constexpr int kMinimumEdgeClickNavigationZonePercent = 5;
 constexpr int kMaximumEdgeClickNavigationZonePercent = 40;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.jsonc";
+constexpr std::string_view kEnglishLanguageName = "en-US";
+constexpr std::string_view kSimplifiedChineseLanguageName = "zh-CN";
 
 std::filesystem::path ConfigFilePath()
 {
@@ -56,6 +59,27 @@ int ReadClampedInt(const nlohmann::json& object, const char* key, int fallback, 
     return (std::max)(minimum, value->get<int>());
 }
 
+ImgViewerLanguage ReadLanguage(const nlohmann::json& root)
+{
+    const auto value = root.find("language");
+    if (value == root.end() || !value->is_string()) {
+        return ImgViewerLanguage::English;
+    }
+
+    const std::string language = value->get<std::string>();
+    if (language == kSimplifiedChineseLanguageName) {
+        return ImgViewerLanguage::SimplifiedChinese;
+    }
+    return ImgViewerLanguage::English;
+}
+
+std::string_view LanguageConfigName(ImgViewerLanguage language)
+{
+    return language == ImgViewerLanguage::SimplifiedChinese ?
+        kSimplifiedChineseLanguageName :
+        kEnglishLanguageName;
+}
+
 } // namespace
 
 int ClampWindowOpacityPercent(int percent)
@@ -87,6 +111,8 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
 
     try {
         const nlohmann::json root = nlohmann::json::parse(input, nullptr, true, true);
+        config->language = ReadLanguage(root);
+
         if (const auto remember = root.find("rememberWindowSize");
             remember != root.end() && remember->is_boolean()) {
             config->remember_window_size = remember->get<bool>();
@@ -151,6 +177,8 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_ACCESS_DENIED), !output);
 
     output << "{\n";
+    output << "  // UI language. Supported values: en-US, zh-CN.\n";
+    output << "  \"language\": \"" << LanguageConfigName(config.language) << "\",\n";
     output << "  // When true, ImgViewer restores the last normal window size on startup.\n";
     output << "  \"rememberWindowSize\": " << (config.remember_window_size ? "true" : "false") << ",\n";
     output << "  // When true, enlarged images use nearest-neighbor sampling for crisp pixel previews.\n";

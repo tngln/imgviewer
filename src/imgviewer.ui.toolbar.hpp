@@ -10,8 +10,6 @@
 #include "ui.events.hpp"
 #include "ui.panel.hpp"
 
-#include "ui.root.hpp"
-
 class ImgViewerUiToolbar final {
 public:
     enum class ButtonKey : size_t {

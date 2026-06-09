@@ -200,6 +200,12 @@ public:
         if (const SliderControl* control = SliderControlForId(id)) {
             return control->value_text.c_str();
         }
+        if (language_dropdown_ != nullptr && id == language_dropdown_->Id()) {
+            return ImgViewerString(
+                draft_.language == ImgViewerLanguage::SimplifiedChinese ?
+                    ImgViewerStringId::SimplifiedChineseLanguage :
+                    ImgViewerStringId::EnglishLanguage);
+        }
         return L"";
     }
 
@@ -318,6 +324,20 @@ public:
     {
         return root_owner_ != nullptr ? root_owner_->OnPointerEvent(event) : UiEventResult{};
     }
+/// XXX: This should be removed later.
+    UiElementId HitTest(D2D1_POINT_2F point) const override
+    {
+        if (cancel_button_ != nullptr && cancel_button_->Contains(point)) {
+            return cancel_button_->Id();
+        }
+        if (save_button_ != nullptr && save_button_->Contains(point)) {
+            return save_button_->Id();
+        }
+        if (reset_button_ != nullptr && reset_button_->Contains(point)) {
+            return reset_button_->Id();
+        }
+        return UiRoot::HitTest(point);
+    }
 
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override
     {
@@ -413,6 +433,33 @@ private:
         return result;
     }
 
+    static size_t LanguageIndex(ImgViewerLanguage language)
+    {
+        return language == ImgViewerLanguage::SimplifiedChinese ? 1 : 0;
+    }
+
+    static ImgViewerLanguage LanguageFromIndex(size_t index)
+    {
+        return index == 1 ? ImgViewerLanguage::SimplifiedChinese : ImgViewerLanguage::English;
+    }
+
+    Dropdown* AddLanguageDropdown(StackPanel* section)
+    {
+        auto dropdown = std::make_unique<Dropdown>(
+            UiMetadata(
+                UiElementRole::ComboBox,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                ImgViewerString(ImgViewerStringId::Language),
+                ImgViewerString(ImgViewerStringId::Language),
+                L"language"),
+            std::vector<DropdownOption>{
+                DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
+                DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
+            });
+        dropdown->SetSelectedIndex(LanguageIndex(draft_.language));
+        return section->AddItem(std::move(dropdown));
+    }
+
     Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* automation_id, const wchar_t* icon, const wchar_t* text)
     {
         return static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
@@ -427,6 +474,9 @@ private:
         root_->AddItem(std::make_unique<Label>(
             UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::Settings), L"", L"settings-title", false, false),
             ImgViewerString(ImgViewerStringId::Settings), LabelStyle::Title), 17.0f);
+
+        StackPanel* language_section = AddSection(ImgViewerStringId::Language, L"language-label", ui_theme::metrics::kSmallGap);
+        language_dropdown_ = AddLanguageDropdown(language_section);
 
         StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, L"window-size-label", 3.0f);
         AddCheckboxSetting(window_size_section, kRememberWindowSizeSetting);
@@ -485,6 +535,7 @@ private:
         if (id == default_radio_->Id()) { SelectDefaultWindowSize(); return; }
         if (ApplyBooleanSetting(id)) { return; }
         if (ApplySliderSetting(id)) { return; }
+        if (ApplyLanguageSetting(id)) { return; }
         if (id == action_table_->Id()) { return; }
     }
 
@@ -509,6 +560,9 @@ private:
         }
         remember_radio_->SetSelected(draft_.remember_window_size);
         default_radio_->SetSelected(!draft_.remember_window_size);
+        if (language_dropdown_ != nullptr) {
+            language_dropdown_->SetSelectedIndex(LanguageIndex(draft_.language));
+        }
     }
 
     bool BooleanSettingValue(const BooleanSettingSpec& spec) const
@@ -527,6 +581,16 @@ private:
             }
         }
         return false;
+    }
+
+    bool ApplyLanguageSetting(UiElementId id)
+    {
+        if (language_dropdown_ == nullptr || language_dropdown_->Id() != id) {
+            return false;
+        }
+        draft_.language = LanguageFromIndex(language_dropdown_->SelectedIndex());
+        SyncChoiceControls();
+        return true;
     }
 
     void SyncSliderControls()
@@ -642,6 +706,7 @@ private:
     std::array<SliderControl, kSliderSettingSpecs.size()> slider_controls_{};
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
+    Dropdown* language_dropdown_ = nullptr;
     TextBox* filter_box_ = nullptr;
     Table* action_table_ = nullptr;
     Button* reset_button_ = nullptr;
@@ -712,16 +777,21 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
         ImgViewerConfig draft = context->ui->Draft();
         CaptureCurrentWindowSize(context->owner, &draft);
         const bool frame_changed = context->app->config.borderless_window != draft.borderless_window;
+        const bool language_changed = context->app->config.language != draft.language;
         context->app->config = draft;
+        SetImgViewerLanguage(context->app->config.language);
         context->app->current_window_opacity_percent = context->app->config.window_opacity_percent;
         ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
         SetImgViewerToolbarScale(context->owner, context->app, context->app->config.toolbar_scale_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         context->app->renderer.SetCheckerboardBackground(context->app->config.checkerboard_background);
         SaveImgViewerConfig(context->app->config);
+        if (language_changed) {
+            ResetImgViewerUi(context->owner, context->app);
+        }
         if (frame_changed) {
             ApplyImgViewerWindowFrame(context->owner, context->app, true);
-        } else {
+        } else if (!language_changed) {
             RenderImgViewer(context->app);
         }
     }

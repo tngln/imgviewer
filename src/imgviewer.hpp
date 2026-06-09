@@ -68,6 +68,7 @@ struct ImgViewerContext final {
 };
 
 HRESULT RenderImgViewer(ImgViewerContext* context);
+HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context);
 DWORD ImgViewerWindowStyle(bool borderless);
 HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hide_for_transition);
 void SyncWindowState(HWND hwnd, ImgViewerContext* context);

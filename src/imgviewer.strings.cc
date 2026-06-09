@@ -1,6 +1,7 @@
 #include "imgviewer.strings.hpp"
 
 #include <array>
+#include <atomic>
 
 namespace {
 
@@ -193,6 +194,9 @@ struct LocalizedString final {
     X(MosaicSelectedPixels, L"Mosaic selected pixels", L"马赛克选中像素") \
     X(ColorValue, L"Color value", L"颜色值") \
     X(AnimationFrame, L"Animation frame", L"动画帧") \
+    X(Language, L"Language", L"语言") \
+    X(EnglishLanguage, L"English", L"英语") \
+    X(SimplifiedChineseLanguage, L"Simplified Chinese", L"简体中文") \
     X(WindowSize, L"Window size", L"窗口大小") \
     X(RememberWindowSize, L"Remember window size", L"记住窗口大小") \
     X(RememberLastSize, L"Remember last size", L"记住上次大小") \
@@ -326,7 +330,24 @@ const LocalizedString* FindString(ImgViewerStringId id)
     return nullptr;
 }
 
+std::atomic<ImgViewerLanguage> g_language = ImgViewerLanguage::English;
+
 } // namespace
+
+ImgViewerLanguage CurrentImgViewerLanguage()
+{
+    return g_language.load(std::memory_order_relaxed);
+}
+
+void SetImgViewerLanguage(ImgViewerLanguage language)
+{
+    g_language.store(language, std::memory_order_relaxed);
+}
+
+const wchar_t* ImgViewerString(ImgViewerStringId id)
+{
+    return ImgViewerString(id, CurrentImgViewerLanguage());
+}
 
 const wchar_t* ImgViewerString(ImgViewerStringId id, ImgViewerLanguage language)
 {

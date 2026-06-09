@@ -188,6 +188,9 @@ enum class ImgViewerStringId {
     MosaicSelectedPixels,
     ColorValue,
     AnimationFrame,
+    Language,
+    EnglishLanguage,
+    SimplifiedChineseLanguage,
     WindowSize,
     RememberWindowSize,
     RememberLastSize,
@@ -306,5 +309,8 @@ enum class ImgViewerStringId {
     History,
 };
 
-const wchar_t* ImgViewerString(ImgViewerStringId id, ImgViewerLanguage language = ImgViewerLanguage::English);
+ImgViewerLanguage CurrentImgViewerLanguage();
+void SetImgViewerLanguage(ImgViewerLanguage language);
+const wchar_t* ImgViewerString(ImgViewerStringId id);
+const wchar_t* ImgViewerString(ImgViewerStringId id, ImgViewerLanguage language);
 const wchar_t* ImgViewerStringZh(ImgViewerStringId id);
