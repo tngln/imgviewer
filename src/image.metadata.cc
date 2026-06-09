@@ -10,6 +10,8 @@
 #include <wil/com.h>
 #include <wil/result_macros.h>
 
+#include "imgviewer.strings.hpp"
+
 namespace {
 
 struct Rational final {
@@ -234,21 +236,21 @@ std::wstring FormatOrientation(const PROPVARIANT& value)
 
     switch (orientation) {
     case 1:
-        return L"Normal";
+        return ImgViewerString(ImgViewerStringId::OrientationNormal);
     case 2:
-        return L"Mirrored horizontal";
+        return ImgViewerString(ImgViewerStringId::OrientationMirroredHorizontal);
     case 3:
-        return L"Rotated 180";
+        return ImgViewerString(ImgViewerStringId::OrientationRotated180);
     case 4:
-        return L"Mirrored vertical";
+        return ImgViewerString(ImgViewerStringId::OrientationMirroredVertical);
     case 5:
-        return L"Mirrored horizontal, rotated 270";
+        return ImgViewerString(ImgViewerStringId::OrientationMirroredHorizontalRotated270);
     case 6:
-        return L"Rotated 90";
+        return ImgViewerString(ImgViewerStringId::OrientationRotated90);
     case 7:
-        return L"Mirrored horizontal, rotated 90";
+        return ImgViewerString(ImgViewerStringId::OrientationMirroredHorizontalRotated90);
     case 8:
-        return L"Rotated 270";
+        return ImgViewerString(ImgViewerStringId::OrientationRotated270);
     default: {
         wchar_t text[32] = {};
         swprintf_s(text, L"%u", orientation);
@@ -301,16 +303,16 @@ HRESULT ReadImageExifMetadata(IWICBitmapFrameDecode* frame, ImageMetadata* metad
     }
 
     const ExifFieldSpec kFields[] = {
-        {L"Date taken", {L"/app1/ifd/exif/{ushort=36867}", L"/ifd/exif/{ushort=36867}", L"/app1/ifd/{ushort=306}", L"/ifd/{ushort=306}"}, 4, FormatText},
-        {L"Camera make", {L"/app1/ifd/{ushort=271}", L"/ifd/{ushort=271}"}, 2, FormatText},
-        {L"Camera model", {L"/app1/ifd/{ushort=272}", L"/ifd/{ushort=272}"}, 2, FormatText},
-        {L"Lens", {L"/app1/ifd/exif/{ushort=42036}", L"/ifd/exif/{ushort=42036}"}, 2, FormatText},
-        {L"Focal length", {L"/app1/ifd/exif/{ushort=37386}", L"/ifd/exif/{ushort=37386}"}, 2, FormatFocalLength},
-        {L"Aperture", {L"/app1/ifd/exif/{ushort=33437}", L"/ifd/exif/{ushort=33437}"}, 2, FormatAperture},
-        {L"Exposure time", {L"/app1/ifd/exif/{ushort=33434}", L"/ifd/exif/{ushort=33434}"}, 2, FormatExposureTime},
-        {L"ISO", {L"/app1/ifd/exif/{ushort=34855}", L"/ifd/exif/{ushort=34855}"}, 2, FormatIso},
-        {L"Exposure bias", {L"/app1/ifd/exif/{ushort=37380}", L"/ifd/exif/{ushort=37380}"}, 2, FormatExposureBias},
-        {L"Orientation", {L"/app1/ifd/{ushort=274}", L"/ifd/{ushort=274}"}, 2, FormatOrientation},
+        {ImgViewerString(ImgViewerStringId::DateTaken), {L"/app1/ifd/exif/{ushort=36867}", L"/ifd/exif/{ushort=36867}", L"/app1/ifd/{ushort=306}", L"/ifd/{ushort=306}"}, 4, FormatText},
+        {ImgViewerString(ImgViewerStringId::CameraMake), {L"/app1/ifd/{ushort=271}", L"/ifd/{ushort=271}"}, 2, FormatText},
+        {ImgViewerString(ImgViewerStringId::CameraModel), {L"/app1/ifd/{ushort=272}", L"/ifd/{ushort=272}"}, 2, FormatText},
+        {ImgViewerString(ImgViewerStringId::Lens), {L"/app1/ifd/exif/{ushort=42036}", L"/ifd/exif/{ushort=42036}"}, 2, FormatText},
+        {ImgViewerString(ImgViewerStringId::FocalLength), {L"/app1/ifd/exif/{ushort=37386}", L"/ifd/exif/{ushort=37386}"}, 2, FormatFocalLength},
+        {ImgViewerString(ImgViewerStringId::Aperture), {L"/app1/ifd/exif/{ushort=33437}", L"/ifd/exif/{ushort=33437}"}, 2, FormatAperture},
+        {ImgViewerString(ImgViewerStringId::ExposureTime), {L"/app1/ifd/exif/{ushort=33434}", L"/ifd/exif/{ushort=33434}"}, 2, FormatExposureTime},
+        {ImgViewerString(ImgViewerStringId::Iso), {L"/app1/ifd/exif/{ushort=34855}", L"/ifd/exif/{ushort=34855}"}, 2, FormatIso},
+        {ImgViewerString(ImgViewerStringId::ExposureBias), {L"/app1/ifd/exif/{ushort=37380}", L"/ifd/exif/{ushort=37380}"}, 2, FormatExposureBias},
+        {ImgViewerString(ImgViewerStringId::Orientation), {L"/app1/ifd/{ushort=274}", L"/ifd/{ushort=274}"}, 2, FormatOrientation},
     };
 
     for (const ExifFieldSpec& field : kFields) {

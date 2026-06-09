@@ -9,6 +9,7 @@
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
 
+#include "imgviewer.strings.hpp"
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.messages.hpp"
@@ -65,10 +66,10 @@ constexpr std::array<NoticeLine, 3> kNoticeLines{{
 std::wstring AboutNoticesText()
 {
     std::wstring text =
-        L"ImgViewer\n"
-        L"Development build\n"
-        L"Lightweight native image viewer.\n\n"
-        L"Third-party notices:\n";
+        std::wstring(ImgViewerString(ImgViewerStringId::AppName)) + L"\n" +
+        ImgViewerString(ImgViewerStringId::DevelopmentBuild) + L"\n" +
+        ImgViewerString(ImgViewerStringId::AboutDescription) + L"\n\n" +
+        ImgViewerString(ImgViewerStringId::ThirdPartyNotices) + L":\n";
 
     for (const NoticeLine& line : kNoticeLines) {
         text += L"\n";
@@ -90,32 +91,32 @@ public:
             UiRootMetadata(
                 UiElementRole::Pane,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
-                L"About ImgViewer",
-                L"About ImgViewer",
+                ImgViewerString(ImgViewerStringId::AboutImgViewer),
+                ImgViewerString(ImgViewerStringId::AboutImgViewer),
                 L"about-root"));
         copy_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(ImgViewerAction::CopyAboutNotices),
-                L"Copy Notices",
-                L"Copy Notices",
+                ImgViewerString(ImgViewerStringId::CopyNotices),
+                ImgViewerString(ImgViewerStringId::CopyNotices),
                 L"copy-about-notices"),
             kCopyIcon,
-            L"Copy Notices")));
+            ImgViewerString(ImgViewerStringId::CopyNotices))));
         close_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(ImgViewerAction::CloseAbout),
-                L"Close",
-                L"Close",
+                ImgViewerString(ImgViewerStringId::Close),
+                ImgViewerString(ImgViewerStringId::Close),
                 L"close-about"),
             kCloseIcon,
-            L"Close")));
+            ImgViewerString(ImgViewerStringId::Close))));
     }
 
     UiElement* Root() override { return root_.get(); }
     const UiElement* Root() const override { return root_.get(); }
-    const wchar_t* AccessibilityRootName() const override { return L"About ImgViewer"; }
+    const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::AboutImgViewer); }
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
     {
@@ -136,21 +137,21 @@ public:
 
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(L"ImgViewer", 9, D2D1::RectF(kAboutSidePadding, kAboutHeaderTop, size.width - kAboutSidePadding, kAboutHeaderTop + kAboutHeaderHeight), ui_theme::color::kBodyText);
+        draw.DrawBodyText(ImgViewerString(ImgViewerStringId::AppName), static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::AppName))), D2D1::RectF(kAboutSidePadding, kAboutHeaderTop, size.width - kAboutSidePadding, kAboutHeaderTop + kAboutHeaderHeight), ui_theme::color::kBodyText);
         draw.DrawBodyText(
-            L"Lightweight native image viewer.",
-            32,
+            ImgViewerString(ImgViewerStringId::AboutDescription),
+            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::AboutDescription))),
             D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow1Top, size.width - kAboutSidePadding, kAboutSubtitleRow1Top + kAboutSubtitleHeight),
             ui_theme::color::kMutedText);
         draw.DrawBodyText(
-            L"Development build",
-            17,
+            ImgViewerString(ImgViewerStringId::DevelopmentBuild),
+            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::DevelopmentBuild))),
             D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow2Top, size.width - kAboutSidePadding, kAboutSubtitleRow2Top + kAboutSubtitleHeight),
             ui_theme::color::kMutedText);
 
         draw.DrawBodyText(
-            L"Third-party notices",
-            19,
+            ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
+            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::ThirdPartyNotices))),
             D2D1::RectF(kAboutSidePadding, kAboutSectionTop, size.width - kAboutSidePadding, kAboutSectionTop + kAboutSectionHeight),
             ui_theme::color::kBodyText);
         draw.DrawRect(D2D1::RectF(kAboutSidePadding, kAboutBorderTop, size.width - kAboutSidePadding, size.height - kAboutFooterHeight), ui_theme::color::kBorder);
@@ -243,9 +244,9 @@ struct AboutWindowContext final : public UiWindowDelegate {
         switch (ImgViewerActionFromUiAction(action)) {
         case ImgViewerAction::CopyAboutNotices:
             if (win32::CopyTextToClipboard(window_host.Hwnd(), AboutNoticesText().c_str())) {
-                ShowImgViewerToast(owner, app, L"Copied notices.");
+                ShowImgViewerToast(owner, app, ImgViewerString(ImgViewerStringId::CopiedNotices));
             } else {
-                ShowImgViewerToast(owner, app, L"Could not copy notices.");
+                ShowImgViewerToast(owner, app, ImgViewerString(ImgViewerStringId::CouldNotCopyNotices));
             }
             return true;
         case ImgViewerAction::CloseAbout:
@@ -302,7 +303,7 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
             .native = win32::NativeWindowOptions{
                 .instance = instance,
                 .class_name = kAboutClassName,
-                .title = L"About ImgViewer",
+                .title = ImgViewerString(ImgViewerStringId::AboutImgViewer),
                 .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
                 .ex_style = WS_EX_DLGMODALFRAME,
                 .width = kAboutInitialWidth,

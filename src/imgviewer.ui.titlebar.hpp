@@ -56,7 +56,7 @@ private:
 
     std::array<ButtonInstance, kButtonCount> buttons_{};
     StackPanel* caption_buttons_ = nullptr;
-    std::wstring title_text_ = L"ImgViewer";
+    std::wstring title_text_;
     D2D1_RECT_F titlebar_rect_ = D2D1_RECT_F{0.0f, 0.0f, 960.0f, 48.0f};
     D2D1_RECT_F title_text_rect_ = D2D1_RECT_F{16.0f, 0.0f, 720.0f, 48.0f};
 };

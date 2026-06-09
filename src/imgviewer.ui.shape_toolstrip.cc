@@ -9,6 +9,7 @@
 
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
@@ -201,8 +202,8 @@ private:
 struct ButtonSpec final {
     ImgViewerUiShapeToolstrip::ButtonKey button = ImgViewerUiShapeToolstrip::ButtonKey::Rectangle;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     ImgViewerShapeKind kind = ImgViewerShapeKind::Rectangle;
     D2D1_COLOR_F color = {};
@@ -211,29 +212,29 @@ struct ButtonSpec final {
 
 const std::array<ButtonSpec, ImgViewerUiShapeToolstrip::kButtonCount> kButtonSpecs{{
     {ImgViewerUiShapeToolstrip::ButtonKey::Rectangle, ImgViewerAction::EditShapeRectangle,
-        L"Rectangle", L"Rectangle shape", L"edit-shape-rectangle", ImgViewerShapeKind::Rectangle},
+        ImgViewerStringId::Rectangle, ImgViewerStringId::RectangleShape, L"edit-shape-rectangle", ImgViewerShapeKind::Rectangle},
     {ImgViewerUiShapeToolstrip::ButtonKey::Ellipse, ImgViewerAction::EditShapeEllipse,
-        L"Ellipse", L"Ellipse shape", L"edit-shape-ellipse", ImgViewerShapeKind::Ellipse},
+        ImgViewerStringId::Ellipse, ImgViewerStringId::EllipseShape, L"edit-shape-ellipse", ImgViewerShapeKind::Ellipse},
     {ImgViewerUiShapeToolstrip::ButtonKey::Line, ImgViewerAction::EditShapeLine,
-        L"Line", L"Line shape", L"edit-shape-line", ImgViewerShapeKind::Line},
+        ImgViewerStringId::Line, ImgViewerStringId::LineShape, L"edit-shape-line", ImgViewerShapeKind::Line},
     {ImgViewerUiShapeToolstrip::ButtonKey::Arrow, ImgViewerAction::EditShapeArrow,
-        L"Arrow", L"Arrow shape", L"edit-shape-arrow", ImgViewerShapeKind::Arrow},
+        ImgViewerStringId::Arrow, ImgViewerStringId::ArrowShape, L"edit-shape-arrow", ImgViewerShapeKind::Arrow},
     {ImgViewerUiShapeToolstrip::ButtonKey::Red, ImgViewerAction::EditPenColorRed,
-        L"Red", L"Red shape", L"edit-shape-red", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Red), true},
+        ImgViewerStringId::Red, ImgViewerStringId::RedShape, L"edit-shape-red", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Red), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::Yellow, ImgViewerAction::EditPenColorYellow,
-        L"Yellow", L"Yellow shape", L"edit-shape-yellow", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Yellow), true},
+        ImgViewerStringId::Yellow, ImgViewerStringId::YellowShape, L"edit-shape-yellow", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Yellow), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::Green, ImgViewerAction::EditPenColorGreen,
-        L"Green", L"Green shape", L"edit-shape-green", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Lime), true},
+        ImgViewerStringId::Green, ImgViewerStringId::GreenShape, L"edit-shape-green", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Lime), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::Cyan, ImgViewerAction::EditPenColorCyan,
-        L"Cyan", L"Cyan shape", L"edit-shape-cyan", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Cyan), true},
+        ImgViewerStringId::Cyan, ImgViewerStringId::CyanShape, L"edit-shape-cyan", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Cyan), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::Blue, ImgViewerAction::EditPenColorBlue,
-        L"Blue", L"Blue shape", L"edit-shape-blue", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::DodgerBlue), true},
+        ImgViewerStringId::Blue, ImgViewerStringId::BlueShape, L"edit-shape-blue", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::DodgerBlue), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::Magenta, ImgViewerAction::EditPenColorMagenta,
-        L"Magenta", L"Magenta shape", L"edit-shape-magenta", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Magenta), true},
+        ImgViewerStringId::Magenta, ImgViewerStringId::MagentaShape, L"edit-shape-magenta", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Magenta), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::White, ImgViewerAction::EditPenColorWhite,
-        L"White", L"White shape", L"edit-shape-white", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::White), true},
+        ImgViewerStringId::White, ImgViewerStringId::WhiteShape, L"edit-shape-white", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::White), true},
     {ImgViewerUiShapeToolstrip::ButtonKey::Black, ImgViewerAction::EditPenColorBlack,
-        L"Black", L"Black shape", L"edit-shape-black", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Black), true},
+        ImgViewerStringId::Black, ImgViewerStringId::BlackShape, L"edit-shape-black", ImgViewerShapeKind::Rectangle, D2D1::ColorF(D2D1::ColorF::Black), true},
 }};
 
 } // namespace
@@ -245,15 +246,15 @@ constexpr size_t ImgViewerUiShapeToolstrip::ButtonIndex(ButtonKey button)
 
 ImgViewerUiShapeToolstrip::ImgViewerUiShapeToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Shape tools", L"shape-toolstrip");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::ShapeTools), L"shape-toolstrip");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
         UiElementMetadata metadata = UiMetadata(
             UiElementRole::Button,
             UiActionFromImgViewerAction(spec.action),
-            spec.name,
-            spec.tooltip,
+            ImgViewerString(spec.name),
+            ImgViewerString(spec.tooltip),
             spec.automation_id);
         std::unique_ptr<UiElement> element;
         if (spec.is_color) {

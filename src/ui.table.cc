@@ -6,6 +6,7 @@
 
 #include <d2d1helper.h>
 
+#include "imgviewer.strings.hpp"
 #include "math.hpp"
 #include "ui.events.hpp"
 #include "ui.selection.hpp"
@@ -29,11 +30,11 @@ D2D1_COLOR_F WithOpacity(D2D1_COLOR_F color, float opacity)
 Table::Table(UiElementMetadata metadata) : UiElement(metadata)
 {
     text_editor_ = static_cast<TextBox*>(AddChild(std::make_unique<TextBox>(
-        UiMetadata(UiElementRole::Edit, kUiActionNone, L"Table cell editor", L"", L"table-cell-editor"),
+        UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::TableCellEditor), L"", L"table-cell-editor"),
         L"")));
     text_editor_->SetHitTestVisible(false);
     dropdown_editor_ = static_cast<Dropdown*>(AddChild(std::make_unique<Dropdown>(
-        UiMetadata(UiElementRole::ComboBox, kUiActionNone, L"Table cell dropdown", L"", L"table-cell-dropdown"),
+        UiMetadata(UiElementRole::ComboBox, kUiActionNone, ImgViewerString(ImgViewerStringId::TableCellDropdown), L"", L"table-cell-dropdown"),
         std::vector<DropdownOption>{})));
     dropdown_editor_->SetHitTestVisible(false);
 }

@@ -37,7 +37,7 @@ const char* ImgViewerActionName(ImgViewerAction action)
 const wchar_t* ImgViewerActionDisplayName(ImgViewerAction action)
 {
     const ImgViewerActionInfo* info = ImgViewerActionInfoFor(action);
-    return info != nullptr ? info->display_name : L"";
+    return info != nullptr ? ImgViewerString(info->display_name) : L"";
 }
 
 ImgViewerAction ImgViewerActionFromName(const char* name)

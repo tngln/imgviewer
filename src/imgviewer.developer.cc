@@ -11,6 +11,7 @@
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.messages.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
@@ -43,43 +44,43 @@ public:
     DeveloperUi()
     {
         auto root = std::make_unique<StackPanel>(
-            UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"Developer", L"Developer", L"developer-root"));
+            UiRootMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::Developer), ImgViewerString(ImgViewerStringId::Developer), L"developer-root"));
         root->SetPadding(UiThickness{kDeveloperSidePadding, kDeveloperContentTopPadding, kDeveloperSidePadding, 0.0f});
         root->SetGap(8.0f);
         root_ = root.get();
         root_owner_ = std::move(root);
 
         root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Developer", L"", L"developer-title", false, true),
-            L"Developer",
+            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::Developer), L"", L"developer-title", false, true),
+            ImgViewerString(ImgViewerStringId::Developer),
             LabelStyle::Title), 20.0f);
         root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Control Lab", L"", L"developer-subtitle", false, true),
-            L"Control Lab",
+            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::DeveloperControlLab), L"", L"developer-subtitle", false, true),
+            ImgViewerString(ImgViewerStringId::DeveloperControlLab),
             LabelStyle::Muted), 18.0f);
 
         sample_button_ = root_->AddItem(std::make_unique<Button>(
             UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::DeveloperSampleButton),
-                L"Sample Button", L"Sample Button", L"developer-sample-button"),
+                ImgViewerString(ImgViewerStringId::DeveloperSampleButton), ImgViewerString(ImgViewerStringId::DeveloperSampleButton), L"developer-sample-button"),
             kRefreshIcon,
-            L"Sample Button"), 28.0f);
+            ImgViewerString(ImgViewerStringId::DeveloperSampleButton)), 28.0f);
         sample_checkbox_ = root_->AddItem(std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, kUiActionNone, L"Sample checkbox", L"Sample checkbox", L"developer-sample-checkbox"),
-            L"Sample checkbox",
+            UiMetadata(UiElementRole::CheckBox, kUiActionNone, ImgViewerString(ImgViewerStringId::SampleCheckbox), ImgViewerString(ImgViewerStringId::SampleCheckbox), L"developer-sample-checkbox"),
+            ImgViewerString(ImgViewerStringId::SampleCheckbox),
             sample_checked_), 24.0f);
         sample_slider_ = root_->AddItem(std::make_unique<SliderRow>(
-            UiMetadata(UiElementRole::Slider, kUiActionNone, L"Sample slider", L"Sample slider", L"developer-sample-slider"),
+            UiMetadata(UiElementRole::Slider, kUiActionNone, ImgViewerString(ImgViewerStringId::SampleSlider), ImgViewerString(ImgViewerStringId::SampleSlider), L"developer-sample-slider"),
             0,
             100,
             sample_slider_value_,
             1,
             10), 28.0f);
         editable_table_ = root_->AddItem(std::make_unique<Table>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, L"Editable table", L"Editable table", L"developer-editable-table")),
+            UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::EditableTable), ImgViewerString(ImgViewerStringId::EditableTable), L"developer-editable-table")),
             112.0f);
         editable_table_->SetColumns(std::vector<TableColumn>{
-            TableColumn{L"Name", 120.0f, false},
-            TableColumn{L"Value", 0.0f, true, true},
+            TableColumn{ImgViewerString(ImgViewerStringId::Name), 120.0f, false},
+            TableColumn{ImgViewerString(ImgViewerStringId::Value), 0.0f, true, true},
             TableColumn{
                 .header = L"Kind",
                 .width = 110.0f,
@@ -98,21 +99,21 @@ public:
             TableRow{.cells = {L"Theme token", L"Accent", L"Token"}},
         });
         state_label_ = root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, L"Developer state", L"", L"developer-state", false, true),
+            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::DeveloperState), L"", L"developer-state", false, true),
             L"",
             LabelStyle::Body), 22.0f);
 
         close_button_ = root_->AddItem(std::make_unique<Button>(
             UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::CloseDeveloper),
-                L"Close", L"Close", L"close-developer"),
+                ImgViewerString(ImgViewerStringId::Close), ImgViewerString(ImgViewerStringId::Close), L"close-developer"),
             kCloseIcon,
-            L"Close"), 28.0f);
+            ImgViewerString(ImgViewerStringId::Close)), 28.0f);
         UpdateStateText();
     }
 
     UiElement* Root() override { return root_owner_.get(); }
     const UiElement* Root() const override { return root_owner_.get(); }
-    const wchar_t* AccessibilityRootName() const override { return L"Developer"; }
+    const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::Developer); }
 
     UiEventResult OnInputEvent(const UiInputEvent& event) override
     {
@@ -405,7 +406,7 @@ HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context)
             .native = win32::NativeWindowOptions{
                 .instance = instance,
                 .class_name = kDeveloperClassName,
-                .title = L"Developer",
+                .title = ImgViewerString(ImgViewerStringId::Developer),
                 .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
                 .ex_style = WS_EX_DLGMODALFRAME,
                 .width = kDeveloperInitialWidth,

@@ -6,6 +6,7 @@
 #include <d2d1helper.h>
 
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
@@ -22,21 +23,21 @@ constexpr float kToolbarGapAboveMain = 6.0f;
 struct ButtonSpec final {
     ImgViewerUiAnimationToolbar::ButtonKey button = ImgViewerUiAnimationToolbar::ButtonKey::Loop;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     const wchar_t* icon = L"";
 };
 
 constexpr std::array<ButtonSpec, ImgViewerUiAnimationToolbar::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiAnimationToolbar::ButtonKey::Loop, ImgViewerAction::ToggleAnimationLoop, L"Loop Animation",
-        L"Loop animation", L"animation-loop", kLoopIcon},
+    {ImgViewerUiAnimationToolbar::ButtonKey::Loop, ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation,
+        ImgViewerStringId::LoopAnimation, L"animation-loop", kLoopIcon},
     {ImgViewerUiAnimationToolbar::ButtonKey::PreviousFrame, ImgViewerAction::PreviousAnimationFrame,
-        L"Previous Frame", L"Previous frame", L"animation-previous-frame", kPreviousIcon},
+        ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, L"animation-previous-frame", kPreviousIcon},
     {ImgViewerUiAnimationToolbar::ButtonKey::PlayPause, ImgViewerAction::ToggleAnimationPlayback,
-        L"Play or Pause Animation", L"Play or pause animation", L"animation-play-pause", kPauseIcon},
+        ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, L"animation-play-pause", kPauseIcon},
     {ImgViewerUiAnimationToolbar::ButtonKey::NextFrame, ImgViewerAction::NextAnimationFrame,
-        L"Next Frame", L"Next frame", L"animation-next-frame", kNextIcon},
+        ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, L"animation-next-frame", kNextIcon},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -60,7 +61,7 @@ constexpr size_t ImgViewerUiAnimationToolbar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Animation toolbar", L"animation-toolbar");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::AnimationControls), L"animation-toolbar");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -68,8 +69,8 @@ ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
-                spec.name,
-                spec.tooltip,
+                ImgViewerString(spec.name),
+                ImgViewerString(spec.tooltip),
                 spec.automation_id),
             spec.icon);
         button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
@@ -77,7 +78,7 @@ ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
     }
 
     auto label = std::make_unique<Label>(
-        UiMetadata(UiElementRole::Text, kUiActionNone, L"Animation frame", L"", L"animation-frame-label", false, true),
+        UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::AnimationFrame), L"", L"animation-frame-label", false, true),
         L"",
         LabelStyle::Muted);
     frame_label_ = toolbar_->Panel()->AddItem(std::move(label), kFrameLabelWidth);

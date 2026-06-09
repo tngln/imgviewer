@@ -8,6 +8,7 @@
 
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
 #include "ui.theme.hpp"
@@ -68,20 +69,20 @@ private:
 
 ImgViewerUiColorPickerToolstrip::ImgViewerUiColorPickerToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Color picker tools", L"color-picker-toolstrip");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::ColorPickerTools), L"color-picker-toolstrip");
 
     auto copy_button = std::make_unique<IconButton>(
         UiMetadata(
             UiElementRole::Button,
             UiActionFromImgViewerAction(ImgViewerAction::CopyColorPickerValue),
-            L"Copy Color",
-            L"Copy color",
+            ImgViewerString(ImgViewerStringId::CopyColorPickerValue),
+            ImgViewerString(ImgViewerStringId::CopyColorPickerValue),
             L"copy-color-picker-value"),
         kCopyIcon);
     copy_button_ = toolbar_->Panel()->AddItem(std::move(copy_button), ui_theme::metrics::kToolbarButtonSize);
 
     auto value = std::make_unique<ReadOnlyColorValue>(
-        UiMetadata(UiElementRole::Edit, kUiActionNone, L"Color value", L"", L"color-picker-value"));
+        UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::ColorValue), L"", L"color-picker-value"));
     value_element_ = toolbar_->Panel()->AddItem(std::move(value), kValueWidth);
 
     SetScalePercent(scale_percent_);

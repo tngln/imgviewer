@@ -12,6 +12,7 @@
 #include "imgviewer.developer.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.settings.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
 #include "ui.tooltip.hpp"
@@ -366,7 +367,7 @@ bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
         context->viewer.ToggleAnimationPlayback();
         SyncImgViewerAnimationTimer(hwnd, context);
     }
-    ShowImgViewerToast(hwnd, context, L"Edit mode on.");
+    ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::EditModeOn));
     SyncImgViewerMainWindowIme(hwnd, context);
     return true;
 }
@@ -381,7 +382,7 @@ void ExitImgViewerEditMode(HWND hwnd, ImgViewerContext* context)
     ResetImgViewerTransientInput(hwnd, context);
     context->edit.SetActive(false);
     context->interaction.EnterViewing();
-    ShowImgViewerToast(hwnd, context, L"Edit mode off.");
+    ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::EditModeOff));
     SyncImgViewerMainWindowIme(hwnd, context);
 }
 
@@ -691,7 +692,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         break;
     case ImgViewerAction::ShowInFileExplorer:
         if (context != nullptr && FAILED(util::ShowFileInExplorer(context->current_image_path.c_str()))) {
-            ShowImgViewerToast(hwnd, context, L"Could not show file in Explorer.");
+            ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotShowFileInExplorer));
         }
         break;
     case ImgViewerAction::OpenSettings:
@@ -747,7 +748,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
                 const std::wstring toast_text = std::wstring(L"Copied ") + context->color_picker_hex_text;
                 ShowImgViewerToast(hwnd, context, toast_text.c_str());
             } else {
-                ShowImgViewerToast(hwnd, context, L"Could not copy color.");
+                ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotCopyColor));
             }
         }
         break;
@@ -898,9 +899,9 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             wil::com_ptr<IWICBitmapSource> selected_pixels;
             if (SUCCEEDED(context->edit.CopySelectedPixels(context->viewer.WicFactory(), selected_pixels.put())) &&
                 SUCCEEDED(win32::CopyBitmapSourceToClipboard(hwnd, context->viewer.WicFactory(), selected_pixels.get()))) {
-                ShowImgViewerToast(hwnd, context, L"Copied selected pixels.");
+                ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CopiedSelectedPixels));
             } else {
-                ShowImgViewerToast(hwnd, context, L"Could not copy selected pixels.");
+                ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotCopySelectedPixels));
             }
         }
         break;
@@ -993,13 +994,13 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
 
     const HRESULT hr = context->viewer.LoadImageFile(path, context->renderer.BitmapDeviceContext());
     if (FAILED(hr)) {
-        MessageBoxW(hwnd, L"Could not open the selected image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+        MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotOpenSelectedImage), kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
         return;
     }
 
     const HRESULT sequence_hr = context->sequence.SetCurrentPath(path);
     if (FAILED(sequence_hr)) {
-        MessageBoxW(hwnd, L"Could not read the image folder.", kImgViewerWindowTitle, MB_OK | MB_ICONWARNING);
+        MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotReadImageFolder), kImgViewerWindowTitle, MB_OK | MB_ICONWARNING);
     }
     context->current_image_path = path;
     context->current_image_from_clipboard = false;
@@ -1031,9 +1032,9 @@ bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direct
 
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
 {
-    constexpr win32::NativeFileDialogFilter filters[] = {
-        {L"Images", L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.psd;*.tif;*.tiff;*.tga;*.webp"},
-        {L"All files", L"*.*"},
+    const win32::NativeFileDialogFilter filters[] = {
+        {ImgViewerString(ImgViewerStringId::ImagesFilter), L"*.bmp;*.dib;*.gif;*.ico;*.jpg;*.jpeg;*.jpe;*.png;*.psd;*.tif;*.tiff;*.tga;*.webp"},
+        {ImgViewerString(ImgViewerStringId::AllFilesFilter), L"*.*"},
     };
 
     std::wstring path;
@@ -1043,7 +1044,7 @@ void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     if (FAILED(hr)) {
-        MessageBoxW(hwnd, L"Could not show the image picker.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+        MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotShowImagePicker), kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
         return;
     }
 
@@ -1089,7 +1090,7 @@ void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context)
     }
     if (FAILED(select_hr)) {
         restore_window();
-        ShowImgViewerToast(hwnd, context, L"Could not capture region.");
+        ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotCaptureRegion));
         return;
     }
 
@@ -1098,12 +1099,12 @@ void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context)
     const HRESULT capture_hr = win32::CaptureScreenRect(context->viewer.WicFactory(), region, screenshot.put());
     restore_window();
     if (FAILED(capture_hr)) {
-        ShowImgViewerToast(hwnd, context, L"Could not capture region.");
+        ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotCaptureRegion));
         return;
     }
 
     if (FAILED(LoadImgViewerScreenshotBitmap(hwnd, context, screenshot.get()))) {
-        ShowImgViewerToast(hwnd, context, L"Could not capture region.");
+        ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotCaptureRegion));
     }
 }
 
@@ -1142,8 +1143,8 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
         return;
     }
 
-    constexpr win32::NativeFileDialogFilter filters[] = {
-        {L"PNG image", L"*.png"},
+    const win32::NativeFileDialogFilter filters[] = {
+        {ImgViewerString(ImgViewerStringId::PngImageFilter), L"*.png"},
     };
 
     std::wstring path;
@@ -1153,7 +1154,7 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
     }
 
     if (FAILED(dialog_hr)) {
-        MessageBoxW(hwnd, L"Could not show the save dialog.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+        MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotShowSaveDialog), kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
         return;
     }
 
@@ -1166,7 +1167,7 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
         if (FAILED(export_hr) ||
             FAILED(encoder.Initialize(context->viewer.WicFactory())) ||
             FAILED(encoder.SavePngFile(edited_source.get(), path.c_str()))) {
-            MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+            MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotSaveImage), kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
             return;
         }
         const bool exported_hdr_source = context->edit.SourceIsHdr();
@@ -1174,22 +1175,22 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
         ShowImgViewerToast(
             hwnd,
             context,
-            exported_hdr_source ? L"Saved SDR annotation export. HDR source preserved." : L"Saved image.");
+            ImgViewerString(exported_hdr_source ? ImgViewerStringId::SavedSdrAnnotationExportHdrSourcePreserved : ImgViewerStringId::SavedImage));
         return;
     } else {
         const bool exported_hdr_source = context->viewer.CurrentImageMetadata().color_info.dynamic_range.high_dynamic_range;
         const HRESULT save_hr = context->viewer.SaveCurrentImagePng(path.c_str());
         if (FAILED(save_hr)) {
-            MessageBoxW(hwnd, L"Could not save the image.", kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
+            MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotSaveImage), kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
             return;
         }
         if (exported_hdr_source) {
-            ShowImgViewerToast(hwnd, context, L"Saved SDR copy. HDR source preserved.");
+            ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::SavedSdrCopyHdrSourcePreserved));
             return;
         }
     }
 
-    ShowImgViewerToast(hwnd, context, L"Saved image.");
+    ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::SavedImage));
 }
 
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
@@ -1201,7 +1202,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     win32::ClipboardContent content;
     const HRESULT clipboard_hr = win32::ReadClipboardContent(hwnd, context->viewer.WicFactory(), &content);
     if (FAILED(clipboard_hr)) {
-        ShowImgViewerToast(hwnd, context, L"Clipboard does not contain an image or path.");
+        ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::ClipboardDoesNotContainImageOrPath));
         return;
     }
 
@@ -1211,7 +1212,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     }
 
     if (!content.bitmap_source) {
-        ShowImgViewerToast(hwnd, context, L"Clipboard does not contain an image or path.");
+        ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::ClipboardDoesNotContainImageOrPath));
         return;
     }
 
@@ -1219,7 +1220,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
         content.bitmap_source.get(),
         context->renderer.BitmapDeviceContext());
     if (FAILED(load_hr)) {
-        ShowImgViewerToast(hwnd, context, L"Could not paste clipboard image.");
+        ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotPasteClipboardImage));
         return;
     }
 
@@ -1346,19 +1347,19 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
     const bool screenshot = context->current_image_from_screenshot;
     const ImgViewerSnapshot snapshot = context->viewer.Snapshot();
     if (!has_image) {
-        state.name = L"No image";
-        state.path = L"Unavailable";
+        state.name = ImgViewerString(ImgViewerStringId::NoImage);
+        state.path = ImgViewerString(ImgViewerStringId::Unavailable);
         state.dimensions = L"-";
-        state.type = L"Unavailable";
-        state.file_size = L"Unavailable";
-        state.modified_time = L"Unavailable";
+        state.type = ImgViewerString(ImgViewerStringId::Unavailable);
+        state.file_size = ImgViewerString(ImgViewerStringId::Unavailable);
+        state.modified_time = ImgViewerString(ImgViewerStringId::Unavailable);
     } else {
         state.name = clipboard ? L"<Clipboard>" : (screenshot ? L"<Screenshot>" : util::FileNameFromPath(context->current_image_path.c_str(), L"-"));
-        state.path = clipboard || screenshot || context->current_image_path.empty() ? L"Unavailable" : context->current_image_path;
+        state.path = clipboard || screenshot || context->current_image_path.empty() ? ImgViewerString(ImgViewerStringId::Unavailable) : context->current_image_path;
         state.dimensions = util::FormatImageDimensions(snapshot.pixel_size);
-        state.type = screenshot ? L"Screenshot image" : util::FormatImageType(context->current_image_path, clipboard);
-        state.file_size = L"Unavailable";
-        state.modified_time = L"Unavailable";
+        state.type = screenshot ? ImgViewerString(ImgViewerStringId::ScreenshotImage) : util::FormatImageType(context->current_image_path, clipboard);
+        state.file_size = ImgViewerString(ImgViewerStringId::Unavailable);
+        state.modified_time = ImgViewerString(ImgViewerStringId::Unavailable);
         state.color_rows = context->viewer.CurrentImageMetadata().color_rows;
         state.exif_rows = context->viewer.CurrentImageMetadata().exif_rows;
         if (context->current_image_analysis.has_value()) {

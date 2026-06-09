@@ -24,6 +24,7 @@ add_executable(imgviewer
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
+    src/imgviewer.strings.cc
     src/imgviewer.ui.color_picker_toolstrip.cc
     src/imgviewer.ui.edit_toolbar.cc
     src/imgviewer.ui.floating_toolbar.cc

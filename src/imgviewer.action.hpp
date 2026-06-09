@@ -2,97 +2,99 @@
 
 #include <span>
 
+#include "imgviewer.strings.hpp"
+
 #define IMGVIEWER_ACTIONS(X) \
-    X(OpenImage, "openImage", L"Open Image", true, true) \
-    X(CaptureRegion, "captureRegion", L"Region Screenshot", true, true) \
-    X(SaveImageAs, "saveImageAs", L"Save As", false, false) \
-    X(ShowInFileExplorer, "showInFileExplorer", L"Show in File Explorer", true, true) \
-    X(PreviousImage, "previousImage", L"Previous Image", true, true) \
-    X(NextImage, "nextImage", L"Next Image", true, true) \
-    X(ZoomIn, "zoomIn", L"Zoom In", true, true) \
-    X(ZoomOut, "zoomOut", L"Zoom Out", true, true) \
-    X(FitWindow, "fitWindow", L"Fit Window", true, true) \
-    X(ActualSize, "actualSize", L"Actual Size", true, true) \
-    X(RotateClockwise, "rotateClockwise", L"Rotate Clockwise", true, true) \
-    X(FlipHorizontal, "flipHorizontal", L"Flip Horizontal", true, true) \
-    X(FlipVertical, "flipVertical", L"Flip Vertical", true, true) \
-    X(ResetView, "resetView", L"Reset View", true, true) \
-    X(ToggleColorPicker, "toggleColorPicker", L"Color Picker", false, false) \
-    X(CopyColorPickerValue, "copyColorPickerValue", L"Copy Color Picker Value", false, false) \
-    X(ToggleEditMode, "toggleEditMode", L"Edit Mode", true, true) \
-    X(EditSelect, "editSelect", L"Edit Select", true, true) \
-    X(EditPixelSelect, "editPixelSelect", L"Edit Pixel Select", true, true) \
-    X(EditPen, "editPen", L"Edit Pen", true, true) \
-    X(EditPenColorRed, "editPenColorRed", L"Pen Color Red", true, true) \
-    X(EditPenColorYellow, "editPenColorYellow", L"Pen Color Yellow", true, true) \
-    X(EditPenColorGreen, "editPenColorGreen", L"Pen Color Green", true, true) \
-    X(EditPenColorCyan, "editPenColorCyan", L"Pen Color Cyan", true, true) \
-    X(EditPenColorBlue, "editPenColorBlue", L"Pen Color Blue", true, true) \
-    X(EditPenColorMagenta, "editPenColorMagenta", L"Pen Color Magenta", true, true) \
-    X(EditPenColorWhite, "editPenColorWhite", L"Pen Color White", true, true) \
-    X(EditPenColorBlack, "editPenColorBlack", L"Pen Color Black", true, true) \
-    X(EditPenWidth2, "editPenWidth2", L"Pen Width 2px", true, true) \
-    X(EditPenWidth4, "editPenWidth4", L"Pen Width 4px", true, true) \
-    X(EditPenWidth8, "editPenWidth8", L"Pen Width 8px", true, true) \
-    X(EditPenWidth12, "editPenWidth12", L"Pen Width 12px", true, true) \
-    X(EditShape, "editShape", L"Edit Shape", true, true) \
-    X(EditShapeRectangle, "editShapeRectangle", L"Shape Rectangle", true, true) \
-    X(EditShapeEllipse, "editShapeEllipse", L"Shape Ellipse", true, true) \
-    X(EditShapeLine, "editShapeLine", L"Shape Line", true, true) \
-    X(EditShapeArrow, "editShapeArrow", L"Shape Arrow", true, true) \
-    X(EditText, "editText", L"Edit Text", true, true) \
-    X(EditTextFontChanged, "editTextFontChanged", L"Text Font", false, false) \
-    X(EditTextSize12, "editTextSize12", L"Text Size 12px", true, true) \
-    X(EditTextSize16, "editTextSize16", L"Text Size 16px", true, true) \
-    X(EditTextSize20, "editTextSize20", L"Text Size 20px", true, true) \
-    X(EditTextSize28, "editTextSize28", L"Text Size 28px", true, true) \
-    X(EditTextSize36, "editTextSize36", L"Text Size 36px", true, true) \
-    X(EditTextColorRed, "editTextColorRed", L"Text Color Red", true, true) \
-    X(EditTextColorYellow, "editTextColorYellow", L"Text Color Yellow", true, true) \
-    X(EditTextColorGreen, "editTextColorGreen", L"Text Color Green", true, true) \
-    X(EditTextColorCyan, "editTextColorCyan", L"Text Color Cyan", true, true) \
-    X(EditTextColorBlue, "editTextColorBlue", L"Text Color Blue", true, true) \
-    X(EditTextColorMagenta, "editTextColorMagenta", L"Text Color Magenta", true, true) \
-    X(EditTextColorWhite, "editTextColorWhite", L"Text Color White", true, true) \
-    X(EditTextColorBlack, "editTextColorBlack", L"Text Color Black", true, true) \
-    X(EditTextBackgroundTransparent, "editTextBackgroundTransparent", L"Text Background Transparent", true, true) \
-    X(EditTextBackgroundYellow, "editTextBackgroundYellow", L"Text Background Yellow", true, true) \
-    X(EditTextBackgroundWhite, "editTextBackgroundWhite", L"Text Background White", true, true) \
-    X(EditTextBackgroundBlack, "editTextBackgroundBlack", L"Text Background Black", true, true) \
-    X(EditTextBackgroundRed, "editTextBackgroundRed", L"Text Background Red", true, true) \
-    X(EditTextBackgroundBlue, "editTextBackgroundBlue", L"Text Background Blue", true, true) \
-    X(EditCrop, "editCrop", L"Edit Crop", true, true) \
-    X(EditCancelCrop, "editCancelCrop", L"Cancel Crop", true, true) \
-    X(EditCopySelection, "editCopySelection", L"Copy Pixel Selection", true, true) \
-    X(EditMosaicSelection, "editMosaicSelection", L"Mosaic Pixel Selection", true, true) \
-    X(EditDeleteSelection, "editDeleteSelection", L"Delete Edit Selection", true, true) \
-    X(EditRotateClockwise, "editRotateClockwise", L"Edit Rotate Clockwise", true, true) \
-    X(EditUndo, "editUndo", L"Edit Undo", true, true) \
-    X(EditRedo, "editRedo", L"Edit Redo", true, true) \
-    X(ToggleInfoPanel, "toggleInfoPanel", L"Info Panel", true, false) \
-    X(ToggleAnimationLoop, "toggleAnimationLoop", L"Loop Animation", false, false) \
-    X(ToggleAnimationPlayback, "toggleAnimationPlayback", L"Play or Pause Animation", false, false) \
-    X(PreviousAnimationFrame, "previousAnimationFrame", L"Previous Animation Frame", false, false) \
-    X(NextAnimationFrame, "nextAnimationFrame", L"Next Animation Frame", false, false) \
-    X(OpenMenu, "openMenu", L"Menu", false, false) \
-    X(OpenSettings, "openSettings", L"Settings", false, false) \
-    X(CloseSettings, "closeSettings", L"Close Settings", false, false) \
-    X(SaveSettings, "saveSettings", L"Save Settings", false, false) \
-    X(OpenDeveloper, "openDeveloper", L"Developer", false, false) \
-    X(CloseDeveloper, "closeDeveloper", L"Close Developer", false, false) \
-    X(DeveloperSampleButton, "developerSampleButton", L"Developer Sample Button", false, false) \
-    X(OpenAbout, "openAbout", L"About", false, false) \
-    X(CloseAbout, "closeAbout", L"Close About", false, false) \
-    X(CopyAboutNotices, "copyAboutNotices", L"Copy About Notices", false, false) \
-    X(ResetKeyBindings, "resetKeyBindings", L"Reset Shortcuts", false, false) \
-    X(TextCopy, "textCopy", L"Copy", false, false) \
-    X(TextCut, "textCut", L"Cut", false, false) \
-    X(TextPaste, "textPaste", L"Paste", false, false) \
-    X(TextSelectAll, "textSelectAll", L"Select All", false, false) \
-    X(ToggleTopMost, "toggleTopMost", L"Top Most", false, false) \
-    X(Minimize, "minimize", L"Minimize", false, false) \
-    X(ToggleMaximize, "toggleMaximize", L"Maximize or Restore", false, false) \
-    X(Close, "close", L"Close", false, false)
+    X(OpenImage, "openImage", ImgViewerStringId::OpenImage, true, true) \
+    X(CaptureRegion, "captureRegion", ImgViewerStringId::CaptureRegion, true, true) \
+    X(SaveImageAs, "saveImageAs", ImgViewerStringId::SaveAs, false, false) \
+    X(ShowInFileExplorer, "showInFileExplorer", ImgViewerStringId::ShowInFileExplorer, true, true) \
+    X(PreviousImage, "previousImage", ImgViewerStringId::PreviousImage, true, true) \
+    X(NextImage, "nextImage", ImgViewerStringId::NextImage, true, true) \
+    X(ZoomIn, "zoomIn", ImgViewerStringId::ZoomIn, true, true) \
+    X(ZoomOut, "zoomOut", ImgViewerStringId::ZoomOut, true, true) \
+    X(FitWindow, "fitWindow", ImgViewerStringId::FitWindow, true, true) \
+    X(ActualSize, "actualSize", ImgViewerStringId::ActualSize, true, true) \
+    X(RotateClockwise, "rotateClockwise", ImgViewerStringId::RotateClockwise, true, true) \
+    X(FlipHorizontal, "flipHorizontal", ImgViewerStringId::FlipHorizontal, true, true) \
+    X(FlipVertical, "flipVertical", ImgViewerStringId::FlipVertical, true, true) \
+    X(ResetView, "resetView", ImgViewerStringId::ResetView, true, true) \
+    X(ToggleColorPicker, "toggleColorPicker", ImgViewerStringId::ColorPicker, false, false) \
+    X(CopyColorPickerValue, "copyColorPickerValue", ImgViewerStringId::CopyColorPickerValue, false, false) \
+    X(ToggleEditMode, "toggleEditMode", ImgViewerStringId::EditMode, true, true) \
+    X(EditSelect, "editSelect", ImgViewerStringId::EditSelect, true, true) \
+    X(EditPixelSelect, "editPixelSelect", ImgViewerStringId::EditPixelSelect, true, true) \
+    X(EditPen, "editPen", ImgViewerStringId::EditPen, true, true) \
+    X(EditPenColorRed, "editPenColorRed", ImgViewerStringId::RedPen, true, true) \
+    X(EditPenColorYellow, "editPenColorYellow", ImgViewerStringId::YellowPen, true, true) \
+    X(EditPenColorGreen, "editPenColorGreen", ImgViewerStringId::GreenPen, true, true) \
+    X(EditPenColorCyan, "editPenColorCyan", ImgViewerStringId::CyanPen, true, true) \
+    X(EditPenColorBlue, "editPenColorBlue", ImgViewerStringId::BluePen, true, true) \
+    X(EditPenColorMagenta, "editPenColorMagenta", ImgViewerStringId::MagentaPen, true, true) \
+    X(EditPenColorWhite, "editPenColorWhite", ImgViewerStringId::WhitePen, true, true) \
+    X(EditPenColorBlack, "editPenColorBlack", ImgViewerStringId::BlackPen, true, true) \
+    X(EditPenWidth2, "editPenWidth2", ImgViewerStringId::PenWidth2, true, true) \
+    X(EditPenWidth4, "editPenWidth4", ImgViewerStringId::PenWidth4, true, true) \
+    X(EditPenWidth8, "editPenWidth8", ImgViewerStringId::PenWidth8, true, true) \
+    X(EditPenWidth12, "editPenWidth12", ImgViewerStringId::PenWidth12, true, true) \
+    X(EditShape, "editShape", ImgViewerStringId::EditShape, true, true) \
+    X(EditShapeRectangle, "editShapeRectangle", ImgViewerStringId::RectangleShape, true, true) \
+    X(EditShapeEllipse, "editShapeEllipse", ImgViewerStringId::EllipseShape, true, true) \
+    X(EditShapeLine, "editShapeLine", ImgViewerStringId::LineShape, true, true) \
+    X(EditShapeArrow, "editShapeArrow", ImgViewerStringId::ArrowShape, true, true) \
+    X(EditText, "editText", ImgViewerStringId::EditText, true, true) \
+    X(EditTextFontChanged, "editTextFontChanged", ImgViewerStringId::TextFont, false, false) \
+    X(EditTextSize12, "editTextSize12", ImgViewerStringId::TextSize12, true, true) \
+    X(EditTextSize16, "editTextSize16", ImgViewerStringId::TextSize16, true, true) \
+    X(EditTextSize20, "editTextSize20", ImgViewerStringId::TextSize20, true, true) \
+    X(EditTextSize28, "editTextSize28", ImgViewerStringId::TextSize28, true, true) \
+    X(EditTextSize36, "editTextSize36", ImgViewerStringId::TextSize36, true, true) \
+    X(EditTextColorRed, "editTextColorRed", ImgViewerStringId::TextColorRed, true, true) \
+    X(EditTextColorYellow, "editTextColorYellow", ImgViewerStringId::TextColorYellow, true, true) \
+    X(EditTextColorGreen, "editTextColorGreen", ImgViewerStringId::TextColorGreen, true, true) \
+    X(EditTextColorCyan, "editTextColorCyan", ImgViewerStringId::TextColorCyan, true, true) \
+    X(EditTextColorBlue, "editTextColorBlue", ImgViewerStringId::TextColorBlue, true, true) \
+    X(EditTextColorMagenta, "editTextColorMagenta", ImgViewerStringId::TextColorMagenta, true, true) \
+    X(EditTextColorWhite, "editTextColorWhite", ImgViewerStringId::TextColorWhite, true, true) \
+    X(EditTextColorBlack, "editTextColorBlack", ImgViewerStringId::TextColorBlack, true, true) \
+    X(EditTextBackgroundTransparent, "editTextBackgroundTransparent", ImgViewerStringId::TextBackgroundTransparent, true, true) \
+    X(EditTextBackgroundYellow, "editTextBackgroundYellow", ImgViewerStringId::TextBackgroundYellow, true, true) \
+    X(EditTextBackgroundWhite, "editTextBackgroundWhite", ImgViewerStringId::TextBackgroundWhite, true, true) \
+    X(EditTextBackgroundBlack, "editTextBackgroundBlack", ImgViewerStringId::TextBackgroundBlack, true, true) \
+    X(EditTextBackgroundRed, "editTextBackgroundRed", ImgViewerStringId::TextBackgroundRed, true, true) \
+    X(EditTextBackgroundBlue, "editTextBackgroundBlue", ImgViewerStringId::TextBackgroundBlue, true, true) \
+    X(EditCrop, "editCrop", ImgViewerStringId::EditCrop, true, true) \
+    X(EditCancelCrop, "editCancelCrop", ImgViewerStringId::EditCancelCrop, true, true) \
+    X(EditCopySelection, "editCopySelection", ImgViewerStringId::EditCopySelection, true, true) \
+    X(EditMosaicSelection, "editMosaicSelection", ImgViewerStringId::EditMosaicSelection, true, true) \
+    X(EditDeleteSelection, "editDeleteSelection", ImgViewerStringId::EditDeleteSelection, true, true) \
+    X(EditRotateClockwise, "editRotateClockwise", ImgViewerStringId::EditRotateClockwise, true, true) \
+    X(EditUndo, "editUndo", ImgViewerStringId::EditUndo, true, true) \
+    X(EditRedo, "editRedo", ImgViewerStringId::EditRedo, true, true) \
+    X(ToggleInfoPanel, "toggleInfoPanel", ImgViewerStringId::ToggleInfoPanel, true, false) \
+    X(ToggleAnimationLoop, "toggleAnimationLoop", ImgViewerStringId::LoopAnimation, false, false) \
+    X(ToggleAnimationPlayback, "toggleAnimationPlayback", ImgViewerStringId::PlayOrPauseAnimation, false, false) \
+    X(PreviousAnimationFrame, "previousAnimationFrame", ImgViewerStringId::PreviousAnimationFrame, false, false) \
+    X(NextAnimationFrame, "nextAnimationFrame", ImgViewerStringId::NextAnimationFrame, false, false) \
+    X(OpenMenu, "openMenu", ImgViewerStringId::Menu, false, false) \
+    X(OpenSettings, "openSettings", ImgViewerStringId::Settings, false, false) \
+    X(CloseSettings, "closeSettings", ImgViewerStringId::CloseSettings, false, false) \
+    X(SaveSettings, "saveSettings", ImgViewerStringId::SaveSettings, false, false) \
+    X(OpenDeveloper, "openDeveloper", ImgViewerStringId::Developer, false, false) \
+    X(CloseDeveloper, "closeDeveloper", ImgViewerStringId::CloseDeveloper, false, false) \
+    X(DeveloperSampleButton, "developerSampleButton", ImgViewerStringId::DeveloperSampleButton, false, false) \
+    X(OpenAbout, "openAbout", ImgViewerStringId::About, false, false) \
+    X(CloseAbout, "closeAbout", ImgViewerStringId::CloseAbout, false, false) \
+    X(CopyAboutNotices, "copyAboutNotices", ImgViewerStringId::CopyAboutNotices, false, false) \
+    X(ResetKeyBindings, "resetKeyBindings", ImgViewerStringId::ResetShortcuts, false, false) \
+    X(TextCopy, "textCopy", ImgViewerStringId::Copy, false, false) \
+    X(TextCut, "textCut", ImgViewerStringId::Cut, false, false) \
+    X(TextPaste, "textPaste", ImgViewerStringId::Paste, false, false) \
+    X(TextSelectAll, "textSelectAll", ImgViewerStringId::SelectAll, false, false) \
+    X(ToggleTopMost, "toggleTopMost", ImgViewerStringId::TopMost, false, false) \
+    X(Minimize, "minimize", ImgViewerStringId::Minimize, false, false) \
+    X(ToggleMaximize, "toggleMaximize", ImgViewerStringId::MaximizeOrRestore, false, false) \
+    X(Close, "close", ImgViewerStringId::Close, false, false)
 
 enum class ImgViewerAction {
     None,
@@ -104,7 +106,7 @@ enum class ImgViewerAction {
 struct ImgViewerActionInfo final {
     ImgViewerAction action = ImgViewerAction::None;
     const char* name = "";
-    const wchar_t* display_name = L"";
+    ImgViewerStringId display_name = ImgViewerStringId::Empty;
     bool configurable_key = false;
     bool shown_in_settings = false;
 };

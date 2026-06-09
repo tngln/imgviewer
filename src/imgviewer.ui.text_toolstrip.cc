@@ -10,6 +10,7 @@
 
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
@@ -150,8 +151,8 @@ private:
 struct ButtonSpec final {
     ImgViewerUiTextToolstrip::ButtonKey button = ImgViewerUiTextToolstrip::ButtonKey::Size20;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     D2D1_COLOR_F color = {};
     float size = 0.0f;
@@ -160,25 +161,25 @@ struct ButtonSpec final {
 };
 
 const std::array<ButtonSpec, ImgViewerUiTextToolstrip::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiTextToolstrip::ButtonKey::Size12, ImgViewerAction::EditTextSize12, L"12", L"12 px text", L"edit-text-size-12", {}, 12.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size16, ImgViewerAction::EditTextSize16, L"16", L"16 px text", L"edit-text-size-16", {}, 16.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size20, ImgViewerAction::EditTextSize20, L"20", L"20 px text", L"edit-text-size-20", {}, 20.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size28, ImgViewerAction::EditTextSize28, L"28", L"28 px text", L"edit-text-size-28", {}, 28.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size36, ImgViewerAction::EditTextSize36, L"36", L"36 px text", L"edit-text-size-36", {}, 36.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextRed, ImgViewerAction::EditTextColorRed, L"Red", L"Red text", L"edit-text-red", D2D1::ColorF(D2D1::ColorF::Red)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextYellow, ImgViewerAction::EditTextColorYellow, L"Yellow", L"Yellow text", L"edit-text-yellow", D2D1::ColorF(D2D1::ColorF::Yellow)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextGreen, ImgViewerAction::EditTextColorGreen, L"Green", L"Green text", L"edit-text-green", D2D1::ColorF(D2D1::ColorF::Lime)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextCyan, ImgViewerAction::EditTextColorCyan, L"Cyan", L"Cyan text", L"edit-text-cyan", D2D1::ColorF(D2D1::ColorF::Cyan)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextBlue, ImgViewerAction::EditTextColorBlue, L"Blue", L"Blue text", L"edit-text-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextMagenta, ImgViewerAction::EditTextColorMagenta, L"Magenta", L"Magenta text", L"edit-text-magenta", D2D1::ColorF(D2D1::ColorF::Magenta)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextWhite, ImgViewerAction::EditTextColorWhite, L"White", L"White text", L"edit-text-white", D2D1::ColorF(D2D1::ColorF::White)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextBlack, ImgViewerAction::EditTextColorBlack, L"Black", L"Black text", L"edit-text-black", D2D1::ColorF(D2D1::ColorF::Black)},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundTransparent, ImgViewerAction::EditTextBackgroundTransparent, L"None", L"Transparent text background", L"edit-text-bg-transparent", {}, 0.0f, true, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundYellow, ImgViewerAction::EditTextBackgroundYellow, L"Yellow", L"Yellow text background", L"edit-text-bg-yellow", D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundWhite, ImgViewerAction::EditTextBackgroundWhite, L"White", L"White text background", L"edit-text-bg-white", D2D1::ColorF(D2D1::ColorF::White, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundBlack, ImgViewerAction::EditTextBackgroundBlack, L"Black", L"Black text background", L"edit-text-bg-black", D2D1::ColorF(D2D1::ColorF::Black, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundRed, ImgViewerAction::EditTextBackgroundRed, L"Red", L"Red text background", L"edit-text-bg-red", D2D1::ColorF(D2D1::ColorF::Red, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundBlue, ImgViewerAction::EditTextBackgroundBlue, L"Blue", L"Blue text background", L"edit-text-bg-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f), 0.0f, true},
+    {ImgViewerUiTextToolstrip::ButtonKey::Size12, ImgViewerAction::EditTextSize12, ImgViewerStringId::TextSize12, ImgViewerStringId::Text12PxTooltip, L"edit-text-size-12", {}, 12.0f},
+    {ImgViewerUiTextToolstrip::ButtonKey::Size16, ImgViewerAction::EditTextSize16, ImgViewerStringId::TextSize16, ImgViewerStringId::Text16PxTooltip, L"edit-text-size-16", {}, 16.0f},
+    {ImgViewerUiTextToolstrip::ButtonKey::Size20, ImgViewerAction::EditTextSize20, ImgViewerStringId::TextSize20, ImgViewerStringId::Text20PxTooltip, L"edit-text-size-20", {}, 20.0f},
+    {ImgViewerUiTextToolstrip::ButtonKey::Size28, ImgViewerAction::EditTextSize28, ImgViewerStringId::TextSize28, ImgViewerStringId::Text28PxTooltip, L"edit-text-size-28", {}, 28.0f},
+    {ImgViewerUiTextToolstrip::ButtonKey::Size36, ImgViewerAction::EditTextSize36, ImgViewerStringId::TextSize36, ImgViewerStringId::Text36PxTooltip, L"edit-text-size-36", {}, 36.0f},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextRed, ImgViewerAction::EditTextColorRed, ImgViewerStringId::Red, ImgViewerStringId::RedText, L"edit-text-red", D2D1::ColorF(D2D1::ColorF::Red)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextYellow, ImgViewerAction::EditTextColorYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowText, L"edit-text-yellow", D2D1::ColorF(D2D1::ColorF::Yellow)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextGreen, ImgViewerAction::EditTextColorGreen, ImgViewerStringId::Green, ImgViewerStringId::GreenText, L"edit-text-green", D2D1::ColorF(D2D1::ColorF::Lime)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextCyan, ImgViewerAction::EditTextColorCyan, ImgViewerStringId::Cyan, ImgViewerStringId::CyanText, L"edit-text-cyan", D2D1::ColorF(D2D1::ColorF::Cyan)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextBlue, ImgViewerAction::EditTextColorBlue, ImgViewerStringId::Blue, ImgViewerStringId::BlueText, L"edit-text-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextMagenta, ImgViewerAction::EditTextColorMagenta, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaText, L"edit-text-magenta", D2D1::ColorF(D2D1::ColorF::Magenta)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextWhite, ImgViewerAction::EditTextColorWhite, ImgViewerStringId::White, ImgViewerStringId::WhiteText, L"edit-text-white", D2D1::ColorF(D2D1::ColorF::White)},
+    {ImgViewerUiTextToolstrip::ButtonKey::TextBlack, ImgViewerAction::EditTextColorBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackText, L"edit-text-black", D2D1::ColorF(D2D1::ColorF::Black)},
+    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundTransparent, ImgViewerAction::EditTextBackgroundTransparent, ImgViewerStringId::None, ImgViewerStringId::TransparentTextBackground, L"edit-text-bg-transparent", {}, 0.0f, true, true},
+    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundYellow, ImgViewerAction::EditTextBackgroundYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowTextBackground, L"edit-text-bg-yellow", D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f), 0.0f, true},
+    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundWhite, ImgViewerAction::EditTextBackgroundWhite, ImgViewerStringId::White, ImgViewerStringId::WhiteTextBackground, L"edit-text-bg-white", D2D1::ColorF(D2D1::ColorF::White, 0.82f), 0.0f, true},
+    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundBlack, ImgViewerAction::EditTextBackgroundBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackTextBackground, L"edit-text-bg-black", D2D1::ColorF(D2D1::ColorF::Black, 0.82f), 0.0f, true},
+    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundRed, ImgViewerAction::EditTextBackgroundRed, ImgViewerStringId::Red, ImgViewerStringId::RedTextBackground, L"edit-text-bg-red", D2D1::ColorF(D2D1::ColorF::Red, 0.82f), 0.0f, true},
+    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundBlue, ImgViewerAction::EditTextBackgroundBlue, ImgViewerStringId::Blue, ImgViewerStringId::BlueTextBackground, L"edit-text-bg-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f), 0.0f, true},
 }};
 
 } // namespace
@@ -190,19 +191,19 @@ constexpr size_t ImgViewerUiTextToolstrip::ButtonIndex(ButtonKey button)
 
 ImgViewerUiTextToolstrip::ImgViewerUiTextToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Text tools", L"text-toolstrip");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::TextTools), L"text-toolstrip");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
         UiElementMetadata metadata = UiMetadata(
             UiElementRole::Button,
             UiActionFromImgViewerAction(spec.action),
-            spec.name,
-            spec.tooltip,
+            ImgViewerString(spec.name),
+            ImgViewerString(spec.tooltip),
             spec.automation_id);
         std::unique_ptr<UiElement> element;
         if (spec.size > 0.0f) {
-            element = std::make_unique<TextSizeButton>(metadata, spec.name);
+            element = std::make_unique<TextSizeButton>(metadata, ImgViewerString(spec.name));
         } else {
             element = std::make_unique<TextColorButton>(metadata, spec.color, spec.transparent);
         }
@@ -216,8 +217,8 @@ ImgViewerUiTextToolstrip::ImgViewerUiTextToolstrip(UiElement& root)
         UiMetadata(
             UiElementRole::ComboBox,
             UiActionFromImgViewerAction(ImgViewerAction::EditTextFontChanged),
-            L"Font",
-            L"Text font",
+            ImgViewerString(ImgViewerStringId::Font),
+            ImgViewerString(ImgViewerStringId::TextFont),
             L"edit-text-font"),
         font_options_)));
 

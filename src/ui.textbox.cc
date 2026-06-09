@@ -7,6 +7,7 @@
 
 #include <d2d1helper.h>
 
+#include "imgviewer.strings.hpp"
 #include "math.hpp"
 #include "ui.popup.hpp"
 #include "ui.theme.hpp"
@@ -73,11 +74,11 @@ std::vector<MenuItem> TextBox::ContextMenuItems() const
     const bool has_selection = edit_.HasSelection();
     const bool can_paste = win32::IsClipboardTextAvailable();
     return std::vector<MenuItem>{
-        {L"Copy", kUiActionTextCopy, false, false, has_selection},
-        {L"Cut", kUiActionTextCut, false, false, has_selection},
-        {L"Paste", kUiActionTextPaste, false, false, can_paste},
+        {ImgViewerString(ImgViewerStringId::Copy), kUiActionTextCopy, false, false, has_selection},
+        {ImgViewerString(ImgViewerStringId::Cut), kUiActionTextCut, false, false, has_selection},
+        {ImgViewerString(ImgViewerStringId::Paste), kUiActionTextPaste, false, false, can_paste},
         {L"", kUiActionNone, true},
-        {L"Select All", kUiActionTextSelectAll, false, false, !edit_.Text().empty()},
+        {ImgViewerString(ImgViewerStringId::SelectAll), kUiActionTextSelectAll, false, false, !edit_.Text().empty()},
     };
 }
 

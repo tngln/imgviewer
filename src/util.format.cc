@@ -4,6 +4,8 @@
 #include <cwctype>
 #include <filesystem>
 
+#include "imgviewer.strings.hpp"
+
 namespace util {
 
 std::wstring FormatFileSize(ULONGLONG byte_count)
@@ -30,14 +32,14 @@ std::wstring FormatFileTime(FILETIME file_time)
     FILETIME local_time = {};
     SYSTEMTIME system_time = {};
     if (!FileTimeToLocalFileTime(&file_time, &local_time) || !FileTimeToSystemTime(&local_time, &system_time)) {
-        return L"Unavailable";
+        return ImgViewerString(ImgViewerStringId::Unavailable);
     }
 
     wchar_t date_text[64] = {};
     wchar_t time_text[64] = {};
     if (GetDateFormatEx(LOCALE_NAME_USER_DEFAULT, DATE_SHORTDATE, &system_time, nullptr, date_text, ARRAYSIZE(date_text), nullptr) == 0 ||
         GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, TIME_NOSECONDS, &system_time, nullptr, time_text, ARRAYSIZE(time_text)) == 0) {
-        return L"Unavailable";
+        return ImgViewerString(ImgViewerStringId::Unavailable);
     }
 
     return std::wstring(date_text) + L" " + time_text;
@@ -57,12 +59,12 @@ std::wstring FormatImageDimensions(D2D1_SIZE_U size)
 std::wstring FormatImageType(const std::wstring& path, bool clipboard)
 {
     if (clipboard) {
-        return L"Clipboard image";
+        return ImgViewerString(ImgViewerStringId::ClipboardImage);
     }
 
     std::wstring extension = std::filesystem::path(path).extension().wstring();
     if (extension.empty()) {
-        return L"Unavailable";
+        return ImgViewerString(ImgViewerStringId::Unavailable);
     }
     if (extension[0] == L'.') {
         extension.erase(extension.begin());

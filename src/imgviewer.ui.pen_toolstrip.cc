@@ -9,6 +9,7 @@
 
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
@@ -166,8 +167,8 @@ private:
 struct ButtonSpec final {
     ImgViewerUiPenToolstrip::ButtonKey button = ImgViewerUiPenToolstrip::ButtonKey::Red;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     D2D1_COLOR_F color = {};
     float width = 0.0f;
@@ -175,29 +176,29 @@ struct ButtonSpec final {
 
 const std::array<ButtonSpec, ImgViewerUiPenToolstrip::kButtonCount> kButtonSpecs{{
     {ImgViewerUiPenToolstrip::ButtonKey::Red, ImgViewerAction::EditPenColorRed,
-        L"Red", L"Red pen", L"edit-pen-red", D2D1::ColorF(D2D1::ColorF::Red), 0.0f},
+        ImgViewerStringId::Red, ImgViewerStringId::RedPen, L"edit-pen-red", D2D1::ColorF(D2D1::ColorF::Red), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Yellow, ImgViewerAction::EditPenColorYellow,
-        L"Yellow", L"Yellow pen", L"edit-pen-yellow", D2D1::ColorF(D2D1::ColorF::Yellow), 0.0f},
+        ImgViewerStringId::Yellow, ImgViewerStringId::YellowPen, L"edit-pen-yellow", D2D1::ColorF(D2D1::ColorF::Yellow), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Green, ImgViewerAction::EditPenColorGreen,
-        L"Green", L"Green pen", L"edit-pen-green", D2D1::ColorF(D2D1::ColorF::Lime), 0.0f},
+        ImgViewerStringId::Green, ImgViewerStringId::GreenPen, L"edit-pen-green", D2D1::ColorF(D2D1::ColorF::Lime), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Cyan, ImgViewerAction::EditPenColorCyan,
-        L"Cyan", L"Cyan pen", L"edit-pen-cyan", D2D1::ColorF(D2D1::ColorF::Cyan), 0.0f},
+        ImgViewerStringId::Cyan, ImgViewerStringId::CyanPen, L"edit-pen-cyan", D2D1::ColorF(D2D1::ColorF::Cyan), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Blue, ImgViewerAction::EditPenColorBlue,
-        L"Blue", L"Blue pen", L"edit-pen-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue), 0.0f},
+        ImgViewerStringId::Blue, ImgViewerStringId::BluePen, L"edit-pen-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Magenta, ImgViewerAction::EditPenColorMagenta,
-        L"Magenta", L"Magenta pen", L"edit-pen-magenta", D2D1::ColorF(D2D1::ColorF::Magenta), 0.0f},
+        ImgViewerStringId::Magenta, ImgViewerStringId::MagentaPen, L"edit-pen-magenta", D2D1::ColorF(D2D1::ColorF::Magenta), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::White, ImgViewerAction::EditPenColorWhite,
-        L"White", L"White pen", L"edit-pen-white", D2D1::ColorF(D2D1::ColorF::White), 0.0f},
+        ImgViewerStringId::White, ImgViewerStringId::WhitePen, L"edit-pen-white", D2D1::ColorF(D2D1::ColorF::White), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Black, ImgViewerAction::EditPenColorBlack,
-        L"Black", L"Black pen", L"edit-pen-black", D2D1::ColorF(D2D1::ColorF::Black), 0.0f},
+        ImgViewerStringId::Black, ImgViewerStringId::BlackPen, L"edit-pen-black", D2D1::ColorF(D2D1::ColorF::Black), 0.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Width2, ImgViewerAction::EditPenWidth2,
-        L"2 px", L"2 px pen", L"edit-pen-width-2", {}, 2.0f},
+        ImgViewerStringId::PenWidth2, ImgViewerStringId::PenWidth2, L"edit-pen-width-2", {}, 2.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Width4, ImgViewerAction::EditPenWidth4,
-        L"4 px", L"4 px pen", L"edit-pen-width-4", {}, 4.0f},
+        ImgViewerStringId::PenWidth4, ImgViewerStringId::PenWidth4, L"edit-pen-width-4", {}, 4.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Width8, ImgViewerAction::EditPenWidth8,
-        L"8 px", L"8 px pen", L"edit-pen-width-8", {}, 8.0f},
+        ImgViewerStringId::PenWidth8, ImgViewerStringId::PenWidth8, L"edit-pen-width-8", {}, 8.0f},
     {ImgViewerUiPenToolstrip::ButtonKey::Width12, ImgViewerAction::EditPenWidth12,
-        L"12 px", L"12 px pen", L"edit-pen-width-12", {}, 12.0f},
+        ImgViewerStringId::PenWidth12, ImgViewerStringId::PenWidth12, L"edit-pen-width-12", {}, 12.0f},
 }};
 
 } // namespace
@@ -209,15 +210,15 @@ constexpr size_t ImgViewerUiPenToolstrip::ButtonIndex(ButtonKey button)
 
 ImgViewerUiPenToolstrip::ImgViewerUiPenToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Pen tools", L"pen-toolstrip");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::PenTools), L"pen-toolstrip");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
         UiElementMetadata metadata = UiMetadata(
             UiElementRole::Button,
             UiActionFromImgViewerAction(spec.action),
-            spec.name,
-            spec.tooltip,
+            ImgViewerString(spec.name),
+            ImgViewerString(spec.tooltip),
             spec.automation_id);
         std::unique_ptr<UiElement> element;
         if (spec.width > 0.0f) {

@@ -8,6 +8,7 @@
 
 #include <d2d1helper.h>
 
+#include "imgviewer.strings.hpp"
 #include "math.hpp"
 #include "ui.events.hpp"
 #include "ui.theme.hpp"
@@ -75,7 +76,7 @@ const wchar_t* ChannelText(ImgViewerHistogramChannel channel)
         return L"B";
     case ImgViewerHistogramChannel::Luma:
     default:
-        return L"Luma";
+        return ImgViewerString(ImgViewerStringId::Luma);
     }
 }
 
@@ -112,7 +113,7 @@ std::wstring HexColor(ImageColorSample color)
 
 std::wstring TableValue(std::wstring value)
 {
-    return value.empty() ? L"-" : std::move(value);
+    return value.empty() ? std::wstring(L"-") : std::move(value);
 }
 
 } // namespace
@@ -122,7 +123,7 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
     panel_ = root.AddChild(std::make_unique<UiElement>(UiMetadata(
         UiElementRole::Pane,
         kUiActionNone,
-        L"Info Panel",
+        ImgViewerString(ImgViewerStringId::InfoPanel),
         L"",
         L"info-panel",
         false,
@@ -133,8 +134,8 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
     basic_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
         kUiActionNone,
-        L"Image details",
-        L"Image details",
+        ImgViewerString(ImgViewerStringId::ImageDetails),
+        ImgViewerString(ImgViewerStringId::ImageDetails),
         L"info-panel-image-details",
         false,
         true))));
@@ -150,8 +151,8 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
     color_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
         kUiActionNone,
-        L"Color and HDR",
-        L"Color and HDR",
+        ImgViewerString(ImgViewerStringId::ColorAndHdr),
+        ImgViewerString(ImgViewerStringId::ColorAndHdr),
         L"info-panel-color",
         false,
         true))));
@@ -167,8 +168,8 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
     exif_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
         kUiActionNone,
-        L"EXIF",
-        L"EXIF",
+        ImgViewerString(ImgViewerStringId::Exif),
+        ImgViewerString(ImgViewerStringId::Exif),
         L"info-panel-exif",
         false,
         true))));
@@ -187,12 +188,12 @@ void ImgViewerUiInfoPanel::SetState(ImgViewerUiInfoPanelState state)
     state_ = std::move(state);
     if (basic_table_ != nullptr) {
         basic_table_->SetRows(std::vector<TableRow>{
-            TableRow{.cells = {L"Name", TableValue(state_.name)}},
-            TableRow{.cells = {L"Path", TableValue(state_.path)}},
-            TableRow{.cells = {L"Dimensions", TableValue(state_.dimensions)}},
-            TableRow{.cells = {L"Type", TableValue(state_.type)}},
-            TableRow{.cells = {L"File size", TableValue(state_.file_size)}},
-            TableRow{.cells = {L"Modified", TableValue(state_.modified_time)}},
+            TableRow{.cells = {ImgViewerString(ImgViewerStringId::Name), TableValue(state_.name)}},
+            TableRow{.cells = {ImgViewerString(ImgViewerStringId::Path), TableValue(state_.path)}},
+            TableRow{.cells = {ImgViewerString(ImgViewerStringId::Dimensions), TableValue(state_.dimensions)}},
+            TableRow{.cells = {ImgViewerString(ImgViewerStringId::Type), TableValue(state_.type)}},
+            TableRow{.cells = {ImgViewerString(ImgViewerStringId::FileSize), TableValue(state_.file_size)}},
+            TableRow{.cells = {ImgViewerString(ImgViewerStringId::Modified), TableValue(state_.modified_time)}},
         });
     }
     if (color_table_ != nullptr) {
@@ -261,8 +262,8 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
         rect.right - ui_theme::metrics::kSectionPadding,
         rect.bottom - ui_theme::metrics::kSectionPadding);
     draw.DrawBodyText(
-        L"Info",
-        4,
+        ImgViewerString(ImgViewerStringId::Info),
+        static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Info))),
         D2D1::RectF(content.left, content.top, content.right, content.top + kHeaderHeight),
         ui_theme::color::kBodyText);
 
@@ -281,7 +282,7 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
     }
     top += basic_table_height + ui_theme::metrics::kLargeGap;
     if (!state_.color_rows.empty()) {
-        DrawSectionHeader(draw, L"Color / HDR", top);
+        DrawSectionHeader(draw, ImgViewerString(ImgViewerStringId::ColorHdr), top);
         top += kSectionHeaderHeight;
         const float color_table_height = kRowHeight * static_cast<float>(state_.color_rows.size());
         if (color_table_ != nullptr) {
@@ -292,7 +293,7 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
         top += ui_theme::metrics::kLargeGap;
     }
     if (!state_.exif_rows.empty()) {
-        DrawSectionHeader(draw, L"EXIF", top);
+        DrawSectionHeader(draw, ImgViewerString(ImgViewerStringId::Exif), top);
         top += kSectionHeaderHeight;
         const float exif_table_height = kRowHeight * static_cast<float>(state_.exif_rows.size());
         if (exif_table_ != nullptr) {
@@ -357,8 +358,8 @@ void ImgViewerUiInfoPanel::DrawSectionHeader(const UiDraw& draw, const wchar_t* 
 void ImgViewerUiInfoPanel::DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& rect) const
 {
     draw.DrawBodyText(
-        L"Histogram",
-        9,
+        ImgViewerString(ImgViewerStringId::Histogram),
+        static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Histogram))),
         D2D1::RectF(rect.left, rect.top, rect.right, rect.top + kHistogramHeaderHeight),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -379,8 +380,8 @@ void ImgViewerUiInfoPanel::DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& 
     draw.DrawRect(chart, ui_theme::color::kBorder);
     if (!state_.has_analysis) {
         draw.DrawBodyText(
-            L"Unavailable",
-            11,
+            ImgViewerString(ImgViewerStringId::Unavailable),
+            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Unavailable))),
             D2D1::RectF(chart.left + 4.0f, chart.top + 12.0f, chart.right - 4.0f, chart.bottom),
             ui_theme::color::kButtonDisabledContent,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -445,15 +446,15 @@ void ImgViewerUiInfoPanel::DrawHistogramTabs(const UiDraw& draw, const D2D1_RECT
 void ImgViewerUiInfoPanel::DrawColorSummary(const UiDraw& draw, const D2D1_RECT_F& rect) const
 {
     draw.DrawBodyText(
-        L"Color summary",
-        13,
+        ImgViewerString(ImgViewerStringId::ColorSummary),
+        static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::ColorSummary))),
         D2D1::RectF(rect.left, rect.top, rect.right, rect.top + kHistogramHeaderHeight),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     if (!state_.has_analysis) {
         draw.DrawBodyText(
-            L"Unavailable",
-            11,
+            ImgViewerString(ImgViewerStringId::Unavailable),
+            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Unavailable))),
             D2D1::RectF(rect.left, rect.top + 12.0f, rect.right, rect.bottom),
             ui_theme::color::kButtonDisabledContent,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -463,15 +464,15 @@ void ImgViewerUiInfoPanel::DrawColorSummary(const UiDraw& draw, const D2D1_RECT_
     const float gap = ui_theme::metrics::kSmallGap;
     const float width = (rect.right - rect.left - gap * 2.0f) / 3.0f;
     const float top = rect.top + kHistogramHeaderHeight + kChipSectionTopGap;
-    DrawColorChip(draw, L"Avg", state_.analysis.average, D2D1::RectF(rect.left, top, rect.left + width, rect.bottom));
+    DrawColorChip(draw, ImgViewerString(ImgViewerStringId::AverageAbbrev), state_.analysis.average, D2D1::RectF(rect.left, top, rect.left + width, rect.bottom));
     DrawColorChip(
         draw,
-        L"Dark",
+        ImgViewerString(ImgViewerStringId::Dark),
         state_.analysis.darkest,
         D2D1::RectF(rect.left + width + gap, top, rect.left + width * 2.0f + gap, rect.bottom));
     DrawColorChip(
         draw,
-        L"Bright",
+        ImgViewerString(ImgViewerStringId::Bright),
         state_.analysis.brightest,
         D2D1::RectF(rect.left + width * 2.0f + gap * 2.0f, top, rect.right, rect.bottom));
 }

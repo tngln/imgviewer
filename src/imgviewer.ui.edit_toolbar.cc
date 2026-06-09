@@ -5,6 +5,7 @@
 #include <d2d1helper.h>
 
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
@@ -27,36 +28,36 @@ constexpr float kDirtyDotSize = 6.0f;
 struct ButtonSpec final {
     ImgViewerUiEditToolbar::ButtonKey button = ImgViewerUiEditToolbar::ButtonKey::Select;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     const wchar_t* icon = L"";
     const icons::PathIcon* path_icon = nullptr;
 };
 
 constexpr std::array<ButtonSpec, ImgViewerUiEditToolbar::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiEditToolbar::ButtonKey::Select, ImgViewerAction::EditSelect, L"Edit Select",
-        L"Select edit objects", L"edit-select", kSelectIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::PixelSelect, ImgViewerAction::EditPixelSelect, L"Pixel Select",
-        L"Select pixels", L"edit-pixel-select", L"", &icons::kRegionScreenshotIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Pen, ImgViewerAction::EditPen, L"Edit Pen",
-        L"Pen annotation", L"edit-pen", kPenIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Shape, ImgViewerAction::EditShape, L"Edit Shape",
-        L"Shape annotation", L"edit-shape", kShapeIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Text, ImgViewerAction::EditText, L"Edit Text",
-        L"Text annotation", L"edit-text", kTextIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Crop, ImgViewerAction::EditCrop, L"Edit Crop",
-        L"Crop image", L"edit-crop", kCropIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Select, ImgViewerAction::EditSelect, ImgViewerStringId::EditSelect,
+        ImgViewerStringId::SelectEditObjects, L"edit-select", kSelectIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::PixelSelect, ImgViewerAction::EditPixelSelect, ImgViewerStringId::PixelSelect,
+        ImgViewerStringId::SelectPixels, L"edit-pixel-select", L"", &icons::kRegionScreenshotIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Pen, ImgViewerAction::EditPen, ImgViewerStringId::EditPen,
+        ImgViewerStringId::PenAnnotation, L"edit-pen", kPenIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Shape, ImgViewerAction::EditShape, ImgViewerStringId::EditShape,
+        ImgViewerStringId::ShapeAnnotation, L"edit-shape", kShapeIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Text, ImgViewerAction::EditText, ImgViewerStringId::EditText,
+        ImgViewerStringId::TextAnnotation, L"edit-text", kTextIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Crop, ImgViewerAction::EditCrop, ImgViewerStringId::EditCrop,
+        ImgViewerStringId::CropImage, L"edit-crop", kCropIcon},
     {ImgViewerUiEditToolbar::ButtonKey::RotateClockwise, ImgViewerAction::EditRotateClockwise,
-        L"Edit Rotate Clockwise", L"Rotate edit clockwise", L"edit-rotate-clockwise", kRotateIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Undo, ImgViewerAction::EditUndo, L"Undo Edit",
-        L"Undo edit", L"edit-undo", kUndoIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Redo, ImgViewerAction::EditRedo, L"Redo Edit",
-        L"Redo edit", L"edit-redo", kRedoIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::SaveAs, ImgViewerAction::SaveImageAs, L"Save As",
-        L"Save edited image as PNG", L"edit-save-as", kSaveIcon},
-    {ImgViewerUiEditToolbar::ButtonKey::Exit, ImgViewerAction::ToggleEditMode, L"Exit Edit Mode",
-        L"Exit edit mode", L"edit-exit", kExitIcon},
+        ImgViewerStringId::EditRotateClockwise, ImgViewerStringId::RotateEditClockwise, L"edit-rotate-clockwise", kRotateIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Undo, ImgViewerAction::EditUndo, ImgViewerStringId::UndoEdit,
+        ImgViewerStringId::UndoEdit, L"edit-undo", kUndoIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Redo, ImgViewerAction::EditRedo, ImgViewerStringId::RedoEdit,
+        ImgViewerStringId::RedoEdit, L"edit-redo", kRedoIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::SaveAs, ImgViewerAction::SaveImageAs, ImgViewerStringId::SaveAs,
+        ImgViewerStringId::SaveEditedImageAsPng, L"edit-save-as", kSaveIcon},
+    {ImgViewerUiEditToolbar::ButtonKey::Exit, ImgViewerAction::ToggleEditMode, ImgViewerStringId::ExitEditMode,
+        ImgViewerStringId::ExitEditMode, L"edit-exit", kExitIcon},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -80,15 +81,15 @@ constexpr size_t ImgViewerUiEditToolbar::ButtonIndex(ButtonKey button)
 
 ImgViewerUiEditToolbar::ImgViewerUiEditToolbar(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Edit toolbar", L"edit-toolbar");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::EditToolbar), L"edit-toolbar");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
         UiElementMetadata metadata = UiMetadata(
             UiElementRole::Button,
             UiActionFromImgViewerAction(spec.action),
-            spec.name,
-            spec.tooltip,
+            ImgViewerString(spec.name),
+            ImgViewerString(spec.tooltip),
             spec.automation_id);
         auto element = spec.path_icon != nullptr
             ? std::make_unique<IconButton>(metadata, *spec.path_icon)

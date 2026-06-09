@@ -5,6 +5,7 @@
 #include <d2d1helper.h>
 
 #include "imgviewer.config.hpp"
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.theme.hpp"
 
@@ -17,17 +18,17 @@ constexpr float kToolbarGapAboveAnchor = 6.0f;
 struct ButtonSpec final {
     ImgViewerUiSelectionToolstrip::ButtonKey button = ImgViewerUiSelectionToolstrip::ButtonKey::Copy;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     const wchar_t* icon = L"";
 };
 
 constexpr std::array<ButtonSpec, ImgViewerUiSelectionToolstrip::kButtonCount> kButtonSpecs{{
     {ImgViewerUiSelectionToolstrip::ButtonKey::Copy, ImgViewerAction::EditCopySelection,
-        L"Copy Selection", L"Copy selected pixels", L"edit-copy-selection", kCopyIcon},
+        ImgViewerStringId::CopySelection, ImgViewerStringId::CopySelectedPixels, L"edit-copy-selection", kCopyIcon},
     {ImgViewerUiSelectionToolstrip::ButtonKey::Mosaic, ImgViewerAction::EditMosaicSelection,
-        L"Mosaic Selection", L"Mosaic selected pixels", L"edit-mosaic-selection", kMosaicIcon},
+        ImgViewerStringId::MosaicSelection, ImgViewerStringId::MosaicSelectedPixels, L"edit-mosaic-selection", kMosaicIcon},
 }};
 
 } // namespace
@@ -39,7 +40,7 @@ constexpr size_t ImgViewerUiSelectionToolstrip::ButtonIndex(ButtonKey button)
 
 ImgViewerUiSelectionToolstrip::ImgViewerUiSelectionToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, L"Pixel selection tools", L"pixel-selection-toolstrip");
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::PixelSelectionTools), L"pixel-selection-toolstrip");
 
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -47,8 +48,8 @@ ImgViewerUiSelectionToolstrip::ImgViewerUiSelectionToolstrip(UiElement& root)
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
-                spec.name,
-                spec.tooltip,
+                ImgViewerString(spec.name),
+                ImgViewerString(spec.tooltip),
                 spec.automation_id),
             spec.icon);
         button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);

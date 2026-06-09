@@ -13,6 +13,7 @@
 
 #include <wil/result_macros.h>
 
+#include "imgviewer.strings.hpp"
 #include "image.animation_decoder.hpp"
 #include "image.stb_decoder.hpp"
 #include "image.utils.hpp"
@@ -36,7 +37,7 @@ void AddColorRow(ImageMetadata* metadata, const wchar_t* label, std::wstring val
 
 std::wstring YesNo(bool value)
 {
-    return value ? L"Yes" : L"No";
+    return ImgViewerString(value ? ImgViewerStringId::Yes : ImgViewerStringId::No);
 }
 
 std::wstring FormatChannelDepth(UINT bits_per_channel, UINT channel_count)
@@ -62,16 +63,16 @@ void RebuildColorRows(ImageMetadata* metadata)
 
     const ImageColorInfo& color = metadata->color_info;
     metadata->color_rows.clear();
-    AddColorRow(metadata, L"Container", color.container);
-    AddColorRow(metadata, L"Source pixels", FormatChannelDepth(color.bits_per_channel, color.channel_count));
-    AddColorRow(metadata, L"WIC format", color.pixel_format);
-    AddColorRow(metadata, L"ICC profile", YesNo(color.has_icc_profile));
-    AddColorRow(metadata, L"Primaries", color.dynamic_range.primaries);
-    AddColorRow(metadata, L"Transfer", color.dynamic_range.transfer_function);
-    AddColorRow(metadata, L"HDR metadata", YesNo(color.dynamic_range.has_hdr_metadata));
-    AddColorRow(metadata, L"HDR source", YesNo(color.dynamic_range.high_dynamic_range));
-    AddColorRow(metadata, L"Display path", color.display_path);
-    AddColorRow(metadata, L"Source preserved", YesNo(color.source_preserved));
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::Container), color.container);
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::SourcePixels), FormatChannelDepth(color.bits_per_channel, color.channel_count));
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::WicFormat), color.pixel_format);
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::IccProfile), YesNo(color.has_icc_profile));
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::Primaries), color.dynamic_range.primaries);
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::Transfer), color.dynamic_range.transfer_function);
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::HdrMetadata), YesNo(color.dynamic_range.has_hdr_metadata));
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::HdrSource), YesNo(color.dynamic_range.high_dynamic_range));
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::DisplayPath), color.display_path);
+    AddColorRow(metadata, ImgViewerString(ImgViewerStringId::SourcePreserved), YesNo(color.source_preserved));
 }
 
 bool ReadFilePrefix(const wchar_t* path, std::vector<BYTE>* bytes)

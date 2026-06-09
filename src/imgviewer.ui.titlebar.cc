@@ -8,6 +8,7 @@
 
 #include <d2d1helper.h>
 
+#include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
 #include "ui.layout.hpp"
@@ -26,8 +27,8 @@ constexpr wchar_t kCloseIcon[] = L"\xE8BB";
 struct ButtonSpec final {
     ImgViewerUiTitleBar::ButtonKey button = ImgViewerUiTitleBar::ButtonKey::TopMost;
     ImgViewerAction action = ImgViewerAction::None;
-    const wchar_t* name = L"";
-    const wchar_t* tooltip = L"";
+    ImgViewerStringId name = ImgViewerStringId::Empty;
+    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     const wchar_t* icon = L"";
     bool danger = false;
@@ -41,14 +42,14 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementMetada
 }
 
 constexpr std::array<ButtonSpec, ImgViewerUiTitleBar::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiTitleBar::ButtonKey::Menu, ImgViewerAction::OpenMenu, L"Menu", L"Open menu", L"menu", kMenuIcon},
-    {ImgViewerUiTitleBar::ButtonKey::TopMost, ImgViewerAction::ToggleTopMost, L"Top Most", L"Keep window on top",
+    {ImgViewerUiTitleBar::ButtonKey::Menu, ImgViewerAction::OpenMenu, ImgViewerStringId::Menu, ImgViewerStringId::OpenMenuTooltip, L"menu", kMenuIcon},
+    {ImgViewerUiTitleBar::ButtonKey::TopMost, ImgViewerAction::ToggleTopMost, ImgViewerStringId::TopMost, ImgViewerStringId::KeepWindowOnTop,
         L"top-most", kTopMostIcon},
-    {ImgViewerUiTitleBar::ButtonKey::Minimize, ImgViewerAction::Minimize, L"Minimize", L"Minimize", L"minimize",
+    {ImgViewerUiTitleBar::ButtonKey::Minimize, ImgViewerAction::Minimize, ImgViewerStringId::Minimize, ImgViewerStringId::Minimize, L"minimize",
         kMinimizeIcon},
-    {ImgViewerUiTitleBar::ButtonKey::MaximizeRestore, ImgViewerAction::ToggleMaximize, L"Maximize or Restore",
-        L"Maximize or restore", L"maximize-restore", kMaximizeIcon},
-    {ImgViewerUiTitleBar::ButtonKey::Close, ImgViewerAction::Close, L"Close", L"Close", L"close", kCloseIcon, true},
+    {ImgViewerUiTitleBar::ButtonKey::MaximizeRestore, ImgViewerAction::ToggleMaximize, ImgViewerStringId::MaximizeOrRestore,
+        ImgViewerStringId::MaximizeOrRestore, L"maximize-restore", kMaximizeIcon},
+    {ImgViewerUiTitleBar::ButtonKey::Close, ImgViewerAction::Close, ImgViewerStringId::Close, ImgViewerStringId::Close, L"close", kCloseIcon, true},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -81,7 +82,7 @@ constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
 ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
 {
     caption_buttons_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, L"Caption buttons", L"", L"caption-buttons", false, false),
+        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::CaptionButtons), L"", L"caption-buttons", false, false),
         ui_layout::StackDirection::Horizontal)));
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -90,8 +91,8 @@ ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
             UiMetadata(
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
-                spec.name,
-                spec.tooltip,
+                ImgViewerString(spec.name),
+                ImgViewerString(spec.tooltip),
                 spec.automation_id));
         element->SetVisualDanger(spec.danger);
         button.element = spec.button == ButtonKey::Menu
@@ -193,7 +194,7 @@ bool ImgViewerUiTitleBar::IsPointInCaptionDragArea(const UiElement& root, D2D1_P
 
 void ImgViewerUiTitleBar::SetTitleText(const wchar_t* title)
 {
-    title_text_ = title != nullptr && title[0] != L'\0' ? title : L"ImgViewer";
+    title_text_ = title != nullptr && title[0] != L'\0' ? title : ImgViewerString(ImgViewerStringId::AppName);
 }
 
 IconButton* ImgViewerUiTitleBar::Button(ButtonKey button)
