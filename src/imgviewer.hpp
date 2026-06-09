@@ -25,10 +25,13 @@
 
 constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 
+class ImgViewerUi;
+
 struct ImgViewerContext final {
     ImgViewerContext();
 
     ImgViewerRenderer renderer;
+    ImgViewerUi* main_ui = nullptr;
     UiController ui;
     PopupHost popup;
     ImgViewerController viewer;
@@ -66,7 +69,7 @@ struct ImgViewerContext final {
 HRESULT RenderImgViewer(ImgViewerContext* context);
 DWORD ImgViewerWindowStyle(bool borderless);
 HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hide_for_transition);
-void SyncWindowState(HWND hwnd, UiController* ui);
+void SyncWindowState(HWND hwnd, ImgViewerContext* context);
 void SaveWindowSize(HWND hwnd, ImgViewerContext* context);
 bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action);
 void SyncActionStates(ImgViewerContext* context);

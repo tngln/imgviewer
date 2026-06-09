@@ -171,7 +171,7 @@ public:
         SetSliderValue(kOpacitySliderSetting, percent);
     }
 
-    void SetToolbarScalePercent(int percent) override
+    void SetToolbarScalePercent(int percent)
     {
         SetSliderValue(kToolbarScaleSliderSetting, percent);
     }

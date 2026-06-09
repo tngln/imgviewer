@@ -1,6 +1,7 @@
 #include "imgviewer.host.internal.hpp"
 
 #include "imgviewer.messages.hpp"
+#include "imgviewer.ui.hpp"
 #include "ui.a11y.hpp"
 
 #include <windows.h>
@@ -41,7 +42,7 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
         if (wparam == kImgViewerToastTimerId) {
             KillTimer(hwnd, kImgViewerToastTimerId);
             ImgViewerContext* context = GetImgViewerContext(hwnd);
-            if (context != nullptr && context->ui.HideToast()) {
+            if (context != nullptr && context->main_ui->HideToast()) {
                 RenderImgViewer(context);
             }
             return win32::WindowMessageResult::Handled();

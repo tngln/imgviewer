@@ -28,13 +28,6 @@ public:
         return element != nullptr ? element->Id() : UiElementId::None;
     }
     virtual bool IsPointInCaptionDragArea(D2D1_POINT_2F) const { return false; }
-    virtual void SetTitleText(const wchar_t*) {}
-    virtual void ShowToast(const wchar_t*) {}
-    virtual bool HideToast() { return false; }
-    virtual void SetWindowState(bool, bool) {}
-    virtual void SetColorPickerActive(bool) {}
-    virtual void SetToolbarScalePercent(int) {}
-    virtual void SetActionEnabled(UiAction, bool) {}
     virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
     virtual bool IsElementReadOnly(UiElementId) const { return false; }
     virtual double ElementRangeValue(UiElementId) const { return 0.0; }

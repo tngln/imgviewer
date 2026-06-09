@@ -66,7 +66,7 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             return win32::WindowMessageResult::Handled(-1);
         }
         if (context != nullptr) {
-            SyncWindowState(hwnd, &context->ui);
+            SyncWindowState(hwnd, context);
             if (FAILED(RenderImgViewer(context))) {
                 return win32::WindowMessageResult::Handled(-1);
             }
@@ -97,7 +97,7 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             return win32::WindowMessageResult::Handled(-1);
         }
         if (context != nullptr) {
-            SyncWindowState(hwnd, &context->ui);
+            SyncWindowState(hwnd, context);
             if (FAILED(RenderImgViewer(context))) {
                 return win32::WindowMessageResult::Handled(-1);
             }

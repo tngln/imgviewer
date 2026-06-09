@@ -331,11 +331,31 @@ void ImgViewerUi::SetToolbarScalePercent(int percent)
 
 void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
 {
+    if (action == kUiActionNone) {
+        return;
+    }
+
     if (action == UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs)) {
         save_image_as_enabled_ = enabled;
     }
     if (action == UiActionFromImgViewerAction(ImgViewerAction::ShowInFileExplorer)) {
         show_in_file_explorer_enabled_ = enabled;
+    }
+    SetActionEnabledRecursive(root_.get(), action, enabled);
+}
+
+void ImgViewerUi::SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled)
+{
+    if (element == nullptr) {
+        return;
+    }
+
+    if (element->Action() == action) {
+        element->SetEnabled(enabled);
+    }
+
+    for (size_t index = 0; index < element->ChildCount(); ++index) {
+        SetActionEnabledRecursive(element->ChildAt(index), action, enabled);
     }
 }
 

@@ -306,31 +306,6 @@ bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
     return root_->IsPointInCaptionDragArea(point);
 }
 
-void UiController::SetTitleText(const wchar_t* title)
-{
-    root_->SetTitleText(title);
-}
-
-void UiController::ShowToast(const wchar_t* text)
-{
-    root_->ShowToast(text);
-}
-
-bool UiController::HideToast()
-{
-    return root_->HideToast();
-}
-
-void UiController::SetActionEnabled(UiAction action, bool enabled)
-{
-    if (action == kUiActionNone) {
-        return;
-    }
-
-    root_->SetActionEnabled(action, enabled);
-    SetActionEnabledRecursive(root_->Root(), action, enabled);
-}
-
 const wchar_t* UiController::ElementValue(UiElementId id) const
 {
     return root_->ElementValue(id);
@@ -369,34 +344,4 @@ double UiController::ElementRangeLargeChange(UiElementId id) const
 HRESULT UiController::SetElementRangeValue(UiElementId id, double value)
 {
     return root_->SetElementRangeValue(id, value);
-}
-
-void UiController::SetWindowState(bool top_most, bool maximized)
-{
-    root_->SetWindowState(top_most, maximized);
-}
-
-void UiController::SetColorPickerActive(bool active)
-{
-    root_->SetColorPickerActive(active);
-}
-
-void UiController::SetToolbarScalePercent(int percent)
-{
-    root_->SetToolbarScalePercent(percent);
-}
-
-void UiController::SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled)
-{
-    if (element == nullptr) {
-        return;
-    }
-
-    if (element->Action() == action) {
-        element->SetEnabled(enabled);
-    }
-
-    for (size_t index = 0; index < element->ChildCount(); ++index) {
-        SetActionEnabledRecursive(element->ChildAt(index), action, enabled);
-    }
 }

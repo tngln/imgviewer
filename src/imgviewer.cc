@@ -1,5 +1,6 @@
 #include "imgviewer.hpp"
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -33,9 +34,18 @@ void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
 HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWICBitmapSource* source);
 
+std::unique_ptr<ImgViewerUi> CreateMainUi(ImgViewerUi** main_ui)
+{
+    auto ui = std::make_unique<ImgViewerUi>();
+    if (main_ui != nullptr) {
+        *main_ui = ui.get();
+    }
+    return ui;
+}
+
 } // namespace
 
-ImgViewerContext::ImgViewerContext() : ui(std::make_unique<ImgViewerUi>()) {}
+ImgViewerContext::ImgViewerContext() : ui(CreateMainUi(&main_ui)) {}
 
 HRESULT RenderImgViewer(ImgViewerContext* context)
 {
@@ -44,32 +54,32 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
     }
 
     UpdateImgViewerInfoPanelState(context);
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetAnimationState(context->viewer.AnimationState());
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetEditToolbarState(ImgViewerUiEditToolbarState{
+    context->main_ui->SetAnimationState(context->viewer.AnimationState());
+    context->main_ui->SetEditToolbarState(ImgViewerUiEditToolbarState{
         .visible = context->edit.Active(),
         .tool = context->edit.Tool(),
         .dirty = context->edit.Dirty(),
         .can_undo = context->edit.CanUndo(),
         .can_redo = context->edit.CanRedo(),
     });
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetPenToolstripState(ImgViewerUiPenToolstripState{
+    context->main_ui->SetPenToolstripState(ImgViewerUiPenToolstripState{
         .visible = context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Pen,
         .color = context->edit.PenColor(),
         .width = context->edit.PenWidth(),
     });
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetShapeToolstripState(ImgViewerUiShapeToolstripState{
+    context->main_ui->SetShapeToolstripState(ImgViewerUiShapeToolstripState{
         .visible = context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Shape,
         .kind = context->edit.ShapeKind(),
         .color = context->edit.PenColor(),
     });
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetTextToolstripState(ImgViewerUiTextToolstripState{
+    context->main_ui->SetTextToolstripState(ImgViewerUiTextToolstripState{
         .visible = context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Text,
         .style = context->edit.TextStyle(),
     });
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetSelectionToolstripState(ImgViewerUiSelectionToolstripState{
+    context->main_ui->SetSelectionToolstripState(ImgViewerUiSelectionToolstripState{
         .visible = context->edit.Active() && context->edit.HasPixelSelection(),
     });
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+    context->main_ui->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
         .visible = context->color_picker_active,
         .has_sample = context->color_picker_has_sample,
         .hex_text = context->color_picker_hex_text,
@@ -117,7 +127,7 @@ HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hid
         0,
         SWP_FRAMECHANGED | SWP_NOREDRAW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
     RETURN_IF_FAILED(context->renderer.Resize());
-    SyncWindowState(hwnd, &context->ui);
+    SyncWindowState(hwnd, context);
     UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
     RETURN_IF_FAILED(context->renderer.SetUiOverlayVisible(true));
     RETURN_IF_FAILED(RenderImgViewer(context));
@@ -130,10 +140,10 @@ HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hid
     return S_OK;
 }
 
-void SyncWindowState(HWND hwnd, UiController* ui)
+void SyncWindowState(HWND hwnd, ImgViewerContext* context)
 {
-    if (ui != nullptr) {
-        ui->SetWindowState(util::IsWindowTopMost(hwnd), IsZoomed(hwnd));
+    if (context != nullptr && context->main_ui != nullptr) {
+        context->main_ui->SetWindowState(util::IsWindowTopMost(hwnd), IsZoomed(hwnd));
     }
 }
 
@@ -264,7 +274,7 @@ void SyncActionStates(ImgViewerContext* context)
         ImgViewerAction::NextAnimationFrame,
     };
     for (const ImgViewerAction action : kSyncActions) {
-        context->ui.SetActionEnabled(
+        context->main_ui->SetActionEnabled(
             UiActionFromImgViewerAction(action),
             IsImgViewerActionEnabled(context, action));
     }
@@ -278,13 +288,13 @@ void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* tex
 
     if (text == nullptr || text[0] == L'\0') {
         KillTimer(hwnd, kImgViewerToastTimerId);
-        if (context->ui.HideToast()) {
+        if (context->main_ui->HideToast()) {
             RenderImgViewer(context);
         }
         return;
     }
 
-    context->ui.ShowToast(text);
+    context->main_ui->ShowToast(text);
     SetTimer(hwnd, kImgViewerToastTimerId, kToastDurationMs, nullptr);
     RenderImgViewer(context);
 }
@@ -418,7 +428,7 @@ void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool ac
         context->color_picker_active = true;
         context->color_picker_has_sample = false;
         context->color_picker_hex_text.clear();
-        static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+        context->main_ui->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
             .visible = true,
             .has_sample = false,
         });
@@ -443,7 +453,7 @@ bool UpdateImgViewerColorPickerSample(ImgViewerContext* context, D2D1_POINT_2F p
     swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
     context->color_picker_has_sample = true;
     context->color_picker_hex_text = hex_text;
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+    context->main_ui->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
         .visible = context->color_picker_active,
         .has_sample = context->color_picker_has_sample,
         .hex_text = context->color_picker_hex_text,
@@ -503,7 +513,7 @@ void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent)
     }
 
     context->current_toolbar_scale_percent = clamped;
-    context->ui.SetToolbarScalePercent(context->current_toolbar_scale_percent);
+    context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);
     if (hwnd != nullptr) {
         UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
     }
@@ -812,7 +822,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         break;
     case ImgViewerAction::EditTextFontChanged:
         if (context != nullptr && context->ui.Root() != nullptr) {
-            SetTextFontFamily(hwnd, context, static_cast<ImgViewerUi*>(context->ui.Root())->SelectedTextFontFamily());
+            SetTextFontFamily(hwnd, context, context->main_ui->SelectedTextFontFamily());
         }
         break;
     case ImgViewerAction::EditTextSize12:
@@ -949,7 +959,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         if (context != nullptr) {
-            SyncWindowState(hwnd, &context->ui);
+            SyncWindowState(hwnd, context);
             RenderImgViewer(context);
         }
         break;
@@ -960,7 +970,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::ToggleMaximize:
         ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
         if (context != nullptr) {
-            SyncWindowState(hwnd, &context->ui);
+            SyncWindowState(hwnd, context);
             RenderImgViewer(context);
         }
         break;
@@ -1005,7 +1015,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
         swprintf_s(position_text, L" (%zu/%zu)", position.index, position.total);
     }
     const std::wstring title_text = file_name + position_text + L"  " + util::FormatImageDimensions(image_size);
-    context->ui.SetTitleText(title_text.c_str());
+    context->main_ui->SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     SyncImgViewerAnimationTimer(hwnd, context);
     RenderImgViewer(context);
@@ -1158,7 +1168,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     const std::wstring title_text = L"<Screenshot>  " + util::FormatImageDimensions(image_size);
-    context->ui.SetTitleText(title_text.c_str());
+    context->main_ui->SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     SyncImgViewerAnimationTimer(hwnd, context);
     RETURN_IF_FAILED(RenderImgViewer(context));
@@ -1266,7 +1276,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     const std::wstring title_text = L"<Clipboard>  " + util::FormatImageDimensions(image_size);
-    context->ui.SetTitleText(title_text.c_str());
+    context->main_ui->SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     SyncImgViewerAnimationTimer(hwnd, context);
     RenderImgViewer(context);
@@ -1325,7 +1335,7 @@ void ClearImgViewerColorPickerState(ImgViewerContext* context)
     context->color_picker_active = false;
     context->color_picker_has_sample = false;
     context->color_picker_hex_text.clear();
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
+    context->main_ui->SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState{
         .visible = false,
         .has_sample = false,
     });
@@ -1413,7 +1423,7 @@ void UpdateImgViewerInfoPanelState(ImgViewerContext* context)
         }
     }
 
-    static_cast<ImgViewerUi*>(context->ui.Root())->SetInfoPanelState(std::move(state));
+    context->main_ui->SetInfoPanelState(std::move(state));
 }
 
 } // namespace

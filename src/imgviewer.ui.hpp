@@ -40,13 +40,13 @@ public:
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
     bool HandleUiAction(UiAction action, PopupHost* popup_host) override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const override;
-    void SetTitleText(const wchar_t* title) override;
-    void ShowToast(const wchar_t* text) override;
-    bool HideToast() override;
-    void SetWindowState(bool top_most, bool maximized) override;
-    void SetColorPickerActive(bool active) override;
-    void SetToolbarScalePercent(int percent) override;
-    void SetActionEnabled(UiAction action, bool enabled) override;
+    void SetTitleText(const wchar_t* title);
+    void ShowToast(const wchar_t* text);
+    bool HideToast();
+    void SetWindowState(bool top_most, bool maximized);
+    void SetColorPickerActive(bool active);
+    void SetToolbarScalePercent(int percent);
+    void SetActionEnabled(UiAction action, bool enabled);
     const wchar_t* ElementValue(UiElementId id) const override;
     bool IsElementReadOnly(UiElementId id) const override;
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
@@ -60,6 +60,8 @@ public:
     const std::wstring& SelectedTextFontFamily() const;
 
 private:
+    void SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled);
+
     std::unique_ptr<UiElement> root_;
     ImgViewerUiTitleBar titlebar_;
     ImgViewerUiToolbar toolbar_;

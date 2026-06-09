@@ -43,13 +43,6 @@ public:
     double ElementRangeLargeChange(UiElementId id) const override;
     HRESULT SetElementRangeValue(UiElementId id, double value) override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
-    void SetTitleText(const wchar_t* title);
-    void ShowToast(const wchar_t* text);
-    bool HideToast();
-    void SetActionEnabled(UiAction action, bool enabled);
-    void SetWindowState(bool top_most, bool maximized);
-    void SetColorPickerActive(bool active);
-    void SetToolbarScalePercent(int percent);
 
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
@@ -58,7 +51,6 @@ private:
     UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
     UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
     void ApplyEventResult(const UiEventResult& result, UiElementId target);
-    void SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled);
 
     std::unique_ptr<UiRoot> root_;
     UiElementId hovered_id_ = UiElementId::None;
