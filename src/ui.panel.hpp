@@ -48,3 +48,36 @@ private:
     mutable std::vector<D2D1_SIZE_F> measured_children_;
     std::vector<float> item_fixed_main_sizes_;
 };
+
+class ScrollPanel final : public UiElement {
+public:
+    explicit ScrollPanel(UiElementMetadata metadata);
+
+    UiElement* SetContent(std::unique_ptr<UiElement> content);
+    UiElement* Content();
+    const UiElement* Content() const;
+    void SetScrollStep(float step);
+
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
+    void Arrange(D2D1_RECT_F final_rect) override;
+    void Render(const UiDrawContext& context, UiRootState state) const override;
+    UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
+
+private:
+    float ContentHeight() const;
+    float ViewportHeight() const;
+    float MaxScrollOffset() const;
+    float EffectiveScrollOffset() const;
+    bool ScrollByWheelDelta(int wheel_delta);
+    bool SetScrollOffset(float offset);
+    bool SetScrollOffsetFromThumbTop(float thumb_top);
+    D2D1_RECT_F ViewportRect() const;
+    D2D1_RECT_F ScrollbarTrackRect() const;
+    D2D1_RECT_F ScrollbarThumbRect() const;
+
+    UiElement* content_ = nullptr;
+    mutable D2D1_SIZE_F measured_content_ = {};
+    float scroll_offset_ = 0.0f;
+    float scroll_step_ = 36.0f;
+    float drag_thumb_pointer_offset_ = 0.0f;
+};

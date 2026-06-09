@@ -46,6 +46,12 @@ D2D1_POINT_2F PhysicalClientPointToUi(HWND hwnd, LPARAM lparam)
     return PhysicalClientPointToUi(hwnd, POINT{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)});
 }
 
+D2D1_POINT_2F ScreenPointToUi(HWND hwnd, POINT point)
+{
+    ScreenToClient(hwnd, &point);
+    return PhysicalClientPointToUi(hwnd, point);
+}
+
 POINT UiPointToPhysicalClient(HWND hwnd, D2D1_POINT_2F point)
 {
     const float dpi_scale = DpiScale(hwnd);
@@ -248,6 +254,18 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         SyncCaretTimer();
         PositionIme();
         return win32::WindowMessageResult::Handled();
+    }
+    case WM_MOUSEWHEEL: {
+        POINT point{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+        UiPointerEvent pointer{
+            .type = UiEventType::PointerWheel,
+            .point = ScreenPointToUi(window_.Hwnd(), point),
+            .wheel_delta = GET_WHEEL_DELTA_WPARAM(wparam),
+            .modifiers = CurrentModifiers(),
+            .popup_host = options_.enable_popup ? &popup_ : nullptr,
+        };
+        UiEventResult result = DispatchInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd()));
+        return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
     case WM_KEYDOWN: {
         UiKeyEvent key{

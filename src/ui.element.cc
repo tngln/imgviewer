@@ -262,6 +262,10 @@ const UiElement* UiElement::HitTest(D2D1_POINT_2F point) const
         return nullptr;
     }
 
+    if (!Contains(point)) {
+        return nullptr;
+    }
+
     for (auto child = children_.rbegin(); child != children_.rend(); ++child) {
         const UiElement* found = (*child)->HitTest(point);
         if (found != nullptr) {
@@ -269,5 +273,5 @@ const UiElement* UiElement::HitTest(D2D1_POINT_2F point) const
         }
     }
 
-    return Contains(point) ? this : nullptr;
+    return this;
 }

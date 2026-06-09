@@ -144,6 +144,16 @@ private:
 public:
     explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
     {
+        auto scroll_panel = std::make_unique<ScrollPanel>(
+            UiMetadata(
+                UiElementRole::Pane,
+                UiActionFromImgViewerAction(ImgViewerAction::None),
+                L"Settings",
+                L"Settings",
+                L"settings-scroll-root",
+                false,
+                true));
+        scroll_panel->SetScrollStep(42.0f);
         auto root_panel = std::make_unique<StackPanel>(
             UiRootMetadata(
                 UiElementRole::Pane,
@@ -154,7 +164,9 @@ public:
         root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, 0.0f});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
-        root_owner_ = std::move(root_panel);
+        scroll_root_ = scroll_panel.get();
+        scroll_root_->SetContent(std::move(root_panel));
+        root_owner_ = std::move(scroll_panel);
 
         BuildUiTree();
         SyncChoiceControls();
@@ -176,8 +188,8 @@ public:
         SetSliderValue(kToolbarScaleSliderSetting, percent);
     }
 
-    UiElement* Root() override { return root_; }
-    const UiElement* Root() const override { return root_; }
+    UiElement* Root() override { return root_owner_.get(); }
+    const UiElement* Root() const override { return root_owner_.get(); }
     const wchar_t* AccessibilityRootName() const override { return L"Settings"; }
 
     const wchar_t* ElementValue(UiElementId id) const override
@@ -244,7 +256,7 @@ public:
     {
         const float footer_height = kSettingsFooterButtonHeight + kSettingsFooterBottomPadding;
         D2D1_SIZE_F content_available = D2D1::SizeF(available_size.width, available_size.height - footer_height);
-        root_->Measure(context, content_available);
+        root_owner_->Measure(context, content_available);
         return available_size;
     }
 
@@ -266,14 +278,14 @@ public:
         cancel_button_->Arrange(D2D1::RectF(save_right + kSettingsFooterButtonGap, footer_top, cancel_right, footer_bottom));
 
         // Content panel takes everything above the footer
-        root_->Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, footer_top));
+        root_owner_->Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, footer_top));
     }
 
     void Render(const UiDrawContext& context, UiRootState state) override
     {
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        root_->Render(context, state);
+        root_owner_->Render(context, state);
         reset_button_->Render(context, state);
         save_button_->Render(context, state);
         cancel_button_->Render(context, state);
@@ -300,6 +312,11 @@ public:
         default:
             return {};
         }
+    }
+
+    UiEventResult OnPointerEvent(const UiPointerEvent& event) override
+    {
+        return root_owner_ != nullptr ? root_owner_->OnPointerEvent(event) : UiEventResult{};
     }
 
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override
@@ -619,7 +636,8 @@ private:
     }
 
     ImgViewerConfig draft_;
-    std::unique_ptr<StackPanel> root_owner_;
+    std::unique_ptr<ScrollPanel> root_owner_;
+    ScrollPanel* scroll_root_ = nullptr;
     StackPanel* root_ = nullptr;
     std::array<BooleanControl, kBooleanSettingSpecs.size()> boolean_controls_{};
     std::array<SliderControl, kSliderSettingSpecs.size()> slider_controls_{};
