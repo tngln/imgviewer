@@ -21,14 +21,8 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             .repeat = (lparam & 0x40000000) != 0,
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
-        if (context != nullptr && context->popup.IsOpen()) {
-            SyncPopupModal(context);
-            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Key(key, hwnd));
-            RenderIfNeeded(hwnd, context, popup_result);
-            SyncPopupModal(context);
-            if (popup_result.handled) {
-                return win32::WindowMessageResult::Handled();
-            }
+        if (DispatchToPopup(hwnd, context, UiInputEvent::Key(key, hwnd))) {
+            return win32::WindowMessageResult::Handled();
         }
 
         SyncKeyboardOwner(context);
@@ -46,16 +40,14 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
                 }
                 if (text_action != kUiActionNone) {
                     if (context->edit.ExecuteTextEditAction(text_action, hwnd)) {
-                        RenderImgViewer(context);
-                        PositionMainWindowIme(hwnd, context);
+                        ApplyRenderAndIme(hwnd, context);
                     }
                     return win32::WindowMessageResult::Handled();
                 }
             }
             if (!key.modifiers.ctrl && !key.modifiers.alt) {
                 if (context->edit.OnTextKeyDown(static_cast<UINT>(wparam), key.modifiers.shift)) {
-                    RenderImgViewer(context);
-                    PositionMainWindowIme(hwnd, context);
+                    ApplyRenderAndIme(hwnd, context);
                 }
                 return win32::WindowMessageResult::Handled();
             }
@@ -80,8 +72,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             context->edit.Tool() == ImgViewerEditTool::Select &&
             context->edit.HasSelection()) {
             context->edit.CancelSelection();
-            RenderImgViewer(context);
-            SyncImgViewerMainWindowIme(hwnd, context);
+            ApplyRenderAndIme(hwnd, context);
             return win32::WindowMessageResult::Handled();
         }
 
@@ -89,7 +80,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
-            RenderIfNeeded(hwnd, context, ui_result);
+            ApplyMerged(hwnd, context, ui_result);
             return win32::WindowMessageResult::Handled();
         }
 
@@ -117,7 +108,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
         }
         if (action != ImgViewerAction::None) {
             ExecuteImgViewerAction(hwnd, context, action);
-            SyncImgViewerMainWindowIme(hwnd, context);
+            ApplyImeSync(hwnd, context);
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();
@@ -129,8 +120,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
         if (context != nullptr &&
             context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText &&
             context->edit.OnTextInput(static_cast<wchar_t>(wparam))) {
-            RenderImgViewer(context);
-            PositionMainWindowIme(hwnd, context);
+            ApplyRenderAndIme(hwnd, context);
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();
@@ -140,7 +130,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         SyncKeyboardOwner(context);
         if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
-            PositionMainWindowIme(hwnd, context);
+            ApplyImeSync(hwnd, context);
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();
@@ -160,8 +150,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
                 changed = context->edit.EndTextImeComposition() || changed;
             }
             if (changed) {
-                RenderImgViewer(context);
-                PositionMainWindowIme(hwnd, context);
+                ApplyRenderAndIme(hwnd, context);
             }
             return win32::WindowMessageResult::Handled();
         }
@@ -173,7 +162,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
         SyncKeyboardOwner(context);
         if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
             if (context->edit.EndTextImeComposition()) {
-                RenderImgViewer(context);
+                ApplyRenderAndIme(hwnd, context);
             }
             return win32::WindowMessageResult::Handled();
         }
@@ -189,20 +178,14 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             .modifiers = UiModifiers::Current(),
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
-        if (context != nullptr && context->popup.IsOpen()) {
-            SyncPopupModal(context);
-            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Key(key, hwnd));
-            RenderIfNeeded(hwnd, context, popup_result);
-            SyncPopupModal(context);
-            if (popup_result.handled) {
-                return win32::WindowMessageResult::Handled();
-            }
+        if (DispatchToPopup(hwnd, context, UiInputEvent::Key(key, hwnd))) {
+            return win32::WindowMessageResult::Handled();
         }
         const UiEventResult ui_result = context != nullptr
             ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
-            RenderIfNeeded(hwnd, context, ui_result);
+            ApplyMerged(hwnd, context, ui_result);
             return win32::WindowMessageResult::Handled();
         }
         const ImgViewerAction action =
@@ -215,7 +198,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
                 ? context->viewer.OnActionUp(action)
                 : ImgViewerEventResult{};
         if (viewer_result.handled) {
-            RenderIfNeeded(hwnd, context, viewer_result);
+            ApplyMerged(hwnd, context, viewer_result);
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();

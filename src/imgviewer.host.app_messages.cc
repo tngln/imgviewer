@@ -14,7 +14,7 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
     case kImgViewerUiActionMessage: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const UiAction action = UiAction(static_cast<int>(wparam));
-        DispatchUiAction(hwnd, context, action);
+        ApplyHostEffects(hwnd, context, DispatchUiAction(hwnd, context, action));
         return win32::WindowMessageResult::Handled();
     }
 

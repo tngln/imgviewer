@@ -116,10 +116,7 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             ClosePopup(context);
             if (context != nullptr) {
                 ResetImgViewerTransientInput(hwnd, context);
-                RenderIfNeeded(
-                    hwnd,
-                    context,
-                    context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
+                ApplyMerged(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
             }
         }
         return win32::WindowMessageResult::Unhandled();

@@ -228,76 +228,160 @@ void PositionMainWindowIme(HWND hwnd, ImgViewerContext* context)
 
 void SyncPopupModal(ImgViewerContext* context);
 
-void DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
+ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
 {
+    ImgViewerHostEffects effects;
     if (context == nullptr || action == kUiActionNone) {
-        return;
+        return effects;
     }
 
     if (context->ui.Root() != nullptr && context->ui.Root()->HandleUiAction(action, &context->popup)) {
-        SyncPopupModal(context);
-        RenderImgViewer(context);
-        SyncImgViewerMainWindowIme(hwnd, context);
-        return;
+        effects.needs_render = true;
+        effects.sync_popup_modal = true;
+        effects.sync_ime = true;
+        return effects;
     }
 
     const ImgViewerAction viewer_action = ImgViewerActionFromUiAction(action);
     if (viewer_action == ImgViewerAction::OpenImage) {
         HandleImgViewerOpenImageCommand(hwnd, context);
-        return;
+        return effects;
     }
 
     ExecuteImgViewerAction(hwnd, context, viewer_action);
-    SyncPopupModal(context);
-    SyncImgViewerMainWindowIme(hwnd, context);
+    effects.sync_popup_modal = true;
+    effects.sync_ime = true;
+    return effects;
 }
 
-void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, UiEventResult result)
+void ImgViewerHostEffects::Merge(UiEventResult result, bool request_popup_modal_sync)
+{
+    handled = handled || result.handled;
+    needs_render = needs_render || result.needs_render;
+    if (result.capture != UiCaptureRequest::None) {
+        capture = result.capture;
+    }
+    if (result.action != kUiActionNone) {
+        action = result.action;
+    }
+    if (result.effect_target != UiElementId::None) {
+        effect_target = result.effect_target;
+    }
+    sync_popup_modal = sync_popup_modal || request_popup_modal_sync;
+    sync_ime = true;
+}
+
+void ImgViewerHostEffects::Merge(ImgViewerEventResult result)
+{
+    handled = handled || result.handled;
+    needs_render = needs_render || result.needs_render;
+    released_capture = released_capture || result.released_capture;
+    sync_ime = true;
+}
+
+void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects effects)
 {
     if (context == nullptr) {
         return;
     }
 
-    if (result.capture == UiCaptureRequest::Capture) {
-        if (context != nullptr) {
-            context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::Ui);
-        }
+    if (effects.capture == UiCaptureRequest::Capture) {
+        context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::Ui);
         SetCapture(hwnd);
-    } else if (result.capture == UiCaptureRequest::Release) {
-        if (context != nullptr) {
-            context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::Ui);
-        }
+    } else if (effects.capture == UiCaptureRequest::Release) {
+        context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::Ui);
         ReleaseCapture();
     }
 
-    if (result.needs_render) {
+    if (effects.begin_pointer_capture != ImgViewerPointerCaptureOwner::None) {
+        context->interaction.BeginPointerCapture(effects.begin_pointer_capture);
+        SetCapture(hwnd);
+    }
+
+    if (effects.end_pointer_capture != ImgViewerPointerCaptureOwner::None) {
+        context->interaction.EndPointerCapture(effects.end_pointer_capture);
+        ReleaseCapture();
+    }
+
+    if (effects.released_capture) {
+        context->interaction.ClearPointerCapture();
+        ReleaseCapture();
+    }
+
+    if (effects.effect_target != UiElementId::None && context->ui.Root() != nullptr) {
+        context->ui.Root()->ApplyElementEffect(effects.effect_target);
+        effects.needs_render = true;
+    }
+
+    if (effects.needs_render) {
         RenderImgViewer(context);
         PositionMainWindowIme(hwnd, context);
     }
 
-    DispatchUiAction(hwnd, context, result.action);
-    SyncImgViewerMainWindowIme(hwnd, context);
+    const ImgViewerHostEffects action_effects = DispatchUiAction(hwnd, context, effects.action);
+    if (effects.sync_popup_modal) {
+        SyncPopupModal(context);
+    }
+    if (effects.sync_ime) {
+        SyncImgViewerMainWindowIme(hwnd, context);
+    }
+    if (action_effects.needs_render || action_effects.capture != UiCaptureRequest::None || action_effects.released_capture ||
+        action_effects.begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
+        action_effects.end_pointer_capture != ImgViewerPointerCaptureOwner::None ||
+        action_effects.action != kUiActionNone || action_effects.effect_target != UiElementId::None ||
+        action_effects.sync_popup_modal || action_effects.sync_ime) {
+        ApplyHostEffects(hwnd, context, action_effects);
+    }
 }
 
-void RenderIfNeeded(HWND hwnd, ImgViewerContext* context, ImgViewerEventResult result)
+void ApplyMerged(HWND hwnd, ImgViewerContext* context, UiEventResult result)
 {
-    if (context == nullptr) {
-        return;
+    ImgViewerHostEffects effects;
+    effects.Merge(result);
+    ApplyHostEffects(hwnd, context, effects);
+}
+
+void ApplyMerged(HWND hwnd, ImgViewerContext* context, ImgViewerEventResult result)
+{
+    ImgViewerHostEffects effects;
+    effects.Merge(result);
+    ApplyHostEffects(hwnd, context, effects);
+}
+
+void ApplyRender(HWND hwnd, ImgViewerContext* context)
+{
+    ImgViewerHostEffects effects;
+    effects.needs_render = true;
+    ApplyHostEffects(hwnd, context, effects);
+}
+
+void ApplyRenderAndIme(HWND hwnd, ImgViewerContext* context)
+{
+    ImgViewerHostEffects effects;
+    effects.needs_render = true;
+    effects.sync_ime = true;
+    ApplyHostEffects(hwnd, context, effects);
+}
+
+void ApplyImeSync(HWND hwnd, ImgViewerContext* context)
+{
+    ImgViewerHostEffects effects;
+    effects.sync_ime = true;
+    ApplyHostEffects(hwnd, context, effects);
+}
+
+bool DispatchToPopup(HWND hwnd, ImgViewerContext* context, const UiInputEvent& event)
+{
+    if (context == nullptr || !context->popup.IsOpen()) {
+        return false;
     }
 
-    if (result.released_capture) {
-        if (context != nullptr) {
-            context->interaction.ClearPointerCapture();
-        }
-        ReleaseCapture();
-    }
-
-    if (result.needs_render) {
-        RenderImgViewer(context);
-        PositionMainWindowIme(hwnd, context);
-    }
-
-    SyncImgViewerMainWindowIme(hwnd, context);
+    SyncPopupModal(context);
+    const UiEventResult result = context->popup.OnInputEvent(event);
+    ImgViewerHostEffects effects;
+    effects.Merge(result, true);
+    ApplyHostEffects(hwnd, context, effects);
+    return result.handled;
 }
 
 void ClosePopup(ImgViewerContext* context)
@@ -464,29 +548,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpara
         return DefWindowProcW(hwnd, message, wparam, lparam);
     }
 
-    const win32::WindowMessageResult app_result = HandleImgViewerAppMessage(hwnd, message, wparam, lparam);
-    if (app_result.handled) {
-        return app_result.value;
-    }
+    using HostMessageHandler = win32::WindowMessageResult (*)(HWND, UINT, WPARAM, LPARAM);
+    static constexpr HostMessageHandler kHandlers[] = {
+        HandleImgViewerAppMessage,
+        HandleImgViewerChromeMessage,
+        HandleImgViewerLifecycleMessage,
+        HandleImgViewerPointerMessage,
+        HandleImgViewerKeyboardMessage,
+    };
 
-    const win32::WindowMessageResult chrome_result = HandleImgViewerChromeMessage(hwnd, message, wparam, lparam);
-    if (chrome_result.handled) {
-        return chrome_result.value;
-    }
-
-    const win32::WindowMessageResult lifecycle_result = HandleImgViewerLifecycleMessage(hwnd, message, wparam, lparam);
-    if (lifecycle_result.handled) {
-        return lifecycle_result.value;
-    }
-
-    const win32::WindowMessageResult pointer_result = HandleImgViewerPointerMessage(hwnd, message, wparam, lparam);
-    if (pointer_result.handled) {
-        return pointer_result.value;
-    }
-
-    const win32::WindowMessageResult keyboard_result = HandleImgViewerKeyboardMessage(hwnd, message, wparam, lparam);
-    if (keyboard_result.handled) {
-        return keyboard_result.value;
+    for (const HostMessageHandler handler : kHandlers) {
+        const win32::WindowMessageResult result = handler(hwnd, message, wparam, lparam);
+        if (result.handled) {
+            return result.value;
+        }
     }
 
     return DefWindowProcW(hwnd, message, wparam, lparam);

@@ -18,7 +18,6 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         util::TrackMouseLeave(hwnd);
         if (context != nullptr) {
-            SyncPopupModal(context);
             const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd);
             const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / coordinates.scale(), point.y / coordinates.scale());
             UiPointerEvent pointer{
@@ -27,17 +26,12 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
-            if (context->popup.IsOpen()) {
-                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
-                RenderIfNeeded(hwnd, context, popup_result);
-                SyncPopupModal(context);
-                if (popup_result.handled) {
-                    return win32::WindowMessageResult::Handled();
-                }
+            if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
+                return win32::WindowMessageResult::Handled();
             }
             if (CanUiReceivePointer(context->interaction)) {
                 UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
-                RenderIfNeeded(hwnd, context, ui_result);
+                ApplyMerged(hwnd, context, ui_result);
                 if (ui_result.handled) {
                     return win32::WindowMessageResult::Handled();
                 }
@@ -51,7 +45,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             switch (ActivePointerTarget(context->interaction, context->edit.Active())) {
             case ImgViewerPointerTarget::ColorPicker:
                 if (UpdateImgViewerColorPickerSample(context, point)) {
-                    RenderImgViewer(context);
+                    ApplyRender(hwnd, context);
                     return win32::WindowMessageResult::Handled();
                 }
                 break;
@@ -64,7 +58,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             default:
                 break;
             }
-            RenderIfNeeded(hwnd, context, canvas_result);
+            ApplyMerged(hwnd, context, canvas_result);
         }
         return win32::WindowMessageResult::Handled();
     }
@@ -81,14 +75,8 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             .modifiers = UiModifiers::Current(),
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
-        if (context != nullptr && context->popup.IsOpen()) {
-            SyncPopupModal(context);
-            UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
-            RenderIfNeeded(hwnd, context, popup_result);
-            SyncPopupModal(context);
-            if (popup_result.handled) {
-                return win32::WindowMessageResult::Handled();
-            }
+        if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
+            return win32::WindowMessageResult::Handled();
         }
         UiEventResult ui_result = context != nullptr
             ? context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
@@ -100,13 +88,15 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             if (edge_click_action != ImgViewerAction::None) {
                 context->pending_edge_click_action = edge_click_action;
                 context->pending_edge_click_point = point;
-                context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::EdgeClickNavigation);
-                SetCapture(hwnd);
+                ImgViewerHostEffects capture_effects;
+                capture_effects.begin_pointer_capture = ImgViewerPointerCaptureOwner::EdgeClickNavigation;
+                ApplyHostEffects(hwnd, context, capture_effects);
                 ui_result.handled = true;
             } else if (canvas_target == ImgViewerPointerTarget::ColorPicker &&
                 UpdateImgViewerColorPickerSample(context, point)) {
-                context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
-                SetCapture(hwnd);
+                ImgViewerHostEffects capture_effects;
+                capture_effects.begin_pointer_capture = ImgViewerPointerCaptureOwner::ColorPicker;
+                ApplyHostEffects(hwnd, context, capture_effects);
                 ui_result.handled = true;
                 ui_result.needs_render = true;
             } else if (canvas_target == ImgViewerPointerTarget::EditTool) {
@@ -116,17 +106,20 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             }
         }
         if (viewer_result.captured) {
+            ImgViewerHostEffects capture_effects;
             if (context != nullptr && context->edit.HasTransientCapture()) {
-                context->interaction.BeginPointerCapture(EditPointerCaptureOwner(context->edit));
+                capture_effects.begin_pointer_capture = EditPointerCaptureOwner(context->edit);
             } else if (context != nullptr && context->viewer.HasTransientCapture()) {
-                context->interaction.BeginPointerCapture(util::IsKeyDown('R')
+                capture_effects.begin_pointer_capture = util::IsKeyDown('R')
                     ? ImgViewerPointerCaptureOwner::ViewerRotate
-                    : ImgViewerPointerCaptureOwner::ViewerPan);
+                    : ImgViewerPointerCaptureOwner::ViewerPan;
             }
-            SetCapture(hwnd);
+            ApplyHostEffects(hwnd, context, capture_effects);
         }
-        RenderIfNeeded(hwnd, context, ui_result);
-        RenderIfNeeded(hwnd, context, viewer_result);
+        ImgViewerHostEffects effects;
+        effects.Merge(ui_result);
+        effects.Merge(viewer_result);
+        ApplyHostEffects(hwnd, context, effects);
         return (ui_result.handled || viewer_result.handled)
             ? win32::WindowMessageResult::Handled()
             : win32::WindowMessageResult::Unhandled();
@@ -143,7 +136,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 context->viewer.Snapshot(),
                 context->renderer.ViewportPixelSize());
         }
-        RenderIfNeeded(hwnd, context, edit_result);
+        ApplyMerged(hwnd, context, edit_result);
         return edit_result.handled
             ? win32::WindowMessageResult::Handled()
             : win32::WindowMessageResult::Unhandled();
@@ -158,8 +151,9 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             if (CommitPendingEdgeClick(hwnd, context, point)) {
                 viewer_result = ImgViewerEventResult{.handled = true};
             } else if (captured_target == ImgViewerPointerTarget::ColorPicker) {
-                context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::ColorPicker);
-                ReleaseCapture();
+                ImgViewerHostEffects capture_effects;
+                capture_effects.end_pointer_capture = ImgViewerPointerCaptureOwner::ColorPicker;
+                ApplyHostEffects(hwnd, context, capture_effects);
                 viewer_result = ImgViewerEventResult{.handled = true};
             } else if (captured_target == ImgViewerPointerTarget::EditTool) {
                 viewer_result = context->edit.OnPointerUp(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
@@ -167,7 +161,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 viewer_result = context->viewer.OnPointerUp(point.x, point.y, context->renderer.ViewportPixelSize());
             }
         }
-        RenderIfNeeded(hwnd, context, viewer_result);
+        ApplyMerged(hwnd, context, viewer_result);
         UiEventResult ui_result = {};
         if (context != nullptr &&
             !viewer_result.handled &&
@@ -181,17 +175,11 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
-            if (context->popup.IsOpen()) {
-                SyncPopupModal(context);
-                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
-                RenderIfNeeded(hwnd, context, popup_result);
-                SyncPopupModal(context);
-                if (popup_result.handled) {
-                    return win32::WindowMessageResult::Handled();
-                }
+            if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
+                return win32::WindowMessageResult::Handled();
             }
             ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
-            RenderIfNeeded(hwnd, context, ui_result);
+            ApplyMerged(hwnd, context, ui_result);
         }
         return (ui_result.handled || viewer_result.handled)
             ? win32::WindowMessageResult::Handled()
@@ -201,7 +189,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
     case WM_MOUSELEAVE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = UiModifiers::Current()};
-        RenderIfNeeded(
+        ApplyMerged(
             hwnd,
             context,
             context != nullptr ? context->ui.OnInputEvent(UiInputEvent{
@@ -244,18 +232,12 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 .modifiers = UiModifiers::Current(),
                 .popup_host = &context->popup,
             };
-            if (context->popup.IsOpen()) {
-                SyncPopupModal(context);
-                UiEventResult popup_result = context->popup.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
-                RenderIfNeeded(hwnd, context, popup_result);
-                SyncPopupModal(context);
-                if (popup_result.handled) {
-                    return win32::WindowMessageResult::Handled();
-                }
+            if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
+                return win32::WindowMessageResult::Handled();
             }
             const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
             if (ui_result.handled) {
-                RenderIfNeeded(hwnd, context, ui_result);
+                ApplyMerged(hwnd, context, ui_result);
                 return win32::WindowMessageResult::Handled();
             }
         }
@@ -266,7 +248,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 point.y,
                 GET_WHEEL_DELTA_WPARAM(wparam),
                 context->renderer.ViewportPixelSize())) {
-            RenderImgViewer(context);
+            ApplyRender(hwnd, context);
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();
