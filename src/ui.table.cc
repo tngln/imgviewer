@@ -128,6 +128,14 @@ UiEventResult Table::CommitEdit()
     return EndEdit(true);
 }
 
+UiEventResult Table::ApplyEditorEffect(UiElementId id)
+{
+    if (!IsEditorElement(id)) {
+        return {};
+    }
+    return EndEdit(true);
+}
+
 UiEventResult Table::ExecuteEditAction(UiAction action, HWND hwnd)
 {
     if (!editor_active_ || text_editor_ == nullptr || active_editor_ != TableCellEditor::Text) {
@@ -250,7 +258,7 @@ UiEventResult Table::OnPointerEvent(const UiPointerEvent& event)
     }
     if (editor_active_) {
         if (UiElement* editor = ActiveEditor(); editor != nullptr && editor->Contains(event.point)) {
-            return editor->OnPointerEvent(event);
+            return editor->OnPointerEvent(NormalizeEditorPointerEvent(event));
         }
     }
     if (event.type == UiEventType::PointerWheel) {
@@ -524,6 +532,21 @@ std::wstring Table::ActiveEditorValue() const
         return selected < options.size() ? options[selected] : std::wstring();
     }
     return text_editor_ != nullptr ? text_editor_->Text() : std::wstring();
+}
+
+UiPointerEvent Table::NormalizeEditorPointerEvent(const UiPointerEvent& event) const
+{
+    UiPointerEvent editor_event = event;
+    const UiElement* editor = ActiveEditor();
+    if (editor == nullptr) {
+        return editor_event;
+    }
+
+    editor_event.target = editor->Id();
+    if (event.captured == Id()) {
+        editor_event.captured = editor->Id();
+    }
+    return editor_event;
 }
 
 UiEventResult Table::BeginEdit(size_t row, size_t column)

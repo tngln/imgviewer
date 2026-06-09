@@ -124,10 +124,15 @@ public:
 
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override
     {
-        if (event.type != UiEventType::PointerDown ||
-            editable_table_ == nullptr ||
-            !editable_table_->IsEditing() ||
-            editable_table_->Contains(event.point)) {
+        if (editable_table_ == nullptr || !editable_table_->IsEditing()) {
+            return {};
+        }
+
+        if (editable_table_->Contains(event.point)) {
+            return editable_table_->OnPointerEvent(event);
+        }
+
+        if (event.type != UiEventType::PointerDown) {
             return {};
         }
 
@@ -212,7 +217,7 @@ public:
         }
         if (id == editable_table_->Id() || editable_table_->IsEditorElement(id)) {
             if (editable_table_->IsEditorElement(id)) {
-                editable_table_->CommitEdit();
+                editable_table_->ApplyEditorEffect(id);
             }
             ApplyTableEditCommit();
             return;

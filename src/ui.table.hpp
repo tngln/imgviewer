@@ -56,6 +56,7 @@ public:
     bool IsEditorElement(UiElementId id) const;
     std::optional<TableEditCommit> TakeEditCommit();
     UiEventResult CommitEdit();
+    UiEventResult ApplyEditorEffect(UiElementId id);
     UiEventResult ExecuteEditAction(UiAction action, HWND hwnd);
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
@@ -88,6 +89,7 @@ private:
     UiElement* ActiveEditor();
     const UiElement* ActiveEditor() const;
     std::wstring ActiveEditorValue() const;
+    UiPointerEvent NormalizeEditorPointerEvent(const UiPointerEvent& event) const;
     UiEventResult BeginEdit(size_t row, size_t column);
     UiEventResult BeginEditSelectedCell();
     UiEventResult EndEdit(bool commit);
