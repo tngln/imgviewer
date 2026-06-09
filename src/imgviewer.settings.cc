@@ -62,7 +62,6 @@ constexpr float kSettingsFooterBottomPadding = 10.0f;
 constexpr float kSettingsFooterButtonHeight = 24.0f;
 constexpr float kSettingsFooterButtonWidth = 72.0f;
 constexpr float kSettingsFooterButtonGap = 5.0f;
-constexpr float kShortcutTableHeight = 146.0f;
 
 std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction action)
 {
@@ -473,7 +472,6 @@ private:
         action_table_->SetHeaderVisible(true);
         action_table_->SetSelectionEnabled(true);
         action_table_->SetRowHeight(21.0f);
-        shortcuts_section->SetItemFixedMainSize(shortcuts_section->ChildCount() - 1, kShortcutTableHeight);
 
         reset_button_ = AddFooterButton(ImgViewerAction::ResetKeyBindings, L"Reset Shortcuts", L"reset-shortcuts", kResetIcon, L"Reset");
         save_button_ = AddFooterButton(ImgViewerAction::SaveSettings, L"Save", L"save-settings", kSaveIcon, L"Save");
