@@ -9,7 +9,6 @@
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "imgviewer.ui.hpp"
 #include "imgviewer.viewer.hpp"
 #include "math.hpp"
 #include "ui.tooltip.hpp"

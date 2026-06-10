@@ -80,6 +80,27 @@ std::string_view LanguageConfigName(ImgViewerLanguage language)
         kEnglishLanguageName;
 }
 
+InitialImageViewMode ReadInitialImageViewMode(const nlohmann::json& root)
+{
+    const auto value = root.find("initialImageView");
+    if (value == root.end() || !value->is_string()) {
+        return InitialImageViewMode::FitWindow;
+    }
+
+    const std::string mode = value->get<std::string>();
+    if (mode == "actualSize") {
+        return InitialImageViewMode::ActualSize;
+    }
+    return InitialImageViewMode::FitWindow;
+}
+
+std::string_view InitialImageViewModeConfigName(InitialImageViewMode mode)
+{
+    return mode == InitialImageViewMode::ActualSize ?
+        "actualSize" :
+        "fitWindow";
+}
+
 } // namespace
 
 int ClampWindowOpacityPercent(int percent)
@@ -112,6 +133,7 @@ HRESULT LoadImgViewerConfig(ImgViewerConfig* config)
     try {
         const nlohmann::json root = nlohmann::json::parse(input, nullptr, true, true);
         config->language = ReadLanguage(root);
+        config->initial_image_view_mode = ReadInitialImageViewMode(root);
 
         if (const auto remember = root.find("rememberWindowSize");
             remember != root.end() && remember->is_boolean()) {
@@ -179,6 +201,8 @@ HRESULT SaveImgViewerConfig(const ImgViewerConfig& config)
     output << "{\n";
     output << "  // UI language. Supported values: en-US, zh-CN.\n";
     output << "  \"language\": \"" << LanguageConfigName(config.language) << "\",\n";
+    output << "  // Initial view for newly loaded images. Supported values: fitWindow, actualSize.\n";
+    output << "  \"initialImageView\": \"" << InitialImageViewModeConfigName(config.initial_image_view_mode) << "\",\n";
     output << "  // When true, ImgViewer restores the last normal window size on startup.\n";
     output << "  \"rememberWindowSize\": " << (config.remember_window_size ? "true" : "false") << ",\n";
     output << "  // When true, enlarged images use nearest-neighbor sampling for crisp pixel previews.\n";

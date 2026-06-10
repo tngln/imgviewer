@@ -196,6 +196,7 @@ enum class ImgViewerStringId {
     RememberLastSize,
     UseDefaultSize,
     ImageRendering,
+    InitialImageView,
     PixelatedSampling,
     CheckerboardBackground,
     WindowFrame,

@@ -202,6 +202,7 @@ struct LocalizedString final {
     X(RememberLastSize, L"Remember last size", L"记住上次大小") \
     X(UseDefaultSize, L"Use default size", L"使用默认大小") \
     X(ImageRendering, L"Image rendering", L"图像渲染") \
+    X(InitialImageView, L"Initial image view", L"初始图像视图") \
     X(PixelatedSampling, L"Pixelated sampling", L"像素化采样") \
     X(CheckerboardBackground, L"Checkerboard background", L"棋盘格背景") \
     X(WindowFrame, L"Window frame", L"窗口边框") \

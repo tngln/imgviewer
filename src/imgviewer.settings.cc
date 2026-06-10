@@ -490,6 +490,18 @@ private:
             ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
 
         StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering, L"image-rendering-label");
+        image_section->AddItem(std::make_unique<Label>(
+            LabelMetadata(ImgViewerString(ImgViewerStringId::InitialImageView), L"initial-image-view-label"),
+            ImgViewerString(ImgViewerStringId::InitialImageView),
+            LabelStyle::Muted));
+        initial_fit_window_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
+            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
+                ImgViewerString(ImgViewerStringId::FitWindow), ImgViewerString(ImgViewerStringId::FitWindow), L"initial-fit-window"),
+            ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
+        initial_actual_size_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
+            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
+                ImgViewerString(ImgViewerStringId::ActualSize), ImgViewerString(ImgViewerStringId::ActualSize), L"initial-actual-size"),
+            ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
         AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
         AddCheckboxSetting(image_section, kCheckerboardBackgroundSetting);
 
@@ -533,6 +545,8 @@ private:
     {
         if (id == remember_radio_->Id()) { SelectRememberWindowSize(); return; }
         if (id == default_radio_->Id()) { SelectDefaultWindowSize(); return; }
+        if (id == initial_fit_window_radio_->Id()) { SelectInitialFitWindow(); return; }
+        if (id == initial_actual_size_radio_->Id()) { SelectInitialActualSize(); return; }
         if (ApplyBooleanSetting(id)) { return; }
         if (ApplySliderSetting(id)) { return; }
         if (ApplyLanguageSetting(id)) { return; }
@@ -551,6 +565,18 @@ private:
         SyncChoiceControls();
     }
 
+    void SelectInitialFitWindow()
+    {
+        draft_.initial_image_view_mode = InitialImageViewMode::FitWindow;
+        SyncChoiceControls();
+    }
+
+    void SelectInitialActualSize()
+    {
+        draft_.initial_image_view_mode = InitialImageViewMode::ActualSize;
+        SyncChoiceControls();
+    }
+
     void SyncChoiceControls()
     {
         for (BooleanControl& control : boolean_controls_) {
@@ -560,6 +586,10 @@ private:
         }
         remember_radio_->SetSelected(draft_.remember_window_size);
         default_radio_->SetSelected(!draft_.remember_window_size);
+        initial_fit_window_radio_->SetSelected(
+            draft_.initial_image_view_mode == InitialImageViewMode::FitWindow);
+        initial_actual_size_radio_->SetSelected(
+            draft_.initial_image_view_mode == InitialImageViewMode::ActualSize);
         if (language_dropdown_ != nullptr) {
             language_dropdown_->SetSelectedIndex(LanguageIndex(draft_.language));
         }
@@ -706,6 +736,8 @@ private:
     std::array<SliderControl, kSliderSettingSpecs.size()> slider_controls_{};
     RadioButton* remember_radio_ = nullptr;
     RadioButton* default_radio_ = nullptr;
+    RadioButton* initial_fit_window_radio_ = nullptr;
+    RadioButton* initial_actual_size_radio_ = nullptr;
     Dropdown* language_dropdown_ = nullptr;
     TextBox* filter_box_ = nullptr;
     Table* action_table_ = nullptr;
@@ -906,7 +938,7 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
                 .class_name = kSettingsClassName,
                 .title = ImgViewerString(ImgViewerStringId::Settings),
                 .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
-                .ex_style = WS_EX_DLGMODALFRAME,
+                .ex_style = WS_EX_DLGMODALFRAME | WS_EX_NOREDIRECTIONBITMAP,
                 .width = kSettingsInitialWidth,
                 .height = kSettingsInitialHeight,
                 .owner = owner,

@@ -567,6 +567,25 @@ inline void TryEditAction(ImgViewerContext* context, bool success)
     }
 }
 
+void ApplyInitialImageView(ImgViewerContext* context)
+{
+    if (context == nullptr || !context->viewer.HasCurrentImage()) {
+        return;
+    }
+
+    switch (context->config.initial_image_view_mode) {
+    case InitialImageViewMode::ActualSize:
+        if (context->viewer.ActualSize(context->renderer.ViewportPixelSize())) {
+            return;
+        }
+        [[fallthrough]];
+    case InitialImageViewMode::FitWindow:
+    default:
+        context->viewer.FitWindow();
+        break;
+    }
+}
+
 void SetPenColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
 {
     if (context == nullptr || !EnsureEditDocument(context)) {
@@ -1038,6 +1057,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     context->current_image_from_screenshot = false;
     context->edit.Clear();
     context->interaction.EnterViewing();
+    ApplyInitialImageView(context);
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetImgViewerColorPickerActive(hwnd, context, false);
@@ -1153,6 +1173,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
     context->current_image_from_screenshot = true;
     context->edit.Clear();
     context->interaction.EnterViewing();
+    ApplyInitialImageView(context);
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetImgViewerColorPickerActive(hwnd, context, false);
@@ -1264,6 +1285,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     context->current_image_from_screenshot = false;
     context->edit.Clear();
     context->interaction.EnterViewing();
+    ApplyInitialImageView(context);
     InvalidateInfoPanelAnalysis(context);
     SyncActionStates(context);
     SetImgViewerColorPickerActive(hwnd, context, false);

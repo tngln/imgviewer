@@ -10,8 +10,14 @@ struct WindowSizeConfig final {
     int height = 320;
 };
 
+enum class InitialImageViewMode {
+    FitWindow,
+    ActualSize,
+};
+
 struct ImgViewerConfig final {
     ImgViewerLanguage language = ImgViewerLanguage::English;
+    InitialImageViewMode initial_image_view_mode = InitialImageViewMode::FitWindow;
     bool remember_window_size = true;
     bool pixelated_sampling = false;
     bool checkerboard_background = false;

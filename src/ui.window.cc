@@ -189,6 +189,9 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         if (options_.enable_popup && popup_.IsOpen()) {
             popup_.Close();
         }
+        if (wparam != SIZE_MINIMIZED) {
+            Render();
+        }
         Invalidate();
         return win32::WindowMessageResult::Handled();
     case WM_DPICHANGED: {
