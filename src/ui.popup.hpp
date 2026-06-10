@@ -33,11 +33,9 @@ public:
     void Close();
     HRESULT Open(D2D1_POINT_2F origin, std::unique_ptr<UiPopupContent> content);
     HRESULT OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items);
-    void Render(const UiDrawContext& context) const;
     UiEventResult OnInputEvent(const UiInputEvent& event);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
     UiEventResult OnKeyEvent(const UiKeyEvent& event);
-    bool Contains(D2D1_POINT_2F point) const;
 
 private:
     friend LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);

@@ -213,11 +213,6 @@ HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
             MenuIconTextFormat()));
 }
 
-void PopupHost::Render(const UiDrawContext& context) const
-{
-    UNREFERENCED_PARAMETER(context);
-}
-
 UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
 {
     if (!native_open_) {
@@ -258,11 +253,6 @@ UiEventResult PopupHost::OnPointerEvent(const UiPointerEvent& event)
 UiEventResult PopupHost::OnKeyEvent(const UiKeyEvent& event)
 {
     return OnInputEvent(UiInputEvent::Key(event, nullptr));
-}
-
-bool PopupHost::Contains(D2D1_POINT_2F) const
-{
-    return false;
 }
 
 HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
@@ -434,57 +424,53 @@ HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
     height = (std::max)(1U, height);
     RETURN_IF_FAILED(EnsureDCompSurface(width, height));
 
-    wil::com_ptr<IDXGISurface> dxgi_surface;
-    POINT offset = {};
-    const RECT update_rect = {
-        0,
-        0,
-        static_cast<LONG>(width),
-        static_cast<LONG>(height),
-    };
-    RETURN_IF_FAILED(dcomp_surface_->BeginDraw(
-        &update_rect,
-        __uuidof(IDXGISurface),
-        reinterpret_cast<void**>(dxgi_surface.put()),
-        &offset));
-
-    wil::com_ptr<ID2D1Bitmap1> target_bitmap;
     RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
-    HRESULT hr = graphics_->CreateTargetBitmapFromDxgiSurface(
-        dxgi_surface.get(),
+    struct RenderState final {
+        PopupHost* host;
+        UINT width;
+        UINT height;
+        float dpi_scale;
+    } state{
+        this,
+        width,
+        height,
+        static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f,
+    };
+    RETURN_IF_FAILED(graphics_->DrawCompositionSurface(
+        dcomp_surface_.get(),
+        width,
+        height,
         DXGI_FORMAT_B8G8R8A8_UNORM,
         DXGI_ALPHA_MODE_PREMULTIPLIED,
-        target_bitmap.put());
-    if (SUCCEEDED(hr)) {
-        const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
-        const UiDrawContext draw_context{
-            .d2d_context = d2d_context_.get(),
-            .d2d_factory = graphics_->D2DFactory(),
-            .dwrite_factory = dwrite_factory_.get(),
-            .body_text_format = body_text_format_,
-            .icon_text_format = icon_text_format_,
-            .viewport_size = D2D1::SizeF(static_cast<float>(width) / dpi_scale, static_cast<float>(height) / dpi_scale),
-            .dpi_scale = dpi_scale,
-        };
+        [](ID2D1DeviceContext* d2d_context, POINT offset, void* user_data) -> HRESULT {
+            const auto* state = static_cast<const RenderState*>(user_data);
+            RETURN_HR_IF_NULL(E_INVALIDARG, state);
+            PopupHost* host = state->host;
+            RETURN_HR_IF_NULL(E_INVALIDARG, host);
 
-        d2d_context_->SetTarget(target_bitmap.get());
-        d2d_context_->BeginDraw();
-        d2d_context_->SetTransform(
-            D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale) *
-            D2D1::Matrix3x2F::Translation(
-                static_cast<float>(offset.x) + kPopupContentInset * dpi_scale,
-                static_cast<float>(offset.y) + kPopupContentInset * dpi_scale));
-        d2d_context_->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
-        if (content_ != nullptr) {
-            content_->Render(draw_context);
-        }
-        hr = d2d_context_->EndDraw();
-        d2d_context_->SetTarget(nullptr);
-    }
-
-    const HRESULT end_surface_result = dcomp_surface_->EndDraw();
-    RETURN_IF_FAILED(hr);
-    RETURN_IF_FAILED(end_surface_result);
+            const UiDrawContext draw_context{
+                .d2d_context = d2d_context,
+                .d2d_factory = host->graphics_->D2DFactory(),
+                .dwrite_factory = host->dwrite_factory_.get(),
+                .body_text_format = host->body_text_format_,
+                .icon_text_format = host->icon_text_format_,
+                .viewport_size = D2D1::SizeF(
+                    static_cast<float>(state->width) / state->dpi_scale,
+                    static_cast<float>(state->height) / state->dpi_scale),
+                .dpi_scale = state->dpi_scale,
+            };
+            d2d_context->SetTransform(
+                D2D1::Matrix3x2F::Scale(state->dpi_scale, state->dpi_scale) *
+                D2D1::Matrix3x2F::Translation(
+                    static_cast<float>(offset.x) + kPopupContentInset * state->dpi_scale,
+                    static_cast<float>(offset.y) + kPopupContentInset * state->dpi_scale));
+            d2d_context->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
+            if (host->content_ != nullptr) {
+                host->content_->Render(draw_context);
+            }
+            return S_OK;
+        },
+        &state));
     return dcomp_device_->Commit();
 }
 

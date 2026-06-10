@@ -132,6 +132,57 @@ HRESULT GraphicsDevice::CreateTargetBitmapFromDxgiSurface(
     return d2d_context_->CreateBitmapFromDxgiSurface(surface, bitmap_properties, bitmap);
 }
 
+HRESULT GraphicsDevice::DrawCompositionSurface(
+    IDCompositionSurface* surface,
+    UINT width,
+    UINT height,
+    DXGI_FORMAT format,
+    DXGI_ALPHA_MODE alpha_mode,
+    GraphicsCompositionDrawCallback callback,
+    void* user_data) const
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, surface);
+    RETURN_HR_IF_NULL(E_INVALIDARG, callback);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, d2d_context_);
+
+    width = (std::max)(1U, width);
+    height = (std::max)(1U, height);
+
+    wil::com_ptr<IDXGISurface> dxgi_surface;
+    POINT offset = {};
+    const RECT update_rect = {
+        0,
+        0,
+        static_cast<LONG>(width),
+        static_cast<LONG>(height),
+    };
+    RETURN_IF_FAILED(surface->BeginDraw(
+        &update_rect,
+        __uuidof(IDXGISurface),
+        reinterpret_cast<void**>(dxgi_surface.put()),
+        &offset));
+
+    wil::com_ptr<ID2D1Bitmap1> target_bitmap;
+    HRESULT hr = CreateTargetBitmapFromDxgiSurface(
+        dxgi_surface.get(),
+        format,
+        alpha_mode,
+        target_bitmap.put());
+    if (SUCCEEDED(hr)) {
+        d2d_context_->SetTarget(target_bitmap.get());
+        d2d_context_->BeginDraw();
+        const HRESULT callback_result = callback(d2d_context_.get(), offset, user_data);
+        const HRESULT end_draw_result = d2d_context_->EndDraw();
+        d2d_context_->SetTarget(nullptr);
+        hr = FAILED(callback_result) ? callback_result : end_draw_result;
+    }
+
+    const HRESULT end_surface_result = surface->EndDraw();
+    RETURN_IF_FAILED(hr);
+    RETURN_IF_FAILED(end_surface_result);
+    return S_OK;
+}
+
 HRESULT GraphicsDevice::RenderTextureToWicBitmap(
     IWICImagingFactory2* wic_factory,
     UINT width,

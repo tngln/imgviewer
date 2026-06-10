@@ -78,7 +78,7 @@ private:
         LPARAM lparam) override;
 
     HRESULT InitializeRenderResources();
-    HRESULT EnsureRenderTarget();
+    HRESULT EnsureDCompSurface();
     void Render();
     void HandleUiResult(UiEventResult result);
     bool ExecuteAction(UiAction action);

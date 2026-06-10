@@ -415,7 +415,7 @@ HRESULT UiWindowHost::InitializeRenderResources()
     return S_OK;
 }
 
-HRESULT UiWindowHost::EnsureRenderTarget()
+HRESULT UiWindowHost::EnsureDCompSurface()
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
     RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
@@ -446,62 +446,48 @@ HRESULT UiWindowHost::EnsureRenderTarget()
 
 void UiWindowHost::Render()
 {
-    if (FAILED(EnsureRenderTarget())) {
+    if (FAILED(EnsureDCompSurface())) {
         return;
     }
     const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(window_.Hwnd());
     const float dpi_scale = coordinates.scale();
     const D2D1_SIZE_U client_pixel = ClientPixelSize(window_.Hwnd());
 
-    wil::com_ptr<IDXGISurface> dxgi_surface;
-    POINT offset = {};
-    const RECT update_rect = {
-        0,
-        0,
-        static_cast<LONG>(client_pixel.width),
-        static_cast<LONG>(client_pixel.height),
-    };
-    if (FAILED(dcomp_surface_->BeginDraw(
-            &update_rect,
-            __uuidof(IDXGISurface),
-            reinterpret_cast<void**>(dxgi_surface.put()),
-            &offset))) {
-        return;
-    }
-
-    wil::com_ptr<ID2D1Bitmap1> target_bitmap;
-    HRESULT hr = graphics_->CreateTargetBitmapFromDxgiSurface(
-        dxgi_surface.get(),
+    struct RenderState final {
+        UiWindowHost* host;
+        D2D1_SIZE_U client_pixel;
+        float dpi_scale;
+    } state{this, client_pixel, dpi_scale};
+    if (SUCCEEDED(graphics_->DrawCompositionSurface(
+        dcomp_surface_.get(),
+        client_pixel.width,
+        client_pixel.height,
         DXGI_FORMAT_B8G8R8A8_UNORM,
         DXGI_ALPHA_MODE_PREMULTIPLIED,
-        target_bitmap.put());
-    if (SUCCEEDED(hr)) {
-        const UiDrawContext draw_context{
-            .d2d_context = d2d_context_.get(),
-            .d2d_factory = graphics_->D2DFactory(),
-            .dwrite_factory = dwrite_factory_.get(),
-            .body_text_format = body_text_format_.get(),
-            .icon_text_format = icon_text_format_.get(),
-            .viewport_size = D2D1::SizeF(
-                static_cast<float>(client_pixel.width) / dpi_scale,
-                static_cast<float>(client_pixel.height) / dpi_scale),
-            .dpi_scale = dpi_scale,
-        };
-        d2d_context_->SetTarget(target_bitmap.get());
-        d2d_context_->BeginDraw();
-        d2d_context_->SetTransform(
-            D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale) *
-            D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x), static_cast<float>(offset.y)));
-        ui_.Render(draw_context);
-        if (options_.enable_popup) {
-            popup_.Render(draw_context);
-        }
-        hr = d2d_context_->EndDraw();
-        d2d_context_->SetTarget(nullptr);
-    }
+        [](ID2D1DeviceContext* d2d_context, POINT offset, void* user_data) -> HRESULT {
+            const auto* state = static_cast<const RenderState*>(user_data);
+            RETURN_HR_IF_NULL(E_INVALIDARG, state);
+            UiWindowHost* host = state->host;
+            RETURN_HR_IF_NULL(E_INVALIDARG, host);
 
-    const HRESULT end_surface_result = dcomp_surface_->EndDraw();
-    if (SUCCEEDED(hr) && SUCCEEDED(end_surface_result)) {
+            const UiDrawContext draw_context{
+                .d2d_context = d2d_context,
+                .d2d_factory = host->graphics_->D2DFactory(),
+                .dwrite_factory = host->dwrite_factory_.get(),
+                .body_text_format = host->body_text_format_.get(),
+                .icon_text_format = host->icon_text_format_.get(),
+                .viewport_size = D2D1::SizeF(
+                    static_cast<float>(state->client_pixel.width) / state->dpi_scale,
+                    static_cast<float>(state->client_pixel.height) / state->dpi_scale),
+                .dpi_scale = state->dpi_scale,
+            };
+            d2d_context->SetTransform(
+                D2D1::Matrix3x2F::Scale(state->dpi_scale, state->dpi_scale) *
+                D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x), static_cast<float>(offset.y)));
+            host->ui_.Render(draw_context);
+            return S_OK;
+        },
+        &state))) {
         dcomp_device_->Commit();
     }
 }

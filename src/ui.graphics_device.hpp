@@ -12,6 +12,10 @@
 #include <wil/com.h>
 
 using GraphicsDeviceDrawCallback = HRESULT (*)(ID2D1DeviceContext* d2d_context, void* user_data);
+using GraphicsCompositionDrawCallback = HRESULT (*)(
+    ID2D1DeviceContext* d2d_context,
+    POINT offset,
+    void* user_data);
 
 class GraphicsDevice final {
 public:
@@ -35,6 +39,14 @@ public:
         DXGI_FORMAT format,
         DXGI_ALPHA_MODE alpha_mode,
         ID2D1Bitmap1** bitmap) const;
+    HRESULT DrawCompositionSurface(
+        IDCompositionSurface* surface,
+        UINT width,
+        UINT height,
+        DXGI_FORMAT format,
+        DXGI_ALPHA_MODE alpha_mode,
+        GraphicsCompositionDrawCallback callback,
+        void* user_data) const;
     HRESULT RenderTextureToWicBitmap(
         IWICImagingFactory2* wic_factory,
         UINT width,
