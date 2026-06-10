@@ -18,7 +18,7 @@ constexpr float kGlyphIconBoxSize = 12.0f;
 
 class D2DTransformGuard final {
 public:
-    D2DTransformGuard(ID2D1RenderTarget* target, D2D1_MATRIX_3X2_F transform) : target_(target)
+    D2DTransformGuard(ID2D1DeviceContext* target, D2D1_MATRIX_3X2_F transform) : target_(target)
     {
         if (target_ == nullptr) {
             return;
@@ -39,7 +39,7 @@ public:
     }
 
 private:
-    ID2D1RenderTarget* target_ = nullptr;
+    ID2D1DeviceContext* target_ = nullptr;
     D2D1_MATRIX_3X2_F old_transform_ = D2D1::Matrix3x2F::Identity();
 };
 
@@ -209,11 +209,9 @@ void IconButton::Render(const UiDrawContext& context, UiRootState root_state) co
         ? ui_theme::color::kButtonDisabledContent
         : state.danger && state.hovered ? ui_theme::color::kBodyText : ui_theme::color::kAccent;
     if (path_icon_ != nullptr && path_icon_->command_count > 0 && context.d2d_context != nullptr) {
-        wil::com_ptr<ID2D1Factory> factory;
-        context.d2d_context->GetFactory(factory.put());
         wil::com_ptr<ID2D1PathGeometry> geometry;
-        if (SUCCEEDED(CreatePathGeometryFromIcon(
-                factory.get(),
+        if (context.d2d_factory != nullptr && SUCCEEDED(CreatePathGeometryFromIcon(
+                context.d2d_factory,
                 path_icon_->commands,
                 path_icon_->command_count,
                 geometry.put()))) {

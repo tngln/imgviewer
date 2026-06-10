@@ -148,7 +148,7 @@ bool EditingTextCaretPoint(ImgViewerContext* context, D2D1_POINT_2F* point)
     const ImgViewerEditText& text = edit.texts[edit.editing_text_index];
     const float font_size = (std::max)(6.0f, text.style.font_size);
     wil::com_ptr<IDWriteTextFormat> format;
-    if (FAILED(context->renderer.DWriteFactory()->CreateTextFormat(
+    if (FAILED(context->graphics_device.DWriteFactory()->CreateTextFormat(
             text.style.font_family.c_str(),
             nullptr,
             DWRITE_FONT_WEIGHT_NORMAL,
@@ -167,7 +167,7 @@ bool EditingTextCaretPoint(ImgViewerContext* context, D2D1_POINT_2F* point)
     const std::wstring display_text = edit_state.DisplayText().empty() ? L" " : edit_state.DisplayText();
     const float width = (std::max)(48.0f, static_cast<float>(display_text.size()) * font_size * 0.55f + kPaddingX * 2.0f);
     wil::com_ptr<IDWriteTextLayout> layout;
-    if (FAILED(context->renderer.DWriteFactory()->CreateTextLayout(
+    if (FAILED(context->graphics_device.DWriteFactory()->CreateTextLayout(
             display_text.c_str(),
             static_cast<UINT32>(display_text.size()),
             format.get(),

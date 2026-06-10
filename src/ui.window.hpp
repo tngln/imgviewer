@@ -2,14 +2,17 @@
 
 #include <memory>
 
-#include <d2d1.h>
+#include <d2d1_1.h>
+#include <dcomp.h>
 #include <dwrite.h>
+#include <dxgi1_2.h>
 #include <imm.h>
 #include <ole2.h>
 #include <UIAutomationCore.h>
 #include <wil/com.h>
 
 #include "ui.hpp"
+#include "ui.graphics_device.hpp"
 #include "ui.popup.hpp"
 #include "win32.window.hpp"
 
@@ -51,7 +54,11 @@ public:
     UiWindowHost& operator=(const UiWindowHost&) = delete;
     ~UiWindowHost() override = default;
 
-    HRESULT Create(UiWindowOptions options, std::unique_ptr<UiRoot> root, UiWindowDelegate* delegate);
+    HRESULT Create(
+        UiWindowOptions options,
+        std::unique_ptr<UiRoot> root,
+        UiWindowDelegate* delegate,
+        GraphicsDevice* graphics);
     void ResetRoot(std::unique_ptr<UiRoot> root);
     void Invalidate();
     void Close();
@@ -85,13 +92,19 @@ private:
 
     UiWindowOptions options_ = {};
     UiWindowDelegate* delegate_ = nullptr;
+    GraphicsDevice* graphics_ = nullptr;
     win32::NativeWindow window_;
     UiController ui_{nullptr};
     PopupHost popup_;
-    wil::com_ptr<ID2D1Factory> d2d_factory_;
-    wil::com_ptr<ID2D1HwndRenderTarget> render_target_;
+    wil::com_ptr<ID2D1DeviceContext> d2d_context_;
+    wil::com_ptr<IDCompositionDevice> dcomp_device_;
+    wil::com_ptr<IDCompositionTarget> dcomp_target_;
+    wil::com_ptr<IDCompositionVisual> dcomp_visual_;
+    wil::com_ptr<IDCompositionSurface> dcomp_surface_;
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
     wil::com_ptr<IDWriteTextFormat> body_text_format_;
     wil::com_ptr<IDWriteTextFormat> icon_text_format_;
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider_;
+    UINT surface_width_ = 0;
+    UINT surface_height_ = 0;
 };

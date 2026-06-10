@@ -8,7 +8,8 @@
 #include "icons.inc"
 
 struct UiDrawContext final {
-    ID2D1RenderTarget* d2d_context = nullptr;
+    ID2D1DeviceContext* d2d_context = nullptr;
+    ID2D1Factory1* d2d_factory = nullptr;
     IDWriteFactory* dwrite_factory = nullptr;
     IDWriteTextFormat* body_text_format = nullptr;
     IDWriteTextFormat* icon_text_format = nullptr;
@@ -56,7 +57,7 @@ private:
 };
 
 HRESULT CreatePathGeometryFromIcon(
-    ID2D1Factory* factory,
+    ID2D1Factory1* factory,
     const icons::PathCommand* commands,
     size_t command_count,
     ID2D1PathGeometry** geometry);

@@ -445,9 +445,9 @@ HRESULT DrawCropOverlay(
 
 } // namespace
 
-HRESULT ImgViewerRenderer::Initialize(HWND hwnd)
+HRESULT ImgViewerRenderer::Initialize(HWND hwnd, GraphicsDevice* graphics)
 {
-    RETURN_IF_FAILED(ui_renderer_.Initialize(hwnd));
+    RETURN_IF_FAILED(ui_renderer_.Initialize(hwnd, graphics));
     RETURN_IF_FAILED(ui_renderer_.RegisterSurface(
         UiSurfaceDescriptor{
             .name = L"image",
@@ -515,16 +515,6 @@ D2D1_SIZE_U ImgViewerRenderer::ViewportPixelSize() const
     return ui_renderer_.ViewportPixelSize();
 }
 
-ID2D1Factory1* ImgViewerRenderer::D2DFactory() const
-{
-    return ui_renderer_.D2DFactory();
-}
-
-IDWriteFactory* ImgViewerRenderer::DWriteFactory() const
-{
-    return ui_renderer_.DWriteFactory();
-}
-
 IDWriteTextFormat* ImgViewerRenderer::BodyTextFormat() const
 {
     return ui_renderer_.BodyTextFormat();
@@ -533,11 +523,6 @@ IDWriteTextFormat* ImgViewerRenderer::BodyTextFormat() const
 IDWriteTextFormat* ImgViewerRenderer::IconTextFormat() const
 {
     return ui_renderer_.IconTextFormat();
-}
-
-ID2D1DeviceContext* ImgViewerRenderer::BitmapDeviceContext() const
-{
-    return ui_renderer_.BitmapDeviceContext();
 }
 
 HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit)
@@ -561,7 +546,7 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, cons
             const ImgViewerSnapshot* image = &state->image;
 
             const UiDraw draw(context.draw);
-            auto* d2d_context = static_cast<ID2D1DeviceContext*>(context.draw.d2d_context);
+            auto* d2d_context = context.draw.d2d_context;
             wil::com_ptr<ID2D1PathGeometry> icon_geometry;
             RETURN_IF_FAILED(CreatePathGeometryFromIcon(
                 context.d2d_factory,
@@ -660,7 +645,7 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 return S_OK;
             }
 
-            auto* d2d_context = static_cast<ID2D1DeviceContext*>(context.draw.d2d_context);
+            auto* d2d_context = context.draw.d2d_context;
             const float width = context.draw.viewport_size.width;
             const float height = context.draw.viewport_size.height;
             const float image_width = static_cast<float>(state->image.pixel_size.width);

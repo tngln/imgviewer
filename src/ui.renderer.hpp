@@ -4,13 +4,13 @@
 
 #include <d2d1_1.h>
 #include <dcomp.h>
-#include <d3d11.h>
 #include <dwrite.h>
 #include <dxgi1_2.h>
 
 #include <wil/com.h>
 
 #include "ui.draw.hpp"
+#include "ui.graphics_device.hpp"
 #include "ui.surface.hpp"
 #include "ui.hpp"
 
@@ -26,7 +26,7 @@ using UiSurfaceDrawCallback = HRESULT (*)(const UiSurfaceDrawContext& context, v
 
 class UiRenderer final {
 public:
-    HRESULT Initialize(HWND hwnd);
+    HRESULT Initialize(HWND hwnd, GraphicsDevice* graphics);
     HRESULT Resize();
     HRESULT RegisterSurface(const UiSurfaceDescriptor& descriptor, UiSurfaceId* id);
     HRESULT DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, void* user_data);
@@ -36,11 +36,8 @@ public:
     HRESULT Commit();
 
     D2D1_SIZE_U ViewportPixelSize() const;
-    ID2D1Factory1* D2DFactory() const;
-    IDWriteFactory* DWriteFactory() const;
     IDWriteTextFormat* BodyTextFormat() const;
     IDWriteTextFormat* IconTextFormat() const;
-    ID2D1DeviceContext* BitmapDeviceContext() const;
     float DpiScale() const;
 
 private:
@@ -48,11 +45,8 @@ private:
     HRESULT BeginDrawSurface(UiSurfaceId id, ID2D1Bitmap1** target, POINT* offset);
 
     HWND hwnd_ = nullptr;
+    GraphicsDevice* graphics_ = nullptr;
     wil::com_ptr<ID2D1Factory1> d2d_factory_;
-    wil::com_ptr<ID3D11Device> d3d_device_;
-    wil::com_ptr<ID3D11DeviceContext> d3d_context_;
-    wil::com_ptr<IDXGIDevice> dxgi_device_;
-    wil::com_ptr<ID2D1Device> d2d_device_;
     wil::com_ptr<ID2D1DeviceContext> d2d_context_;
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
     wil::com_ptr<IDWriteTextFormat> body_text_format_;

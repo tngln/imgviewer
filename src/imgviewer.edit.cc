@@ -12,6 +12,7 @@
 
 #include "imgviewer.edit_geometry.hpp"
 #include "math.hpp"
+#include "ui.graphics_device.hpp"
 #include "win32.clipboard.hpp"
 
 namespace {
@@ -424,7 +425,7 @@ D2D1_RECT_F TextLayoutRect(
     return D2D1::RectF(origin.x, origin.y, origin.x + width, origin.y + height);
 }
 
-HRESULT DrawTextObject(ID2D1RenderTarget* render_target, IDWriteFactory* dwrite_factory, const ImgViewerEditText& text, D2D1_POINT_2F origin)
+HRESULT DrawTextObject(ID2D1DeviceContext* render_target, IDWriteFactory* dwrite_factory, const ImgViewerEditText& text, D2D1_POINT_2F origin)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, render_target);
     RETURN_HR_IF_NULL(E_INVALIDARG, dwrite_factory);
@@ -462,7 +463,7 @@ HRESULT DrawTextObject(ID2D1RenderTarget* render_target, IDWriteFactory* dwrite_
     return S_OK;
 }
 
-HRESULT DrawShapeObject(ID2D1RenderTarget* render_target, const ImgViewerEditShape& shape)
+HRESULT DrawShapeObject(ID2D1DeviceContext* render_target, const ImgViewerEditShape& shape)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, render_target);
 
@@ -1629,9 +1630,13 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDoubleClick(
     return ImgViewerEventResult{.handled = true, .needs_render = true};
 }
 
-HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const
+HRESULT ImgViewerEditController::ExportPngSource(
+    IWICImagingFactory2* wic_factory,
+    GraphicsDevice* graphics,
+    IWICBitmapSource** source) const
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
+    RETURN_HR_IF_NULL(E_INVALIDARG, graphics);
     RETURN_HR_IF_NULL(E_POINTER, source);
     RETURN_HR_IF_NULL(E_UNEXPECTED, document_.source);
 
@@ -1709,20 +1714,6 @@ HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factor
         memory_bitmap.put()));
 
     if (!document_.shapes.empty() || !document_.texts.empty()) {
-        wil::com_ptr<ID2D1Factory> d2d_factory;
-        RETURN_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d_factory.put()));
-        wil::com_ptr<IDWriteFactory> dwrite_factory;
-        RETURN_IF_FAILED(DWriteCreateFactory(
-            DWRITE_FACTORY_TYPE_SHARED,
-            __uuidof(IDWriteFactory),
-            reinterpret_cast<IUnknown**>(dwrite_factory.put())));
-
-        D2D1_RENDER_TARGET_PROPERTIES properties = D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED));
-        wil::com_ptr<ID2D1RenderTarget> render_target;
-        RETURN_IF_FAILED(d2d_factory->CreateWicBitmapRenderTarget(memory_bitmap.get(), properties, render_target.put()));
-
         D2D1_MATRIX_3X2_F transform = D2D1::Matrix3x2F::Identity();
         if (rotation == 1) {
             transform = D2D1::Matrix3x2F::Rotation(90.0f) *
@@ -1735,18 +1726,42 @@ HRESULT ImgViewerEditController::ExportPngSource(IWICImagingFactory2* wic_factor
                 D2D1::Matrix3x2F::Translation(0.0f, static_cast<float>(crop_width));
         }
 
-        render_target->BeginDraw();
-        render_target->SetTransform(transform);
-        for (const ImgViewerEditShape& shape : document_.shapes) {
-            RETURN_IF_FAILED(DrawShapeObject(
-                render_target.get(),
-                OffsetShape(shape, D2D1::Point2F(-crop.left, -crop.top))));
-        }
-        for (const ImgViewerEditText& text : document_.texts) {
-            const D2D1_POINT_2F origin = D2D1::Point2F(text.origin.x - crop.left, text.origin.y - crop.top);
-            RETURN_IF_FAILED(DrawTextObject(render_target.get(), dwrite_factory.get(), text, origin));
-        }
-        RETURN_IF_FAILED(render_target->EndDraw());
+        struct ExportRenderState final {
+            const ImgViewerEditController* controller;
+            IWICBitmap* base_bitmap;
+            GraphicsDevice* graphics;
+            D2D1_RECT_F crop;
+            D2D1_MATRIX_3X2_F transform;
+        } render_state{this, memory_bitmap.get(), graphics, crop, transform};
+
+        return graphics->RenderTextureToWicBitmap(
+            wic_factory,
+            output_width,
+            output_height,
+            [](ID2D1DeviceContext* render_target, void* user_data) -> HRESULT {
+                const auto* state = static_cast<const ExportRenderState*>(user_data);
+                RETURN_HR_IF_NULL(E_INVALIDARG, state);
+                RETURN_HR_IF_NULL(E_INVALIDARG, render_target);
+
+                wil::com_ptr<ID2D1Bitmap> base_bitmap;
+                RETURN_IF_FAILED(render_target->CreateBitmapFromWicBitmap(state->base_bitmap, base_bitmap.put()));
+                render_target->SetTransform(D2D1::Matrix3x2F::Identity());
+                render_target->DrawBitmap(base_bitmap.get());
+
+                render_target->SetTransform(state->transform);
+                for (const ImgViewerEditShape& shape : state->controller->document_.shapes) {
+                    RETURN_IF_FAILED(DrawShapeObject(
+                        render_target,
+                        OffsetShape(shape, D2D1::Point2F(-state->crop.left, -state->crop.top))));
+                }
+                for (const ImgViewerEditText& text : state->controller->document_.texts) {
+                    const D2D1_POINT_2F origin = D2D1::Point2F(text.origin.x - state->crop.left, text.origin.y - state->crop.top);
+                    RETURN_IF_FAILED(DrawTextObject(render_target, state->graphics->DWriteFactory(), text, origin));
+                }
+                return S_OK;
+            },
+            &render_state,
+            source);
     }
 
     wil::com_ptr<IWICBitmap> cached_bitmap;

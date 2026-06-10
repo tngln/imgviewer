@@ -4,7 +4,6 @@
 
 #include <d2d1_1.h>
 #include <dcomp.h>
-#include <d3d11.h>
 #include <dwrite.h>
 #include <dxgi1_2.h>
 
@@ -12,6 +11,7 @@
 #include <wil/com.h>
 
 #include "ui.events.hpp"
+#include "ui.graphics_device.hpp"
 #include "ui.menu.hpp"
 
 class UiPopupContent {
@@ -26,7 +26,7 @@ public:
 
 class PopupHost final {
 public:
-    HRESULT Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory);
+    HRESULT Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics);
     void SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextFormat* icon_text_format);
 
     bool IsOpen() const;
@@ -60,12 +60,7 @@ private:
     HWND popup_hwnd_ = nullptr;
     bool native_open_ = false;
     std::unique_ptr<UiPopupContent> content_;
-    wil::com_ptr<ID2D1Factory> d2d_factory_;
-    wil::com_ptr<ID2D1Factory1> dcomp_d2d_factory_;
-    wil::com_ptr<ID3D11Device> d3d_device_;
-    wil::com_ptr<ID3D11DeviceContext> d3d_context_;
-    wil::com_ptr<IDXGIDevice> dxgi_device_;
-    wil::com_ptr<ID2D1Device> d2d_device_;
+    GraphicsDevice* graphics_ = nullptr;
     wil::com_ptr<ID2D1DeviceContext> d2d_context_;
     wil::com_ptr<IDCompositionDevice> dcomp_device_;
     wil::com_ptr<IDCompositionTarget> dcomp_target_;

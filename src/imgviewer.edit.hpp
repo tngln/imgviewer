@@ -14,6 +14,8 @@
 #include "ui.action.hpp"
 #include "ui.text_edit_state.hpp"
 
+class GraphicsDevice;
+
 enum class ImgViewerEditTool {
     Select,
     PixelSelect,
@@ -196,7 +198,10 @@ public:
     ImgViewerEventResult OnPointerUp(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
     ImgViewerEventResult OnPointerDoubleClick(D2D1_POINT_2F point, const ImgViewerSnapshot& viewer, D2D1_SIZE_U viewport_size);
 
-    HRESULT ExportPngSource(IWICImagingFactory2* wic_factory, IWICBitmapSource** source) const;
+    HRESULT ExportPngSource(
+        IWICImagingFactory2* wic_factory,
+        GraphicsDevice* graphics,
+        IWICBitmapSource** source) const;
 
 private:
     enum class HistoryKind {

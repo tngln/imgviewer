@@ -5,8 +5,6 @@
 #include <memory>
 #include <utility>
 
-#include <d2d1helper.h>
-#include <d3d11.h>
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
@@ -123,51 +121,18 @@ private:
 
 } // namespace
 
-HRESULT PopupHost::Initialize(HWND owner, UINT action_message, ID2D1Factory* d2d_factory, IDWriteFactory* dwrite_factory)
+HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, owner);
     RETURN_HR_IF(E_INVALIDARG, action_message == 0);
-    RETURN_HR_IF_NULL(E_INVALIDARG, d2d_factory);
-    RETURN_HR_IF_NULL(E_INVALIDARG, dwrite_factory);
+    RETURN_HR_IF_NULL(E_INVALIDARG, graphics);
 
     owner_ = owner;
     action_message_ = action_message;
-    d2d_factory_ = d2d_factory;
-    dwrite_factory_ = dwrite_factory;
-
-    D2D1_FACTORY_OPTIONS factory_options = {};
-#if defined(_DEBUG)
-    factory_options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
-#endif
-    RETURN_IF_FAILED(D2D1CreateFactory(
-        D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        factory_options,
-        dcomp_d2d_factory_.put()));
-    constexpr UINT device_flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-    constexpr D3D_FEATURE_LEVEL feature_levels[] = {
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-    };
-    RETURN_IF_FAILED(D3D11CreateDevice(
-        nullptr,
-        D3D_DRIVER_TYPE_HARDWARE,
-        nullptr,
-        device_flags,
-        feature_levels,
-        ARRAYSIZE(feature_levels),
-        D3D11_SDK_VERSION,
-        d3d_device_.put(),
-        nullptr,
-        d3d_context_.put()));
-    RETURN_IF_FAILED(d3d_device_->QueryInterface(IID_PPV_ARGS(dxgi_device_.put())));
-    RETURN_IF_FAILED(dcomp_d2d_factory_->CreateDevice(dxgi_device_.get(), d2d_device_.put()));
-    RETURN_IF_FAILED(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_context_.put()));
-    RETURN_IF_FAILED(DCompositionCreateDevice(
-        dxgi_device_.get(),
-        __uuidof(IDCompositionDevice),
-        reinterpret_cast<void**>(dcomp_device_.put())));
+    graphics_ = graphics;
+    d2d_context_ = graphics_->D2DContext();
+    dcomp_device_ = graphics_->DCompDevice();
+    dwrite_factory_ = graphics_->DWriteFactory();
 
     RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
         L"Segoe UI",
@@ -404,10 +369,8 @@ HRESULT PopupHost::EnsureDCompResources()
         return S_OK;
     }
 
-    RETURN_IF_FAILED(dcomp_device_->CreateTargetForHwnd(popup_hwnd_, TRUE, dcomp_target_.put()));
-    RETURN_IF_FAILED(dcomp_device_->CreateVisual(dcomp_visual_.put()));
-    RETURN_IF_FAILED(dcomp_target_->SetRoot(dcomp_visual_.get()));
-    return dcomp_device_->Commit();
+    RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
+    return graphics_->CreateCompositionTarget(popup_hwnd_, dcomp_target_.put(), dcomp_visual_.put());
 }
 
 HRESULT PopupHost::EnsureDCompSurface(UINT width, UINT height)
@@ -486,16 +449,17 @@ HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
         &offset));
 
     wil::com_ptr<ID2D1Bitmap1> target_bitmap;
-    const D2D1_BITMAP_PROPERTIES1 bitmap_properties = D2D1::BitmapProperties1(
-        D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
-        96.0f,
-        96.0f);
-    HRESULT hr = d2d_context_->CreateBitmapFromDxgiSurface(dxgi_surface.get(), bitmap_properties, target_bitmap.put());
+    RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
+    HRESULT hr = graphics_->CreateTargetBitmapFromDxgiSurface(
+        dxgi_surface.get(),
+        DXGI_FORMAT_B8G8R8A8_UNORM,
+        DXGI_ALPHA_MODE_PREMULTIPLIED,
+        target_bitmap.put());
     if (SUCCEEDED(hr)) {
         const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
         const UiDrawContext draw_context{
             .d2d_context = d2d_context_.get(),
+            .d2d_factory = graphics_->D2DFactory(),
             .dwrite_factory = dwrite_factory_.get(),
             .body_text_format = body_text_format_,
             .icon_text_format = icon_text_format_,

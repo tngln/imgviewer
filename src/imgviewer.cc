@@ -1023,7 +1023,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
         return;
     }
 
-    const HRESULT hr = context->viewer.LoadImageFile(path, context->renderer.BitmapDeviceContext());
+    const HRESULT hr = context->viewer.LoadImageFile(path, context->graphics_device.D2DContext());
     if (FAILED(hr)) {
         MessageBoxW(hwnd, ImgViewerString(ImgViewerStringId::CouldNotOpenSelectedImage), kImgViewerWindowTitle, MB_OK | MB_ICONERROR);
         return;
@@ -1145,7 +1145,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, context);
     RETURN_HR_IF_NULL(E_INVALIDARG, source);
-    RETURN_IF_FAILED(context->viewer.LoadBitmapSource(source, context->renderer.BitmapDeviceContext()));
+    RETURN_IF_FAILED(context->viewer.LoadBitmapSource(source, context->graphics_device.D2DContext()));
 
     context->sequence.Clear();
     context->current_image_path.clear();
@@ -1193,7 +1193,10 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
         CommitImgViewerCropAndCenter(hwnd, context);
         context->edit.CommitTextEditSession();
         wil::com_ptr<IWICBitmapSource> edited_source;
-        const HRESULT export_hr = context->edit.ExportPngSource(context->viewer.WicFactory(), edited_source.put());
+        const HRESULT export_hr = context->edit.ExportPngSource(
+            context->viewer.WicFactory(),
+            &context->graphics_device,
+            edited_source.put());
         ImageEncoder encoder;
         if (FAILED(export_hr) ||
             FAILED(encoder.Initialize(context->viewer.WicFactory())) ||
@@ -1249,7 +1252,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
 
     const HRESULT load_hr = context->viewer.LoadBitmapSource(
         content.bitmap_source.get(),
-        context->renderer.BitmapDeviceContext());
+        context->graphics_device.D2DContext());
     if (FAILED(load_hr)) {
         ShowImgViewerToast(hwnd, context, ImgViewerString(ImgViewerStringId::CouldNotPasteClipboardImage));
         return;

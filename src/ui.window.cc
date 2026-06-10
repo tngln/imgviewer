@@ -63,14 +63,20 @@ POINT UiPointToPhysicalClient(HWND hwnd, D2D1_POINT_2F point)
 
 } // namespace
 
-HRESULT UiWindowHost::Create(UiWindowOptions options, std::unique_ptr<UiRoot> root, UiWindowDelegate* delegate)
+HRESULT UiWindowHost::Create(
+    UiWindowOptions options,
+    std::unique_ptr<UiRoot> root,
+    UiWindowDelegate* delegate,
+    GraphicsDevice* graphics)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, root);
     RETURN_HR_IF_NULL(E_INVALIDARG, delegate);
+    RETURN_HR_IF_NULL(E_INVALIDARG, graphics);
     RETURN_HR_IF(E_INVALIDARG, options.action_message == 0);
 
     options_ = options;
     delegate_ = delegate;
+    graphics_ = graphics;
     ui_.ResetRoot(std::move(root));
     return window_.Create(options_.native, this);
 }
@@ -162,8 +168,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
                 FAILED(popup_.Initialize(
                     window_.Hwnd(),
                     options_.action_message,
-                    d2d_factory_.get(),
-                    dwrite_factory_.get()))) ||
+                    graphics_))) ||
             (options_.enable_accessibility &&
                 FAILED(CreateUiAccessibilityProvider(
                     window_.Hwnd(),
@@ -184,9 +189,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         if (options_.enable_popup && popup_.IsOpen()) {
             popup_.Close();
         }
-        if (render_target_ != nullptr) {
-            render_target_->Resize(ClientPixelSize(window_.Hwnd()));
-        }
         Invalidate();
         return win32::WindowMessageResult::Handled();
     case WM_DPICHANGED: {
@@ -203,9 +205,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
                 suggested_rect->right - suggested_rect->left,
                 suggested_rect->bottom - suggested_rect->top,
                 SWP_NOZORDER | SWP_NOACTIVATE);
-        }
-        if (render_target_ != nullptr) {
-            render_target_->Resize(ClientPixelSize(window_.Hwnd()));
         }
         Invalidate();
         return win32::WindowMessageResult::Handled();
@@ -388,11 +387,10 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
 
 HRESULT UiWindowHost::InitializeRenderResources()
 {
-    RETURN_IF_FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2d_factory_.put()));
-    RETURN_IF_FAILED(DWriteCreateFactory(
-        DWRITE_FACTORY_TYPE_SHARED,
-        __uuidof(IDWriteFactory),
-        reinterpret_cast<IUnknown**>(dwrite_factory_.put())));
+    RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
+    d2d_context_ = graphics_->D2DContext();
+    dcomp_device_ = graphics_->DCompDevice();
+    dwrite_factory_ = graphics_->DWriteFactory();
     RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
         L"Segoe UI",
         nullptr,
@@ -419,17 +417,30 @@ HRESULT UiWindowHost::InitializeRenderResources()
 
 HRESULT UiWindowHost::EnsureRenderTarget()
 {
-    if (render_target_ != nullptr) {
+    RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
+    if (dcomp_target_ == nullptr || dcomp_visual_ == nullptr) {
+        RETURN_IF_FAILED(graphics_->CreateCompositionTarget(window_.Hwnd(), dcomp_target_.put(), dcomp_visual_.put()));
+    }
+
+    const D2D1_SIZE_U size = ClientPixelSize(window_.Hwnd());
+    if (dcomp_surface_ != nullptr && surface_width_ == size.width && surface_height_ == size.height) {
         return S_OK;
     }
-    RETURN_IF_FAILED(d2d_factory_->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1::PixelFormat(),
-            96.0f,
-            96.0f),
-        D2D1::HwndRenderTargetProperties(window_.Hwnd(), ClientPixelSize(window_.Hwnd())),
-        render_target_.put()));
+
+    dcomp_surface_.reset();
+    RETURN_IF_FAILED(dcomp_device_->CreateSurface(
+        size.width,
+        size.height,
+        DXGI_FORMAT_B8G8R8A8_UNORM,
+        DXGI_ALPHA_MODE_PREMULTIPLIED,
+        dcomp_surface_.put()));
+    RETURN_IF_FAILED(dcomp_visual_->SetContent(dcomp_surface_.get()));
+    RETURN_IF_FAILED(dcomp_visual_->SetOffsetX(0.0f));
+    RETURN_IF_FAILED(dcomp_visual_->SetOffsetY(0.0f));
+    surface_width_ = size.width;
+    surface_height_ = size.height;
+    RETURN_IF_FAILED(dcomp_device_->Commit());
     return S_OK;
 }
 
@@ -441,24 +452,57 @@ void UiWindowHost::Render()
     const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(window_.Hwnd());
     const float dpi_scale = coordinates.scale();
     const D2D1_SIZE_U client_pixel = ClientPixelSize(window_.Hwnd());
-    const UiDrawContext draw_context{
-        .d2d_context = render_target_.get(),
-        .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = body_text_format_.get(),
-        .icon_text_format = icon_text_format_.get(),
-        .viewport_size = D2D1::SizeF(
-            static_cast<float>(client_pixel.width) / dpi_scale,
-            static_cast<float>(client_pixel.height) / dpi_scale),
-        .dpi_scale = dpi_scale,
+
+    wil::com_ptr<IDXGISurface> dxgi_surface;
+    POINT offset = {};
+    const RECT update_rect = {
+        0,
+        0,
+        static_cast<LONG>(client_pixel.width),
+        static_cast<LONG>(client_pixel.height),
     };
-    render_target_->BeginDraw();
-    render_target_->SetTransform(D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale));
-    ui_.Render(draw_context);
-    if (options_.enable_popup) {
-        popup_.Render(draw_context);
+    if (FAILED(dcomp_surface_->BeginDraw(
+            &update_rect,
+            __uuidof(IDXGISurface),
+            reinterpret_cast<void**>(dxgi_surface.put()),
+            &offset))) {
+        return;
     }
-    if (render_target_->EndDraw() == D2DERR_RECREATE_TARGET) {
-        render_target_.reset();
+
+    wil::com_ptr<ID2D1Bitmap1> target_bitmap;
+    HRESULT hr = graphics_->CreateTargetBitmapFromDxgiSurface(
+        dxgi_surface.get(),
+        DXGI_FORMAT_B8G8R8A8_UNORM,
+        DXGI_ALPHA_MODE_PREMULTIPLIED,
+        target_bitmap.put());
+    if (SUCCEEDED(hr)) {
+        const UiDrawContext draw_context{
+            .d2d_context = d2d_context_.get(),
+            .d2d_factory = graphics_->D2DFactory(),
+            .dwrite_factory = dwrite_factory_.get(),
+            .body_text_format = body_text_format_.get(),
+            .icon_text_format = icon_text_format_.get(),
+            .viewport_size = D2D1::SizeF(
+                static_cast<float>(client_pixel.width) / dpi_scale,
+                static_cast<float>(client_pixel.height) / dpi_scale),
+            .dpi_scale = dpi_scale,
+        };
+        d2d_context_->SetTarget(target_bitmap.get());
+        d2d_context_->BeginDraw();
+        d2d_context_->SetTransform(
+            D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale) *
+            D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x), static_cast<float>(offset.y)));
+        ui_.Render(draw_context);
+        if (options_.enable_popup) {
+            popup_.Render(draw_context);
+        }
+        hr = d2d_context_->EndDraw();
+        d2d_context_->SetTarget(nullptr);
+    }
+
+    const HRESULT end_surface_result = dcomp_surface_->EndDraw();
+    if (SUCCEEDED(hr) && SUCCEEDED(end_surface_result)) {
+        dcomp_device_->Commit();
     }
 }
 

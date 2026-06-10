@@ -6,21 +6,19 @@
 
 #include "imgviewer.viewer.hpp"
 #include "imgviewer.edit.hpp"
+#include "ui.graphics_device.hpp"
 #include "ui.renderer.hpp"
 
 class ImgViewerRenderer final {
 public:
-    HRESULT Initialize(HWND hwnd);
+    HRESULT Initialize(HWND hwnd, GraphicsDevice* graphics);
     HRESULT Resize();
     HRESULT Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, UiController& ui);
     HRESULT SetUiOverlayVisible(bool visible);
     void SetCheckerboardBackground(bool enabled);
     D2D1_SIZE_U ViewportPixelSize() const;
-    ID2D1Factory1* D2DFactory() const;
-    IDWriteFactory* DWriteFactory() const;
     IDWriteTextFormat* BodyTextFormat() const;
     IDWriteTextFormat* IconTextFormat() const;
-    ID2D1DeviceContext* BitmapDeviceContext() const;
 
 private:
     HRESULT RenderImageLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit);

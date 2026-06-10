@@ -316,7 +316,8 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
             .icon_font_size = 11.0f,
         },
         std::move(root),
-        about_context);
+        about_context,
+        &context->graphics_device);
     if (FAILED(create_hr)) {
         context->about_context = nullptr;
         delete about_context;

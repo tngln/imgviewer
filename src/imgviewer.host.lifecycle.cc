@@ -14,12 +14,12 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
     case WM_CREATE: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context == nullptr ||
-            FAILED(context->renderer.Initialize(hwnd)) ||
+            FAILED(context->graphics_device.Initialize()) ||
+            FAILED(context->renderer.Initialize(hwnd, &context->graphics_device)) ||
             FAILED(context->popup.Initialize(
                 hwnd,
                 kImgViewerUiActionMessage,
-                context->renderer.D2DFactory(),
-                context->renderer.DWriteFactory())) ||
+                &context->graphics_device)) ||
             FAILED(context->viewer.Initialize()) ||
             FAILED(CreateUiAccessibilityProvider(
                 hwnd,

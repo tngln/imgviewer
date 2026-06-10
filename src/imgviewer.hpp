@@ -21,6 +21,7 @@
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
 #include "ui.hpp"
+#include "ui.graphics_device.hpp"
 #include "ui.popup.hpp"
 
 constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
@@ -30,6 +31,7 @@ class ImgViewerUi;
 struct ImgViewerContext final {
     ImgViewerContext();
 
+    GraphicsDevice graphics_device;
     ImgViewerRenderer renderer;
     ImgViewerUi* main_ui = nullptr;
     UiController ui;

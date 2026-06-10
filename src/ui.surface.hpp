@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include <d2d1.h>
 #include <wil/com.h>
 
 struct UiSurfaceId final {

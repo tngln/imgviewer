@@ -419,7 +419,8 @@ HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context)
             .icon_font_size = 11.0f,
         },
         std::move(root),
-        developer_context);
+        developer_context,
+        &context->graphics_device);
     if (FAILED(create_hr)) {
         context->developer_context = nullptr;
         delete developer_context;
@@ -461,6 +462,7 @@ HRESULT RunImgViewerDeveloperWindowApplication()
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
     SetImgViewerLanguage(context.config.language);
+    RETURN_IF_FAILED(context.graphics_device.Initialize());
 
     RETURN_IF_FAILED(OpenImgViewerDeveloperWindow(nullptr, &context));
     auto* developer_context = static_cast<DeveloperWindowContext*>(context.developer_context);

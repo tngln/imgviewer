@@ -8,47 +8,17 @@
 #include "math.hpp"
 #include "ui.draw.hpp"
 
-HRESULT UiRenderer::Initialize(HWND hwnd)
+HRESULT UiRenderer::Initialize(HWND hwnd, GraphicsDevice* graphics)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, hwnd);
+    RETURN_HR_IF_NULL(E_INVALIDARG, graphics);
     hwnd_ = hwnd;
+    graphics_ = graphics;
+    d2d_factory_ = graphics_->D2DFactory();
+    d2d_context_ = graphics_->D2DContext();
+    dwrite_factory_ = graphics_->DWriteFactory();
+    dcomp_device_ = graphics_->DCompDevice();
 
-    D2D1_FACTORY_OPTIONS factory_options = {};
-#if defined(_DEBUG)
-    factory_options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
-#endif
-
-    RETURN_IF_FAILED(D2D1CreateFactory(
-        D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        factory_options,
-        d2d_factory_.put()));
-
-    constexpr UINT device_flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-    constexpr D3D_FEATURE_LEVEL feature_levels[] = {
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-    };
-    RETURN_IF_FAILED(D3D11CreateDevice(
-        nullptr,
-        D3D_DRIVER_TYPE_HARDWARE,
-        nullptr,
-        device_flags,
-        feature_levels,
-        ARRAYSIZE(feature_levels),
-        D3D11_SDK_VERSION,
-        d3d_device_.put(),
-        nullptr,
-        d3d_context_.put()));
-
-    RETURN_IF_FAILED(d3d_device_->QueryInterface(IID_PPV_ARGS(dxgi_device_.put())));
-    RETURN_IF_FAILED(d2d_factory_->CreateDevice(dxgi_device_.get(), d2d_device_.put()));
-    RETURN_IF_FAILED(d2d_device_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2d_context_.put()));
-    RETURN_IF_FAILED(DWriteCreateFactory(
-        DWRITE_FACTORY_TYPE_SHARED,
-        __uuidof(IDWriteFactory),
-        reinterpret_cast<IUnknown**>(dwrite_factory_.put())));
     RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
         L"Segoe UI",
         nullptr,
@@ -70,13 +40,7 @@ HRESULT UiRenderer::Initialize(HWND hwnd)
     RETURN_IF_FAILED(body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
     RETURN_IF_FAILED(icon_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
 
-    RETURN_IF_FAILED(DCompositionCreateDevice(
-        dxgi_device_.get(),
-        __uuidof(IDCompositionDevice),
-        reinterpret_cast<void**>(dcomp_device_.put())));
-    RETURN_IF_FAILED(dcomp_device_->CreateTargetForHwnd(hwnd_, TRUE, dcomp_target_.put()));
-    RETURN_IF_FAILED(dcomp_device_->CreateVisual(root_visual_.put()));
-    RETURN_IF_FAILED(dcomp_target_->SetRoot(root_visual_.get()));
+    RETURN_IF_FAILED(graphics_->CreateCompositionTarget(hwnd_, dcomp_target_.put(), root_visual_.put()));
     RETURN_IF_FAILED(surfaces_.Initialize(dcomp_device_.get(), root_visual_.get()));
     RETURN_IF_FAILED(ResizeSurfacesToClient());
     return Commit();
@@ -107,6 +71,7 @@ HRESULT UiRenderer::DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, 
     const UiSurfaceDrawContext draw_context{
         .draw = UiDrawContext{
             .d2d_context = d2d_context_.get(),
+            .d2d_factory = d2d_factory_.get(),
             .dwrite_factory = dwrite_factory_.get(),
             .body_text_format = body_text_format_.get(),
             .icon_text_format = icon_text_format_.get(),
@@ -189,16 +154,6 @@ D2D1_SIZE_U UiRenderer::ViewportPixelSize() const
     return D2D1::SizeU(surfaces_.Width(), surfaces_.Height());
 }
 
-ID2D1Factory1* UiRenderer::D2DFactory() const
-{
-    return d2d_factory_.get();
-}
-
-IDWriteFactory* UiRenderer::DWriteFactory() const
-{
-    return dwrite_factory_.get();
-}
-
 IDWriteTextFormat* UiRenderer::BodyTextFormat() const
 {
     return body_text_format_.get();
@@ -207,11 +162,6 @@ IDWriteTextFormat* UiRenderer::BodyTextFormat() const
 IDWriteTextFormat* UiRenderer::IconTextFormat() const
 {
     return icon_text_format_.get();
-}
-
-ID2D1DeviceContext* UiRenderer::BitmapDeviceContext() const
-{
-    return d2d_context_.get();
 }
 
 float UiRenderer::DpiScale() const
@@ -251,10 +201,10 @@ HRESULT UiRenderer::BeginDrawSurface(UiSurfaceId id, ID2D1Bitmap1** target, POIN
         reinterpret_cast<void**>(dxgi_surface.put()),
         offset));
 
-    const D2D1_BITMAP_PROPERTIES1 bitmap_properties = D2D1::BitmapProperties1(
-        D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(surfaces_.Format(id), static_cast<D2D1_ALPHA_MODE>(surfaces_.AlphaMode(id))),
-        96.0f,
-        96.0f);
-    return d2d_context_->CreateBitmapFromDxgiSurface(dxgi_surface.get(), bitmap_properties, target);
+    RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
+    return graphics_->CreateTargetBitmapFromDxgiSurface(
+        dxgi_surface.get(),
+        surfaces_.Format(id),
+        surfaces_.AlphaMode(id),
+        target);
 }
