@@ -3,15 +3,14 @@
 #include <array>
 #include <memory>
 
-#include <d2d1helper.h>
 #include <wil/result_macros.h>
 
+#include "experimental/ui.decl.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "ui.label.hpp"
 #include "ui.panel.hpp"
 #include "win32.util.hpp"
 #include "ui.draw.hpp"
@@ -19,6 +18,7 @@
 #include "ui.window.hpp"
 
 namespace {
+namespace ui_decl = experimental::ui_decl;
 
 constexpr wchar_t kAboutClassName[] = L"ImgViewerAboutWindow";
 constexpr int kAboutInitialWidth = 280;
@@ -27,7 +27,6 @@ constexpr int kAboutMinClientWidth = 240;
 constexpr int kAboutMinClientHeight = 210;
 constexpr float kAboutSidePadding = 14.0f;
 constexpr float kAboutTopPadding = 12.0f;
-constexpr float kAboutSectionGap = 10.0f;
 constexpr float kAboutNoticeInnerPadding = 8.0f;
 constexpr float kAboutNoticeEntryGap = 7.0f;
 
@@ -42,61 +41,6 @@ constexpr std::array<NoticeLine, 3> kNoticeLines{{
     {L"nlohmann_json", L"Niels Lohmann - MIT License", L"third_parties/nlohmann_json/LICENSE.MIT"},
     {L"Windows Implementation Libraries", L"Microsoft Corporation - MIT License", L"third_parties/wil/LICENSE"},
 }};
-
-UiElementMetadata PaneMetadata(const wchar_t* automation_id)
-{
-    return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", automation_id, false, false);
-}
-
-UiElementMetadata LabelMetadata(const wchar_t* label, const wchar_t* automation_id)
-{
-    return UiMetadata(UiElementRole::Text, kUiActionNone, label, L"", automation_id, false, false);
-}
-
-class BorderedPanel final : public UiElement {
-public:
-    explicit BorderedPanel(UiElementMetadata metadata) : UiElement(metadata)
-    {
-        panel_ = static_cast<StackPanel*>(AddChild(std::make_unique<StackPanel>(PaneMetadata(L"about-notices-box-content"))));
-    }
-
-    void SetGap(float gap)
-    {
-        panel_->SetGap(gap);
-    }
-
-    void SetPadding(UiThickness padding)
-    {
-        panel_->SetPadding(padding);
-    }
-
-    template <typename T>
-    T* AddItem(std::unique_ptr<T> child, float fixed_main_size = 0.0f)
-    {
-        return panel_->AddItem(std::move(child), fixed_main_size);
-    }
-
-    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override
-    {
-        return panel_->Measure(context, available_size);
-    }
-
-    void Arrange(D2D1_RECT_F final_rect) override
-    {
-        UiElement::Arrange(final_rect);
-        panel_->Arrange(final_rect);
-    }
-
-    void Render(const UiDrawContext& context, UiRootState state) const override
-    {
-        const UiDraw draw(context);
-        draw.DrawRect(Rect(), ui_theme::color::kBorder);
-        panel_->Render(context, state);
-    }
-
-private:
-    StackPanel* panel_ = nullptr;
-};
 
 class AboutUi final : public UiRoot {
 public:
@@ -148,43 +92,33 @@ public:
     }
 
 private:
+    static std::unique_ptr<UiElement> BuildNoticeEntry(const NoticeLine& line)
+    {
+        return ui_decl::Group(
+            ui_decl::Body(line.name, L"about-notice-name"),
+            ui_decl::Muted(line.detail, L"about-notice-detail"),
+            ui_decl::Muted(line.license_path, L"about-notice-license"));
+    }
+
     void BuildUiTree()
     {
-        root_->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(ImgViewerStringId::AppName), L"about-app-name"),
-            ImgViewerString(ImgViewerStringId::AppName),
-            LabelStyle::Title));
-        root_->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(ImgViewerStringId::AboutDescription), L"about-description"),
-            ImgViewerString(ImgViewerStringId::AboutDescription),
-            LabelStyle::Muted));
-        root_->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(ImgViewerStringId::DevelopmentBuild), L"about-development-build"),
-            ImgViewerString(ImgViewerStringId::DevelopmentBuild),
-            LabelStyle::Muted));
-
-        auto notices_section = std::make_unique<StackPanel>(PaneMetadata(L"about-notices-section"));
-        notices_section->SetPadding(UiThickness{0.0f, kAboutSectionGap, 0.0f, 0.0f});
-        notices_section->SetGap(kAboutSectionGap);
-        notices_section->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(ImgViewerStringId::ThirdPartyNotices), L"about-notices-title"),
-            ImgViewerString(ImgViewerStringId::ThirdPartyNotices)));
-
-        auto notice_box = std::make_unique<BorderedPanel>(PaneMetadata(L"about-notices-box"));
+        auto notice_box = ui_decl::BorderBox(
+            BuildNoticeEntry(kNoticeLines[0]),
+            BuildNoticeEntry(kNoticeLines[1]),
+            BuildNoticeEntry(kNoticeLines[2]));
+        notice_box->SetGap(kAboutNoticeEntryGap);
         notice_box->SetPadding(UiThickness{
             kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding});
-        notice_box->SetGap(kAboutNoticeEntryGap);
-        for (const NoticeLine& line : kNoticeLines) {
-            auto entry = std::make_unique<StackPanel>(PaneMetadata(L"about-notice-entry"));
-            entry->SetGap(0.0f);
-            entry->AddItem(std::make_unique<Label>(LabelMetadata(line.name, L"about-notice-name"), line.name));
-            entry->AddItem(std::make_unique<Label>(LabelMetadata(line.detail, L"about-notice-detail"), line.detail, LabelStyle::Muted));
-            entry->AddItem(std::make_unique<Label>(LabelMetadata(line.license_path, L"about-notice-license"), line.license_path, LabelStyle::Muted));
-            notice_box->AddItem(std::move(entry));
-        }
 
-        notices_section->AddItem(std::move(notice_box));
-        root_->AddItem(std::move(notices_section));
+        root_->AddItem(ui_decl::VStack(
+            ui_decl::Title(ImgViewerString(ImgViewerStringId::AppName), L"about-app-name"),
+            ui_decl::Muted(ImgViewerString(ImgViewerStringId::AboutDescription), L"about-description"),
+            ui_decl::Muted(ImgViewerString(ImgViewerStringId::DevelopmentBuild), L"about-development-build"),
+            ui_decl::Section(
+                ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
+                std::move(notice_box),
+                L"about-notices-title",
+                L"about-notices-section")));
     }
 
     std::unique_ptr<UiElement> root_owner_;

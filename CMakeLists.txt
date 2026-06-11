@@ -7,6 +7,7 @@ set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
     "Semicolon-separated build configurations that show the Developer window.")
 
 add_executable(imgviewer
+    src/experimental/ui.decl.cc
     src/imgviewer.cc
     src/imgviewer.about.cc
     src/imgviewer.action.cc
