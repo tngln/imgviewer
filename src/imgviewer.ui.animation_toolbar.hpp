@@ -1,30 +1,16 @@
 #pragma once
 
-#include <array>
-#include <cstddef>
 #include <memory>
 #include <string>
 
 #include <d2d1_1.h>
 
 #include "imgviewer.viewer.hpp"
-#include "imgviewer.ui.floating_toolbar.hpp"
-#include "ui.button.hpp"
+#include "imgviewer.ui.toolstrip.hpp"
 #include "ui.label.hpp"
 
 class ImgViewerUiAnimationToolbar final {
 public:
-    enum class ButtonKey : size_t {
-        Loop,
-        PreviousFrame,
-        PlayPause,
-        NextFrame,
-        Count,
-    };
-
-    static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
-    static constexpr size_t ButtonIndex(ButtonKey button);
-
     explicit ImgViewerUiAnimationToolbar(UiElement& root);
 
     void SetScalePercent(int percent);
@@ -35,18 +21,11 @@ public:
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
-    struct ButtonInstance final {
-        UiElementId id = UiElementId::None;
-        IconButton* element = nullptr;
-    };
+    static constexpr size_t kLoopIndex = 0;
+    static constexpr size_t kPlayPauseIndex = 2;
 
-    IconButton* Button(ButtonKey button);
-    void UpdateVisualState();
-
-    std::array<ButtonInstance, kButtonCount> buttons_{};
-    std::unique_ptr<ImgViewerFloatingToolbar> toolbar_;
+    std::unique_ptr<ImgViewerUiToolStrip> toolstrip_;
     Label* frame_label_ = nullptr;
     std::wstring frame_text_;
     ImgViewerAnimationState state_;
-    int scale_percent_ = 125;
 };

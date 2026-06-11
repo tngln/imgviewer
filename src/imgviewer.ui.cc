@@ -76,17 +76,7 @@ void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
     pen_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     shape_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
     text_toolstrip_.Arrange(final_rect, edit_toolbar_.Rect());
-    animation_toolbar_.Arrange(
-        final_rect,
-        color_picker_toolstrip_state_.visible
-            ? color_picker_toolstrip_.Rect()
-            : (text_toolstrip_state_.visible
-            ? text_toolstrip_.Rect()
-            : (pen_toolstrip_state_.visible
-                ? pen_toolstrip_.Rect()
-                : (shape_toolstrip_state_.visible
-                    ? shape_toolstrip_.Rect()
-                    : (selection_toolstrip_state_.visible ? selection_toolstrip_.Rect() : (edit_toolbar_state_.visible ? edit_toolbar_.Rect() : toolbar_.Rect()))))));
+    animation_toolbar_.Arrange(final_rect, ActiveToolstripAnchorRect());
     info_panel_.Arrange(final_rect);
 }
 
@@ -338,6 +328,29 @@ void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
         show_in_file_explorer_enabled_ = enabled;
     }
     SetActionEnabledRecursive(root_.get(), action, enabled);
+}
+
+D2D1_RECT_F ImgViewerUi::ActiveToolstripAnchorRect() const
+{
+    if (color_picker_toolstrip_state_.visible) {
+        return color_picker_toolstrip_.Rect();
+    }
+    if (text_toolstrip_state_.visible) {
+        return text_toolstrip_.Rect();
+    }
+    if (pen_toolstrip_state_.visible) {
+        return pen_toolstrip_.Rect();
+    }
+    if (shape_toolstrip_state_.visible) {
+        return shape_toolstrip_.Rect();
+    }
+    if (selection_toolstrip_state_.visible) {
+        return selection_toolstrip_.Rect();
+    }
+    if (edit_toolbar_state_.visible) {
+        return edit_toolbar_.Rect();
+    }
+    return toolbar_.Rect();
 }
 
 void ImgViewerUi::SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled)

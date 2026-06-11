@@ -1,13 +1,11 @@
 #pragma once
 
-#include <array>
-#include <cstddef>
 #include <memory>
 
 #include <d2d1_1.h>
 
 #include "imgviewer.edit.hpp"
-#include "imgviewer.ui.floating_toolbar.hpp"
+#include "imgviewer.ui.toolstrip.hpp"
 #include "ui.events.hpp"
 
 struct ImgViewerUiShapeToolstripState final {
@@ -18,25 +16,6 @@ struct ImgViewerUiShapeToolstripState final {
 
 class ImgViewerUiShapeToolstrip final {
 public:
-    enum class ButtonKey : size_t {
-        Rectangle,
-        Ellipse,
-        Line,
-        Arrow,
-        Red,
-        Yellow,
-        Green,
-        Cyan,
-        Blue,
-        Magenta,
-        White,
-        Black,
-        Count,
-    };
-
-    static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
-    static constexpr size_t ButtonIndex(ButtonKey button);
-
     explicit ImgViewerUiShapeToolstrip(UiElement& root);
 
     void SetScalePercent(int percent);
@@ -48,15 +27,6 @@ public:
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
-    struct ButtonInstance final {
-        UiElementId id = UiElementId::None;
-        UiElement* element = nullptr;
-    };
-
-    void UpdateVisualState();
-
-    std::array<ButtonInstance, kButtonCount> buttons_{};
-    std::unique_ptr<ImgViewerFloatingToolbar> toolbar_;
+    std::unique_ptr<ImgViewerUiToolStrip> toolstrip_;
     ImgViewerUiShapeToolstripState state_;
-    int scale_percent_ = 125;
 };

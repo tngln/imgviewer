@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include <d2d1helper.h>
 #include <wil/com.h>
@@ -11,13 +12,13 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
+#include "ui.button.hpp"
 #include "ui.theme.hpp"
 
 namespace {
 
 constexpr wchar_t kCopyIcon[] = L"\xE8C8";
 constexpr float kValueWidth = 84.0f;
-constexpr float kToolbarGapAboveAnchor = 6.0f;
 constexpr float kTextPaddingX = 8.0f;
 
 class ReadOnlyColorValue final : public UiElement {
@@ -65,37 +66,44 @@ private:
     std::wstring text_;
 };
 
+const ToolStripItemSpec kCopySpec = {
+    ImgViewerAction::CopyColorPickerValue,
+    ImgViewerStringId::CopyColorPickerValue,
+    ImgViewerStringId::CopyColorPickerValue,
+    L"copy-color-picker-value",
+    ToolStripItemVisual::Icon,
+    {},
+    0.0f,
+    ImgViewerShapeKind::Rectangle,
+    L"",
+    kCopyIcon,
+};
+
+std::vector<ToolStripItemSpec> BuildSpecs()
+{
+    return {kCopySpec};
+}
+
 } // namespace
 
 ImgViewerUiColorPickerToolstrip::ImgViewerUiColorPickerToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::ColorPickerTools), L"color-picker-toolstrip");
-
-    auto copy_button = std::make_unique<IconButton>(
-        UiMetadata(
-            UiElementRole::Button,
-            UiActionFromImgViewerAction(ImgViewerAction::CopyColorPickerValue),
-            ImgViewerString(ImgViewerStringId::CopyColorPickerValue),
-            ImgViewerString(ImgViewerStringId::CopyColorPickerValue),
-            L"copy-color-picker-value"),
-        kCopyIcon);
-    copy_button_ = toolbar_->Panel()->AddItem(std::move(copy_button), ui_theme::metrics::kToolbarButtonSize);
+    toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
+        root, ImgViewerString(ImgViewerStringId::ColorPickerTools), L"color-picker-toolstrip", BuildSpecs());
+    toolstrip_->SetExtraWidth(kValueWidth);
+    toolstrip_->SetExtraItemCount(1);
 
     auto value = std::make_unique<ReadOnlyColorValue>(
         UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::ColorValue), L"", L"color-picker-value"));
-    value_element_ = toolbar_->Panel()->AddItem(std::move(value), kValueWidth);
+    value_element_ = toolstrip_->Panel()->AddItem(std::move(value), kValueWidth);
 
-    SetScalePercent(scale_percent_);
+    SetScalePercent(125);
     SetState(state_);
 }
 
 void ImgViewerUiColorPickerToolstrip::SetScalePercent(int percent)
 {
-    scale_percent_ = ClampToolbarScalePercent(percent);
-    toolbar_->SetScalePercent(scale_percent_);
-    if (copy_button_ != nullptr) {
-        copy_button_->SetIconScale(static_cast<float>(scale_percent_) / 100.0f);
-    }
+    toolstrip_->SetScalePercent(percent);
 }
 
 void ImgViewerUiColorPickerToolstrip::SetState(ImgViewerUiColorPickerToolstripState state)
@@ -105,52 +113,39 @@ void ImgViewerUiColorPickerToolstrip::SetState(ImgViewerUiColorPickerToolstripSt
     if (auto* value = static_cast<ReadOnlyColorValue*>(value_element_)) {
         value->SetText(display_text_.c_str());
     }
-    UpdateVisualState();
+
+    toolstrip_->SetVisible(state_.visible);
+    if (value_element_ != nullptr) {
+        value_element_->SetEnabled(state_.visible);
+    }
+    if (auto* copy_button = toolstrip_->Button(0)) {
+        copy_button->SetEnabled(state_.visible && state_.has_sample);
+    }
 }
 
 D2D1_RECT_F ImgViewerUiColorPickerToolstrip::Rect() const
 {
-    return toolbar_->Rect();
+    return toolstrip_->Rect();
 }
 
-D2D1_SIZE_F ImgViewerUiColorPickerToolstrip::Measure(const UiDrawContext&, D2D1_SIZE_F) const
+D2D1_SIZE_F ImgViewerUiColorPickerToolstrip::Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const
 {
-    if (!state_.visible) {
-        return D2D1::SizeF();
-    }
-
-    return toolbar_->Measure(1, toolbar_->ScaledValue(kValueWidth), 1);
+    return toolstrip_->Measure(context, available_size);
 }
 
 void ImgViewerUiColorPickerToolstrip::Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F anchor_toolbar_rect)
 {
-    if (!state_.visible) {
-        toolbar_->ArrangeHidden();
-        return;
-    }
-
-    toolbar_->ArrangeAboveAnchor(
-        final_rect,
-        anchor_toolbar_rect,
-        1,
-        toolbar_->ScaledValue(kValueWidth),
-        1,
-        kToolbarGapAboveAnchor);
+    toolstrip_->Arrange(final_rect, anchor_toolbar_rect);
 }
 
 void ImgViewerUiColorPickerToolstrip::Render(const UiDrawContext& draw_context, UiRootState state)
 {
-    if (!state_.visible) {
-        return;
-    }
-
-    toolbar_->RenderBackground(draw_context, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
-    toolbar_->Panel()->Render(draw_context, state);
+    toolstrip_->Render(draw_context, state);
 }
 
-UiEventResult ImgViewerUiColorPickerToolstrip::OnPointerEvent(const UiPointerEvent&)
+UiEventResult ImgViewerUiColorPickerToolstrip::OnPointerEvent(const UiPointerEvent& event)
 {
-    return {};
+    return toolstrip_->OnPointerEvent(event);
 }
 
 bool ImgViewerUiColorPickerToolstrip::IsValueElement(UiElementId id) const
@@ -161,15 +156,4 @@ bool ImgViewerUiColorPickerToolstrip::IsValueElement(UiElementId id) const
 const wchar_t* ImgViewerUiColorPickerToolstrip::ValueText() const
 {
     return display_text_.c_str();
-}
-
-void ImgViewerUiColorPickerToolstrip::UpdateVisualState()
-{
-    toolbar_->Panel()->SetEnabled(state_.visible);
-    if (value_element_ != nullptr) {
-        value_element_->SetEnabled(state_.visible);
-    }
-    if (copy_button_ != nullptr) {
-        copy_button_->SetEnabled(state_.visible && state_.has_sample);
-    }
 }

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -50,11 +49,13 @@ public:
 
     StackPanel* Panel() const;
     D2D1_RECT_F Rect() const;
+    float ScaledValue(float value) const;
+    UiElement* Button(size_t index) const;
 
     void SetScalePercent(int percent);
     void SetVisible(bool visible);
     bool Visible() const;
-    void SetActiveStates(std::span<const bool> active_states);
+    void SetActiveStates(const std::vector<bool>& active_states);
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
     void Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F anchor_rect);

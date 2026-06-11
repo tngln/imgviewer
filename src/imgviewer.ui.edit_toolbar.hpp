@@ -1,14 +1,11 @@
 #pragma once
 
-#include <array>
-#include <cstddef>
 #include <memory>
 
 #include <d2d1_1.h>
 
 #include "imgviewer.edit.hpp"
-#include "imgviewer.ui.floating_toolbar.hpp"
-#include "ui.button.hpp"
+#include "imgviewer.ui.toolstrip.hpp"
 #include "ui.events.hpp"
 
 struct ImgViewerUiEditToolbarState final {
@@ -21,24 +18,6 @@ struct ImgViewerUiEditToolbarState final {
 
 class ImgViewerUiEditToolbar final {
 public:
-    enum class ButtonKey : size_t {
-        Select,
-        PixelSelect,
-        Pen,
-        Shape,
-        Text,
-        Crop,
-        RotateClockwise,
-        Undo,
-        Redo,
-        SaveAs,
-        Exit,
-        Count,
-    };
-
-    static constexpr size_t kButtonCount = static_cast<size_t>(ButtonKey::Count);
-    static constexpr size_t ButtonIndex(ButtonKey button);
-
     explicit ImgViewerUiEditToolbar(UiElement& root);
 
     void SetScalePercent(int percent);
@@ -50,16 +29,15 @@ public:
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
-    struct ButtonInstance final {
-        UiElementId id = UiElementId::None;
-        IconButton* element = nullptr;
-    };
+    static constexpr size_t kSelect = 0;
+    static constexpr size_t kPixelSelect = 1;
+    static constexpr size_t kPen = 2;
+    static constexpr size_t kShape = 3;
+    static constexpr size_t kText = 4;
+    static constexpr size_t kCrop = 5;
+    static constexpr size_t kUndo = 7;
+    static constexpr size_t kRedo = 8;
 
-    IconButton* Button(ButtonKey button);
-    void UpdateVisualState();
-
-    std::array<ButtonInstance, kButtonCount> buttons_{};
-    std::unique_ptr<ImgViewerFloatingToolbar> toolbar_;
+    std::unique_ptr<ImgViewerUiToolStrip> toolstrip_;
     ImgViewerUiEditToolbarState state_;
-    int scale_percent_ = 125;
 };

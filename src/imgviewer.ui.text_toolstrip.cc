@@ -2,170 +2,62 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cwchar>
 #include <memory>
+#include <vector>
 
 #include <d2d1helper.h>
 #include <wil/com.h>
+#include <wil/resource.h>
 
 #include "imgviewer.action.hpp"
-#include "imgviewer.config.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
-#include "ui.button_behavior.hpp"
-#include "ui.theme.hpp"
 
 namespace {
 
 constexpr float kToolbarGapAboveAnchor = 6.0f;
 constexpr float kFontDropdownWidth = 180.0f;
 
-class TextSizeButton final : public UiElement {
-public:
-    TextSizeButton(UiElementMetadata metadata, const wchar_t* label) : UiElement(metadata), label_(label)
-    {
-        SetFocusable(true);
-    }
-
-    void Render(const UiDrawContext& context, UiRootState root_state) const override
-    {
-        const UiElementState state = VisualState(root_state);
-        const D2D1_RECT_F rect = Rect();
-        const UiDraw draw(context);
-        draw.FillRect(rect, ui_theme::WidgetFillColor(state));
-        draw.DrawBodyText(
-            label_,
-            static_cast<UINT32>(wcslen(label_)),
-            D2D1::RectF(rect.left + 3.0f, rect.top + ui_theme::metrics::kTextTopOffset, rect.right - 3.0f, rect.bottom),
-            state.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        if (state.active) {
-            draw.DrawRoundedRect(
-                D2D1::RoundedRect(D2D1::RectF(rect.left + 2.0f, rect.top + 2.0f, rect.right - 2.0f, rect.bottom - 2.0f), 3.0f, 3.0f),
-                ui_theme::color::kAccent,
-                ui_theme::metrics::kActiveStrokeWidth);
-        }
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override { return ToolButtonPointerEvent(*this, event); }
-    UiEventResult OnKeyEvent(const UiKeyEvent& event) override { return ToolButtonKeyEvent(*this, event); }
-
-private:
-    const wchar_t* label_ = L"";
+const ToolStripItemSpec kSpecs[] = {
+    {ImgViewerAction::EditTextSize12, ImgViewerStringId::TextSize12, ImgViewerStringId::Text12PxTooltip, L"edit-text-size-12", ToolStripItemVisual::TextLabel, {}, 12.0f, ImgViewerShapeKind::Rectangle, L"12"},
+    {ImgViewerAction::EditTextSize16, ImgViewerStringId::TextSize16, ImgViewerStringId::Text16PxTooltip, L"edit-text-size-16", ToolStripItemVisual::TextLabel, {}, 16.0f, ImgViewerShapeKind::Rectangle, L"16"},
+    {ImgViewerAction::EditTextSize20, ImgViewerStringId::TextSize20, ImgViewerStringId::Text20PxTooltip, L"edit-text-size-20", ToolStripItemVisual::TextLabel, {}, 20.0f, ImgViewerShapeKind::Rectangle, L"20"},
+    {ImgViewerAction::EditTextSize28, ImgViewerStringId::TextSize28, ImgViewerStringId::Text28PxTooltip, L"edit-text-size-28", ToolStripItemVisual::TextLabel, {}, 28.0f, ImgViewerShapeKind::Rectangle, L"28"},
+    {ImgViewerAction::EditTextSize36, ImgViewerStringId::TextSize36, ImgViewerStringId::Text36PxTooltip, L"edit-text-size-36", ToolStripItemVisual::TextLabel, {}, 36.0f, ImgViewerShapeKind::Rectangle, L"36"},
+    {ImgViewerAction::EditTextColorRed, ImgViewerStringId::Red, ImgViewerStringId::RedText, L"edit-text-red", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Red)},
+    {ImgViewerAction::EditTextColorYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowText, L"edit-text-yellow", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Yellow)},
+    {ImgViewerAction::EditTextColorGreen, ImgViewerStringId::Green, ImgViewerStringId::GreenText, L"edit-text-green", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Lime)},
+    {ImgViewerAction::EditTextColorCyan, ImgViewerStringId::Cyan, ImgViewerStringId::CyanText, L"edit-text-cyan", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Cyan)},
+    {ImgViewerAction::EditTextColorBlue, ImgViewerStringId::Blue, ImgViewerStringId::BlueText, L"edit-text-blue", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
+    {ImgViewerAction::EditTextColorMagenta, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaText, L"edit-text-magenta", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Magenta)},
+    {ImgViewerAction::EditTextColorWhite, ImgViewerStringId::White, ImgViewerStringId::WhiteText, L"edit-text-white", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::White)},
+    {ImgViewerAction::EditTextColorBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackText, L"edit-text-black", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Black)},
+    {ImgViewerAction::EditTextBackgroundTransparent, ImgViewerStringId::None, ImgViewerStringId::TransparentTextBackground, L"edit-text-bg-transparent", ToolStripItemVisual::ColorSwatch, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", L"", nullptr, true},
+    {ImgViewerAction::EditTextBackgroundYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowTextBackground, L"edit-text-bg-yellow", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)},
+    {ImgViewerAction::EditTextBackgroundWhite, ImgViewerStringId::White, ImgViewerStringId::WhiteTextBackground, L"edit-text-bg-white", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::White, 0.82f)},
+    {ImgViewerAction::EditTextBackgroundBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackTextBackground, L"edit-text-bg-black", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Black, 0.82f)},
+    {ImgViewerAction::EditTextBackgroundRed, ImgViewerStringId::Red, ImgViewerStringId::RedTextBackground, L"edit-text-bg-red", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Red, 0.82f)},
+    {ImgViewerAction::EditTextBackgroundBlue, ImgViewerStringId::Blue, ImgViewerStringId::BlueTextBackground, L"edit-text-bg-blue", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)},
 };
 
-class TextColorButton final : public UiElement {
-public:
-    TextColorButton(UiElementMetadata metadata, D2D1_COLOR_F color, bool transparent) :
-        UiElement(metadata),
-        color_(color),
-        transparent_(transparent)
-    {
-        SetFocusable(true);
-    }
-
-    void Render(const UiDrawContext& context, UiRootState root_state) const override
-    {
-        const UiElementState state = VisualState(root_state);
-        const D2D1_RECT_F rect = Rect();
-        const UiDraw draw(context);
-        draw.FillRect(rect, ui_theme::WidgetFillColor(state));
-        const float inset = 5.0f;
-        const D2D1_RECT_F swatch = D2D1::RectF(rect.left + inset, rect.top + inset, rect.right - inset, rect.bottom - inset);
-        if (transparent_) {
-            draw.FillRect(swatch, D2D1::ColorF(D2D1::ColorF::White, 0.9f));
-            draw.FillRect(D2D1::RectF(swatch.left, swatch.top, (swatch.left + swatch.right) * 0.5f, (swatch.top + swatch.bottom) * 0.5f), ui_theme::color::kCheckerboardDark);
-            draw.FillRect(D2D1::RectF((swatch.left + swatch.right) * 0.5f, (swatch.top + swatch.bottom) * 0.5f, swatch.right, swatch.bottom), ui_theme::color::kCheckerboardDark);
-        } else {
-            draw.FillRoundedRect(D2D1::RoundedRect(swatch, 2.0f, 2.0f), color_);
-        }
-        draw.DrawRoundedRect(
-            D2D1::RoundedRect(swatch, 2.0f, 2.0f),
-            transparent_ || color_.r + color_.g + color_.b > 2.4f ? ui_theme::color::kBorder : D2D1::ColorF(D2D1::ColorF::White, 0.7f),
-            ui_theme::metrics::kStrokeWidth);
-        if (state.active) {
-            draw.DrawRoundedRect(
-                D2D1::RoundedRect(D2D1::RectF(rect.left + 2.0f, rect.top + 2.0f, rect.right - 2.0f, rect.bottom - 2.0f), 3.0f, 3.0f),
-                ui_theme::color::kAccent,
-                ui_theme::metrics::kActiveStrokeWidth);
-        }
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override { return ToolButtonPointerEvent(*this, event); }
-    UiEventResult OnKeyEvent(const UiKeyEvent& event) override { return ToolButtonKeyEvent(*this, event); }
-
-private:
-    D2D1_COLOR_F color_ = D2D1::ColorF(D2D1::ColorF::Black);
-    bool transparent_ = false;
-};
-
-struct ButtonSpec final {
-    ImgViewerUiTextToolstrip::ButtonKey button = ImgViewerUiTextToolstrip::ButtonKey::Size20;
-    ImgViewerAction action = ImgViewerAction::None;
-    ImgViewerStringId name = ImgViewerStringId::Empty;
-    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
-    const wchar_t* automation_id = L"";
-    D2D1_COLOR_F color = {};
-    float size = 0.0f;
-    bool background = false;
-    bool transparent = false;
-};
-
-const std::array<ButtonSpec, ImgViewerUiTextToolstrip::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiTextToolstrip::ButtonKey::Size12, ImgViewerAction::EditTextSize12, ImgViewerStringId::TextSize12, ImgViewerStringId::Text12PxTooltip, L"edit-text-size-12", {}, 12.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size16, ImgViewerAction::EditTextSize16, ImgViewerStringId::TextSize16, ImgViewerStringId::Text16PxTooltip, L"edit-text-size-16", {}, 16.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size20, ImgViewerAction::EditTextSize20, ImgViewerStringId::TextSize20, ImgViewerStringId::Text20PxTooltip, L"edit-text-size-20", {}, 20.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size28, ImgViewerAction::EditTextSize28, ImgViewerStringId::TextSize28, ImgViewerStringId::Text28PxTooltip, L"edit-text-size-28", {}, 28.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::Size36, ImgViewerAction::EditTextSize36, ImgViewerStringId::TextSize36, ImgViewerStringId::Text36PxTooltip, L"edit-text-size-36", {}, 36.0f},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextRed, ImgViewerAction::EditTextColorRed, ImgViewerStringId::Red, ImgViewerStringId::RedText, L"edit-text-red", D2D1::ColorF(D2D1::ColorF::Red)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextYellow, ImgViewerAction::EditTextColorYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowText, L"edit-text-yellow", D2D1::ColorF(D2D1::ColorF::Yellow)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextGreen, ImgViewerAction::EditTextColorGreen, ImgViewerStringId::Green, ImgViewerStringId::GreenText, L"edit-text-green", D2D1::ColorF(D2D1::ColorF::Lime)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextCyan, ImgViewerAction::EditTextColorCyan, ImgViewerStringId::Cyan, ImgViewerStringId::CyanText, L"edit-text-cyan", D2D1::ColorF(D2D1::ColorF::Cyan)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextBlue, ImgViewerAction::EditTextColorBlue, ImgViewerStringId::Blue, ImgViewerStringId::BlueText, L"edit-text-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextMagenta, ImgViewerAction::EditTextColorMagenta, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaText, L"edit-text-magenta", D2D1::ColorF(D2D1::ColorF::Magenta)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextWhite, ImgViewerAction::EditTextColorWhite, ImgViewerStringId::White, ImgViewerStringId::WhiteText, L"edit-text-white", D2D1::ColorF(D2D1::ColorF::White)},
-    {ImgViewerUiTextToolstrip::ButtonKey::TextBlack, ImgViewerAction::EditTextColorBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackText, L"edit-text-black", D2D1::ColorF(D2D1::ColorF::Black)},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundTransparent, ImgViewerAction::EditTextBackgroundTransparent, ImgViewerStringId::None, ImgViewerStringId::TransparentTextBackground, L"edit-text-bg-transparent", {}, 0.0f, true, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundYellow, ImgViewerAction::EditTextBackgroundYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowTextBackground, L"edit-text-bg-yellow", D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundWhite, ImgViewerAction::EditTextBackgroundWhite, ImgViewerStringId::White, ImgViewerStringId::WhiteTextBackground, L"edit-text-bg-white", D2D1::ColorF(D2D1::ColorF::White, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundBlack, ImgViewerAction::EditTextBackgroundBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackTextBackground, L"edit-text-bg-black", D2D1::ColorF(D2D1::ColorF::Black, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundRed, ImgViewerAction::EditTextBackgroundRed, ImgViewerStringId::Red, ImgViewerStringId::RedTextBackground, L"edit-text-bg-red", D2D1::ColorF(D2D1::ColorF::Red, 0.82f), 0.0f, true},
-    {ImgViewerUiTextToolstrip::ButtonKey::BackgroundBlue, ImgViewerAction::EditTextBackgroundBlue, ImgViewerStringId::Blue, ImgViewerStringId::BlueTextBackground, L"edit-text-bg-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f), 0.0f, true},
-}};
+std::vector<ToolStripItemSpec> BuildSpecs()
+{
+    return {std::begin(kSpecs), std::end(kSpecs)};
+}
 
 } // namespace
 
-constexpr size_t ImgViewerUiTextToolstrip::ButtonIndex(ButtonKey button)
-{
-    return static_cast<size_t>(button);
-}
-
 ImgViewerUiTextToolstrip::ImgViewerUiTextToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::TextTools), L"text-toolstrip");
-
-    for (const ButtonSpec& spec : kButtonSpecs) {
-        ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        UiElementMetadata metadata = UiMetadata(
-            UiElementRole::Button,
-            UiActionFromImgViewerAction(spec.action),
-            ImgViewerString(spec.name),
-            ImgViewerString(spec.tooltip),
-            spec.automation_id);
-        std::unique_ptr<UiElement> element;
-        if (spec.size > 0.0f) {
-            element = std::make_unique<TextSizeButton>(metadata, ImgViewerString(spec.name));
-        } else {
-            element = std::make_unique<TextColorButton>(metadata, spec.color, spec.transparent);
-        }
-        button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
-        button.id = button.element->Id();
-    }
+    toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
+        root, ImgViewerString(ImgViewerStringId::TextTools), L"text-toolstrip", BuildSpecs());
+    toolstrip_->SetExtraWidth(kFontDropdownWidth);
+    toolstrip_->SetExtraItemCount(1);
 
     font_names_.push_back(L"Segoe UI");
     font_options_.push_back(DropdownOption{font_names_[0].c_str(), UiActionFromImgViewerAction(ImgViewerAction::EditTextFontChanged)});
-    font_dropdown_ = static_cast<Dropdown*>(toolbar_->Panel()->AddItem(std::make_unique<Dropdown>(
+    font_dropdown_ = static_cast<Dropdown*>(toolstrip_->Panel()->AddItem(std::make_unique<Dropdown>(
         UiMetadata(
             UiElementRole::ComboBox,
             UiActionFromImgViewerAction(ImgViewerAction::EditTextFontChanged),
@@ -174,22 +66,42 @@ ImgViewerUiTextToolstrip::ImgViewerUiTextToolstrip(UiElement& root)
             L"edit-text-font"),
         font_options_)));
 
-    SetScalePercent(scale_percent_);
+    SetScalePercent(125);
     SetState(state_);
 }
 
 void ImgViewerUiTextToolstrip::SetScalePercent(int percent)
 {
-    scale_percent_ = ClampToolbarScalePercent(percent);
-    toolbar_->SetScalePercent(scale_percent_);
+    toolstrip_->SetScalePercent(percent);
 }
 
 void ImgViewerUiTextToolstrip::SetState(ImgViewerUiTextToolstripState state)
 {
     state_ = std::move(state);
     selected_font_family_ = state_.style.font_family.empty() ? L"Segoe UI" : state_.style.font_family;
+
+    toolstrip_->SetVisible(state_.visible);
+    if (font_dropdown_ != nullptr) {
+        font_dropdown_->SetEnabled(state_.visible);
+    }
+
+    const auto& specs = toolstrip_->Specs();
+    std::vector<bool> active(specs.size());
+    for (size_t i = 0; i < specs.size(); ++i) {
+        const ToolStripItemSpec& spec = specs[i];
+        if (spec.width > 0.0f) {
+            active[i] = std::abs(state_.style.font_size - spec.width) < 0.01f;
+        } else if (spec.transparent) {
+            active[i] = !state_.style.has_background;
+        } else if (spec.color.a != 1.0f && spec.color.a != 0.0f) {
+            active[i] = state_.style.has_background && math::NearlyEqual(state_.style.background_color, spec.color);
+        } else {
+            active[i] = math::NearlyEqual(state_.style.text_color, spec.color);
+        }
+    }
+    toolstrip_->SetActiveStates(active);
+
     SyncFontSelection();
-    UpdateVisualState();
 }
 
 const std::wstring& ImgViewerUiTextToolstrip::SelectedFontFamily() const
@@ -202,7 +114,7 @@ const std::wstring& ImgViewerUiTextToolstrip::SelectedFontFamily() const
 
 D2D1_RECT_F ImgViewerUiTextToolstrip::Rect() const
 {
-    return toolbar_->Rect();
+    return toolstrip_->Rect();
 }
 
 D2D1_SIZE_F ImgViewerUiTextToolstrip::Measure(const UiDrawContext& context, D2D1_SIZE_F)
@@ -211,38 +123,22 @@ D2D1_SIZE_F ImgViewerUiTextToolstrip::Measure(const UiDrawContext& context, D2D1
         return D2D1::SizeF();
     }
     EnsureFontOptions(context.dwrite_factory);
-    return toolbar_->Measure(kButtonSpecs.size(), toolbar_->ScaledValue(kFontDropdownWidth), 1);
+    return toolstrip_->Measure(context, D2D1::SizeF());
 }
 
 void ImgViewerUiTextToolstrip::Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F anchor_toolbar_rect)
 {
-    if (!state_.visible) {
-        toolbar_->ArrangeHidden();
-        return;
-    }
-
-    toolbar_->ArrangeAboveAnchor(
-        final_rect,
-        anchor_toolbar_rect,
-        kButtonSpecs.size(),
-        toolbar_->ScaledValue(kFontDropdownWidth),
-        1,
-        kToolbarGapAboveAnchor);
+    toolstrip_->Arrange(final_rect, anchor_toolbar_rect);
 }
 
 void ImgViewerUiTextToolstrip::Render(const UiDrawContext& draw_context, UiRootState state)
 {
-    if (!state_.visible) {
-        return;
-    }
-
-    toolbar_->RenderBackground(draw_context, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
-    toolbar_->Panel()->Render(draw_context, state);
+    toolstrip_->Render(draw_context, state);
 }
 
-UiEventResult ImgViewerUiTextToolstrip::OnPointerEvent(const UiPointerEvent&)
+UiEventResult ImgViewerUiTextToolstrip::OnPointerEvent(const UiPointerEvent& event)
 {
-    return {};
+    return toolstrip_->OnPointerEvent(event);
 }
 
 void ImgViewerUiTextToolstrip::EnsureFontOptions(IDWriteFactory* dwrite_factory)
@@ -319,31 +215,4 @@ void ImgViewerUiTextToolstrip::SyncFontSelection()
         it = std::find(font_names_.begin(), font_names_.end(), selected_font_family_);
     }
     font_dropdown_->SetSelectedIndex(it == font_names_.end() ? 0 : static_cast<size_t>(std::distance(font_names_.begin(), it)));
-}
-
-void ImgViewerUiTextToolstrip::UpdateVisualState()
-{
-    toolbar_->Panel()->SetEnabled(state_.visible);
-    if (font_dropdown_ != nullptr) {
-        font_dropdown_->SetEnabled(state_.visible);
-    }
-    for (size_t index = 0; index < kButtonSpecs.size(); ++index) {
-        UiElement* element = buttons_[index].element;
-        if (element == nullptr) {
-            continue;
-        }
-        element->SetEnabled(state_.visible);
-        const ButtonSpec& spec = kButtonSpecs[index];
-        bool active = false;
-        if (spec.size > 0.0f) {
-            active = std::abs(state_.style.font_size - spec.size) < 0.01f;
-        } else if (spec.background) {
-            active = spec.transparent
-                ? !state_.style.has_background
-                : state_.style.has_background && math::NearlyEqual(state_.style.background_color, spec.color);
-        } else {
-            active = math::NearlyEqual(state_.style.text_color, spec.color);
-        }
-        element->SetVisualActive(state_.visible && active);
-    }
 }

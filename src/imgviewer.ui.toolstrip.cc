@@ -231,6 +231,19 @@ D2D1_RECT_F ImgViewerUiToolStrip::Rect() const
     return toolbar_->Rect();
 }
 
+UiElement* ImgViewerUiToolStrip::Button(size_t index) const
+{
+    if (index >= buttons_.size()) {
+        return nullptr;
+    }
+    return buttons_[index].element;
+}
+
+float ImgViewerUiToolStrip::ScaledValue(float value) const
+{
+    return toolbar_->ScaledValue(value);
+}
+
 void ImgViewerUiToolStrip::SetScalePercent(int percent)
 {
     scale_percent_ = ClampToolbarScalePercent(percent);
@@ -257,7 +270,7 @@ bool ImgViewerUiToolStrip::Visible() const
     return visible_;
 }
 
-void ImgViewerUiToolStrip::SetActiveStates(std::span<const bool> active_states)
+void ImgViewerUiToolStrip::SetActiveStates(const std::vector<bool>& active_states)
 {
     const size_t count = (std::min)(active_states.size(), buttons_.size());
     for (size_t i = 0; i < count; ++i) {

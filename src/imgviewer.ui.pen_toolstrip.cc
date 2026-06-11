@@ -3,247 +3,86 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-
-#include <d2d1helper.h>
-#include <wil/com.h>
+#include <vector>
 
 #include "imgviewer.action.hpp"
-#include "imgviewer.config.hpp"
 #include "imgviewer.strings.hpp"
-#include "imgviewer.ui.action.hpp"
 #include "math.hpp"
-#include "ui.button_behavior.hpp"
-#include "ui.theme.hpp"
 
 namespace {
 
-constexpr float kToolbarGapAboveAnchor = 6.0f;
-
-class PenColorButton final : public UiElement {
-public:
-    PenColorButton(UiElementMetadata metadata, D2D1_COLOR_F color) : UiElement(metadata), color_(color)
-    {
-        SetFocusable(true);
-    }
-
-    D2D1_COLOR_F Color() const { return color_; }
-
-    void Render(const UiDrawContext& context, UiRootState root_state) const override
-    {
-        const UiElementState state = VisualState(root_state);
-        const D2D1_RECT_F rect = Rect();
-        const UiDraw draw(context);
-        draw.FillRect(rect, ui_theme::WidgetFillColor(state));
-        const float inset = 5.0f;
-        const D2D1_RECT_F swatch = D2D1::RectF(rect.left + inset, rect.top + inset, rect.right - inset, rect.bottom - inset);
-        draw.FillRoundedRect(D2D1::RoundedRect(swatch, 2.0f, 2.0f), color_);
-        draw.DrawRoundedRect(
-            D2D1::RoundedRect(swatch, 2.0f, 2.0f),
-            color_.r + color_.g + color_.b > 2.4f ? ui_theme::color::kBorder : D2D1::ColorF(D2D1::ColorF::White, 0.7f),
-            ui_theme::metrics::kStrokeWidth);
-        if (state.active) {
-            draw.DrawRoundedRect(
-                D2D1::RoundedRect(D2D1::RectF(rect.left + 2.0f, rect.top + 2.0f, rect.right - 2.0f, rect.bottom - 2.0f), 3.0f, 3.0f),
-                ui_theme::color::kAccent,
-                ui_theme::metrics::kActiveStrokeWidth);
-        }
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override
-    {
-        return ToolButtonPointerEvent(*this, event);
-    }
-
-    UiEventResult OnKeyEvent(const UiKeyEvent& event) override
-    {
-        return ToolButtonKeyEvent(*this, event);
-    }
-
-private:
-    D2D1_COLOR_F color_ = D2D1::ColorF(D2D1::ColorF::Red);
+const ToolStripItemSpec kSpecs[] = {
+    {ImgViewerAction::EditPenColorRed, ImgViewerStringId::Red, ImgViewerStringId::RedPen, L"edit-pen-red", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Red)},
+    {ImgViewerAction::EditPenColorYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowPen, L"edit-pen-yellow", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Yellow)},
+    {ImgViewerAction::EditPenColorGreen, ImgViewerStringId::Green, ImgViewerStringId::GreenPen, L"edit-pen-green", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Lime)},
+    {ImgViewerAction::EditPenColorCyan, ImgViewerStringId::Cyan, ImgViewerStringId::CyanPen, L"edit-pen-cyan", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Cyan)},
+    {ImgViewerAction::EditPenColorBlue, ImgViewerStringId::Blue, ImgViewerStringId::BluePen, L"edit-pen-blue", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
+    {ImgViewerAction::EditPenColorMagenta, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaPen, L"edit-pen-magenta", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Magenta)},
+    {ImgViewerAction::EditPenColorWhite, ImgViewerStringId::White, ImgViewerStringId::WhitePen, L"edit-pen-white", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::White)},
+    {ImgViewerAction::EditPenColorBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackPen, L"edit-pen-black", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Black)},
+    {ImgViewerAction::EditPenWidth2, ImgViewerStringId::PenWidth2, ImgViewerStringId::PenWidth2, L"edit-pen-width-2", ToolStripItemVisual::WidthLine, {}, 2.0f},
+    {ImgViewerAction::EditPenWidth4, ImgViewerStringId::PenWidth4, ImgViewerStringId::PenWidth4, L"edit-pen-width-4", ToolStripItemVisual::WidthLine, {}, 4.0f},
+    {ImgViewerAction::EditPenWidth8, ImgViewerStringId::PenWidth8, ImgViewerStringId::PenWidth8, L"edit-pen-width-8", ToolStripItemVisual::WidthLine, {}, 8.0f},
+    {ImgViewerAction::EditPenWidth12, ImgViewerStringId::PenWidth12, ImgViewerStringId::PenWidth12, L"edit-pen-width-12", ToolStripItemVisual::WidthLine, {}, 12.0f},
 };
 
-class PenWidthButton final : public UiElement {
-public:
-    PenWidthButton(UiElementMetadata metadata, float width) : UiElement(metadata), width_(width)
-    {
-        SetFocusable(true);
-    }
-
-    float Width() const { return width_; }
-
-    void Render(const UiDrawContext& context, UiRootState root_state) const override
-    {
-        const UiElementState state = VisualState(root_state);
-        const D2D1_RECT_F rect = Rect();
-        const UiDraw draw(context);
-        draw.FillRect(rect, ui_theme::WidgetFillColor(state));
-        wil::com_ptr<ID2D1SolidColorBrush> brush;
-        if (context.d2d_context != nullptr &&
-            SUCCEEDED(context.d2d_context->CreateSolidColorBrush(ui_theme::color::kAccent, brush.put()))) {
-            const float y = (rect.top + rect.bottom) * 0.5f;
-            context.d2d_context->DrawLine(
-                D2D1::Point2F(rect.left + 5.0f, y),
-                D2D1::Point2F(rect.right - 5.0f, y),
-                brush.get(),
-                width_);
-        }
-        if (state.active) {
-            draw.DrawRoundedRect(
-                D2D1::RoundedRect(D2D1::RectF(rect.left + 2.0f, rect.top + 2.0f, rect.right - 2.0f, rect.bottom - 2.0f), 3.0f, 3.0f),
-                ui_theme::color::kAccent,
-                ui_theme::metrics::kActiveStrokeWidth);
-        }
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override
-    {
-        return ToolButtonPointerEvent(*this, event);
-    }
-
-    UiEventResult OnKeyEvent(const UiKeyEvent& event) override
-    {
-        return ToolButtonKeyEvent(*this, event);
-    }
-
-private:
-    float width_ = 4.0f;
-};
-
-struct ButtonSpec final {
-    ImgViewerUiPenToolstrip::ButtonKey button = ImgViewerUiPenToolstrip::ButtonKey::Red;
-    ImgViewerAction action = ImgViewerAction::None;
-    ImgViewerStringId name = ImgViewerStringId::Empty;
-    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
-    const wchar_t* automation_id = L"";
-    D2D1_COLOR_F color = {};
-    float width = 0.0f;
-};
-
-const std::array<ButtonSpec, ImgViewerUiPenToolstrip::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiPenToolstrip::ButtonKey::Red, ImgViewerAction::EditPenColorRed,
-        ImgViewerStringId::Red, ImgViewerStringId::RedPen, L"edit-pen-red", D2D1::ColorF(D2D1::ColorF::Red), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Yellow, ImgViewerAction::EditPenColorYellow,
-        ImgViewerStringId::Yellow, ImgViewerStringId::YellowPen, L"edit-pen-yellow", D2D1::ColorF(D2D1::ColorF::Yellow), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Green, ImgViewerAction::EditPenColorGreen,
-        ImgViewerStringId::Green, ImgViewerStringId::GreenPen, L"edit-pen-green", D2D1::ColorF(D2D1::ColorF::Lime), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Cyan, ImgViewerAction::EditPenColorCyan,
-        ImgViewerStringId::Cyan, ImgViewerStringId::CyanPen, L"edit-pen-cyan", D2D1::ColorF(D2D1::ColorF::Cyan), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Blue, ImgViewerAction::EditPenColorBlue,
-        ImgViewerStringId::Blue, ImgViewerStringId::BluePen, L"edit-pen-blue", D2D1::ColorF(D2D1::ColorF::DodgerBlue), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Magenta, ImgViewerAction::EditPenColorMagenta,
-        ImgViewerStringId::Magenta, ImgViewerStringId::MagentaPen, L"edit-pen-magenta", D2D1::ColorF(D2D1::ColorF::Magenta), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::White, ImgViewerAction::EditPenColorWhite,
-        ImgViewerStringId::White, ImgViewerStringId::WhitePen, L"edit-pen-white", D2D1::ColorF(D2D1::ColorF::White), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Black, ImgViewerAction::EditPenColorBlack,
-        ImgViewerStringId::Black, ImgViewerStringId::BlackPen, L"edit-pen-black", D2D1::ColorF(D2D1::ColorF::Black), 0.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Width2, ImgViewerAction::EditPenWidth2,
-        ImgViewerStringId::PenWidth2, ImgViewerStringId::PenWidth2, L"edit-pen-width-2", {}, 2.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Width4, ImgViewerAction::EditPenWidth4,
-        ImgViewerStringId::PenWidth4, ImgViewerStringId::PenWidth4, L"edit-pen-width-4", {}, 4.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Width8, ImgViewerAction::EditPenWidth8,
-        ImgViewerStringId::PenWidth8, ImgViewerStringId::PenWidth8, L"edit-pen-width-8", {}, 8.0f},
-    {ImgViewerUiPenToolstrip::ButtonKey::Width12, ImgViewerAction::EditPenWidth12,
-        ImgViewerStringId::PenWidth12, ImgViewerStringId::PenWidth12, L"edit-pen-width-12", {}, 12.0f},
-}};
+std::vector<ToolStripItemSpec> BuildSpecs()
+{
+    return {std::begin(kSpecs), std::end(kSpecs)};
+}
 
 } // namespace
 
-constexpr size_t ImgViewerUiPenToolstrip::ButtonIndex(ButtonKey button)
-{
-    return static_cast<size_t>(button);
-}
-
 ImgViewerUiPenToolstrip::ImgViewerUiPenToolstrip(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::PenTools), L"pen-toolstrip");
-
-    for (const ButtonSpec& spec : kButtonSpecs) {
-        ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        UiElementMetadata metadata = UiMetadata(
-            UiElementRole::Button,
-            UiActionFromImgViewerAction(spec.action),
-            ImgViewerString(spec.name),
-            ImgViewerString(spec.tooltip),
-            spec.automation_id);
-        std::unique_ptr<UiElement> element;
-        if (spec.width > 0.0f) {
-            element = std::make_unique<PenWidthButton>(metadata, spec.width);
-        } else {
-            element = std::make_unique<PenColorButton>(metadata, spec.color);
-        }
-        button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
-        button.id = button.element->Id();
-    }
-
-    SetScalePercent(scale_percent_);
+    toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
+        root, ImgViewerString(ImgViewerStringId::PenTools), L"pen-toolstrip", BuildSpecs());
+    SetScalePercent(125);
     SetState(state_);
 }
 
 void ImgViewerUiPenToolstrip::SetScalePercent(int percent)
 {
-    scale_percent_ = ClampToolbarScalePercent(percent);
-    toolbar_->SetScalePercent(scale_percent_);
+    toolstrip_->SetScalePercent(percent);
 }
 
 void ImgViewerUiPenToolstrip::SetState(ImgViewerUiPenToolstripState state)
 {
     state_ = state;
-    UpdateVisualState();
+    toolstrip_->SetVisible(state.visible);
+
+    const auto& specs = toolstrip_->Specs();
+    std::vector<bool> active(specs.size());
+    for (size_t i = 0; i < specs.size(); ++i) {
+        const ToolStripItemSpec& spec = specs[i];
+        active[i] = spec.width > 0.0f
+            ? std::abs(state.width - spec.width) < 0.01f
+            : math::NearlyEqual(state.color, spec.color);
+    }
+    toolstrip_->SetActiveStates(active);
 }
 
 D2D1_RECT_F ImgViewerUiPenToolstrip::Rect() const
 {
-    return toolbar_->Rect();
+    return toolstrip_->Rect();
 }
 
-D2D1_SIZE_F ImgViewerUiPenToolstrip::Measure(const UiDrawContext&, D2D1_SIZE_F) const
+D2D1_SIZE_F ImgViewerUiPenToolstrip::Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const
 {
-    if (!state_.visible) {
-        return D2D1::SizeF();
-    }
-
-    return toolbar_->Measure(kButtonSpecs.size());
+    return toolstrip_->Measure(context, available_size);
 }
 
 void ImgViewerUiPenToolstrip::Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F anchor_toolbar_rect)
 {
-    if (!state_.visible) {
-        toolbar_->ArrangeHidden();
-        return;
-    }
-
-    toolbar_->ArrangeAboveAnchor(final_rect, anchor_toolbar_rect, kButtonSpecs.size(), 0.0f, 0, kToolbarGapAboveAnchor);
+    toolstrip_->Arrange(final_rect, anchor_toolbar_rect);
 }
 
 void ImgViewerUiPenToolstrip::Render(const UiDrawContext& draw_context, UiRootState state)
 {
-    if (!state_.visible) {
-        return;
-    }
-
-    toolbar_->RenderBackground(draw_context, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
-    toolbar_->Panel()->Render(draw_context, state);
+    toolstrip_->Render(draw_context, state);
 }
 
-UiEventResult ImgViewerUiPenToolstrip::OnPointerEvent(const UiPointerEvent&)
+UiEventResult ImgViewerUiPenToolstrip::OnPointerEvent(const UiPointerEvent& event)
 {
-    return {};
-}
-
-void ImgViewerUiPenToolstrip::UpdateVisualState()
-{
-    toolbar_->Panel()->SetEnabled(state_.visible);
-    for (size_t index = 0; index < kButtonSpecs.size(); ++index) {
-        UiElement* element = buttons_[index].element;
-        if (element == nullptr) {
-            continue;
-        }
-        element->SetEnabled(state_.visible);
-        const ButtonSpec& spec = kButtonSpecs[index];
-        const bool active = spec.width > 0.0f
-            ? std::abs(state_.width - spec.width) < 0.01f
-            : math::NearlyEqual(state_.color, spec.color);
-        element->SetVisualActive(state_.visible && active);
-    }
+    return toolstrip_->OnPointerEvent(event);
 }

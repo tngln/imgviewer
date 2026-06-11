@@ -2,12 +2,14 @@
 
 #include <cwchar>
 #include <memory>
+#include <vector>
 
 #include <d2d1helper.h>
 
 #include "imgviewer.config.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "ui.button.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -18,84 +20,40 @@ constexpr wchar_t kNextIcon[] = L"\xE893";
 constexpr wchar_t kPlayIcon[] = L"\xE768";
 constexpr wchar_t kPauseIcon[] = L"\xE769";
 constexpr float kFrameLabelWidth = 58.0f;
-constexpr float kToolbarGapAboveMain = 6.0f;
 
-struct ButtonSpec final {
-    ImgViewerUiAnimationToolbar::ButtonKey button = ImgViewerUiAnimationToolbar::ButtonKey::Loop;
-    ImgViewerAction action = ImgViewerAction::None;
-    ImgViewerStringId name = ImgViewerStringId::Empty;
-    ImgViewerStringId tooltip = ImgViewerStringId::Empty;
-    const wchar_t* automation_id = L"";
-    const wchar_t* icon = L"";
+const ToolStripItemSpec kSpecs[] = {
+    {ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation, ImgViewerStringId::LoopAnimation, L"animation-loop", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kLoopIcon},
+    {ImgViewerAction::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, L"animation-previous-frame", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPreviousIcon},
+    {ImgViewerAction::ToggleAnimationPlayback, ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, L"animation-play-pause", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPauseIcon},
+    {ImgViewerAction::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, L"animation-next-frame", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kNextIcon},
 };
 
-constexpr std::array<ButtonSpec, ImgViewerUiAnimationToolbar::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiAnimationToolbar::ButtonKey::Loop, ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation,
-        ImgViewerStringId::LoopAnimation, L"animation-loop", kLoopIcon},
-    {ImgViewerUiAnimationToolbar::ButtonKey::PreviousFrame, ImgViewerAction::PreviousAnimationFrame,
-        ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, L"animation-previous-frame", kPreviousIcon},
-    {ImgViewerUiAnimationToolbar::ButtonKey::PlayPause, ImgViewerAction::ToggleAnimationPlayback,
-        ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, L"animation-play-pause", kPauseIcon},
-    {ImgViewerUiAnimationToolbar::ButtonKey::NextFrame, ImgViewerAction::NextAnimationFrame,
-        ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, L"animation-next-frame", kNextIcon},
-}};
-
-constexpr bool ButtonSpecsMatchKeys()
+std::vector<ToolStripItemSpec> BuildSpecs()
 {
-    for (size_t index = 0; index < kButtonSpecs.size(); ++index) {
-        if (static_cast<size_t>(kButtonSpecs[index].button) != index) {
-            return false;
-        }
-    }
-    return true;
+    return {std::begin(kSpecs), std::end(kSpecs)};
 }
-
-static_assert(ButtonSpecsMatchKeys());
 
 } // namespace
 
-constexpr size_t ImgViewerUiAnimationToolbar::ButtonIndex(ButtonKey button)
-{
-    return static_cast<size_t>(button);
-}
-
 ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, ImgViewerString(ImgViewerStringId::AnimationControls), L"animation-toolbar");
-
-    for (const ButtonSpec& spec : kButtonSpecs) {
-        ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
-        auto element = std::make_unique<IconButton>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(spec.action),
-                ImgViewerString(spec.name),
-                ImgViewerString(spec.tooltip),
-                spec.automation_id),
-            spec.icon);
-        button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
-        button.id = button.element->Id();
-    }
+    toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
+        root, ImgViewerString(ImgViewerStringId::AnimationControls), L"animation-toolbar", BuildSpecs());
+    toolstrip_->SetExtraWidth(kFrameLabelWidth);
+    toolstrip_->SetExtraItemCount(1);
 
     auto label = std::make_unique<Label>(
         UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::AnimationFrame), L"", L"animation-frame-label", false, true),
         L"",
         LabelStyle::Muted);
-    frame_label_ = toolbar_->Panel()->AddItem(std::move(label), kFrameLabelWidth);
-    SetScalePercent(scale_percent_);
+    frame_label_ = toolstrip_->Panel()->AddItem(std::move(label), kFrameLabelWidth);
+    SetScalePercent(125);
     SetState(state_);
 }
 
 void ImgViewerUiAnimationToolbar::SetScalePercent(int percent)
 {
-    scale_percent_ = ClampToolbarScalePercent(percent);
-    toolbar_->SetScalePercent(scale_percent_);
-    const float icon_scale = static_cast<float>(scale_percent_) / 100.0f;
-    for (const ButtonInstance& button : buttons_) {
-        if (button.element != nullptr) {
-            button.element->SetIconScale(icon_scale);
-        }
-    }
+    toolstrip_->SetScalePercent(percent);
 }
 
 void ImgViewerUiAnimationToolbar::SetState(ImgViewerAnimationState state)
@@ -109,62 +67,35 @@ void ImgViewerUiAnimationToolbar::SetState(ImgViewerAnimationState state)
         frame_text_.clear();
     }
     frame_label_->SetText(frame_text_.c_str());
-    UpdateVisualState();
-}
 
-D2D1_SIZE_F ImgViewerUiAnimationToolbar::Measure(const UiDrawContext&, D2D1_SIZE_F) const
-{
-    if (!state_.available) {
-        return D2D1::SizeF();
+    toolstrip_->SetVisible(state_.available);
+
+    auto* play_pause = dynamic_cast<IconButton*>(toolstrip_->Button(kPlayPauseIndex));
+    if (play_pause != nullptr) {
+        play_pause->SetIcon(state_.playing ? kPauseIcon : kPlayIcon);
     }
 
-    return toolbar_->Measure(kButtonSpecs.size(), toolbar_->ScaledValue(kFrameLabelWidth), 1);
+    std::vector<bool> active(4);
+    active[kLoopIndex] = state_.loop;
+    toolstrip_->SetActiveStates(active);
+}
+
+D2D1_SIZE_F ImgViewerUiAnimationToolbar::Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const
+{
+    return toolstrip_->Measure(context, available_size);
 }
 
 void ImgViewerUiAnimationToolbar::Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F main_toolbar_rect)
 {
-    if (!state_.available) {
-        toolbar_->ArrangeHidden();
-        return;
-    }
-
-    toolbar_->ArrangeAboveAnchor(
-        final_rect,
-        main_toolbar_rect,
-        kButtonSpecs.size(),
-        toolbar_->ScaledValue(kFrameLabelWidth),
-        1,
-        kToolbarGapAboveMain);
+    toolstrip_->Arrange(final_rect, main_toolbar_rect);
 }
 
 void ImgViewerUiAnimationToolbar::Render(const UiDrawContext& draw_context, UiRootState state)
 {
-    if (!state_.available) {
-        return;
-    }
-
-    toolbar_->RenderBackground(draw_context, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
-    toolbar_->Panel()->Render(draw_context, state);
+    toolstrip_->Render(draw_context, state);
 }
 
-UiEventResult ImgViewerUiAnimationToolbar::OnPointerEvent(const UiPointerEvent&)
+UiEventResult ImgViewerUiAnimationToolbar::OnPointerEvent(const UiPointerEvent& event)
 {
-    return {};
-}
-
-IconButton* ImgViewerUiAnimationToolbar::Button(ButtonKey button)
-{
-    return buttons_[ButtonIndex(button)].element;
-}
-
-void ImgViewerUiAnimationToolbar::UpdateVisualState()
-{
-    toolbar_->Panel()->SetEnabled(state_.available);
-    Button(ButtonKey::Loop)->SetVisualActive(state_.available && state_.loop);
-    Button(ButtonKey::PlayPause)->SetIcon(state_.playing ? kPauseIcon : kPlayIcon);
-    for (const ButtonInstance& button : buttons_) {
-        if (button.element != nullptr) {
-            button.element->SetEnabled(state_.available);
-        }
-    }
+    return toolstrip_->OnPointerEvent(event);
 }

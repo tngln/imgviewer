@@ -60,6 +60,7 @@ public:
     const std::wstring& SelectedTextFontFamily() const;
 
 private:
+    D2D1_RECT_F ActiveToolstripAnchorRect() const;
     void SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled);
 
     std::unique_ptr<UiElement> root_;

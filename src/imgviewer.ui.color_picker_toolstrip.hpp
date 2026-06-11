@@ -5,8 +5,7 @@
 
 #include <d2d1_1.h>
 
-#include "imgviewer.ui.floating_toolbar.hpp"
-#include "ui.button.hpp"
+#include "imgviewer.ui.toolstrip.hpp"
 #include "ui.events.hpp"
 
 struct ImgViewerUiColorPickerToolstripState final {
@@ -30,12 +29,8 @@ public:
     const wchar_t* ValueText() const;
 
 private:
-    void UpdateVisualState();
-
-    std::unique_ptr<ImgViewerFloatingToolbar> toolbar_;
+    std::unique_ptr<ImgViewerUiToolStrip> toolstrip_;
     UiElement* value_element_ = nullptr;
-    IconButton* copy_button_ = nullptr;
     ImgViewerUiColorPickerToolstripState state_;
     std::wstring display_text_;
-    int scale_percent_ = 125;
 };
