@@ -53,7 +53,7 @@ public:
         root_->AddItem(Muted(
             ImgViewerString(ImgViewerStringId::DeveloperControlLab)), 18.0f);
 
-        sample_button_ = root_->AddItem(Button(
+        sample_button_ = root_->AddItem(ui_decl::Button(
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton),
             kRefreshIcon,
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton)), 28.0f);
