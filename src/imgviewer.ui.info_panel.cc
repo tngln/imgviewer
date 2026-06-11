@@ -122,9 +122,7 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
 {
     panel_ = root.AddChild(std::make_unique<UiElement>(UiMetadata(
         UiElementRole::Pane,
-        kUiActionNone,
         ImgViewerString(ImgViewerStringId::InfoPanel),
-        L"",
         false,
         true)));
     panel_id_ = panel_->Id();
@@ -132,9 +130,8 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
 
     basic_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
-        kUiActionNone,
         ImgViewerString(ImgViewerStringId::ImageDetails),
-        ImgViewerString(ImgViewerStringId::ImageDetails),
+        kUiTooltipFromName,
         false,
         true))));
     basic_table_->SetColumns(std::vector<TableColumn>{
@@ -148,9 +145,8 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
 
     color_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
-        kUiActionNone,
         ImgViewerString(ImgViewerStringId::ColorAndHdr),
-        ImgViewerString(ImgViewerStringId::ColorAndHdr),
+        kUiTooltipFromName,
         false,
         true))));
     color_table_->SetColumns(std::vector<TableColumn>{
@@ -164,9 +160,8 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
 
     exif_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
-        kUiActionNone,
         ImgViewerString(ImgViewerStringId::Exif),
-        ImgViewerString(ImgViewerStringId::Exif),
+        kUiTooltipFromName,
         false,
         true))));
     exif_table_->SetColumns(std::vector<TableColumn>{

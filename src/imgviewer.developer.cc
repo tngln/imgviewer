@@ -39,19 +39,21 @@ class DeveloperUi final : public UiRoot {
 public:
     DeveloperUi()
     {
+        using namespace ui_decl;
+
         auto root = std::make_unique<StackPanel>(
-            UiRootMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::Developer), ImgViewerString(ImgViewerStringId::Developer)));
+            UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Developer), kUiTooltipFromName));
         root->SetPadding(UiThickness{kDeveloperSidePadding, kDeveloperContentTopPadding, kDeveloperSidePadding, 0.0f});
         root->SetGap(8.0f);
         root_ = root.get();
         root_owner_ = std::move(root);
 
-        root_->AddItem(ui_decl::Title(
+        root_->AddItem(Title(
             ImgViewerString(ImgViewerStringId::Developer)), 20.0f);
-        root_->AddItem(ui_decl::Muted(
+        root_->AddItem(Muted(
             ImgViewerString(ImgViewerStringId::DeveloperControlLab)), 18.0f);
 
-        sample_button_ = root_->AddItem(ui_decl::Button(
+        sample_button_ = root_->AddItem(Button(
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton),
             kRefreshIcon,
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton)), 28.0f);
@@ -70,7 +72,7 @@ public:
             UpdateStateText();
         });
         editable_table_ = root_->AddItem(std::make_unique<Table>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::EditableTable), ImgViewerString(ImgViewerStringId::EditableTable))),
+            UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::EditableTable), kUiTooltipFromName)),
             112.0f);
         editable_table_->SetColumns(std::vector<TableColumn>{
             TableColumn{ImgViewerString(ImgViewerStringId::Name), 120.0f, false},

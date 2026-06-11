@@ -48,6 +48,10 @@ enum class UiElementRole {
     Pane,
 };
 
+struct UiTooltipFromNameTag final {};
+
+inline constexpr UiTooltipFromNameTag kUiTooltipFromName{};
+
 struct UiElementMetadata final {
     UiElementId id = UiElementId::None;
     UiElementRole role = UiElementRole::Button;
@@ -60,6 +64,23 @@ struct UiElementMetadata final {
 
 UiElementMetadata UiMetadata(
     UiElementRole role,
+    const wchar_t* name,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiMetadata(
+    UiElementRole role,
     UiAction action,
     const wchar_t* name,
     bool is_control = true,
@@ -71,6 +92,30 @@ UiElementMetadata UiMetadata(
     const wchar_t* tooltip,
     bool is_control = true,
     bool is_content = true);
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control = true,
+    bool is_content = true);
 UiElementMetadata UiRootMetadata(
     UiElementRole role,
     UiAction action,
@@ -82,6 +127,13 @@ UiElementMetadata UiRootMetadata(
     UiAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
+    bool is_control = true,
+    bool is_content = true);
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
     bool is_control = true,
     bool is_content = true);
 

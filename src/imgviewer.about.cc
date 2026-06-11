@@ -18,7 +18,6 @@
 #include "ui.window.hpp"
 
 namespace {
-namespace ui_decl = experimental::ui_decl;
 
 constexpr wchar_t kAboutClassName[] = L"ImgViewerAboutWindow";
 constexpr int kAboutInitialWidth = 280;
@@ -47,11 +46,7 @@ public:
     AboutUi()
     {
         auto root_panel = std::make_unique<StackPanel>(
-            UiRootMetadata(
-                UiElementRole::Pane,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::AboutImgViewer),
-                ImgViewerString(ImgViewerStringId::AboutImgViewer)));
+            UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::AboutImgViewer), kUiTooltipFromName));
         root_panel->SetPadding(UiThickness{kAboutSidePadding, kAboutTopPadding, kAboutSidePadding, 0.0f});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
@@ -93,15 +88,19 @@ public:
 private:
     static std::unique_ptr<UiElement> BuildNoticeEntry(const NoticeLine& line)
     {
-        return ui_decl::Group(
-            ui_decl::Body(line.name),
-            ui_decl::Muted(line.detail),
-            ui_decl::Muted(line.license_path));
+        using namespace experimental::ui_decl;
+
+        return Group(
+            Body(line.name),
+            Muted(line.detail),
+            Muted(line.license_path));
     }
 
     void BuildUiTree()
     {
-        auto notice_box = ui_decl::BorderBox(
+        using namespace experimental::ui_decl;
+
+        auto notice_box = BorderBox(
             BuildNoticeEntry(kNoticeLines[0]),
             BuildNoticeEntry(kNoticeLines[1]),
             BuildNoticeEntry(kNoticeLines[2]));
@@ -109,11 +108,11 @@ private:
         notice_box->SetPadding(UiThickness{
             kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding});
 
-        root_->AddItem(ui_decl::VStack(
-            ui_decl::Title(ImgViewerString(ImgViewerStringId::AppName)),
-            ui_decl::Muted(ImgViewerString(ImgViewerStringId::AboutDescription)),
-            ui_decl::Muted(ImgViewerString(ImgViewerStringId::DevelopmentBuild)),
-            ui_decl::Section(
+        root_->AddItem(VStack(
+            Title(ImgViewerString(ImgViewerStringId::AppName)),
+            Muted(ImgViewerString(ImgViewerStringId::AboutDescription)),
+            Muted(ImgViewerString(ImgViewerStringId::DevelopmentBuild)),
+            Section(
                 ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
                 std::move(notice_box))));
     }

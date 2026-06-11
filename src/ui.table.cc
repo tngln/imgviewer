@@ -30,11 +30,11 @@ D2D1_COLOR_F WithOpacity(D2D1_COLOR_F color, float opacity)
 Table::Table(UiElementMetadata metadata) : UiElement(metadata)
 {
     text_editor_ = static_cast<TextBox*>(AddChild(std::make_unique<TextBox>(
-        UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::TableCellEditor)),
+        UiMetadata(UiElementRole::Edit, ImgViewerString(ImgViewerStringId::TableCellEditor)),
         L"")));
     text_editor_->SetHitTestVisible(false);
     dropdown_editor_ = static_cast<Dropdown*>(AddChild(std::make_unique<Dropdown>(
-        UiMetadata(UiElementRole::ComboBox, kUiActionNone, ImgViewerString(ImgViewerStringId::TableCellDropdown)),
+        UiMetadata(UiElementRole::ComboBox, ImgViewerString(ImgViewerStringId::TableCellDropdown)),
         std::vector<DropdownOption>{})));
     dropdown_editor_->SetHitTestVisible(false);
 }

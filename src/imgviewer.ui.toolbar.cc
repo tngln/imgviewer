@@ -142,7 +142,7 @@ constexpr size_t ImgViewerUiToolbar::ButtonIndex(ButtonKey button)
 ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
 {
     button_panel_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::ToolbarButtons), false, false),
+        UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::ToolbarButtons), false, false),
         ui_layout::StackDirection::Horizontal)));
     button_panel_->SetGap(ui_theme::metrics::kToolbarButtonGap);
     for (const ButtonSpec& spec : kButtonSpecs) {
@@ -162,7 +162,6 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
 
     drag_handle_ = root.AddChild(std::make_unique<UiElement>(UiMetadata(
         UiElementRole::Pane,
-        kUiActionNone,
         ImgViewerString(ImgViewerStringId::ToolbarDragHandle),
         false,
         false)));

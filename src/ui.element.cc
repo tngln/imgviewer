@@ -41,6 +41,35 @@ UiElementMetadata MakeUiElementMetadata(
 
 UiElementMetadata UiMetadata(
     UiElementRole role,
+    const wchar_t* name,
+    bool is_control,
+    bool is_content)
+{
+    return UiMetadata(role, kUiActionNone, name, is_control, is_content);
+}
+
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    bool is_control,
+    bool is_content)
+{
+    return UiMetadata(role, kUiActionNone, name, tooltip, is_control, is_content);
+}
+
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control,
+    bool is_content)
+{
+    return UiMetadata(role, kUiActionNone, name, kUiTooltipFromName, is_control, is_content);
+}
+
+UiElementMetadata UiMetadata(
+    UiElementRole role,
     UiAction action,
     const wchar_t* name,
     bool is_control,
@@ -65,6 +94,46 @@ UiElementMetadata UiMetadata(
         tooltip,
         is_control,
         is_content);
+}
+
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control,
+    bool is_content)
+{
+    return UiMetadata(role, action, name, name, is_control, is_content);
+}
+
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    bool is_control,
+    bool is_content)
+{
+    return UiRootMetadata(role, kUiActionNone, name, is_control, is_content);
+}
+
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    const wchar_t* tooltip,
+    bool is_control,
+    bool is_content)
+{
+    return UiRootMetadata(role, kUiActionNone, name, tooltip, is_control, is_content);
+}
+
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control,
+    bool is_content)
+{
+    return UiRootMetadata(role, kUiActionNone, name, kUiTooltipFromName, is_control, is_content);
 }
 
 UiElementMetadata UiRootMetadata(
@@ -93,6 +162,17 @@ UiElementMetadata UiRootMetadata(
         tooltip,
         is_control,
         is_content);
+}
+
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
+    UiTooltipFromNameTag,
+    bool is_control,
+    bool is_content)
+{
+    return UiRootMetadata(role, action, name, name, is_control, is_content);
 }
 
 UiElement::UiElement(UiElementMetadata metadata) : metadata_(metadata) {}

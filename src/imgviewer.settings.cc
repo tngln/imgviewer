@@ -143,20 +143,10 @@ public:
     explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
     {
         auto scroll_panel = std::make_unique<ScrollPanel>(
-            UiMetadata(
-                UiElementRole::Pane,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::Settings),
-                ImgViewerString(ImgViewerStringId::Settings),
-                false,
-                true));
+            UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), kUiTooltipFromName, false, true));
         scroll_panel->SetScrollStep(42.0f);
         auto root_panel = std::make_unique<StackPanel>(
-            UiRootMetadata(
-                UiElementRole::Pane,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::Settings),
-                ImgViewerString(ImgViewerStringId::Settings)));
+            UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), kUiTooltipFromName));
         root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, 0.0f});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
@@ -305,12 +295,12 @@ public:
 private:
     static UiElementMetadata PaneMetadata()
     {
-        return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", false, false);
+        return UiMetadata(UiElementRole::Pane, L"", false, false);
     }
 
     static UiElementMetadata LabelMetadata(const wchar_t* label)
     {
-        return UiMetadata(UiElementRole::Text, kUiActionNone, label, false, false);
+        return UiMetadata(UiElementRole::Text, label, false, false);
     }
 
     StackPanel* AddSection(ImgViewerStringId label, float gap = ui_theme::metrics::kStandardGap)
@@ -329,11 +319,7 @@ private:
     {
         const BooleanSettingSpec& spec = kBooleanSettingSpecs[index];
         auto checkbox = std::make_unique<Checkbox>(
-            UiMetadata(
-                UiElementRole::CheckBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(spec.label),
-                ImgViewerString(spec.label)),
+            UiMetadata(UiElementRole::CheckBox, ImgViewerString(spec.label), kUiTooltipFromName),
             ImgViewerString(spec.label),
             BooleanSettingValue(spec));
         Checkbox* result = section->AddItem(std::move(checkbox));
@@ -345,11 +331,7 @@ private:
     {
         const SliderSettingSpec& spec = kSliderSettingSpecs[index];
         auto slider = std::make_unique<SliderRow>(
-            UiMetadata(
-                UiElementRole::Slider,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(spec.label),
-                ImgViewerString(spec.label)),
+            UiMetadata(UiElementRole::Slider, ImgViewerString(spec.label), kUiTooltipFromName),
             spec.minimum,
             spec.maximum,
             draft_.*(spec.field),
@@ -377,11 +359,7 @@ private:
     Dropdown* AddLanguageDropdown(StackPanel* section)
     {
         auto dropdown = std::make_unique<Dropdown>(
-            UiMetadata(
-                UiElementRole::ComboBox,
-                UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::Language),
-                ImgViewerString(ImgViewerStringId::Language)),
+            UiMetadata(UiElementRole::ComboBox, ImgViewerString(ImgViewerStringId::Language), kUiTooltipFromName),
             std::vector<DropdownOption>{
                 DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
                 DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
@@ -393,7 +371,7 @@ private:
     Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text)
     {
         return static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, name),
+            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, kUiTooltipFromName),
             icon,
             text)));
     }
@@ -402,7 +380,7 @@ private:
     {
         // Title
         root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::Settings), false, false),
+            UiMetadata(UiElementRole::Text, ImgViewerString(ImgViewerStringId::Settings), false, false),
             ImgViewerString(ImgViewerStringId::Settings), LabelStyle::Title), 17.0f);
 
         StackPanel* language_section = AddSection(ImgViewerStringId::Language, ui_theme::metrics::kSmallGap);
@@ -411,12 +389,10 @@ private:
         StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, 3.0f);
         AddCheckboxSetting(window_size_section, kRememberWindowSizeSetting);
         remember_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::RememberLastSize), ImgViewerString(ImgViewerStringId::RememberLastSize)),
+            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::RememberLastSize), kUiTooltipFromName),
             ImgViewerString(ImgViewerStringId::RememberLastSize), draft_.remember_window_size));
         default_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::UseDefaultSize), ImgViewerString(ImgViewerStringId::UseDefaultSize)),
+            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::UseDefaultSize), kUiTooltipFromName),
             ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
 
         StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering);
@@ -425,12 +401,10 @@ private:
             ImgViewerString(ImgViewerStringId::InitialImageView),
             LabelStyle::Muted));
         initial_fit_window_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::FitWindow), ImgViewerString(ImgViewerStringId::FitWindow)),
+            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::FitWindow), kUiTooltipFromName),
             ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
         initial_actual_size_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::ActualSize), ImgViewerString(ImgViewerStringId::ActualSize)),
+            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::ActualSize), kUiTooltipFromName),
             ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
         AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
         AddCheckboxSetting(image_section, kCheckerboardBackgroundSetting);
@@ -450,14 +424,12 @@ private:
 
         StackPanel* filter_section = AddSection(ImgViewerStringId::ShortcutFilter, ui_theme::metrics::kSmallGap);
         filter_box_ = filter_section->AddItem(std::make_unique<TextBox>(
-            UiMetadata(UiElementRole::Edit, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::ShortcutFilter), ImgViewerString(ImgViewerStringId::ShortcutFilter)),
+            UiMetadata(UiElementRole::Edit, ImgViewerString(ImgViewerStringId::ShortcutFilter), kUiTooltipFromName),
             ImgViewerString(ImgViewerStringId::FilterActions)));
 
         StackPanel* shortcuts_section = AddSection(ImgViewerStringId::ActionShortcuts, 8.0f);
         action_table_ = shortcuts_section->AddItem(std::make_unique<Table>(
-            UiMetadata(UiElementRole::Pane, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::ActionShortcuts), ImgViewerString(ImgViewerStringId::ActionShortcuts))));
+            UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::ActionShortcuts), kUiTooltipFromName)));
         action_table_->SetColumns(std::vector<TableColumn>{
             TableColumn{ImgViewerString(ImgViewerStringId::Action), 170.0f, false},
             TableColumn{ImgViewerString(ImgViewerStringId::Shortcut), 0.0f, true},

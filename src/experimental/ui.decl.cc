@@ -48,12 +48,12 @@ void BorderedStack::Render(const UiDrawContext& context, UiRootState state) cons
 
 UiElementMetadata PaneMetadata()
 {
-    return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", false, false);
+    return UiMetadata(UiElementRole::Pane, L"", false, false);
 }
 
 UiElementMetadata TextMetadata(const wchar_t* text)
 {
-    return UiMetadata(UiElementRole::Text, kUiActionNone, text, false, false);
+    return UiMetadata(UiElementRole::Text, text, false, false);
 }
 
 std::unique_ptr<Label> Title(const wchar_t* text)
@@ -78,7 +78,7 @@ std::unique_ptr<::Button> ActionButton(
     const wchar_t* text)
 {
     return std::make_unique<::Button>(
-        UiMetadata(UiElementRole::Button, action, name, name),
+        UiMetadata(UiElementRole::Button, action, name, kUiTooltipFromName),
         icon,
         text);
 }
@@ -89,7 +89,7 @@ std::unique_ptr<::Button> Button(
     const wchar_t* text)
 {
     return std::make_unique<::Button>(
-        UiMetadata(UiElementRole::Button, kUiActionNone, name, name),
+        UiMetadata(UiElementRole::Button, name, kUiTooltipFromName),
         icon,
         text);
 }
@@ -99,7 +99,7 @@ std::unique_ptr<::Checkbox> Toggle(
     bool checked)
 {
     return std::make_unique<::Checkbox>(
-        UiMetadata(UiElementRole::CheckBox, kUiActionNone, text, text),
+        UiMetadata(UiElementRole::CheckBox, text, kUiTooltipFromName),
         text,
         checked);
 }
@@ -113,7 +113,7 @@ std::unique_ptr<::SliderRow> SliderField(
     int large_step)
 {
     return std::make_unique<::SliderRow>(
-        UiMetadata(UiElementRole::Slider, kUiActionNone, name, name),
+        UiMetadata(UiElementRole::Slider, name, kUiTooltipFromName),
         minimum,
         maximum,
         value,

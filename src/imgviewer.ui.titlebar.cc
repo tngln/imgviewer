@@ -82,7 +82,7 @@ constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
 ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
 {
     caption_buttons_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::CaptionButtons), false, false),
+        UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::CaptionButtons), false, false),
         ui_layout::StackDirection::Horizontal)));
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];

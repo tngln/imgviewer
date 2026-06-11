@@ -43,7 +43,7 @@ ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
     toolstrip_->SetExtraItemCount(1);
 
     auto label = std::make_unique<Label>(
-        UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::AnimationFrame), false, true),
+        UiMetadata(UiElementRole::Text, ImgViewerString(ImgViewerStringId::AnimationFrame), false, true),
         L"",
         LabelStyle::Muted);
     frame_label_ = toolstrip_->Panel()->AddItem(std::move(label), kFrameLabelWidth);

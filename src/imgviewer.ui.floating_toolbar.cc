@@ -14,7 +14,7 @@ ImgViewerFloatingToolbar::ImgViewerFloatingToolbar(
     const wchar_t* name)
 {
     panel_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, name, false, false),
+        UiMetadata(UiElementRole::Pane, name, false, false),
         ui_layout::StackDirection::Horizontal)));
     panel_->SetGap(ui_theme::metrics::kToolbarButtonGap);
 }

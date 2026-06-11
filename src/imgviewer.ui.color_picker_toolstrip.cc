@@ -100,7 +100,7 @@ ImgViewerUiColorPickerToolstrip::ImgViewerUiColorPickerToolstrip(UiElement& root
     toolstrip_->SetExtraItemCount(1);
 
     auto value = std::make_unique<ReadOnlyColorValue>(
-        UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::ColorValue)));
+        UiMetadata(UiElementRole::Edit, ImgViewerString(ImgViewerStringId::ColorValue)));
     value_element_ = toolstrip_->Panel()->AddItem(std::move(value), kValueWidth);
 
     SetScalePercent(125);
