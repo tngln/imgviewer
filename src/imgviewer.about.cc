@@ -1,7 +1,6 @@
 #include "imgviewer.about.hpp"
 
 #include <array>
-#include <cwchar>
 #include <memory>
 
 #include <d2d1helper.h>
@@ -12,6 +11,8 @@
 #include "imgviewer.action.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "ui.label.hpp"
+#include "ui.panel.hpp"
 #include "win32.util.hpp"
 #include "ui.draw.hpp"
 #include "ui.theme.hpp"
@@ -25,22 +26,10 @@ constexpr int kAboutInitialHeight = 260;
 constexpr int kAboutMinClientWidth = 240;
 constexpr int kAboutMinClientHeight = 210;
 constexpr float kAboutSidePadding = 14.0f;
-
-constexpr float kAboutHeaderTop = 12.0f;
-constexpr float kAboutHeaderHeight = 17.0f;
-constexpr float kAboutSubtitleRow1Top = 33.0f;
-constexpr float kAboutSubtitleHeight = 14.0f;
-constexpr float kAboutSubtitleRow2Top = 51.0f;
-constexpr float kAboutSectionTop = 79.0f;
-constexpr float kAboutSectionHeight = 14.0f;
-constexpr float kAboutBorderTop = 97.0f;
-constexpr float kAboutFooterHeight = 10.0f;
-constexpr float kAboutNoticeStartY = 105.0f;
-constexpr float kAboutNoticeIndent = 22.0f;
-constexpr float kAboutNoticeLineHeight = 12.0f;
-constexpr float kAboutNoticeNameGap = 13.0f;
-constexpr float kAboutNoticeDetailGap = 12.0f;
-constexpr float kAboutNoticeEntryGap = 20.0f;
+constexpr float kAboutTopPadding = 12.0f;
+constexpr float kAboutSectionGap = 10.0f;
+constexpr float kAboutNoticeInnerPadding = 8.0f;
+constexpr float kAboutNoticeEntryGap = 7.0f;
 
 struct NoticeLine final {
     const wchar_t* name;
@@ -54,74 +43,100 @@ constexpr std::array<NoticeLine, 3> kNoticeLines{{
     {L"Windows Implementation Libraries", L"Microsoft Corporation - MIT License", L"third_parties/wil/LICENSE"},
 }};
 
+UiElementMetadata PaneMetadata(const wchar_t* automation_id)
+{
+    return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", automation_id, false, false);
+}
+
+UiElementMetadata LabelMetadata(const wchar_t* label, const wchar_t* automation_id)
+{
+    return UiMetadata(UiElementRole::Text, kUiActionNone, label, L"", automation_id, false, false);
+}
+
+class BorderedPanel final : public UiElement {
+public:
+    explicit BorderedPanel(UiElementMetadata metadata) : UiElement(metadata)
+    {
+        panel_ = static_cast<StackPanel*>(AddChild(std::make_unique<StackPanel>(PaneMetadata(L"about-notices-box-content"))));
+    }
+
+    void SetGap(float gap)
+    {
+        panel_->SetGap(gap);
+    }
+
+    void SetPadding(UiThickness padding)
+    {
+        panel_->SetPadding(padding);
+    }
+
+    template <typename T>
+    T* AddItem(std::unique_ptr<T> child, float fixed_main_size = 0.0f)
+    {
+        return panel_->AddItem(std::move(child), fixed_main_size);
+    }
+
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override
+    {
+        return panel_->Measure(context, available_size);
+    }
+
+    void Arrange(D2D1_RECT_F final_rect) override
+    {
+        UiElement::Arrange(final_rect);
+        panel_->Arrange(final_rect);
+    }
+
+    void Render(const UiDrawContext& context, UiRootState state) const override
+    {
+        const UiDraw draw(context);
+        draw.DrawRect(Rect(), ui_theme::color::kBorder);
+        panel_->Render(context, state);
+    }
+
+private:
+    StackPanel* panel_ = nullptr;
+};
+
 class AboutUi final : public UiRoot {
 public:
     AboutUi()
     {
-        root_ = std::make_unique<UiElement>(
+        auto root_panel = std::make_unique<StackPanel>(
             UiRootMetadata(
                 UiElementRole::Pane,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(ImgViewerStringId::AboutImgViewer),
                 ImgViewerString(ImgViewerStringId::AboutImgViewer),
                 L"about-root"));
+        root_panel->SetPadding(UiThickness{kAboutSidePadding, kAboutTopPadding, kAboutSidePadding, 0.0f});
+        root_panel->SetGap(0.0f);
+        root_ = root_panel.get();
+        root_owner_ = std::move(root_panel);
+
+        BuildUiTree();
     }
 
-    UiElement* Root() override { return root_.get(); }
-    const UiElement* Root() const override { return root_.get(); }
+    UiElement* Root() override { return root_owner_.get(); }
+    const UiElement* Root() const override { return root_owner_.get(); }
     const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::AboutImgViewer); }
 
-    D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F available_size) override { return available_size; }
+    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
+    {
+        root_owner_->Measure(context, available_size);
+        return available_size;
+    }
 
     void Arrange(D2D1_RECT_F final_rect) override
     {
-        root_->Arrange(final_rect);
+        root_owner_->Arrange(final_rect);
     }
 
-    void Render(const UiDrawContext& context, UiRootState) override
+    void Render(const UiDrawContext& context, UiRootState state) override
     {
-        const D2D1_SIZE_F size = context.viewport_size;
-
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(ImgViewerString(ImgViewerStringId::AppName), D2D1::RectF(kAboutSidePadding, kAboutHeaderTop, size.width - kAboutSidePadding, kAboutHeaderTop + kAboutHeaderHeight), ui_theme::color::kBodyText);
-        draw.DrawBodyText(
-            ImgViewerString(ImgViewerStringId::AboutDescription),
-            D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow1Top, size.width - kAboutSidePadding, kAboutSubtitleRow1Top + kAboutSubtitleHeight),
-            ui_theme::color::kMutedText);
-        draw.DrawBodyText(
-            ImgViewerString(ImgViewerStringId::DevelopmentBuild),
-            D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow2Top, size.width - kAboutSidePadding, kAboutSubtitleRow2Top + kAboutSubtitleHeight),
-            ui_theme::color::kMutedText);
-
-        draw.DrawBodyText(
-            ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
-            D2D1::RectF(kAboutSidePadding, kAboutSectionTop, size.width - kAboutSidePadding, kAboutSectionTop + kAboutSectionHeight),
-            ui_theme::color::kBodyText);
-        draw.DrawRect(D2D1::RectF(kAboutSidePadding, kAboutBorderTop, size.width - kAboutSidePadding, size.height - kAboutFooterHeight), ui_theme::color::kBorder);
-
-        float y = kAboutNoticeStartY;
-        for (const NoticeLine& line : kNoticeLines) {
-            draw.DrawBodyText(
-                line.name,
-                D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
-                ui_theme::color::kBodyText,
-                D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += kAboutNoticeNameGap;
-            draw.DrawBodyText(
-                line.detail,
-                D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
-                ui_theme::color::kMutedText,
-                D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += kAboutNoticeDetailGap;
-            draw.DrawBodyText(
-                line.license_path,
-                D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
-                ui_theme::color::kMutedText,
-                D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
-            y += kAboutNoticeEntryGap;
-        }
-
+        root_owner_->Render(context, state);
     }
 
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override
@@ -133,7 +148,47 @@ public:
     }
 
 private:
-    std::unique_ptr<UiElement> root_;
+    void BuildUiTree()
+    {
+        root_->AddItem(std::make_unique<Label>(
+            LabelMetadata(ImgViewerString(ImgViewerStringId::AppName), L"about-app-name"),
+            ImgViewerString(ImgViewerStringId::AppName),
+            LabelStyle::Title));
+        root_->AddItem(std::make_unique<Label>(
+            LabelMetadata(ImgViewerString(ImgViewerStringId::AboutDescription), L"about-description"),
+            ImgViewerString(ImgViewerStringId::AboutDescription),
+            LabelStyle::Muted));
+        root_->AddItem(std::make_unique<Label>(
+            LabelMetadata(ImgViewerString(ImgViewerStringId::DevelopmentBuild), L"about-development-build"),
+            ImgViewerString(ImgViewerStringId::DevelopmentBuild),
+            LabelStyle::Muted));
+
+        auto notices_section = std::make_unique<StackPanel>(PaneMetadata(L"about-notices-section"));
+        notices_section->SetPadding(UiThickness{0.0f, kAboutSectionGap, 0.0f, 0.0f});
+        notices_section->SetGap(kAboutSectionGap);
+        notices_section->AddItem(std::make_unique<Label>(
+            LabelMetadata(ImgViewerString(ImgViewerStringId::ThirdPartyNotices), L"about-notices-title"),
+            ImgViewerString(ImgViewerStringId::ThirdPartyNotices)));
+
+        auto notice_box = std::make_unique<BorderedPanel>(PaneMetadata(L"about-notices-box"));
+        notice_box->SetPadding(UiThickness{
+            kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding});
+        notice_box->SetGap(kAboutNoticeEntryGap);
+        for (const NoticeLine& line : kNoticeLines) {
+            auto entry = std::make_unique<StackPanel>(PaneMetadata(L"about-notice-entry"));
+            entry->SetGap(0.0f);
+            entry->AddItem(std::make_unique<Label>(LabelMetadata(line.name, L"about-notice-name"), line.name));
+            entry->AddItem(std::make_unique<Label>(LabelMetadata(line.detail, L"about-notice-detail"), line.detail, LabelStyle::Muted));
+            entry->AddItem(std::make_unique<Label>(LabelMetadata(line.license_path, L"about-notice-license"), line.license_path, LabelStyle::Muted));
+            notice_box->AddItem(std::move(entry));
+        }
+
+        notices_section->AddItem(std::move(notice_box));
+        root_->AddItem(std::move(notices_section));
+    }
+
+    std::unique_ptr<UiElement> root_owner_;
+    StackPanel* root_ = nullptr;
 };
 
 struct AboutWindowContext final : public UiWindowDelegate {
