@@ -25,8 +25,6 @@ public:
     void Arrange(D2D1_RECT_F final_rect, D2D1_RECT_F anchor_toolbar_rect);
     void Render(const UiDrawContext& draw_context, UiRootState state);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
-    bool IsValueElement(UiElementId id) const;
-    const wchar_t* ValueText() const;
 
 private:
     std::unique_ptr<ImgViewerUiToolStrip> toolstrip_;

@@ -138,3 +138,23 @@ private:
     bool visual_danger_ = false;
     std::vector<std::unique_ptr<UiElement>> children_;
 };
+
+class UiValueAccessible {
+public:
+    virtual ~UiValueAccessible() = default;
+
+    virtual const wchar_t* AccessibilityValue() const = 0;
+    virtual bool AccessibilityIsReadOnly() const { return false; }
+};
+
+class UiRangeAccessible {
+public:
+    virtual ~UiRangeAccessible() = default;
+
+    virtual double AccessibilityRangeValue() const = 0;
+    virtual double AccessibilityRangeMinimum() const = 0;
+    virtual double AccessibilityRangeMaximum() const = 0;
+    virtual double AccessibilityRangeSmallChange() const { return 1.0; }
+    virtual double AccessibilityRangeLargeChange() const { return 10.0; }
+    virtual HRESULT AccessibilitySetRangeValue(double) { return E_NOTIMPL; }
+};

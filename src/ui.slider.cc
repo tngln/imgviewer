@@ -41,6 +41,44 @@ int Slider::Value() const
     return value_;
 }
 
+void Slider::SetAccessibilityValueChangedHandler(std::function<void(int)> handler)
+{
+    accessibility_value_changed_handler_ = std::move(handler);
+}
+
+double Slider::AccessibilityRangeValue() const
+{
+    return static_cast<double>(value_);
+}
+
+double Slider::AccessibilityRangeMinimum() const
+{
+    return static_cast<double>(minimum_);
+}
+
+double Slider::AccessibilityRangeMaximum() const
+{
+    return static_cast<double>(maximum_);
+}
+
+double Slider::AccessibilityRangeSmallChange() const
+{
+    return static_cast<double>(small_step_);
+}
+
+double Slider::AccessibilityRangeLargeChange() const
+{
+    return static_cast<double>(large_step_);
+}
+
+HRESULT Slider::AccessibilitySetRangeValue(double value)
+{
+    if (SetValue(static_cast<int>(value + 0.5)) && accessibility_value_changed_handler_) {
+        accessibility_value_changed_handler_(value_);
+    }
+    return S_OK;
+}
+
 bool Slider::SetValue(int value)
 {
     const int clamped = (std::clamp)(value, minimum_, maximum_);

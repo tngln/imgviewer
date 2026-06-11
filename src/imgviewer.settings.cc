@@ -192,72 +192,6 @@ public:
     const UiElement* Root() const override { return root_owner_.get(); }
     const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::Settings); }
 
-    const wchar_t* ElementValue(UiElementId id) const override
-    {
-        if (id == filter_box_->Id()) {
-            return filter_box_->Text().c_str();
-        }
-        if (const SliderControl* control = SliderControlForId(id)) {
-            return control->value_text.c_str();
-        }
-        if (language_dropdown_ != nullptr && id == language_dropdown_->Id()) {
-            return ImgViewerString(
-                draft_.language == ImgViewerLanguage::SimplifiedChinese ?
-                    ImgViewerStringId::SimplifiedChineseLanguage :
-                    ImgViewerStringId::EnglishLanguage);
-        }
-        return L"";
-    }
-
-    double ElementRangeValue(UiElementId id) const override
-    {
-        if (const SliderControl* control = SliderControlForId(id)) {
-            return static_cast<double>(control->row->Value());
-        }
-        return 0.0;
-    }
-
-    double ElementRangeMinimum(UiElementId id) const override
-    {
-        if (const SliderControl* control = SliderControlForId(id)) {
-            return static_cast<double>(control->spec->minimum);
-        }
-        return 0.0;
-    }
-
-    double ElementRangeMaximum(UiElementId id) const override
-    {
-        if (const SliderControl* control = SliderControlForId(id)) {
-            return static_cast<double>(control->spec->maximum);
-        }
-        return 0.0;
-    }
-
-    double ElementRangeSmallChange(UiElementId id) const override
-    {
-        if (const SliderControl* control = SliderControlForId(id)) {
-            return static_cast<double>(control->spec->small_step);
-        }
-        return 1.0;
-    }
-
-    double ElementRangeLargeChange(UiElementId id) const override
-    {
-        if (const SliderControl* control = SliderControlForId(id)) {
-            return static_cast<double>(control->spec->large_step);
-        }
-        return 10.0;
-    }
-
-    HRESULT SetElementRangeValue(UiElementId id, double value) override
-    {
-        if (SliderControl* control = SliderControlForId(id)) {
-            SetSliderValue(*control, static_cast<int>(value + 0.5));
-            return S_OK;
-        }
-        return E_NOTIMPL;
-    }
-
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
     {
         const float footer_height = kSettingsFooterButtonHeight + kSettingsFooterBottomPadding;
@@ -429,6 +363,9 @@ private:
             spec.large_step);
         SliderRow* result = section->AddItem(std::move(slider));
         slider_controls_[index] = SliderControl{.spec = &spec, .row = result};
+        result->GetSlider()->SetAccessibilityValueChangedHandler([this, index](int value) {
+            SetSliderValue(index, value);
+        });
         UpdateSliderText(slider_controls_[index]);
         return result;
     }
@@ -644,16 +581,6 @@ private:
     SliderControl* SliderControlForId(UiElementId id)
     {
         for (SliderControl& control : slider_controls_) {
-            if (control.row != nullptr && control.row->GetSlider()->Id() == id) {
-                return &control;
-            }
-        }
-        return nullptr;
-    }
-
-    const SliderControl* SliderControlForId(UiElementId id) const
-    {
-        for (const SliderControl& control : slider_controls_) {
             if (control.row != nullptr && control.row->GetSlider()->Id() == id) {
                 return &control;
             }

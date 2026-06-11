@@ -309,19 +309,6 @@ void ImgViewerUi::SetActionEnabledRecursive(UiElement* element, UiAction action,
     }
 }
 
-const wchar_t* ImgViewerUi::ElementValue(UiElementId id) const
-{
-    if (color_picker_toolstrip_.IsValueElement(id)) {
-        return color_picker_toolstrip_.ValueText();
-    }
-    return L"";
-}
-
-bool ImgViewerUi::IsElementReadOnly(UiElementId id) const
-{
-    return color_picker_toolstrip_.IsValueElement(id);
-}
-
 void ImgViewerUi::SetInfoPanelState(ImgViewerUiInfoPanelState state)
 {
     info_panel_.SetState(std::move(state));

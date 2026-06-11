@@ -1,11 +1,12 @@
 #pragma once
 
+#include <functional>
 #include <string>
 
 #include "ui.element.hpp"
 #include "ui.events.hpp"
 
-class Slider final : public UiElement {
+class Slider final : public UiElement, public UiRangeAccessible {
 public:
     Slider(UiElementMetadata metadata, int minimum, int maximum, int value, int small_step, int large_step);
 
@@ -13,6 +14,13 @@ public:
     int Maximum() const;
     int Value() const;
     bool SetValue(int value);
+    void SetAccessibilityValueChangedHandler(std::function<void(int)> handler);
+    double AccessibilityRangeValue() const override;
+    double AccessibilityRangeMinimum() const override;
+    double AccessibilityRangeMaximum() const override;
+    double AccessibilityRangeSmallChange() const override;
+    double AccessibilityRangeLargeChange() const override;
+    HRESULT AccessibilitySetRangeValue(double value) override;
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
     void Render(const UiDrawContext& context, UiRootState state) const override;
@@ -31,6 +39,7 @@ private:
     int small_step_ = 1;
     int large_step_ = 10;
     bool dragging_ = false;
+    std::function<void(int)> accessibility_value_changed_handler_;
 };
 
 // Horizontal composite: [Slider] [gap] [value text].

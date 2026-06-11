@@ -266,7 +266,14 @@ UiElementId UiController::HitTest(D2D1_POINT_2F point) const
     return root_->HitTest(point);
 }
 
-const UiElement* UiController::FindAccessibleElement(UiElementId id) const
+UiElement* UiController::AccessibleElement(UiElementId id)
+{
+    UiElement* ui_root = root_->Root();
+    UiElement* element = ui_root->FindById(id);
+    return element != nullptr && element != ui_root ? element : nullptr;
+}
+
+const UiElement* UiController::AccessibleElement(UiElementId id) const
 {
     const UiElement* ui_root = root_->Root();
     const UiElement* element = ui_root->FindById(id);
@@ -275,7 +282,7 @@ const UiElement* UiController::FindAccessibleElement(UiElementId id) const
 
 const UiElementMetadata* UiController::MetadataForElement(UiElementId id) const
 {
-    const UiElement* element = FindAccessibleElement(id);
+    const UiElement* element = AccessibleElement(id);
     return element != nullptr ? &element->Metadata() : nullptr;
 }
 
@@ -298,57 +305,17 @@ const UiElementMetadata* UiController::ElementMetadata(UiElementId id) const
 
 D2D1_RECT_F UiController::ElementRect(UiElementId id) const
 {
-    const UiElement* element = FindAccessibleElement(id);
+    const UiElement* element = AccessibleElement(id);
     return element != nullptr ? element->Rect() : D2D1::RectF();
 }
 
 bool UiController::IsElementEnabled(UiElementId id) const
 {
-    const UiElement* element = FindAccessibleElement(id);
+    const UiElement* element = AccessibleElement(id);
     return element != nullptr && element->IsEnabled();
 }
 
 bool UiController::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
     return root_->IsPointInCaptionDragArea(point);
-}
-
-const wchar_t* UiController::ElementValue(UiElementId id) const
-{
-    return root_->ElementValue(id);
-}
-
-bool UiController::IsElementReadOnly(UiElementId id) const
-{
-    return root_->IsElementReadOnly(id);
-}
-
-double UiController::ElementRangeValue(UiElementId id) const
-{
-    return root_->ElementRangeValue(id);
-}
-
-double UiController::ElementRangeMinimum(UiElementId id) const
-{
-    return root_->ElementRangeMinimum(id);
-}
-
-double UiController::ElementRangeMaximum(UiElementId id) const
-{
-    return root_->ElementRangeMaximum(id);
-}
-
-double UiController::ElementRangeSmallChange(UiElementId id) const
-{
-    return root_->ElementRangeSmallChange(id);
-}
-
-double UiController::ElementRangeLargeChange(UiElementId id) const
-{
-    return root_->ElementRangeLargeChange(id);
-}
-
-HRESULT UiController::SetElementRangeValue(UiElementId id, double value)
-{
-    return root_->SetElementRangeValue(id, value);
 }

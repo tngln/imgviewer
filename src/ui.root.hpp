@@ -28,12 +28,4 @@ public:
         return element != nullptr ? element->Id() : UiElementId::None;
     }
     virtual bool IsPointInCaptionDragArea(D2D1_POINT_2F) const { return false; }
-    virtual const wchar_t* ElementValue(UiElementId) const { return L""; }
-    virtual bool IsElementReadOnly(UiElementId) const { return false; }
-    virtual double ElementRangeValue(UiElementId) const { return 0.0; }
-    virtual double ElementRangeMinimum(UiElementId) const { return 0.0; }
-    virtual double ElementRangeMaximum(UiElementId) const { return 0.0; }
-    virtual double ElementRangeSmallChange(UiElementId) const { return 1.0; }
-    virtual double ElementRangeLargeChange(UiElementId) const { return 10.0; }
-    virtual HRESULT SetElementRangeValue(UiElementId, double) { return E_NOTIMPL; }
 };

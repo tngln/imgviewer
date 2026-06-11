@@ -102,6 +102,24 @@ int ControlTypeForRole(UiElementRole role)
     }
 }
 
+const UiValueAccessible* ValueAccessible(const UiAccessibilitySource* ui, UiElementId id)
+{
+    const UiElement* element = ui != nullptr ? ui->AccessibleElement(id) : nullptr;
+    return dynamic_cast<const UiValueAccessible*>(element);
+}
+
+UiRangeAccessible* RangeAccessible(UiAccessibilitySource* ui, UiElementId id)
+{
+    UiElement* element = ui != nullptr ? ui->AccessibleElement(id) : nullptr;
+    return dynamic_cast<UiRangeAccessible*>(element);
+}
+
+const UiRangeAccessible* RangeAccessible(const UiAccessibilitySource* ui, UiElementId id)
+{
+    const UiElement* element = ui != nullptr ? ui->AccessibleElement(id) : nullptr;
+    return dynamic_cast<const UiRangeAccessible*>(element);
+}
+
 class UiButtonProvider;
 
 class UiRootProvider final :
@@ -451,7 +469,9 @@ public:
     IFACEMETHODIMP get_Value(BSTR* value) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, value);
-        *value = SysAllocString(root_->ui()->ElementValue(id_));
+        const UiValueAccessible* accessible = ValueAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *value = SysAllocString(accessible->AccessibilityValue());
         RETURN_IF_NULL_ALLOC(*value);
         return S_OK;
     }
@@ -459,47 +479,61 @@ public:
     IFACEMETHODIMP get_IsReadOnly(BOOL* is_read_only) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, is_read_only);
-        *is_read_only = root_->ui()->IsElementReadOnly(id_) ? TRUE : FALSE;
+        const UiValueAccessible* accessible = ValueAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *is_read_only = accessible->AccessibilityIsReadOnly() ? TRUE : FALSE;
         return S_OK;
     }
 
     IFACEMETHODIMP SetValue(double value) noexcept override
     {
-        return root_->ui()->SetElementRangeValue(id_, value);
+        UiRangeAccessible* accessible = RangeAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        return accessible->AccessibilitySetRangeValue(value);
     }
 
     IFACEMETHODIMP get_Value(double* value) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, value);
-        *value = root_->ui()->ElementRangeValue(id_);
+        const UiRangeAccessible* accessible = RangeAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *value = accessible->AccessibilityRangeValue();
         return S_OK;
     }
 
     IFACEMETHODIMP get_Maximum(double* maximum) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, maximum);
-        *maximum = root_->ui()->ElementRangeMaximum(id_);
+        const UiRangeAccessible* accessible = RangeAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *maximum = accessible->AccessibilityRangeMaximum();
         return S_OK;
     }
 
     IFACEMETHODIMP get_Minimum(double* minimum) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, minimum);
-        *minimum = root_->ui()->ElementRangeMinimum(id_);
+        const UiRangeAccessible* accessible = RangeAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *minimum = accessible->AccessibilityRangeMinimum();
         return S_OK;
     }
 
     IFACEMETHODIMP get_LargeChange(double* large_change) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, large_change);
-        *large_change = root_->ui()->ElementRangeLargeChange(id_);
+        const UiRangeAccessible* accessible = RangeAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *large_change = accessible->AccessibilityRangeLargeChange();
         return S_OK;
     }
 
     IFACEMETHODIMP get_SmallChange(double* small_change) noexcept override
     {
         RETURN_HR_IF_NULL(E_POINTER, small_change);
-        *small_change = root_->ui()->ElementRangeSmallChange(id_);
+        const UiRangeAccessible* accessible = RangeAccessible(root_->ui(), id_);
+        RETURN_HR_IF_NULL(E_NOTIMPL, accessible);
+        *small_change = accessible->AccessibilityRangeSmallChange();
         return S_OK;
     }
 

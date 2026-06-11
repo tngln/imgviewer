@@ -8,11 +8,7 @@
 #include <wil/com.h>
 
 #include "imgviewer.action.hpp"
-#include "imgviewer.config.hpp"
 #include "imgviewer.strings.hpp"
-#include "imgviewer.ui.action.hpp"
-#include "math.hpp"
-#include "ui.button.hpp"
 #include "ui.theme.hpp"
 
 namespace {
@@ -21,13 +17,23 @@ constexpr wchar_t kCopyIcon[] = L"\xE8C8";
 constexpr float kValueWidth = 84.0f;
 constexpr float kTextPaddingX = 8.0f;
 
-class ReadOnlyColorValue final : public UiElement {
+class ReadOnlyColorValue final : public UiElement, public UiValueAccessible {
 public:
     explicit ReadOnlyColorValue(UiElementMetadata metadata) : UiElement(metadata) {}
 
     void SetText(const wchar_t* text)
     {
         text_ = text != nullptr ? text : L"";
+    }
+
+    const wchar_t* AccessibilityValue() const override
+    {
+        return text_.c_str();
+    }
+
+    bool AccessibilityIsReadOnly() const override
+    {
+        return true;
     }
 
     void Render(const UiDrawContext& context, UiRootState root_state) const override
@@ -147,14 +153,4 @@ void ImgViewerUiColorPickerToolstrip::Render(const UiDrawContext& draw_context, 
 UiEventResult ImgViewerUiColorPickerToolstrip::OnPointerEvent(const UiPointerEvent& event)
 {
     return toolstrip_->OnPointerEvent(event);
-}
-
-bool ImgViewerUiColorPickerToolstrip::IsValueElement(UiElementId id) const
-{
-    return value_element_ != nullptr && value_element_->Id() == id;
-}
-
-const wchar_t* ImgViewerUiColorPickerToolstrip::ValueText() const
-{
-    return display_text_.c_str();
 }

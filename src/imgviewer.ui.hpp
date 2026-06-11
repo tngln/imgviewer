@@ -11,7 +11,6 @@
 #include "ui.root.hpp"
 
 #include "imgviewer.ui.animation_toolbar.hpp"
-#include "imgviewer.edit.hpp"
 #include "imgviewer.ui.color_picker_toolstrip.hpp"
 #include "imgviewer.ui.edit_toolbar.hpp"
 #include "imgviewer.ui.info_panel.hpp"
@@ -47,8 +46,6 @@ public:
     void SetColorPickerActive(bool active);
     void SetToolbarScalePercent(int percent);
     void SetActionEnabled(UiAction action, bool enabled);
-    const wchar_t* ElementValue(UiElementId id) const override;
-    bool IsElementReadOnly(UiElementId id) const override;
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
     void SetAnimationState(ImgViewerAnimationState state);
     void SetEditToolbarState(ImgViewerUiEditToolbarState state);

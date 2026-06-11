@@ -1,6 +1,5 @@
 #include "imgviewer.developer.hpp"
 
-#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>
@@ -75,6 +74,10 @@ public:
             sample_slider_value_,
             1,
             10), 28.0f);
+        sample_slider_->GetSlider()->SetAccessibilityValueChangedHandler([this](int value) {
+            sample_slider_value_ = value;
+            UpdateStateText();
+        });
         editable_table_ = root_->AddItem(std::make_unique<Table>(
             UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::EditableTable), ImgViewerString(ImgViewerStringId::EditableTable), L"developer-editable-table")),
             112.0f);
@@ -223,46 +226,6 @@ public:
             ApplyTableEditCommit();
             return;
         }
-    }
-
-    const wchar_t* ElementValue(UiElementId id) const override
-    {
-        if (id == state_label_->Id()) {
-            return state_text_.c_str();
-        }
-        if (id == sample_slider_->GetSlider()->Id()) {
-            return slider_value_text_.c_str();
-        }
-        if (editable_table_ != nullptr && id == editable_table_->EditorId()) {
-            return L"";
-        }
-        return L"";
-    }
-
-    double ElementRangeValue(UiElementId id) const override
-    {
-        return id == sample_slider_->GetSlider()->Id() ? static_cast<double>(sample_slider_->Value()) : 0.0;
-    }
-
-    double ElementRangeMinimum(UiElementId id) const override
-    {
-        return id == sample_slider_->GetSlider()->Id() ? 0.0 : 0.0;
-    }
-
-    double ElementRangeMaximum(UiElementId id) const override
-    {
-        return id == sample_slider_->GetSlider()->Id() ? 100.0 : 0.0;
-    }
-
-    HRESULT SetElementRangeValue(UiElementId id, double value) override
-    {
-        if (id != sample_slider_->GetSlider()->Id()) {
-            return E_NOTIMPL;
-        }
-        sample_slider_->SetValue(static_cast<int>(value + 0.5));
-        sample_slider_value_ = sample_slider_->Value();
-        UpdateStateText();
-        return S_OK;
     }
 
 private:

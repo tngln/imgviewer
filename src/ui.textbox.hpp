@@ -10,7 +10,7 @@
 #include "ui.menu.hpp"
 #include "ui.text_edit_state.hpp"
 
-class TextBox final : public UiElement {
+class TextBox final : public UiElement, public UiValueAccessible {
 public:
     TextBox(UiElementMetadata metadata, const wchar_t* placeholder);
 
@@ -22,6 +22,8 @@ public:
     bool IsEditing() const;
     D2D1_POINT_2F CaretPoint() const;
     std::vector<MenuItem> ContextMenuItems() const;
+    const wchar_t* AccessibilityValue() const override;
+    bool AccessibilityIsReadOnly() const override;
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
     void Render(const UiDrawContext& context, UiRootState state) const override;

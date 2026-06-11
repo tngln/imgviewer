@@ -35,6 +35,16 @@ const std::wstring& TextBox::Text() const
     return edit_.Text();
 }
 
+const wchar_t* TextBox::AccessibilityValue() const
+{
+    return edit_.Text().c_str();
+}
+
+bool TextBox::AccessibilityIsReadOnly() const
+{
+    return false;
+}
+
 void TextBox::SetText(std::wstring text)
 {
     edit_.SetText(std::move(text));

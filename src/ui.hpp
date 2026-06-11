@@ -34,20 +34,13 @@ public:
     const UiElementMetadata* ElementMetadata(UiElementId id) const override;
     D2D1_RECT_F ElementRect(UiElementId id) const override;
     bool IsElementEnabled(UiElementId id) const override;
-    const wchar_t* ElementValue(UiElementId id) const override;
-    bool IsElementReadOnly(UiElementId id) const override;
-    double ElementRangeValue(UiElementId id) const override;
-    double ElementRangeMinimum(UiElementId id) const override;
-    double ElementRangeMaximum(UiElementId id) const override;
-    double ElementRangeSmallChange(UiElementId id) const override;
-    double ElementRangeLargeChange(UiElementId id) const override;
-    HRESULT SetElementRangeValue(UiElementId id, double value) override;
+    UiElement* AccessibleElement(UiElementId id) override;
+    const UiElement* AccessibleElement(UiElementId id) const override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const;
 
 private:
     UiElementId HitTest(D2D1_POINT_2F point) const;
     const UiElementMetadata* MetadataForElement(UiElementId id) const;
-    const UiElement* FindAccessibleElement(UiElementId id) const;
     UiEventResult DispatchPointerEvent(const UiPointerEvent& event);
     UiEventResult DispatchKeyEvent(const UiKeyEvent& event);
     void ApplyEventResult(const UiEventResult& result, UiElementId target);
