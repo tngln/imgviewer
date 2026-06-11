@@ -294,8 +294,7 @@ void SliderRow::Render(const UiDrawContext& context, UiRootState state) const
     if (!value_text_.empty()) {
         const UiDraw draw(context);
         draw.DrawBodyText(
-            value_text_.c_str(),
-            static_cast<UINT32>(value_text_.size()),
+            value_text_,
             value_rect_,
             ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);

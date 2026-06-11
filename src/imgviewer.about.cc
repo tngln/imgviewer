@@ -84,21 +84,18 @@ public:
 
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(ImgViewerString(ImgViewerStringId::AppName), static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::AppName))), D2D1::RectF(kAboutSidePadding, kAboutHeaderTop, size.width - kAboutSidePadding, kAboutHeaderTop + kAboutHeaderHeight), ui_theme::color::kBodyText);
+        draw.DrawBodyText(ImgViewerString(ImgViewerStringId::AppName), D2D1::RectF(kAboutSidePadding, kAboutHeaderTop, size.width - kAboutSidePadding, kAboutHeaderTop + kAboutHeaderHeight), ui_theme::color::kBodyText);
         draw.DrawBodyText(
             ImgViewerString(ImgViewerStringId::AboutDescription),
-            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::AboutDescription))),
             D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow1Top, size.width - kAboutSidePadding, kAboutSubtitleRow1Top + kAboutSubtitleHeight),
             ui_theme::color::kMutedText);
         draw.DrawBodyText(
             ImgViewerString(ImgViewerStringId::DevelopmentBuild),
-            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::DevelopmentBuild))),
             D2D1::RectF(kAboutSidePadding, kAboutSubtitleRow2Top, size.width - kAboutSidePadding, kAboutSubtitleRow2Top + kAboutSubtitleHeight),
             ui_theme::color::kMutedText);
 
         draw.DrawBodyText(
             ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
-            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::ThirdPartyNotices))),
             D2D1::RectF(kAboutSidePadding, kAboutSectionTop, size.width - kAboutSidePadding, kAboutSectionTop + kAboutSectionHeight),
             ui_theme::color::kBodyText);
         draw.DrawRect(D2D1::RectF(kAboutSidePadding, kAboutBorderTop, size.width - kAboutSidePadding, size.height - kAboutFooterHeight), ui_theme::color::kBorder);
@@ -107,21 +104,18 @@ public:
         for (const NoticeLine& line : kNoticeLines) {
             draw.DrawBodyText(
                 line.name,
-                static_cast<UINT32>(wcslen(line.name)),
                 D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
                 ui_theme::color::kBodyText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
             y += kAboutNoticeNameGap;
             draw.DrawBodyText(
                 line.detail,
-                static_cast<UINT32>(wcslen(line.detail)),
                 D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
             y += kAboutNoticeDetailGap;
             draw.DrawBodyText(
                 line.license_path,
-                static_cast<UINT32>(wcslen(line.license_path)),
                 D2D1::RectF(kAboutNoticeIndent, y, size.width - kAboutNoticeIndent, y + kAboutNoticeLineHeight),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);

@@ -70,8 +70,7 @@ void UiToast::Render(const UiDrawContext& draw_context) const
     draw.FillRoundedRect(rounded_rect, ToastBackgroundColor());
     draw.DrawRoundedRect(rounded_rect, ui_theme::color::kBorder, ui_theme::metrics::kStrokeWidth);
     draw.DrawBodyText(
-        display_text.c_str(),
-        static_cast<UINT32>(display_text.size()),
+        display_text,
         text_rect,
         ui_theme::color::kBodyText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,

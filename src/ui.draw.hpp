@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string_view>
 
 #include <d2d1_1.h>
 #include <dwrite.h>
@@ -27,22 +28,19 @@ public:
     void FillRoundedRect(D2D1_ROUNDED_RECT rect, D2D1_COLOR_F color) const;
     void DrawRoundedRect(D2D1_ROUNDED_RECT rect, D2D1_COLOR_F color, float stroke_width = 1.0f) const;
     void DrawBodyText(
-        const wchar_t* text,
-        UINT32 text_length,
+        std::wstring_view text,
         D2D1_RECT_F rect,
         D2D1_COLOR_F color,
         D2D1_DRAW_TEXT_OPTIONS options = D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE measuring_mode = DWRITE_MEASURING_MODE_NATURAL) const;
     void DrawIconText(
-        const wchar_t* text,
-        UINT32 text_length,
+        std::wstring_view text,
         D2D1_RECT_F rect,
         D2D1_COLOR_F color,
         D2D1_DRAW_TEXT_OPTIONS options = D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
         DWRITE_MEASURING_MODE measuring_mode = DWRITE_MEASURING_MODE_NATURAL) const;
     void DrawText(
-        const wchar_t* text,
-        UINT32 text_length,
+        std::wstring_view text,
         IDWriteTextFormat* text_format,
         D2D1_RECT_F rect,
         D2D1_COLOR_F color,

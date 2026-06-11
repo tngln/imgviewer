@@ -176,8 +176,7 @@ void ImgViewerUiTitleBar::Render(
         static_cast<UINT32>(title_text_.size()),
         math::RectWidth(title_text_rect_));
     draw.DrawBodyText(
-        title_text.c_str(),
-        static_cast<UINT32>(title_text.size()),
+        title_text,
         title_text_rect_,
         ui_theme::color::kBodyText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,

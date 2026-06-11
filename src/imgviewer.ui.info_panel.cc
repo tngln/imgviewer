@@ -263,7 +263,6 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
         rect.bottom - ui_theme::metrics::kSectionPadding);
     draw.DrawBodyText(
         ImgViewerString(ImgViewerStringId::Info),
-        static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Info))),
         D2D1::RectF(content.left, content.top, content.right, content.top + kHeaderHeight),
         ui_theme::color::kBodyText);
 
@@ -345,7 +344,6 @@ void ImgViewerUiInfoPanel::DrawSectionHeader(const UiDraw& draw, const wchar_t* 
     const D2D1_RECT_F panel_rect = panel_ != nullptr ? panel_->Rect() : D2D1::RectF();
     draw.DrawBodyText(
         text,
-        static_cast<UINT32>(std::wcslen(text)),
         D2D1::RectF(
             panel_rect.left + ui_theme::metrics::kSectionPadding,
             top + ui_theme::metrics::kTextRowTopOffset,
@@ -359,7 +357,6 @@ void ImgViewerUiInfoPanel::DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& 
 {
     draw.DrawBodyText(
         ImgViewerString(ImgViewerStringId::Histogram),
-        static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Histogram))),
         D2D1::RectF(rect.left, rect.top, rect.right, rect.top + kHistogramHeaderHeight),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -381,7 +378,6 @@ void ImgViewerUiInfoPanel::DrawHistogram(const UiDraw& draw, const D2D1_RECT_F& 
     if (!state_.has_analysis) {
         draw.DrawBodyText(
             ImgViewerString(ImgViewerStringId::Unavailable),
-            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Unavailable))),
             D2D1::RectF(chart.left + 4.0f, chart.top + 12.0f, chart.right - 4.0f, chart.bottom),
             ui_theme::color::kButtonDisabledContent,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -436,7 +432,6 @@ void ImgViewerUiInfoPanel::DrawHistogramTabs(const UiDraw& draw, const D2D1_RECT
         const wchar_t* text = ChannelText(channel);
         draw.DrawBodyText(
             text,
-            static_cast<UINT32>(std::wcslen(text)),
             D2D1::RectF(rect.left + kTabTextPadding, rect.top + kTabTextTop, rect.right - kTabTextPadding, rect.bottom),
             active ? ChannelColor(channel) : ui_theme::color::kBodyText,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -447,14 +442,12 @@ void ImgViewerUiInfoPanel::DrawColorSummary(const UiDraw& draw, const D2D1_RECT_
 {
     draw.DrawBodyText(
         ImgViewerString(ImgViewerStringId::ColorSummary),
-        static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::ColorSummary))),
         D2D1::RectF(rect.left, rect.top, rect.right, rect.top + kHistogramHeaderHeight),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     if (!state_.has_analysis) {
         draw.DrawBodyText(
             ImgViewerString(ImgViewerStringId::Unavailable),
-            static_cast<UINT32>(std::wcslen(ImgViewerString(ImgViewerStringId::Unavailable))),
             D2D1::RectF(rect.left, rect.top + 12.0f, rect.right, rect.bottom),
             ui_theme::color::kButtonDisabledContent,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -488,14 +481,12 @@ void ImgViewerUiInfoPanel::DrawColorChip(
     draw.DrawRect(chip, ui_theme::color::kBorder);
     draw.DrawBodyText(
         label,
-        static_cast<UINT32>(std::wcslen(label)),
         D2D1::RectF(rect.left, chip.bottom + ui_theme::metrics::kSmallGap, rect.right, chip.bottom + 23.0f),
         ui_theme::color::kMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     const std::wstring hex = HexColor(color);
     draw.DrawBodyText(
-        hex.c_str(),
-        static_cast<UINT32>(hex.size()),
+        hex,
         D2D1::RectF(rect.left, chip.bottom + 25.0f, rect.right, rect.bottom),
         ui_theme::color::kBodyText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);

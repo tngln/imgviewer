@@ -173,7 +173,6 @@ void Table::Render(const UiDrawContext& context, UiRootState state) const
             const D2D1_RECT_F cell = CellRect(header, column, widths);
             draw.DrawBodyText(
                 columns_[column].header,
-                static_cast<UINT32>(std::wcslen(columns_[column].header)),
                 D2D1::RectF(cell.left + cell_padding_, cell.top + ui_theme::metrics::kTextRowTopOffset, cell.right - cell_padding_, cell.bottom),
                 ui_theme::color::kMutedText,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -211,8 +210,7 @@ void Table::Render(const UiDrawContext& context, UiRootState state) const
             const std::wstring& text = column < rows_[row].cells.size() ? rows_[row].cells[column] : empty;
             const D2D1_RECT_F cell = CellRect(row_rect, column, widths);
             draw.DrawBodyText(
-                text.c_str(),
-                static_cast<UINT32>(text.size()),
+                text,
                 D2D1::RectF(cell.left + cell_padding_, cell.top + ui_theme::metrics::kTextRowTopOffset, cell.right - cell_padding_, cell.bottom),
                 text_color,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP);

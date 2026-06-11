@@ -46,7 +46,6 @@ void Label::Render(const UiDrawContext& context, UiRootState) const
     const UiDraw draw(context);
     draw.DrawBodyText(
         text_,
-        static_cast<UINT32>(wcslen(text_)),
         Rect(),
         LabelColor(style_),
         D2D1_DRAW_TEXT_OPTIONS_CLIP | D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);

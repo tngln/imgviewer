@@ -139,7 +139,6 @@ void Button::Render(const UiDrawContext& context, UiRootState root_state) const
         state.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent;
     draw.DrawIconText(
         icon_,
-        static_cast<UINT32>(wcslen(icon_)),
         D2D1::RectF(
             rect.left + ui_theme::offset::kButtonIconLeft,
             rect.top + ui_theme::offset::kButtonIconTop,
@@ -148,7 +147,6 @@ void Button::Render(const UiDrawContext& context, UiRootState root_state) const
         content_color);
     draw.DrawBodyText(
         text_,
-        static_cast<UINT32>(wcslen(text_)),
         D2D1::RectF(
             rect.left + ui_theme::offset::kButtonTextLeft,
             rect.top + ui_theme::metrics::kTextTopOffset,
@@ -244,7 +242,6 @@ void IconButton::Render(const UiDrawContext& context, UiRootState root_state) co
         D2D1::Matrix3x2F::Scale(icon_scale_, icon_scale_, center));
     draw.DrawIconText(
         icon_,
-        static_cast<UINT32>(wcslen(icon_)),
         icon_rect,
         icon_color);
 }

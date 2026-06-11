@@ -183,7 +183,6 @@ void MenuOverlay::Render(const UiDrawContext& context, UiRootState) const
             if (item.checked) {
                 draw.DrawBodyText(
                     L"\x2713",
-                    1,
                     D2D1::RectF(
                         rect.left + kMenuCheckmarkLeft,
                         rect.top + ui_theme::metrics::kHalfPixel,
@@ -197,14 +196,12 @@ void MenuOverlay::Render(const UiDrawContext& context, UiRootState) const
                 : rect.right - kMenuTextRight - kMenuChildMarkWidth - kMenuChildMarkGap;
             draw.DrawBodyText(
                 item.text,
-                static_cast<UINT32>(wcslen(item.text)),
                 D2D1::RectF(rect.left + kMenuTextLeft, rect.top + kMenuTextTopOffset, text_right, rect.bottom),
                 text_color,
                 D2D1_DRAW_TEXT_OPTIONS_CLIP);
             if (!item.children.empty()) {
                 draw.DrawBodyText(
                     L">",
-                    1,
                     D2D1::RectF(rect.right - kMenuTextRight - kMenuChildMarkWidth, rect.top + kMenuTextTopOffset, rect.right, rect.bottom),
                     text_color);
             }

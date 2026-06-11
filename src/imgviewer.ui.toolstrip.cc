@@ -159,7 +159,6 @@ private:
         draw.FillRect(rect, ui_theme::WidgetFillColor(state));
         draw.DrawBodyText(
             label_,
-            static_cast<UINT32>(wcslen(label_)),
             D2D1::RectF(rect.left + 3.0f, rect.top + ui_theme::metrics::kTextTopOffset, rect.right - 3.0f, rect.bottom),
             state.enabled ? ui_theme::color::kBodyText : ui_theme::color::kButtonDisabledContent,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);

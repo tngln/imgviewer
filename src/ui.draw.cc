@@ -56,37 +56,34 @@ void UiDraw::DrawRoundedRect(D2D1_ROUNDED_RECT rect, D2D1_COLOR_F color, float s
 }
 
 void UiDraw::DrawBodyText(
-    const wchar_t* text,
-    UINT32 text_length,
+    std::wstring_view text,
     D2D1_RECT_F rect,
     D2D1_COLOR_F color,
     D2D1_DRAW_TEXT_OPTIONS options,
     DWRITE_MEASURING_MODE measuring_mode) const
 {
-    DrawText(text, text_length, context_.body_text_format, rect, color, options, measuring_mode);
+    DrawText(text, context_.body_text_format, rect, color, options, measuring_mode);
 }
 
 void UiDraw::DrawIconText(
-    const wchar_t* text,
-    UINT32 text_length,
+    std::wstring_view text,
     D2D1_RECT_F rect,
     D2D1_COLOR_F color,
     D2D1_DRAW_TEXT_OPTIONS options,
     DWRITE_MEASURING_MODE measuring_mode) const
 {
-    DrawText(text, text_length, context_.icon_text_format, rect, color, options, measuring_mode);
+    DrawText(text, context_.icon_text_format, rect, color, options, measuring_mode);
 }
 
 void UiDraw::DrawText(
-    const wchar_t* text,
-    UINT32 text_length,
+    std::wstring_view text,
     IDWriteTextFormat* text_format,
     D2D1_RECT_F rect,
     D2D1_COLOR_F color,
     D2D1_DRAW_TEXT_OPTIONS options,
     DWRITE_MEASURING_MODE measuring_mode) const
 {
-    if (text == nullptr || text_format == nullptr) {
+    if (text_format == nullptr) {
         return;
     }
 
@@ -96,8 +93,8 @@ void UiDraw::DrawText(
     }
 
     context_.d2d_context->DrawTextW(
-        text,
-        text_length,
+        text.data(),
+        static_cast<UINT32>(text.size()),
         text_format,
         rect,
         brush.get(),
