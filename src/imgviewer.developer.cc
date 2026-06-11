@@ -7,23 +7,21 @@
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
 
+#include "experimental/ui.decl.hpp"
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "ui.button.hpp"
 #include "ui.draw.hpp"
-#include "ui.label.hpp"
 #include "ui.panel.hpp"
-#include "ui.selection.hpp"
-#include "ui.slider.hpp"
 #include "ui.table.hpp"
 #include "ui.theme.hpp"
 #include "ui.window.hpp"
 #include "win32.util.hpp"
 
 namespace {
+namespace ui_decl = experimental::ui_decl;
 
 constexpr wchar_t kDeveloperClassName[] = L"ImgViewerDeveloperWindow";
 constexpr wchar_t kCloseIcon[] = L"\xE711";
@@ -36,7 +34,6 @@ constexpr float kDeveloperSidePadding = 14.0f;
 constexpr float kDeveloperContentTopPadding = 12.0f;
 constexpr float kDeveloperFooterBottomPadding = 10.0f;
 constexpr float kDeveloperFooterButtonHeight = 24.0f;
-constexpr float kDeveloperFooterButtonGap = 6.0f;
 
 class DeveloperUi final : public UiRoot {
 public:
@@ -49,26 +46,25 @@ public:
         root_ = root.get();
         root_owner_ = std::move(root);
 
-        root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::Developer), L"", L"developer-title", false, true),
+        root_->AddItem(ui_decl::Title(
             ImgViewerString(ImgViewerStringId::Developer),
-            LabelStyle::Title), 20.0f);
-        root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::DeveloperControlLab), L"", L"developer-subtitle", false, true),
+            L"developer-title"), 20.0f);
+        root_->AddItem(ui_decl::Muted(
             ImgViewerString(ImgViewerStringId::DeveloperControlLab),
-            LabelStyle::Muted), 18.0f);
+            L"developer-subtitle"), 18.0f);
 
-        sample_button_ = root_->AddItem(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::DeveloperSampleButton),
-                ImgViewerString(ImgViewerStringId::DeveloperSampleButton), ImgViewerString(ImgViewerStringId::DeveloperSampleButton), L"developer-sample-button"),
+        sample_button_ = root_->AddItem(ui_decl::Button(
+            ImgViewerString(ImgViewerStringId::DeveloperSampleButton),
+            L"developer-sample-button",
             kRefreshIcon,
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton)), 28.0f);
-        sample_checkbox_ = root_->AddItem(std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, kUiActionNone, ImgViewerString(ImgViewerStringId::SampleCheckbox), ImgViewerString(ImgViewerStringId::SampleCheckbox), L"developer-sample-checkbox"),
+        sample_checkbox_ = root_->AddItem(ui_decl::Toggle(
             ImgViewerString(ImgViewerStringId::SampleCheckbox),
+            L"developer-sample-checkbox",
             sample_checked_), 24.0f);
-        sample_slider_ = root_->AddItem(std::make_unique<SliderRow>(
-            UiMetadata(UiElementRole::Slider, kUiActionNone, ImgViewerString(ImgViewerStringId::SampleSlider), ImgViewerString(ImgViewerStringId::SampleSlider), L"developer-sample-slider"),
+        sample_slider_ = root_->AddItem(ui_decl::SliderField(
+            ImgViewerString(ImgViewerStringId::SampleSlider),
+            L"developer-sample-slider",
             0,
             100,
             sample_slider_value_,
@@ -101,14 +97,12 @@ public:
             TableRow{.cells = {L"Numeric value", L"50", L"Number"}},
             TableRow{.cells = {L"Theme token", L"Accent", L"Token"}},
         });
-        state_label_ = root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::DeveloperState), L"", L"developer-state", false, true),
-            L"",
-            LabelStyle::Body), 22.0f);
+        state_label_ = root_->AddItem(ui_decl::Body(L"", L"developer-state"), 22.0f);
 
-        close_button_ = root_->AddItem(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(ImgViewerAction::CloseDeveloper),
-                ImgViewerString(ImgViewerStringId::Close), ImgViewerString(ImgViewerStringId::Close), L"close-developer"),
+        close_button_ = root_->AddItem(ui_decl::ActionButton(
+            UiActionFromImgViewerAction(ImgViewerAction::CloseDeveloper),
+            ImgViewerString(ImgViewerStringId::Close),
+            L"close-developer",
             kCloseIcon,
             ImgViewerString(ImgViewerStringId::Close)), 28.0f);
         UpdateStateText();

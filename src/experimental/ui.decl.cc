@@ -71,6 +71,60 @@ std::unique_ptr<Label> Muted(const wchar_t* text, const wchar_t* automation_id)
     return std::make_unique<Label>(TextMetadata(text, automation_id), text, LabelStyle::Muted);
 }
 
+std::unique_ptr<::Button> ActionButton(
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* automation_id,
+    const wchar_t* icon,
+    const wchar_t* text)
+{
+    return std::make_unique<::Button>(
+        UiMetadata(UiElementRole::Button, action, name, name, automation_id),
+        icon,
+        text);
+}
+
+std::unique_ptr<::Button> Button(
+    const wchar_t* name,
+    const wchar_t* automation_id,
+    const wchar_t* icon,
+    const wchar_t* text)
+{
+    return std::make_unique<::Button>(
+        UiMetadata(UiElementRole::Button, kUiActionNone, name, name, automation_id),
+        icon,
+        text);
+}
+
+std::unique_ptr<::Checkbox> Toggle(
+    const wchar_t* text,
+    const wchar_t* automation_id,
+    bool checked)
+{
+    return std::make_unique<::Checkbox>(
+        UiMetadata(UiElementRole::CheckBox, kUiActionNone, text, text, automation_id),
+        text,
+        checked);
+}
+
+std::unique_ptr<::SliderRow> SliderField(
+    const wchar_t* name,
+    const wchar_t* automation_id,
+    int minimum,
+    int maximum,
+    int value,
+    int small_step,
+    int large_step)
+{
+    return std::make_unique<::SliderRow>(
+        UiMetadata(UiElementRole::Slider, kUiActionNone, name, name, automation_id),
+        minimum,
+        maximum,
+        value,
+        small_step,
+        large_step);
+}
+
 std::unique_ptr<StackPanel> Section(
     const wchar_t* title,
     std::unique_ptr<UiElement> content,

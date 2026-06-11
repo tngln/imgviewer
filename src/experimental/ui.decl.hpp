@@ -4,9 +4,12 @@
 #include <utility>
 
 #include "ui.action.hpp"
+#include "ui.button.hpp"
 #include "ui.element.hpp"
 #include "ui.label.hpp"
 #include "ui.panel.hpp"
+#include "ui.selection.hpp"
+#include "ui.slider.hpp"
 
 namespace experimental::ui_decl {
 
@@ -37,6 +40,29 @@ UiElementMetadata TextMetadata(const wchar_t* text, const wchar_t* automation_id
 std::unique_ptr<Label> Title(const wchar_t* text, const wchar_t* automation_id = L"");
 std::unique_ptr<Label> Body(const wchar_t* text, const wchar_t* automation_id = L"");
 std::unique_ptr<Label> Muted(const wchar_t* text, const wchar_t* automation_id = L"");
+std::unique_ptr<::Button> ActionButton(
+    UiAction action,
+    const wchar_t* name,
+    const wchar_t* automation_id,
+    const wchar_t* icon,
+    const wchar_t* text);
+std::unique_ptr<::Button> Button(
+    const wchar_t* name,
+    const wchar_t* automation_id,
+    const wchar_t* icon,
+    const wchar_t* text);
+std::unique_ptr<::Checkbox> Toggle(
+    const wchar_t* text,
+    const wchar_t* automation_id,
+    bool checked);
+std::unique_ptr<::SliderRow> SliderField(
+    const wchar_t* name,
+    const wchar_t* automation_id,
+    int minimum,
+    int maximum,
+    int value,
+    int small_step,
+    int large_step);
 
 template <typename... Children>
 std::unique_ptr<StackPanel> VStack(Children... children)

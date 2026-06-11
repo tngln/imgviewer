@@ -53,7 +53,6 @@
     X(SaveSettings, "saveSettings", ImgViewerStringId::SaveSettings, false, false) \
     X(OpenDeveloper, "openDeveloper", ImgViewerStringId::Developer, false, false) \
     X(CloseDeveloper, "closeDeveloper", ImgViewerStringId::CloseDeveloper, false, false) \
-    X(DeveloperSampleButton, "developerSampleButton", ImgViewerStringId::DeveloperSampleButton, false, false) \
     X(OpenAbout, "openAbout", ImgViewerStringId::About, false, false) \
     X(CloseAbout, "closeAbout", ImgViewerStringId::CloseAbout, false, false) \
     X(ResetKeyBindings, "resetKeyBindings", ImgViewerStringId::ResetShortcuts, false, false) \

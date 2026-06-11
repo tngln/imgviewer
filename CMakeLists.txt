@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.29)
 
-project(imgviewer LANGUAGES CXX)
+project(imgviewer LANGUAGES CXX RC)
 
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
@@ -79,6 +79,7 @@ add_executable(imgviewer
     src/util.format.cc
     src/win32.clipboard.cc
     src/win32.dialog.cc
+    src/imgviewer.rc
     src/win32.screen_capture.cc
     src/win32.util.cc
     src/win32.window.cc
