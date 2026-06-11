@@ -16,6 +16,7 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
+#include "ui.host_popup.hpp"
 #include "ui.tooltip.hpp"
 #include "util.format.hpp"
 #include "win32.clipboard.hpp"
@@ -76,7 +77,7 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
         }
     }
 
-    context->popup.Close();
+    ClosePopupIfOpen(&context->popup);
     context->ui.ResetRoot(CreateMainUi(&context->main_ui));
     context->main_ui->SetTitleText(title_text.empty() ? kImgViewerWindowTitle : title_text.c_str());
     context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);

@@ -50,6 +50,10 @@ add_executable(imgviewer
     src/ui.a11y.cc
     src/ui.button.cc
     src/ui.button_behavior.cc
+    src/ui.host_accessibility.cc
+    src/ui.host_effects.cc
+    src/ui.host_ime.cc
+    src/ui.host_popup.cc
     src/ui.label.cc
     src/ui.draw.cc
     src/ui.element.cc

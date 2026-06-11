@@ -2,13 +2,18 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 #include <d2d1helper.h>
 #include <windowsx.h>
+#include <wil/com.h>
 #include <wil/result_macros.h>
 
 #include "math.hpp"
-#include "ui.a11y.hpp"
+#include "ui.host_accessibility.hpp"
+#include "ui.host_effects.hpp"
+#include "ui.host_ime.hpp"
+#include "ui.host_popup.hpp"
 #include "ui.textbox.hpp"
 
 namespace {
@@ -84,25 +89,22 @@ HRESULT UiWindowHost::Create(
 void UiWindowHost::ResetRoot(std::unique_ptr<UiRoot> root)
 {
     if (options_.enable_popup) {
-        popup_.Close();
+        ClosePopupIfOpen(&popup_);
     }
     ui_.ResetRoot(std::move(root));
     if (accessibility_provider_ != nullptr && window_.Hwnd() != nullptr && options_.enable_accessibility) {
-        accessibility_provider_.reset();
-        CreateUiAccessibilityProvider(
+        ResetUiAccessibilityProvider(
             window_.Hwnd(),
             options_.action_message,
             &ui_,
-            accessibility_provider_.put());
+            std::addressof(accessibility_provider_));
     }
     Invalidate();
 }
 
 void UiWindowHost::Invalidate()
 {
-    if (window_.Hwnd() != nullptr) {
-        InvalidateRect(window_.Hwnd(), nullptr, FALSE);
-    }
+    RequestWindowRender(window_.Hwnd());
 }
 
 void UiWindowHost::Close()
@@ -152,12 +154,9 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     LPARAM lparam)
 {
     if (message == options_.action_message) {
-        const UiElementId effect_target = static_cast<UiElementId>(static_cast<int>(lparam));
-        if (effect_target != UiElementId::None && ui_.Root() != nullptr) {
-            ui_.Root()->ApplyElementEffect(effect_target);
-            Invalidate();
-        }
-        ExecuteAction(UiAction(static_cast<int>(wparam)));
+        const UiPostedActionMessage posted = DecodeUiPostedActionMessage(wparam, lparam);
+        ApplyUiEffectAndInvalidate(window_.Hwnd(), &ui_, posted.effect_target);
+        ExecuteAction(posted.action);
         return win32::WindowMessageResult::Handled();
     }
 
@@ -170,24 +169,24 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
                     options_.action_message,
                     graphics_))) ||
             (options_.enable_accessibility &&
-                FAILED(CreateUiAccessibilityProvider(
+                FAILED(ResetUiAccessibilityProvider(
                     window_.Hwnd(),
                     options_.action_message,
                     &ui_,
-                    accessibility_provider_.put()))) ||
+                    std::addressof(accessibility_provider_)))) ||
             FAILED(delegate_->OnCreate(*this))) {
             return win32::WindowMessageResult::Handled(-1);
         }
         return win32::WindowMessageResult::Handled();
     case WM_ENTERSIZEMOVE:
     case WM_MOVE:
-        if (options_.enable_popup && popup_.IsOpen()) {
-            popup_.Close();
+        if (options_.enable_popup) {
+            ClosePopupIfOpen(&popup_);
         }
         break;
     case WM_SIZE:
-        if (options_.enable_popup && popup_.IsOpen()) {
-            popup_.Close();
+        if (options_.enable_popup) {
+            ClosePopupIfOpen(&popup_);
         }
         if (wparam != SIZE_MINIMIZED) {
             Render();
@@ -195,8 +194,8 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         Invalidate();
         return win32::WindowMessageResult::Handled();
     case WM_DPICHANGED: {
-        if (options_.enable_popup && popup_.IsOpen()) {
-            popup_.Close();
+        if (options_.enable_popup) {
+            ClosePopupIfOpen(&popup_);
         }
         const auto* suggested_rect = reinterpret_cast<const RECT*>(lparam);
         if (suggested_rect != nullptr) {
@@ -348,36 +347,40 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     case WM_ACTIVATE:
         if (LOWORD(wparam) == WA_INACTIVE) {
             if (options_.enable_popup) {
-                HandleUiResult(popup_.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = window_.Hwnd()}));
+                UiEventResult result = {};
+                if (DispatchOwnerDeactivatedToPopup(&popup_, window_.Hwnd(), &result)) {
+                    HandleUiResult(result);
+                }
             }
             HandleUiResult(ui_.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = window_.Hwnd()}));
             Invalidate();
         }
         break;
     case WM_ACTIVATEAPP:
-        if (wparam == FALSE && options_.enable_popup && popup_.IsOpen()) {
-            popup_.Close();
+        if (wparam == FALSE && options_.enable_popup) {
+            ClosePopupIfOpen(&popup_);
         }
         break;
     case WM_GETOBJECT:
-        if (lparam == UiaRootObjectId && accessibility_provider_ != nullptr) {
-            return win32::WindowMessageResult::Handled(UiaReturnRawElementProvider(
+        if (win32::WindowMessageResult result = HandleUiAccessibilityGetObjectMessage(
                 window_.Hwnd(),
                 wparam,
                 lparam,
-                accessibility_provider_.get()));
+                accessibility_provider_.get());
+            result.handled) {
+            return result;
         }
         break;
     case WM_CLOSE:
         if (options_.enable_popup) {
-            popup_.Close();
+            ClosePopupIfOpen(&popup_);
         }
         window_.Destroy();
         return win32::WindowMessageResult::Handled();
     case WM_DESTROY:
         KillTimer(window_.Hwnd(), options_.caret_timer_id);
         if (options_.enable_popup) {
-            popup_.Close();
+            ClosePopupIfOpen(&popup_);
         }
         delegate_->OnDestroy(*this);
         return win32::WindowMessageResult::Handled();
@@ -497,23 +500,14 @@ void UiWindowHost::Render()
 
 void UiWindowHost::HandleUiResult(UiEventResult result)
 {
-    if (result.capture == UiCaptureRequest::Capture) {
-        SetCapture(window_.Hwnd());
-    } else if (result.capture == UiCaptureRequest::Release) {
-        ReleaseCapture();
-    }
-    if (result.needs_render) {
-        Invalidate();
-    }
+    ApplyUiCaptureRequest(window_.Hwnd(), result.capture);
+    const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(window_.Hwnd(), &ui_, result.effect_target);
+    RequestWindowRender(window_.Hwnd(), result.needs_render && !invalidated_for_effect);
     if (result.value_changed) {
         delegate_->OnUiValueChanged(*this, result);
     }
-    if (result.effect_target != UiElementId::None && ui_.Root() != nullptr) {
-        ui_.Root()->ApplyElementEffect(result.effect_target);
-        Invalidate();
-    }
     if (result.close_popup && options_.enable_popup) {
-        popup_.Close();
+        ClosePopupIfOpen(&popup_);
     }
     ExecuteAction(result.action);
 }
@@ -528,21 +522,14 @@ bool UiWindowHost::ExecuteAction(UiAction action)
 
 UiEventResult UiWindowHost::DispatchInputEvent(const UiInputEvent& event)
 {
-    if (options_.enable_popup && popup_.IsOpen()) {
-        UiInputEvent popup_event = event;
-        popup_event.popup_host = &popup_;
-        if (event.type == UiEventType::KeyDown) {
-            popup_event.key.popup_host = &popup_;
-        } else {
-            popup_event.pointer.popup_host = &popup_;
-        }
-        UiEventResult result = popup_.OnInputEvent(popup_event);
+    UiEventResult result = {};
+    if (options_.enable_popup && DispatchInputEventToPopup(&popup_, event, &result)) {
         HandleUiResult(result);
         if (result.handled) {
             return result;
         }
     }
-    UiEventResult result = ui_.OnInputEvent(event);
+    result = ui_.OnInputEvent(event);
     HandleUiResult(result);
     return result;
 }
@@ -571,16 +558,7 @@ void UiWindowHost::PositionIme()
     if (!options_.enable_ime || !IsFocusedTextElement()) {
         return;
     }
-    HIMC ime = ImmGetContext(window_.Hwnd());
-    if (ime == nullptr) {
-        return;
-    }
-    const D2D1_POINT_2F point = CaretPoint();
-    COMPOSITIONFORM form = {};
-    form.dwStyle = CFS_POINT;
-    form.ptCurrentPos = UiPointToPhysicalClient(window_.Hwnd(), point);
-    ImmSetCompositionWindow(ime, &form);
-    ImmReleaseContext(window_.Hwnd(), ime);
+    SetImeCompositionWindowClientPoint(window_.Hwnd(), UiPointToPhysicalClient(window_.Hwnd(), CaretPoint()));
 }
 
 D2D1_POINT_2F UiWindowHost::CaretPoint() const
@@ -603,18 +581,5 @@ bool UiWindowHost::IsFocusedTextElement() const
 
 std::wstring UiWindowHost::ImeCompositionString(LPARAM lparam) const
 {
-    if ((lparam & GCS_COMPSTR) == 0) {
-        return {};
-    }
-    HIMC ime = ImmGetContext(window_.Hwnd());
-    if (ime == nullptr) {
-        return {};
-    }
-    const LONG bytes = ImmGetCompositionStringW(ime, GCS_COMPSTR, nullptr, 0);
-    std::wstring text(bytes > 0 ? static_cast<size_t>(bytes) / sizeof(wchar_t) : 0, L'\0');
-    if (!text.empty()) {
-        ImmGetCompositionStringW(ime, GCS_COMPSTR, text.data(), bytes);
-    }
-    ImmReleaseContext(window_.Hwnd(), ime);
-    return text;
+    return ReadImeCompositionString(window_.Hwnd(), lparam, GCS_COMPSTR);
 }

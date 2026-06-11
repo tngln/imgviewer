@@ -2,7 +2,8 @@
 
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.hpp"
-#include "ui.a11y.hpp"
+#include "ui.host_accessibility.hpp"
+#include "ui.host_effects.hpp"
 
 #include <windows.h>
 #include <shellapi.h>
@@ -14,8 +15,11 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
     switch (message) {
     case kImgViewerUiActionMessage: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
-        const UiAction action = UiAction(static_cast<int>(wparam));
-        ApplyHostEffects(hwnd, context, DispatchUiAction(hwnd, context, action));
+        const UiPostedActionMessage posted = DecodeUiPostedActionMessage(wparam, lparam);
+        ImgViewerHostEffects effects;
+        effects.action = posted.action;
+        effects.effect_target = posted.effect_target;
+        ApplyHostEffects(hwnd, context, effects);
         return win32::WindowMessageResult::Handled();
     }
 
@@ -50,7 +54,7 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
             KillTimer(hwnd, kImgViewerToastTimerId);
             ImgViewerContext* context = GetImgViewerContext(hwnd);
             if (context != nullptr && context->main_ui->HideToast()) {
-                InvalidateRect(hwnd, nullptr, FALSE);
+                RequestWindowRender(hwnd);
             }
             return win32::WindowMessageResult::Handled();
         }
@@ -68,7 +72,7 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
             context->animation_last_tick_ms = now;
             if (context->viewer.AdvanceAnimation(elapsed_ms)) {
                 InvalidateImgViewerInfoPanelAnalysis(context);
-                InvalidateRect(hwnd, nullptr, FALSE);
+                RequestWindowRender(hwnd);
             }
             SyncImgViewerAnimationTimer(hwnd, context);
             return win32::WindowMessageResult::Handled();
@@ -91,15 +95,13 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
     }
 
     case WM_GETOBJECT: {
-        if (lparam == UiaRootObjectId) {
-            ImgViewerContext* context = GetImgViewerContext(hwnd);
-            if (context != nullptr) {
-                return win32::WindowMessageResult::Handled(UiaReturnRawElementProvider(
-                    hwnd,
-                    wparam,
-                    lparam,
-                    context->accessibility_provider.get()));
-            }
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr) {
+            return HandleUiAccessibilityGetObjectMessage(
+                hwnd,
+                wparam,
+                lparam,
+                context->accessibility_provider.get());
         }
 
         return win32::WindowMessageResult::Unhandled();

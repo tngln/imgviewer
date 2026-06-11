@@ -1,12 +1,15 @@
 #include "imgviewer.host.internal.hpp"
 
 #include "imgviewer.messages.hpp"
-#include "ui.a11y.hpp"
+#include "ui.host_accessibility.hpp"
+#include "ui.host_popup.hpp"
 #include "ui.tooltip.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
 #include <windowsx.h>
+
+#include <memory>
 
 win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
@@ -21,11 +24,11 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
                 kImgViewerUiActionMessage,
                 &context->graphics_device)) ||
             FAILED(context->viewer.Initialize()) ||
-            FAILED(CreateUiAccessibilityProvider(
+            FAILED(ResetUiAccessibilityProvider(
                 hwnd,
                 kImgViewerUiActionMessage,
                 &context->ui,
-                context->accessibility_provider.put()))) {
+                std::addressof(context->accessibility_provider)))) {
             return win32::WindowMessageResult::Handled(-1);
         }
         context->popup.SetTextFormats(context->renderer.BodyTextFormat(), context->renderer.IconTextFormat());
@@ -146,7 +149,7 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
         KillTimer(hwnd, kImgViewerToastTimerId);
         KillTimer(hwnd, kImgViewerAnimationTimerId);
         if (ImgViewerContext* context = GetImgViewerContext(hwnd)) {
-            context->popup.Close();
+            ClosePopupIfOpen(&context->popup);
             if (context->main_window_ime_context != nullptr) {
                 util::AssociateImeContext(hwnd, context->main_window_ime_context);
                 context->main_window_ime_enabled = true;

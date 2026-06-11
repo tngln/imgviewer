@@ -17,7 +17,6 @@
 
 namespace {
 
-constexpr float kToolbarGapAboveAnchor = 6.0f;
 constexpr float kFontDropdownWidth = 180.0f;
 
 const ToolStripItemSpec kSpecs[] = {

@@ -2,6 +2,7 @@
 
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "ui.host_ime.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
@@ -142,10 +143,10 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
         if (context != nullptr && context->interaction.KeyboardOwner() == ImgViewerKeyboardOwner::EditText) {
             bool changed = false;
             if ((lparam & GCS_RESULTSTR) != 0) {
-                changed = context->edit.CommitTextImeResult(ImeCompositionString(hwnd, lparam, GCS_RESULTSTR)) || changed;
+                changed = context->edit.CommitTextImeResult(ReadImeCompositionString(hwnd, lparam, GCS_RESULTSTR)) || changed;
             }
             if ((lparam & GCS_COMPSTR) != 0) {
-                changed = context->edit.UpdateTextImeComposition(ImeCompositionString(hwnd, lparam, GCS_COMPSTR)) || changed;
+                changed = context->edit.UpdateTextImeComposition(ReadImeCompositionString(hwnd, lparam, GCS_COMPSTR)) || changed;
             } else if ((lparam & GCS_RESULTSTR) != 0) {
                 changed = context->edit.EndTextImeComposition() || changed;
             }

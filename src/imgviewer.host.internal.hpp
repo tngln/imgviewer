@@ -31,6 +31,18 @@ struct ImgViewerHostEffects final {
 
     void Merge(UiEventResult result, bool request_popup_modal_sync = false);
     void Merge(ImgViewerEventResult result);
+    bool HasFollowUpWork() const
+    {
+        return needs_render ||
+            capture != UiCaptureRequest::None ||
+            released_capture ||
+            begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
+            end_pointer_capture != ImgViewerPointerCaptureOwner::None ||
+            action != kUiActionNone ||
+            effect_target != UiElementId::None ||
+            sync_popup_modal ||
+            sync_ime;
+    }
 };
 
 void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects effects);
@@ -46,7 +58,6 @@ void SyncPopupModal(ImgViewerContext* context);
 void SyncKeyboardOwner(ImgViewerContext* context);
 ImgViewerAction ActionForKeyboardMessage(const ImgViewerContext* context, WPARAM wparam);
 size_t KeyActionIndex(WPARAM wparam);
-std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam, DWORD string_type);
 void PositionMainWindowIme(HWND hwnd, ImgViewerContext* context);
 ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditController& edit);
 bool CancelPendingEdgeClickIfDragged(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point);

@@ -11,6 +11,9 @@
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.viewer.hpp"
 #include "math.hpp"
+#include "ui.host_effects.hpp"
+#include "ui.host_ime.hpp"
+#include "ui.host_popup.hpp"
 #include "ui.tooltip.hpp"
 #include "win32.window.hpp"
 #include "win32.util.hpp"
@@ -22,7 +25,6 @@
 #include <commctrl.h>
 #include <cwchar>
 #include <cmath>
-#include <imm.h>
 #include <shellapi.h>
 #include <string>
 #include <vector>
@@ -109,26 +111,6 @@ ImgViewerAction ActionForKeyboardMessage(const ImgViewerContext* context, WPARAM
 size_t KeyActionIndex(WPARAM wparam)
 {
     return static_cast<size_t>(static_cast<UINT>(wparam) & 0xFF);
-}
-
-std::wstring ImeCompositionString(HWND hwnd, LPARAM lparam, DWORD string_type)
-{
-    if ((lparam & string_type) == 0) {
-        return {};
-    }
-
-    HIMC ime = ImmGetContext(hwnd);
-    if (ime == nullptr) {
-        return {};
-    }
-
-    const LONG bytes = ImmGetCompositionStringW(ime, string_type, nullptr, 0);
-    std::wstring text(bytes > 0 ? static_cast<size_t>(bytes) / sizeof(wchar_t) : 0, L'\0');
-    if (!text.empty()) {
-        ImmGetCompositionStringW(ime, string_type, text.data(), bytes);
-    }
-    ImmReleaseContext(hwnd, ime);
-    return text;
 }
 
 bool EditingTextCaretPoint(ImgViewerContext* context, D2D1_POINT_2F* point)
@@ -231,18 +213,7 @@ void PositionMainWindowIme(HWND hwnd, ImgViewerContext* context)
     }
 
     const D2D1_POINT_2F caret_viewport_point = DocumentPointToViewportPoint(image, edit, caret_document_point, viewport_size);
-    HIMC ime = ImmGetContext(hwnd);
-    if (ime == nullptr) {
-        return;
-    }
-    COMPOSITIONFORM form = {};
-    form.dwStyle = CFS_POINT;
-    form.ptCurrentPos = POINT{
-        static_cast<LONG>(std::floor(caret_viewport_point.x)),
-        static_cast<LONG>(std::floor(caret_viewport_point.y)),
-    };
-    ImmSetCompositionWindow(ime, &form);
-    ImmReleaseContext(hwnd, ime);
+    SetImeCompositionWindowClientPoint(hwnd, caret_viewport_point);
 }
 
 ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
@@ -303,35 +274,30 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
 
     if (effects.capture == UiCaptureRequest::Capture) {
         context->interaction.BeginPointerCapture(ImgViewerPointerCaptureOwner::Ui);
-        SetCapture(hwnd);
+        ApplyUiCaptureRequest(hwnd, effects.capture);
     } else if (effects.capture == UiCaptureRequest::Release) {
         context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::Ui);
-        ReleaseCapture();
+        ApplyUiCaptureRequest(hwnd, effects.capture);
     }
 
     if (effects.begin_pointer_capture != ImgViewerPointerCaptureOwner::None) {
         context->interaction.BeginPointerCapture(effects.begin_pointer_capture);
-        SetCapture(hwnd);
+        ApplyUiCaptureRequest(hwnd, UiCaptureRequest::Capture);
     }
 
     if (effects.end_pointer_capture != ImgViewerPointerCaptureOwner::None) {
         context->interaction.EndPointerCapture(effects.end_pointer_capture);
-        ReleaseCapture();
+        ApplyUiCaptureRequest(hwnd, UiCaptureRequest::Release);
     }
 
     if (effects.released_capture) {
         context->interaction.ClearPointerCapture();
-        ReleaseCapture();
+        ApplyUiCaptureRequest(hwnd, UiCaptureRequest::Release);
     }
 
-    if (effects.effect_target != UiElementId::None && context->ui.Root() != nullptr) {
-        context->ui.Root()->ApplyElementEffect(effects.effect_target);
-        effects.needs_render = true;
-    }
-
-    if (effects.needs_render) {
-        InvalidateRect(hwnd, nullptr, FALSE);
-    }
+    const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(hwnd, &context->ui, effects.effect_target);
+    effects.needs_render = invalidated_for_effect || effects.needs_render;
+    RequestWindowRender(hwnd, effects.needs_render && !invalidated_for_effect);
 
     const ImgViewerHostEffects action_effects = DispatchUiAction(hwnd, context, effects.action);
     if (effects.sync_popup_modal) {
@@ -340,11 +306,7 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
     if (effects.sync_ime) {
         SyncImgViewerMainWindowIme(hwnd, context);
     }
-    if (action_effects.needs_render || action_effects.capture != UiCaptureRequest::None || action_effects.released_capture ||
-        action_effects.begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
-        action_effects.end_pointer_capture != ImgViewerPointerCaptureOwner::None ||
-        action_effects.action != kUiActionNone || action_effects.effect_target != UiElementId::None ||
-        action_effects.sync_popup_modal || action_effects.sync_ime) {
+    if (action_effects.HasFollowUpWork()) {
         ApplyHostEffects(hwnd, context, action_effects);
     }
 }
@@ -392,7 +354,8 @@ bool DispatchToPopup(HWND hwnd, ImgViewerContext* context, const UiInputEvent& e
     }
 
     SyncPopupModal(context);
-    const UiEventResult result = context->popup.OnInputEvent(event);
+    UiEventResult result = {};
+    DispatchInputEventToPopup(&context->popup, event, &result);
     ImgViewerHostEffects effects;
     effects.Merge(result, true);
     ApplyHostEffects(hwnd, context, effects);
@@ -401,8 +364,8 @@ bool DispatchToPopup(HWND hwnd, ImgViewerContext* context, const UiInputEvent& e
 
 void ClosePopup(ImgViewerContext* context)
 {
-    if (context != nullptr && context->popup.IsOpen()) {
-        context->popup.Close();
+    if (context != nullptr) {
+        ClosePopupIfOpen(&context->popup);
         context->interaction.ClearModal(ImgViewerModalOwner::Popup);
     }
 }
