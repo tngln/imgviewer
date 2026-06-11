@@ -56,7 +56,6 @@
     X(DeveloperSampleButton, "developerSampleButton", ImgViewerStringId::DeveloperSampleButton, false, false) \
     X(OpenAbout, "openAbout", ImgViewerStringId::About, false, false) \
     X(CloseAbout, "closeAbout", ImgViewerStringId::CloseAbout, false, false) \
-    X(CopyAboutNotices, "copyAboutNotices", ImgViewerStringId::CopyAboutNotices, false, false) \
     X(ResetKeyBindings, "resetKeyBindings", ImgViewerStringId::ResetShortcuts, false, false) \
     X(TextCopy, "textCopy", ImgViewerStringId::Copy, false, false) \
     X(TextCut, "textCut", ImgViewerStringId::Cut, false, false) \

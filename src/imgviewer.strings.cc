@@ -65,8 +65,6 @@ struct LocalizedString final {
     X(About, L"About", L"关于") \
     X(AboutImgViewer, L"About ImgViewer", L"关于 ImgViewer") \
     X(CloseAbout, L"Close About", L"关闭关于") \
-    X(CopyAboutNotices, L"Copy About Notices", L"复制关于声明") \
-    X(CopyNotices, L"Copy Notices", L"复制声明") \
     X(ResetShortcuts, L"Reset Shortcuts", L"重置快捷键") \
     X(Copy, L"Copy", L"复制") \
     X(Cut, L"Cut", L"剪切") \
@@ -276,8 +274,6 @@ struct LocalizedString final {
     X(DevelopmentBuild, L"Development build", L"开发构建") \
     X(AboutDescription, L"Lightweight native image viewer.", L"轻量级原生图像查看器。") \
     X(ThirdPartyNotices, L"Third-party notices", L"第三方声明") \
-    X(CopiedNotices, L"Copied notices.", L"已复制声明。") \
-    X(CouldNotCopyNotices, L"Could not copy notices.", L"无法复制声明。") \
     X(EditModeOn, L"Edit mode on.", L"编辑模式已开启。") \
     X(EditModeOff, L"Edit mode off.", L"编辑模式已关闭。") \
     X(CouldNotShowFileInExplorer, L"Could not show file in Explorer.", L"无法在资源管理器中显示文件。") \

@@ -3,8 +3,6 @@
 #include <array>
 #include <cwchar>
 #include <memory>
-#include <string>
-#include <vector>
 
 #include <d2d1helper.h>
 #include <wil/result_macros.h>
@@ -15,25 +13,18 @@
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "win32.util.hpp"
-#include "ui.button.hpp"
 #include "ui.draw.hpp"
-#include "ui.layout.hpp"
 #include "ui.theme.hpp"
 #include "ui.window.hpp"
-#include "win32.clipboard.hpp"
 
 namespace {
 
 constexpr wchar_t kAboutClassName[] = L"ImgViewerAboutWindow";
-constexpr wchar_t kCloseIcon[] = L"\xE711";
-constexpr wchar_t kCopyIcon[] = L"\xE8C8";
 constexpr int kAboutInitialWidth = 280;
 constexpr int kAboutInitialHeight = 260;
 constexpr int kAboutMinClientWidth = 240;
 constexpr int kAboutMinClientHeight = 210;
 constexpr float kAboutSidePadding = 14.0f;
-constexpr float kAboutFooterBottomPadding = 10.0f;
-constexpr float kAboutFooterButtonHeight = 24.0f;
 
 constexpr float kAboutHeaderTop = 12.0f;
 constexpr float kAboutHeaderHeight = 17.0f;
@@ -43,7 +34,7 @@ constexpr float kAboutSubtitleRow2Top = 51.0f;
 constexpr float kAboutSectionTop = 79.0f;
 constexpr float kAboutSectionHeight = 14.0f;
 constexpr float kAboutBorderTop = 97.0f;
-constexpr float kAboutFooterHeight = 46.0f;
+constexpr float kAboutFooterHeight = 10.0f;
 constexpr float kAboutNoticeStartY = 105.0f;
 constexpr float kAboutNoticeIndent = 22.0f;
 constexpr float kAboutNoticeLineHeight = 12.0f;
@@ -63,26 +54,6 @@ constexpr std::array<NoticeLine, 3> kNoticeLines{{
     {L"Windows Implementation Libraries", L"Microsoft Corporation - MIT License", L"third_parties/wil/LICENSE"},
 }};
 
-std::wstring AboutNoticesText()
-{
-    std::wstring text =
-        std::wstring(ImgViewerString(ImgViewerStringId::AppName)) + L"\n" +
-        ImgViewerString(ImgViewerStringId::DevelopmentBuild) + L"\n" +
-        ImgViewerString(ImgViewerStringId::AboutDescription) + L"\n\n" +
-        ImgViewerString(ImgViewerStringId::ThirdPartyNotices) + L":\n";
-
-    for (const NoticeLine& line : kNoticeLines) {
-        text += L"\n";
-        text += line.name;
-        text += L"\n";
-        text += line.detail;
-        text += L"\n";
-        text += line.license_path;
-        text += L"\n";
-    }
-    return text;
-}
-
 class AboutUi final : public UiRoot {
 public:
     AboutUi()
@@ -94,44 +65,20 @@ public:
                 ImgViewerString(ImgViewerStringId::AboutImgViewer),
                 ImgViewerString(ImgViewerStringId::AboutImgViewer),
                 L"about-root"));
-        copy_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(ImgViewerAction::CopyAboutNotices),
-                ImgViewerString(ImgViewerStringId::CopyNotices),
-                ImgViewerString(ImgViewerStringId::CopyNotices),
-                L"copy-about-notices"),
-            kCopyIcon,
-            ImgViewerString(ImgViewerStringId::CopyNotices))));
-        close_button_ = static_cast<Button*>(root_->AddChild(std::make_unique<Button>(
-            UiMetadata(
-                UiElementRole::Button,
-                UiActionFromImgViewerAction(ImgViewerAction::CloseAbout),
-                ImgViewerString(ImgViewerStringId::Close),
-                ImgViewerString(ImgViewerStringId::Close),
-                L"close-about"),
-            kCloseIcon,
-            ImgViewerString(ImgViewerStringId::Close))));
     }
 
     UiElement* Root() override { return root_.get(); }
     const UiElement* Root() const override { return root_.get(); }
     const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::AboutImgViewer); }
 
-    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
-    {
-        copy_button_width_ = copy_button_->PreferredWidth(context);
-        close_button_width_ = close_button_->PreferredWidth(context);
-        return available_size;
-    }
+    D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F available_size) override { return available_size; }
 
     void Arrange(D2D1_RECT_F final_rect) override
     {
         root_->Arrange(final_rect);
-        Layout(D2D1::SizeF(final_rect.right - final_rect.left, final_rect.bottom - final_rect.top));
     }
 
-    void Render(const UiDrawContext& context, UiRootState state) override
+    void Render(const UiDrawContext& context, UiRootState) override
     {
         const D2D1_SIZE_F size = context.viewport_size;
 
@@ -181,8 +128,6 @@ public:
             y += kAboutNoticeEntryGap;
         }
 
-        DrawElement(*copy_button_, context, state);
-        DrawElement(*close_button_, context, state);
     }
 
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override
@@ -194,37 +139,11 @@ public:
     }
 
 private:
-    void Layout(D2D1_SIZE_F size)
-    {
-        copy_button_->Arrange(D2D1::RectF(
-            kAboutSidePadding,
-            size.height - kAboutFooterBottomPadding - kAboutFooterButtonHeight,
-            kAboutSidePadding + copy_button_width_,
-            size.height - kAboutFooterBottomPadding));
-        const std::vector<D2D1_RECT_F> primary_buttons = ui_layout::PlaceBottomRightRow(
-            root_->Rect(),
-            std::vector<float>{close_button_width_},
-            kAboutFooterButtonHeight,
-            kAboutFooterBottomPadding,
-            kAboutFooterBottomPadding);
-        close_button_->Arrange(primary_buttons[0]);
-    }
-
-    void DrawElement(UiElement& element, const UiDrawContext& context, UiRootState state) const
-    {
-        element.Render(context, state);
-    }
-
     std::unique_ptr<UiElement> root_;
-    Button* copy_button_ = nullptr;
-    Button* close_button_ = nullptr;
-    float copy_button_width_ = 0.0f;
-    float close_button_width_ = 0.0f;
 };
 
 struct AboutWindowContext final : public UiWindowDelegate {
     HWND owner = nullptr;
-    ImgViewerContext* app = nullptr;
     UiWindowHost host;
 
     HRESULT OnCreate(UiWindowHost&) override
@@ -242,13 +161,6 @@ struct AboutWindowContext final : public UiWindowDelegate {
     bool OnUiAction(UiWindowHost& window_host, UiAction action) override
     {
         switch (ImgViewerActionFromUiAction(action)) {
-        case ImgViewerAction::CopyAboutNotices:
-            if (win32::CopyTextToClipboard(window_host.Hwnd(), AboutNoticesText().c_str())) {
-                ShowImgViewerToast(owner, app, ImgViewerString(ImgViewerStringId::CopiedNotices));
-            } else {
-                ShowImgViewerToast(owner, app, ImgViewerString(ImgViewerStringId::CouldNotCopyNotices));
-            }
-            return true;
         case ImgViewerAction::CloseAbout:
             window_host.Close();
             return true;
@@ -294,7 +206,6 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
     auto* about_context = new (std::nothrow) AboutWindowContext();
     RETURN_IF_NULL_ALLOC(about_context);
     about_context->owner = owner;
-    about_context->app = context;
     context->about_context = about_context;
 
     auto root = std::make_unique<AboutUi>();
