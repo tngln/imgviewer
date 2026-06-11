@@ -18,7 +18,7 @@ constexpr D2D1_POINT_2F kMainMenuOrigin{3.0f, ui_theme::metrics::kTitleBarHeight
 
 ImgViewerUi::ImgViewerUi() :
     root_(std::make_unique<UiElement>(
-        UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer", L"", L"root"))),
+        UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer"))),
     titlebar_(*root_),
     toolbar_(*root_),
     color_picker_toolstrip_(*root_),

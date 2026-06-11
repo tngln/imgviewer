@@ -22,10 +22,10 @@ constexpr wchar_t kPauseIcon[] = L"\xE769";
 constexpr float kFrameLabelWidth = 58.0f;
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation, ImgViewerStringId::LoopAnimation, L"animation-loop", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kLoopIcon},
-    {ImgViewerAction::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, L"animation-previous-frame", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPreviousIcon},
-    {ImgViewerAction::ToggleAnimationPlayback, ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, L"animation-play-pause", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPauseIcon},
-    {ImgViewerAction::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, L"animation-next-frame", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kNextIcon},
+    {ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation, ImgViewerStringId::LoopAnimation, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kLoopIcon},
+    {ImgViewerAction::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPreviousIcon},
+    {ImgViewerAction::ToggleAnimationPlayback, ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPauseIcon},
+    {ImgViewerAction::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kNextIcon},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()
@@ -38,12 +38,12 @@ std::vector<ToolStripItemSpec> BuildSpecs()
 ImgViewerUiAnimationToolbar::ImgViewerUiAnimationToolbar(UiElement& root)
 {
     toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
-        root, ImgViewerString(ImgViewerStringId::AnimationControls), L"animation-toolbar", BuildSpecs());
+        root, ImgViewerString(ImgViewerStringId::AnimationControls), BuildSpecs());
     toolstrip_->SetExtraWidth(kFrameLabelWidth);
     toolstrip_->SetExtraItemCount(1);
 
     auto label = std::make_unique<Label>(
-        UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::AnimationFrame), L"", L"animation-frame-label", false, true),
+        UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::AnimationFrame), false, true),
         L"",
         LabelStyle::Muted);
     frame_label_ = toolstrip_->Panel()->AddItem(std::move(label), kFrameLabelWidth);

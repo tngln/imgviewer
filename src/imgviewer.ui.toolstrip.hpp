@@ -27,7 +27,6 @@ struct ToolStripItemSpec final {
     ImgViewerAction action = ImgViewerAction::None;
     ImgViewerStringId name = ImgViewerStringId::Empty;
     ImgViewerStringId tooltip = ImgViewerStringId::Empty;
-    const wchar_t* automation_id = L"";
     ToolStripItemVisual visual = ToolStripItemVisual::Icon;
     int32_t arg = 0;
 
@@ -45,7 +44,6 @@ public:
     ImgViewerUiToolStrip(
         UiElement& root,
         const wchar_t* name,
-        const wchar_t* automation_id,
         std::vector<ToolStripItemSpec> specs);
 
     StackPanel* Panel() const;

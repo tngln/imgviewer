@@ -250,7 +250,7 @@ SliderRow::SliderRow(UiElementMetadata metadata, int minimum, int maximum, int v
 {
     auto slider = std::make_unique<Slider>(
         UiMetadata(UiElementRole::Slider, metadata.action, metadata.name,
-                   metadata.tooltip, metadata.automation_id),
+                   metadata.tooltip),
         minimum, maximum, value, small_step, large_step);
     slider_ = static_cast<Slider*>(AddChild(std::move(slider)));
 }

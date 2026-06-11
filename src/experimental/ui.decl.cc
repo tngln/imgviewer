@@ -46,70 +46,66 @@ void BorderedStack::Render(const UiDrawContext& context, UiRootState state) cons
     panel_->Render(context, state);
 }
 
-UiElementMetadata PaneMetadata(const wchar_t* automation_id)
+UiElementMetadata PaneMetadata()
 {
-    return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", automation_id, false, false);
+    return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", false, false);
 }
 
-UiElementMetadata TextMetadata(const wchar_t* text, const wchar_t* automation_id)
+UiElementMetadata TextMetadata(const wchar_t* text)
 {
-    return UiMetadata(UiElementRole::Text, kUiActionNone, text, L"", automation_id, false, false);
+    return UiMetadata(UiElementRole::Text, kUiActionNone, text, false, false);
 }
 
-std::unique_ptr<Label> Title(const wchar_t* text, const wchar_t* automation_id)
+std::unique_ptr<Label> Title(const wchar_t* text)
 {
-    return std::make_unique<Label>(TextMetadata(text, automation_id), text, LabelStyle::Title);
+    return std::make_unique<Label>(TextMetadata(text), text, LabelStyle::Title);
 }
 
-std::unique_ptr<Label> Body(const wchar_t* text, const wchar_t* automation_id)
+std::unique_ptr<Label> Body(const wchar_t* text)
 {
-    return std::make_unique<Label>(TextMetadata(text, automation_id), text, LabelStyle::Body);
+    return std::make_unique<Label>(TextMetadata(text), text, LabelStyle::Body);
 }
 
-std::unique_ptr<Label> Muted(const wchar_t* text, const wchar_t* automation_id)
+std::unique_ptr<Label> Muted(const wchar_t* text)
 {
-    return std::make_unique<Label>(TextMetadata(text, automation_id), text, LabelStyle::Muted);
+    return std::make_unique<Label>(TextMetadata(text), text, LabelStyle::Muted);
 }
 
 std::unique_ptr<::Button> ActionButton(
     UiAction action,
     const wchar_t* name,
-    const wchar_t* automation_id,
     const wchar_t* icon,
     const wchar_t* text)
 {
     return std::make_unique<::Button>(
-        UiMetadata(UiElementRole::Button, action, name, name, automation_id),
+        UiMetadata(UiElementRole::Button, action, name, name),
         icon,
         text);
 }
 
 std::unique_ptr<::Button> Button(
     const wchar_t* name,
-    const wchar_t* automation_id,
     const wchar_t* icon,
     const wchar_t* text)
 {
     return std::make_unique<::Button>(
-        UiMetadata(UiElementRole::Button, kUiActionNone, name, name, automation_id),
+        UiMetadata(UiElementRole::Button, kUiActionNone, name, name),
         icon,
         text);
 }
 
 std::unique_ptr<::Checkbox> Toggle(
     const wchar_t* text,
-    const wchar_t* automation_id,
     bool checked)
 {
     return std::make_unique<::Checkbox>(
-        UiMetadata(UiElementRole::CheckBox, kUiActionNone, text, text, automation_id),
+        UiMetadata(UiElementRole::CheckBox, kUiActionNone, text, text),
         text,
         checked);
 }
 
 std::unique_ptr<::SliderRow> SliderField(
     const wchar_t* name,
-    const wchar_t* automation_id,
     int minimum,
     int maximum,
     int value,
@@ -117,7 +113,7 @@ std::unique_ptr<::SliderRow> SliderField(
     int large_step)
 {
     return std::make_unique<::SliderRow>(
-        UiMetadata(UiElementRole::Slider, kUiActionNone, name, name, automation_id),
+        UiMetadata(UiElementRole::Slider, kUiActionNone, name, name),
         minimum,
         maximum,
         value,
@@ -127,14 +123,12 @@ std::unique_ptr<::SliderRow> SliderField(
 
 std::unique_ptr<StackPanel> Section(
     const wchar_t* title,
-    std::unique_ptr<UiElement> content,
-    const wchar_t* title_automation_id,
-    const wchar_t* section_automation_id)
+    std::unique_ptr<UiElement> content)
 {
-    auto section = std::make_unique<StackPanel>(PaneMetadata(section_automation_id));
+    auto section = std::make_unique<StackPanel>(PaneMetadata());
     section->SetPadding(UiThickness{0.0f, kSectionTopPadding, 0.0f, 0.0f});
     section->SetGap(kSectionGap);
-    section->AddItem(Body(title, title_automation_id));
+    section->AddItem(Body(title));
     section->AddItem(std::move(content));
     return section;
 }

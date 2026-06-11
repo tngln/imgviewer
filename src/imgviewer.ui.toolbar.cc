@@ -40,7 +40,6 @@ struct ButtonSpec final {
     ImgViewerAction action = ImgViewerAction::None;
     ImgViewerStringId name = ImgViewerStringId::Empty;
     ImgViewerStringId tooltip = ImgViewerStringId::Empty;
-    const wchar_t* automation_id = L"";
     ButtonIconSpec icon = {};
     bool initially_enabled = true;
     bool danger = false;
@@ -95,29 +94,29 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementMetada
 
 constexpr std::array<ButtonSpec, ImgViewerUiToolbar::kButtonCount> kButtonSpecs{{
     {ImgViewerUiToolbar::ButtonKey::PreviousImage, ImgViewerAction::PreviousImage, ImgViewerStringId::PreviousImage, ImgViewerStringId::PreviousImageTooltip,
-        L"previous-image", GlyphIcon(kPreviousIcon), false},
-    {ImgViewerUiToolbar::ButtonKey::NextImage, ImgViewerAction::NextImage, ImgViewerStringId::NextImage, ImgViewerStringId::NextImageTooltip, L"next-image",
+        GlyphIcon(kPreviousIcon), false},
+    {ImgViewerUiToolbar::ButtonKey::NextImage, ImgViewerAction::NextImage, ImgViewerStringId::NextImage, ImgViewerStringId::NextImageTooltip,
         GlyphIcon(kNextIcon), false},
     {ImgViewerUiToolbar::ButtonKey::CaptureRegion, ImgViewerAction::CaptureRegion, ImgViewerStringId::CaptureRegion,
-        ImgViewerStringId::CaptureRegionTooltip, L"region-screenshot", PathIcon(icons::kRegionScreenshotIcon)},
-    {ImgViewerUiToolbar::ButtonKey::ZoomIn, ImgViewerAction::ZoomIn, ImgViewerStringId::ZoomIn, ImgViewerStringId::ZoomInTooltip, L"zoom-in",
+        ImgViewerStringId::CaptureRegionTooltip, PathIcon(icons::kRegionScreenshotIcon)},
+    {ImgViewerUiToolbar::ButtonKey::ZoomIn, ImgViewerAction::ZoomIn, ImgViewerStringId::ZoomIn, ImgViewerStringId::ZoomInTooltip,
         GlyphIcon(kZoomInIcon)},
-    {ImgViewerUiToolbar::ButtonKey::ZoomOut, ImgViewerAction::ZoomOut, ImgViewerStringId::ZoomOut, ImgViewerStringId::ZoomOutTooltip, L"zoom-out",
+    {ImgViewerUiToolbar::ButtonKey::ZoomOut, ImgViewerAction::ZoomOut, ImgViewerStringId::ZoomOut, ImgViewerStringId::ZoomOutTooltip,
         GlyphIcon(kZoomOutIcon)},
-    {ImgViewerUiToolbar::ButtonKey::FitWindow, ImgViewerAction::FitWindow, ImgViewerStringId::FitWindow, ImgViewerStringId::FitWindowTooltip, L"fit-window",
+    {ImgViewerUiToolbar::ButtonKey::FitWindow, ImgViewerAction::FitWindow, ImgViewerStringId::FitWindow, ImgViewerStringId::FitWindowTooltip,
         PathIcon(icons::kFitWindowIcon)},
-    {ImgViewerUiToolbar::ButtonKey::ActualSize, ImgViewerAction::ActualSize, ImgViewerStringId::ActualSize, ImgViewerStringId::ActualSizeTooltip, L"actual-size",
+    {ImgViewerUiToolbar::ButtonKey::ActualSize, ImgViewerAction::ActualSize, ImgViewerStringId::ActualSize, ImgViewerStringId::ActualSizeTooltip,
         PathIcon(icons::kActualSizeIcon)},
     {ImgViewerUiToolbar::ButtonKey::RotateClockwise, ImgViewerAction::RotateClockwise, ImgViewerStringId::RotateClockwise,
-        ImgViewerStringId::RotateClockwiseTooltip, L"rotate-clockwise", GlyphIcon(kRotateIcon)},
+        ImgViewerStringId::RotateClockwiseTooltip, GlyphIcon(kRotateIcon)},
     {ImgViewerUiToolbar::ButtonKey::FlipHorizontal, ImgViewerAction::FlipHorizontal, ImgViewerStringId::FlipHorizontal, ImgViewerStringId::FlipHorizontalTooltip,
-        L"flip-horizontal", PathIcon(icons::kFlipHorizontalIcon)},
+        PathIcon(icons::kFlipHorizontalIcon)},
     {ImgViewerUiToolbar::ButtonKey::FlipVertical, ImgViewerAction::FlipVertical, ImgViewerStringId::FlipVertical, ImgViewerStringId::FlipVerticalTooltip,
-        L"flip-vertical", PathIcon(icons::kFlipVerticalIcon)},
-    {ImgViewerUiToolbar::ButtonKey::ResetView, ImgViewerAction::ResetView, ImgViewerStringId::ResetView, ImgViewerStringId::ResetViewTooltip, L"reset-view",
+        PathIcon(icons::kFlipVerticalIcon)},
+    {ImgViewerUiToolbar::ButtonKey::ResetView, ImgViewerAction::ResetView, ImgViewerStringId::ResetView, ImgViewerStringId::ResetViewTooltip,
         GlyphIcon(kResetIcon)},
     {ImgViewerUiToolbar::ButtonKey::ColorPicker, ImgViewerAction::ToggleColorPicker, ImgViewerStringId::ColorPicker, ImgViewerStringId::ColorPickerTooltip,
-        L"color-picker", PathIcon(icons::kColorPickerIcon), false},
+        PathIcon(icons::kColorPickerIcon), false},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -143,7 +142,7 @@ constexpr size_t ImgViewerUiToolbar::ButtonIndex(ButtonKey button)
 ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
 {
     button_panel_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::ToolbarButtons), L"", L"toolbar-buttons", false, false),
+        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::ToolbarButtons), false, false),
         ui_layout::StackDirection::Horizontal)));
     button_panel_->SetGap(ui_theme::metrics::kToolbarButtonGap);
     for (const ButtonSpec& spec : kButtonSpecs) {
@@ -154,8 +153,7 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
                 ImgViewerString(spec.name),
-                ImgViewerString(spec.tooltip),
-                spec.automation_id));
+                ImgViewerString(spec.tooltip)));
         element->SetVisualDanger(spec.danger);
         button.element = button_panel_->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
         button.id = button.element->Id();
@@ -166,8 +164,6 @@ ImgViewerUiToolbar::ImgViewerUiToolbar(UiElement& root)
         UiElementRole::Pane,
         kUiActionNone,
         ImgViewerString(ImgViewerStringId::ToolbarDragHandle),
-        L"",
-        L"toolbar-drag-handle",
         false,
         false)));
     drag_handle_id_ = drag_handle_->Id();

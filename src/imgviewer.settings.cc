@@ -88,7 +88,6 @@ private:
 
     struct BooleanSettingSpec final {
         ImgViewerStringId label = ImgViewerStringId::Empty;
-        const wchar_t* automation_id = L"";
         BoolField field = nullptr;
         bool inverted = false;
     };
@@ -100,7 +99,6 @@ private:
 
     struct SliderSettingSpec final {
         ImgViewerStringId label = ImgViewerStringId::Empty;
-        const wchar_t* automation_id = L"";
         IntField field = nullptr;
         int minimum = 0;
         int maximum = 100;
@@ -121,22 +119,22 @@ private:
     static constexpr size_t kBorderlessWindowSetting = 3;
     static constexpr size_t kEdgeClickNavigationSetting = 4;
     static constexpr std::array<BooleanSettingSpec, 5> kBooleanSettingSpecs{{
-        {ImgViewerStringId::RememberWindowSize, L"remember-window-size", &ImgViewerConfig::remember_window_size},
-        {ImgViewerStringId::PixelatedSampling, L"pixelated-sampling", &ImgViewerConfig::pixelated_sampling},
-        {ImgViewerStringId::CheckerboardBackground, L"checkerboard-background", &ImgViewerConfig::checkerboard_background},
-        {ImgViewerStringId::BorderlessWindow, L"borderless-window", &ImgViewerConfig::borderless_window},
-        {ImgViewerStringId::EdgeClickNavigation, L"edge-click-navigation", &ImgViewerConfig::edge_click_navigation},
+        {ImgViewerStringId::RememberWindowSize, &ImgViewerConfig::remember_window_size},
+        {ImgViewerStringId::PixelatedSampling, &ImgViewerConfig::pixelated_sampling},
+        {ImgViewerStringId::CheckerboardBackground, &ImgViewerConfig::checkerboard_background},
+        {ImgViewerStringId::BorderlessWindow, &ImgViewerConfig::borderless_window},
+        {ImgViewerStringId::EdgeClickNavigation, &ImgViewerConfig::edge_click_navigation},
     }};
 
     static constexpr size_t kOpacitySliderSetting = 0;
     static constexpr size_t kToolbarScaleSliderSetting = 1;
     static constexpr size_t kEdgeClickZoneSliderSetting = 2;
     static constexpr std::array<SliderSettingSpec, 3> kSliderSettingSpecs{{
-        {ImgViewerStringId::Opacity, L"window-opacity", &ImgViewerConfig::window_opacity_percent,
+        {ImgViewerStringId::Opacity, &ImgViewerConfig::window_opacity_percent,
             kOpacityMinimum, kOpacityMaximum, kOpacitySmallStep, kOpacityLargeStep, ClampWindowOpacityPercent},
-        {ImgViewerStringId::ToolbarSize, L"toolbar-size", &ImgViewerConfig::toolbar_scale_percent,
+        {ImgViewerStringId::ToolbarSize, &ImgViewerConfig::toolbar_scale_percent,
             kToolbarScaleMinimum, kToolbarScaleMaximum, kToolbarScaleSmallStep, kToolbarScaleLargeStep, ClampToolbarScalePercent},
-        {ImgViewerStringId::EdgeClickZone, L"edge-click-zone", &ImgViewerConfig::edge_click_navigation_zone_percent,
+        {ImgViewerStringId::EdgeClickZone, &ImgViewerConfig::edge_click_navigation_zone_percent,
             kEdgeClickZoneMinimum, kEdgeClickZoneMaximum, kEdgeClickZoneSmallStep, kEdgeClickZoneLargeStep,
             ClampEdgeClickNavigationZonePercent},
     }};
@@ -150,7 +148,6 @@ public:
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(ImgViewerStringId::Settings),
                 ImgViewerString(ImgViewerStringId::Settings),
-                L"settings-scroll-root",
                 false,
                 true));
         scroll_panel->SetScrollStep(42.0f);
@@ -159,8 +156,7 @@ public:
                 UiElementRole::Pane,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(ImgViewerStringId::Settings),
-                ImgViewerString(ImgViewerStringId::Settings),
-                L"settings-root"));
+                ImgViewerString(ImgViewerStringId::Settings)));
         root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, 0.0f});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
@@ -309,21 +305,21 @@ public:
 private:
     static UiElementMetadata PaneMetadata()
     {
-        return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", L"", L"", false, false);
+        return UiMetadata(UiElementRole::Pane, kUiActionNone, L"", false, false);
     }
 
-    static UiElementMetadata LabelMetadata(const wchar_t* label, const wchar_t* automation_id)
+    static UiElementMetadata LabelMetadata(const wchar_t* label)
     {
-        return UiMetadata(UiElementRole::Text, kUiActionNone, label, L"", automation_id, false, false);
+        return UiMetadata(UiElementRole::Text, kUiActionNone, label, false, false);
     }
 
-    StackPanel* AddSection(ImgViewerStringId label, const wchar_t* automation_id, float gap = ui_theme::metrics::kStandardGap)
+    StackPanel* AddSection(ImgViewerStringId label, float gap = ui_theme::metrics::kStandardGap)
     {
         auto* section = root_->AddItem(std::make_unique<StackPanel>(PaneMetadata()));
         section->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
         section->SetGap(gap);
         section->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(label), automation_id),
+            LabelMetadata(ImgViewerString(label)),
             ImgViewerString(label),
             LabelStyle::Muted));
         return section;
@@ -337,8 +333,7 @@ private:
                 UiElementRole::CheckBox,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(spec.label),
-                ImgViewerString(spec.label),
-                spec.automation_id),
+                ImgViewerString(spec.label)),
             ImgViewerString(spec.label),
             BooleanSettingValue(spec));
         Checkbox* result = section->AddItem(std::move(checkbox));
@@ -354,8 +349,7 @@ private:
                 UiElementRole::Slider,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(spec.label),
-                ImgViewerString(spec.label),
-                spec.automation_id),
+                ImgViewerString(spec.label)),
             spec.minimum,
             spec.maximum,
             draft_.*(spec.field),
@@ -387,8 +381,7 @@ private:
                 UiElementRole::ComboBox,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(ImgViewerStringId::Language),
-                ImgViewerString(ImgViewerStringId::Language),
-                L"language"),
+                ImgViewerString(ImgViewerStringId::Language)),
             std::vector<DropdownOption>{
                 DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
                 DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
@@ -397,10 +390,10 @@ private:
         return section->AddItem(std::move(dropdown));
     }
 
-    Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* automation_id, const wchar_t* icon, const wchar_t* text)
+    Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text)
     {
         return static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, name, automation_id),
+            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, name),
             icon,
             text)));
     }
@@ -409,62 +402,62 @@ private:
     {
         // Title
         root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::Settings), L"", L"settings-title", false, false),
+            UiMetadata(UiElementRole::Text, kUiActionNone, ImgViewerString(ImgViewerStringId::Settings), false, false),
             ImgViewerString(ImgViewerStringId::Settings), LabelStyle::Title), 17.0f);
 
-        StackPanel* language_section = AddSection(ImgViewerStringId::Language, L"language-label", ui_theme::metrics::kSmallGap);
+        StackPanel* language_section = AddSection(ImgViewerStringId::Language, ui_theme::metrics::kSmallGap);
         language_dropdown_ = AddLanguageDropdown(language_section);
 
-        StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, L"window-size-label", 3.0f);
+        StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, 3.0f);
         AddCheckboxSetting(window_size_section, kRememberWindowSizeSetting);
         remember_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
             UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::RememberLastSize), ImgViewerString(ImgViewerStringId::RememberLastSize), L"remember-last-size"),
+                ImgViewerString(ImgViewerStringId::RememberLastSize), ImgViewerString(ImgViewerStringId::RememberLastSize)),
             ImgViewerString(ImgViewerStringId::RememberLastSize), draft_.remember_window_size));
         default_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
             UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::UseDefaultSize), ImgViewerString(ImgViewerStringId::UseDefaultSize), L"use-default-size"),
+                ImgViewerString(ImgViewerStringId::UseDefaultSize), ImgViewerString(ImgViewerStringId::UseDefaultSize)),
             ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
 
-        StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering, L"image-rendering-label");
+        StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering);
         image_section->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(ImgViewerStringId::InitialImageView), L"initial-image-view-label"),
+            LabelMetadata(ImgViewerString(ImgViewerStringId::InitialImageView)),
             ImgViewerString(ImgViewerStringId::InitialImageView),
             LabelStyle::Muted));
         initial_fit_window_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
             UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::FitWindow), ImgViewerString(ImgViewerStringId::FitWindow), L"initial-fit-window"),
+                ImgViewerString(ImgViewerStringId::FitWindow), ImgViewerString(ImgViewerStringId::FitWindow)),
             ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
         initial_actual_size_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
             UiMetadata(UiElementRole::RadioButton, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::ActualSize), ImgViewerString(ImgViewerStringId::ActualSize), L"initial-actual-size"),
+                ImgViewerString(ImgViewerStringId::ActualSize), ImgViewerString(ImgViewerStringId::ActualSize)),
             ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
         AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
         AddCheckboxSetting(image_section, kCheckerboardBackgroundSetting);
 
-        StackPanel* frame_section = AddSection(ImgViewerStringId::WindowFrame, L"window-frame-label");
+        StackPanel* frame_section = AddSection(ImgViewerStringId::WindowFrame);
         AddCheckboxSetting(frame_section, kBorderlessWindowSetting);
 
-        StackPanel* opacity_section = AddSection(ImgViewerStringId::Opacity, L"opacity-label", ui_theme::metrics::kSmallGap);
+        StackPanel* opacity_section = AddSection(ImgViewerStringId::Opacity, ui_theme::metrics::kSmallGap);
         AddSliderSetting(opacity_section, kOpacitySliderSetting);
 
-        StackPanel* toolbar_section = AddSection(ImgViewerStringId::ToolbarSize, L"toolbar-size-label", ui_theme::metrics::kSmallGap);
+        StackPanel* toolbar_section = AddSection(ImgViewerStringId::ToolbarSize, ui_theme::metrics::kSmallGap);
         AddSliderSetting(toolbar_section, kToolbarScaleSliderSetting);
 
-        StackPanel* navigation_section = AddSection(ImgViewerStringId::Navigation, L"navigation-label", ui_theme::metrics::kSmallGap);
+        StackPanel* navigation_section = AddSection(ImgViewerStringId::Navigation, ui_theme::metrics::kSmallGap);
         AddCheckboxSetting(navigation_section, kEdgeClickNavigationSetting);
         AddSliderSetting(navigation_section, kEdgeClickZoneSliderSetting);
 
-        StackPanel* filter_section = AddSection(ImgViewerStringId::ShortcutFilter, L"shortcut-filter-label", ui_theme::metrics::kSmallGap);
+        StackPanel* filter_section = AddSection(ImgViewerStringId::ShortcutFilter, ui_theme::metrics::kSmallGap);
         filter_box_ = filter_section->AddItem(std::make_unique<TextBox>(
             UiMetadata(UiElementRole::Edit, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::ShortcutFilter), ImgViewerString(ImgViewerStringId::ShortcutFilter), L"shortcut-filter"),
+                ImgViewerString(ImgViewerStringId::ShortcutFilter), ImgViewerString(ImgViewerStringId::ShortcutFilter)),
             ImgViewerString(ImgViewerStringId::FilterActions)));
 
-        StackPanel* shortcuts_section = AddSection(ImgViewerStringId::ActionShortcuts, L"action-shortcuts-label", 8.0f);
+        StackPanel* shortcuts_section = AddSection(ImgViewerStringId::ActionShortcuts, 8.0f);
         action_table_ = shortcuts_section->AddItem(std::make_unique<Table>(
             UiMetadata(UiElementRole::Pane, UiActionFromImgViewerAction(ImgViewerAction::None),
-                ImgViewerString(ImgViewerStringId::ActionShortcuts), ImgViewerString(ImgViewerStringId::ActionShortcuts), L"action-shortcuts")));
+                ImgViewerString(ImgViewerStringId::ActionShortcuts), ImgViewerString(ImgViewerStringId::ActionShortcuts))));
         action_table_->SetColumns(std::vector<TableColumn>{
             TableColumn{ImgViewerString(ImgViewerStringId::Action), 170.0f, false},
             TableColumn{ImgViewerString(ImgViewerStringId::Shortcut), 0.0f, true},
@@ -473,9 +466,9 @@ private:
         action_table_->SetSelectionEnabled(true);
         action_table_->SetRowHeight(21.0f);
 
-        reset_button_ = AddFooterButton(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), L"reset-shortcuts", kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
-        save_button_ = AddFooterButton(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), L"save-settings", kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
-        cancel_button_ = AddFooterButton(ImgViewerAction::CloseSettings, ImgViewerString(ImgViewerStringId::Cancel), L"cancel-settings", kCancelIcon, ImgViewerString(ImgViewerStringId::Cancel));
+        reset_button_ = AddFooterButton(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
+        save_button_ = AddFooterButton(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
+        cancel_button_ = AddFooterButton(ImgViewerAction::CloseSettings, ImgViewerString(ImgViewerStringId::Cancel), kCancelIcon, ImgViewerString(ImgViewerStringId::Cancel));
     }
 
     void ApplyElementEffect(UiElementId id) override

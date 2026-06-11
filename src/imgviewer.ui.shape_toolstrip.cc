@@ -13,18 +13,18 @@
 namespace {
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Rectangle, ImgViewerStringId::RectangleShape, L"edit-shape-rectangle", ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Rectangle), {}, 0.0f, ImgViewerShapeKind::Rectangle},
-    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Ellipse, ImgViewerStringId::EllipseShape, L"edit-shape-ellipse", ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Ellipse), {}, 0.0f, ImgViewerShapeKind::Ellipse},
-    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Line, ImgViewerStringId::LineShape, L"edit-shape-line", ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Line), {}, 0.0f, ImgViewerShapeKind::Line},
-    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Arrow, ImgViewerStringId::ArrowShape, L"edit-shape-arrow", ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Arrow), {}, 0.0f, ImgViewerShapeKind::Arrow},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Red, ImgViewerStringId::RedShape, L"edit-shape-red", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Red)), D2D1::ColorF(D2D1::ColorF::Red)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Yellow, ImgViewerStringId::YellowShape, L"edit-shape-yellow", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Yellow)), D2D1::ColorF(D2D1::ColorF::Yellow)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Green, ImgViewerStringId::GreenShape, L"edit-shape-green", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Lime)), D2D1::ColorF(D2D1::ColorF::Lime)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Cyan, ImgViewerStringId::CyanShape, L"edit-shape-cyan", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Cyan)), D2D1::ColorF(D2D1::ColorF::Cyan)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Blue, ImgViewerStringId::BlueShape, L"edit-shape-blue", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue)), D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaShape, L"edit-shape-magenta", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Magenta)), D2D1::ColorF(D2D1::ColorF::Magenta)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::White, ImgViewerStringId::WhiteShape, L"edit-shape-white", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::White)), D2D1::ColorF(D2D1::ColorF::White)},
-    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Black, ImgViewerStringId::BlackShape, L"edit-shape-black", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Black)), D2D1::ColorF(D2D1::ColorF::Black)},
+    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Rectangle, ImgViewerStringId::RectangleShape, ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Rectangle), {}, 0.0f, ImgViewerShapeKind::Rectangle},
+    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Ellipse, ImgViewerStringId::EllipseShape, ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Ellipse), {}, 0.0f, ImgViewerShapeKind::Ellipse},
+    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Line, ImgViewerStringId::LineShape, ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Line), {}, 0.0f, ImgViewerShapeKind::Line},
+    {ImgViewerAction::EditSetShapeKind, ImgViewerStringId::Arrow, ImgViewerStringId::ArrowShape, ToolStripItemVisual::ShapeKind, static_cast<int32_t>(ImgViewerShapeKind::Arrow), {}, 0.0f, ImgViewerShapeKind::Arrow},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Red, ImgViewerStringId::RedShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Red)), D2D1::ColorF(D2D1::ColorF::Red)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Yellow, ImgViewerStringId::YellowShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Yellow)), D2D1::ColorF(D2D1::ColorF::Yellow)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Green, ImgViewerStringId::GreenShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Lime)), D2D1::ColorF(D2D1::ColorF::Lime)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Cyan, ImgViewerStringId::CyanShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Cyan)), D2D1::ColorF(D2D1::ColorF::Cyan)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Blue, ImgViewerStringId::BlueShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue)), D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Magenta)), D2D1::ColorF(D2D1::ColorF::Magenta)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::White, ImgViewerStringId::WhiteShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::White)), D2D1::ColorF(D2D1::ColorF::White)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Black, ImgViewerStringId::BlackShape, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Black)), D2D1::ColorF(D2D1::ColorF::Black)},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()
@@ -37,7 +37,7 @@ std::vector<ToolStripItemSpec> BuildSpecs()
 ImgViewerUiShapeToolstrip::ImgViewerUiShapeToolstrip(UiElement& root)
 {
     toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
-        root, ImgViewerString(ImgViewerStringId::ShapeTools), L"shape-toolstrip", BuildSpecs());
+        root, ImgViewerString(ImgViewerStringId::ShapeTools), BuildSpecs());
     SetScalePercent(125);
     SetState(state_);
 }

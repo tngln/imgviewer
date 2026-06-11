@@ -16,7 +16,6 @@ struct PaletteEntry final {
     ImgViewerAction action;
     ImgViewerStringId name;
     ImgViewerStringId tooltip;
-    const wchar_t* automation_id;
 };
 
 inline const std::array kPenColors = {

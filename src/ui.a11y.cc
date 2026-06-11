@@ -346,10 +346,6 @@ public:
             return SetBstrVariant(metadata->name, value);
         }
 
-        if (property_id == UIA_AutomationIdPropertyId) {
-            return SetBstrVariant(metadata->automation_id, value);
-        }
-
         if (property_id == UIA_ControlTypePropertyId) {
             return SetIntVariant(ControlTypeForRole(metadata->role), value);
         }

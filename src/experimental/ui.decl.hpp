@@ -34,30 +34,26 @@ private:
     StackPanel* panel_ = nullptr;
 };
 
-UiElementMetadata PaneMetadata(const wchar_t* automation_id = L"");
-UiElementMetadata TextMetadata(const wchar_t* text, const wchar_t* automation_id = L"");
+UiElementMetadata PaneMetadata();
+UiElementMetadata TextMetadata(const wchar_t* text);
 
-std::unique_ptr<Label> Title(const wchar_t* text, const wchar_t* automation_id = L"");
-std::unique_ptr<Label> Body(const wchar_t* text, const wchar_t* automation_id = L"");
-std::unique_ptr<Label> Muted(const wchar_t* text, const wchar_t* automation_id = L"");
+std::unique_ptr<Label> Title(const wchar_t* text);
+std::unique_ptr<Label> Body(const wchar_t* text);
+std::unique_ptr<Label> Muted(const wchar_t* text);
 std::unique_ptr<::Button> ActionButton(
     UiAction action,
     const wchar_t* name,
-    const wchar_t* automation_id,
     const wchar_t* icon,
     const wchar_t* text);
 std::unique_ptr<::Button> Button(
     const wchar_t* name,
-    const wchar_t* automation_id,
     const wchar_t* icon,
     const wchar_t* text);
 std::unique_ptr<::Checkbox> Toggle(
     const wchar_t* text,
-    const wchar_t* automation_id,
     bool checked);
 std::unique_ptr<::SliderRow> SliderField(
     const wchar_t* name,
-    const wchar_t* automation_id,
     int minimum,
     int maximum,
     int value,
@@ -90,8 +86,6 @@ std::unique_ptr<BorderedStack> BorderBox(Children... children)
 
 std::unique_ptr<StackPanel> Section(
     const wchar_t* title,
-    std::unique_ptr<UiElement> content,
-    const wchar_t* title_automation_id = L"",
-    const wchar_t* section_automation_id = L"");
+    std::unique_ptr<UiElement> content);
 
 } // namespace experimental::ui_decl

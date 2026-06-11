@@ -125,7 +125,6 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
         kUiActionNone,
         ImgViewerString(ImgViewerStringId::InfoPanel),
         L"",
-        L"info-panel",
         false,
         true)));
     panel_id_ = panel_->Id();
@@ -136,7 +135,6 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
         kUiActionNone,
         ImgViewerString(ImgViewerStringId::ImageDetails),
         ImgViewerString(ImgViewerStringId::ImageDetails),
-        L"info-panel-image-details",
         false,
         true))));
     basic_table_->SetColumns(std::vector<TableColumn>{
@@ -153,7 +151,6 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
         kUiActionNone,
         ImgViewerString(ImgViewerStringId::ColorAndHdr),
         ImgViewerString(ImgViewerStringId::ColorAndHdr),
-        L"info-panel-color",
         false,
         true))));
     color_table_->SetColumns(std::vector<TableColumn>{
@@ -170,7 +167,6 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
         kUiActionNone,
         ImgViewerString(ImgViewerStringId::Exif),
         ImgViewerString(ImgViewerStringId::Exif),
-        L"info-panel-exif",
         false,
         true))));
     exif_table_->SetColumns(std::vector<TableColumn>{

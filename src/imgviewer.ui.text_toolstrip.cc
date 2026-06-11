@@ -20,25 +20,25 @@ namespace {
 constexpr float kFontDropdownWidth = 180.0f;
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize12, ImgViewerStringId::Text12PxTooltip, L"edit-text-size-12", ToolStripItemVisual::TextLabel, PackFloat(12.0f), {}, 12.0f, ImgViewerShapeKind::Rectangle, L"12"},
-    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize16, ImgViewerStringId::Text16PxTooltip, L"edit-text-size-16", ToolStripItemVisual::TextLabel, PackFloat(16.0f), {}, 16.0f, ImgViewerShapeKind::Rectangle, L"16"},
-    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize20, ImgViewerStringId::Text20PxTooltip, L"edit-text-size-20", ToolStripItemVisual::TextLabel, PackFloat(20.0f), {}, 20.0f, ImgViewerShapeKind::Rectangle, L"20"},
-    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize28, ImgViewerStringId::Text28PxTooltip, L"edit-text-size-28", ToolStripItemVisual::TextLabel, PackFloat(28.0f), {}, 28.0f, ImgViewerShapeKind::Rectangle, L"28"},
-    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize36, ImgViewerStringId::Text36PxTooltip, L"edit-text-size-36", ToolStripItemVisual::TextLabel, PackFloat(36.0f), {}, 36.0f, ImgViewerShapeKind::Rectangle, L"36"},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Red, ImgViewerStringId::RedText, L"edit-text-red", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Red)), D2D1::ColorF(D2D1::ColorF::Red)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Yellow, ImgViewerStringId::YellowText, L"edit-text-yellow", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Yellow)), D2D1::ColorF(D2D1::ColorF::Yellow)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Green, ImgViewerStringId::GreenText, L"edit-text-green", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Lime)), D2D1::ColorF(D2D1::ColorF::Lime)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Cyan, ImgViewerStringId::CyanText, L"edit-text-cyan", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Cyan)), D2D1::ColorF(D2D1::ColorF::Cyan)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Blue, ImgViewerStringId::BlueText, L"edit-text-blue", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue)), D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaText, L"edit-text-magenta", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Magenta)), D2D1::ColorF(D2D1::ColorF::Magenta)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::White, ImgViewerStringId::WhiteText, L"edit-text-white", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::White)), D2D1::ColorF(D2D1::ColorF::White)},
-    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Black, ImgViewerStringId::BlackText, L"edit-text-black", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Black)), D2D1::ColorF(D2D1::ColorF::Black)},
-    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::None, ImgViewerStringId::TransparentTextBackground, L"edit-text-bg-transparent", ToolStripItemVisual::ColorSwatch, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", L"", nullptr, true},
-    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Yellow, ImgViewerStringId::YellowTextBackground, L"edit-text-bg-yellow", ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)},
-    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::White, ImgViewerStringId::WhiteTextBackground, L"edit-text-bg-white", ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::White, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::White, 0.82f)},
-    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Black, ImgViewerStringId::BlackTextBackground, L"edit-text-bg-black", ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::Black, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::Black, 0.82f)},
-    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Red, ImgViewerStringId::RedTextBackground, L"edit-text-bg-red", ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::Red, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::Red, 0.82f)},
-    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Blue, ImgViewerStringId::BlueTextBackground, L"edit-text-bg-blue", ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)},
+    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize12, ImgViewerStringId::Text12PxTooltip, ToolStripItemVisual::TextLabel, PackFloat(12.0f), {}, 12.0f, ImgViewerShapeKind::Rectangle, L"12"},
+    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize16, ImgViewerStringId::Text16PxTooltip, ToolStripItemVisual::TextLabel, PackFloat(16.0f), {}, 16.0f, ImgViewerShapeKind::Rectangle, L"16"},
+    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize20, ImgViewerStringId::Text20PxTooltip, ToolStripItemVisual::TextLabel, PackFloat(20.0f), {}, 20.0f, ImgViewerShapeKind::Rectangle, L"20"},
+    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize28, ImgViewerStringId::Text28PxTooltip, ToolStripItemVisual::TextLabel, PackFloat(28.0f), {}, 28.0f, ImgViewerShapeKind::Rectangle, L"28"},
+    {ImgViewerAction::EditSetTextFontSize, ImgViewerStringId::TextSize36, ImgViewerStringId::Text36PxTooltip, ToolStripItemVisual::TextLabel, PackFloat(36.0f), {}, 36.0f, ImgViewerShapeKind::Rectangle, L"36"},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Red, ImgViewerStringId::RedText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Red)), D2D1::ColorF(D2D1::ColorF::Red)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Yellow, ImgViewerStringId::YellowText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Yellow)), D2D1::ColorF(D2D1::ColorF::Yellow)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Green, ImgViewerStringId::GreenText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Lime)), D2D1::ColorF(D2D1::ColorF::Lime)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Cyan, ImgViewerStringId::CyanText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Cyan)), D2D1::ColorF(D2D1::ColorF::Cyan)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Blue, ImgViewerStringId::BlueText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue)), D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Magenta)), D2D1::ColorF(D2D1::ColorF::Magenta)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::White, ImgViewerStringId::WhiteText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::White)), D2D1::ColorF(D2D1::ColorF::White)},
+    {ImgViewerAction::EditSetTextColor, ImgViewerStringId::Black, ImgViewerStringId::BlackText, ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Black)), D2D1::ColorF(D2D1::ColorF::Black)},
+    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::None, ImgViewerStringId::TransparentTextBackground, ToolStripItemVisual::ColorSwatch, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", L"", nullptr, true},
+    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Yellow, ImgViewerStringId::YellowTextBackground, ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)},
+    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::White, ImgViewerStringId::WhiteTextBackground, ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::White, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::White, 0.82f)},
+    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Black, ImgViewerStringId::BlackTextBackground, ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::Black, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::Black, 0.82f)},
+    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Red, ImgViewerStringId::RedTextBackground, ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::Red, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::Red, 0.82f)},
+    {ImgViewerAction::EditSetTextBackground, ImgViewerStringId::Blue, ImgViewerStringId::BlueTextBackground, ToolStripItemVisual::ColorSwatch, (PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)) << 8) | 1, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()
@@ -51,7 +51,7 @@ std::vector<ToolStripItemSpec> BuildSpecs()
 ImgViewerUiTextToolstrip::ImgViewerUiTextToolstrip(UiElement& root)
 {
     toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
-        root, ImgViewerString(ImgViewerStringId::TextTools), L"text-toolstrip", BuildSpecs());
+        root, ImgViewerString(ImgViewerStringId::TextTools), BuildSpecs());
     toolstrip_->SetExtraWidth(kFontDropdownWidth);
     toolstrip_->SetExtraItemCount(1);
 
@@ -62,8 +62,7 @@ ImgViewerUiTextToolstrip::ImgViewerUiTextToolstrip(UiElement& root)
             UiElementRole::ComboBox,
             UiActionFromImgViewerAction(ImgViewerAction::EditTextFontChanged),
             ImgViewerString(ImgViewerStringId::Font),
-            ImgViewerString(ImgViewerStringId::TextFont),
-            L"edit-text-font"),
+            ImgViewerString(ImgViewerStringId::TextFont)),
         font_options_)));
 
     SetScalePercent(125);

@@ -20,8 +20,7 @@ class ImgViewerFloatingToolbar final {
 public:
     ImgViewerFloatingToolbar(
         UiElement& root,
-        const wchar_t* name,
-        const wchar_t* automation_id);
+        const wchar_t* name);
 
     StackPanel* Panel() const;
     D2D1_RECT_F Rect() const;

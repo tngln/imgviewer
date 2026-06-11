@@ -51,8 +51,7 @@ public:
                 UiElementRole::Pane,
                 UiActionFromImgViewerAction(ImgViewerAction::None),
                 ImgViewerString(ImgViewerStringId::AboutImgViewer),
-                ImgViewerString(ImgViewerStringId::AboutImgViewer),
-                L"about-root"));
+                ImgViewerString(ImgViewerStringId::AboutImgViewer)));
         root_panel->SetPadding(UiThickness{kAboutSidePadding, kAboutTopPadding, kAboutSidePadding, 0.0f});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
@@ -95,9 +94,9 @@ private:
     static std::unique_ptr<UiElement> BuildNoticeEntry(const NoticeLine& line)
     {
         return ui_decl::Group(
-            ui_decl::Body(line.name, L"about-notice-name"),
-            ui_decl::Muted(line.detail, L"about-notice-detail"),
-            ui_decl::Muted(line.license_path, L"about-notice-license"));
+            ui_decl::Body(line.name),
+            ui_decl::Muted(line.detail),
+            ui_decl::Muted(line.license_path));
     }
 
     void BuildUiTree()
@@ -111,14 +110,12 @@ private:
             kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding});
 
         root_->AddItem(ui_decl::VStack(
-            ui_decl::Title(ImgViewerString(ImgViewerStringId::AppName), L"about-app-name"),
-            ui_decl::Muted(ImgViewerString(ImgViewerStringId::AboutDescription), L"about-description"),
-            ui_decl::Muted(ImgViewerString(ImgViewerStringId::DevelopmentBuild), L"about-development-build"),
+            ui_decl::Title(ImgViewerString(ImgViewerStringId::AppName)),
+            ui_decl::Muted(ImgViewerString(ImgViewerStringId::AboutDescription)),
+            ui_decl::Muted(ImgViewerString(ImgViewerStringId::DevelopmentBuild)),
             ui_decl::Section(
                 ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
-                std::move(notice_box),
-                L"about-notices-title",
-                L"about-notices-section")));
+                std::move(notice_box))));
     }
 
     std::unique_ptr<UiElement> root_owner_;

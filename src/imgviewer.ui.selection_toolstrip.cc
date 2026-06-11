@@ -13,8 +13,8 @@ constexpr wchar_t kCopyIcon[] = L"\xE8C8";
 constexpr wchar_t kMosaicIcon[] = L"\xE9F5";
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::EditCopySelection, ImgViewerStringId::CopySelection, ImgViewerStringId::CopySelectedPixels, L"edit-copy-selection", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kCopyIcon},
-    {ImgViewerAction::EditMosaicSelection, ImgViewerStringId::MosaicSelection, ImgViewerStringId::MosaicSelectedPixels, L"edit-mosaic-selection", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kMosaicIcon},
+    {ImgViewerAction::EditCopySelection, ImgViewerStringId::CopySelection, ImgViewerStringId::CopySelectedPixels, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kCopyIcon},
+    {ImgViewerAction::EditMosaicSelection, ImgViewerStringId::MosaicSelection, ImgViewerStringId::MosaicSelectedPixels, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kMosaicIcon},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()
@@ -27,7 +27,7 @@ std::vector<ToolStripItemSpec> BuildSpecs()
 ImgViewerUiSelectionToolstrip::ImgViewerUiSelectionToolstrip(UiElement& root)
 {
     toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
-        root, ImgViewerString(ImgViewerStringId::PixelSelectionTools), L"pixel-selection-toolstrip", BuildSpecs());
+        root, ImgViewerString(ImgViewerStringId::PixelSelectionTools), BuildSpecs());
     toolstrip_->SetBorderColor(ui_theme::color::kAccent);
     SetScalePercent(125);
     SetState(state_);

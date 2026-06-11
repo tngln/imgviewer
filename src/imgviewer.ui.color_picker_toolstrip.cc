@@ -76,7 +76,6 @@ const ToolStripItemSpec kCopySpec = {
     ImgViewerAction::CopyColorPickerValue,
     ImgViewerStringId::CopyColorPickerValue,
     ImgViewerStringId::CopyColorPickerValue,
-    L"copy-color-picker-value",
     ToolStripItemVisual::Icon,
     0,
     {},
@@ -96,12 +95,12 @@ std::vector<ToolStripItemSpec> BuildSpecs()
 ImgViewerUiColorPickerToolstrip::ImgViewerUiColorPickerToolstrip(UiElement& root)
 {
     toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
-        root, ImgViewerString(ImgViewerStringId::ColorPickerTools), L"color-picker-toolstrip", BuildSpecs());
+        root, ImgViewerString(ImgViewerStringId::ColorPickerTools), BuildSpecs());
     toolstrip_->SetExtraWidth(kValueWidth);
     toolstrip_->SetExtraItemCount(1);
 
     auto value = std::make_unique<ReadOnlyColorValue>(
-        UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::ColorValue), L"", L"color-picker-value"));
+        UiMetadata(UiElementRole::Edit, kUiActionNone, ImgViewerString(ImgViewerStringId::ColorValue)));
     value_element_ = toolstrip_->Panel()->AddItem(std::move(value), kValueWidth);
 
     SetScalePercent(125);

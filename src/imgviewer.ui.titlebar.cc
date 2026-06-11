@@ -30,7 +30,6 @@ struct ButtonSpec final {
     ImgViewerAction action = ImgViewerAction::None;
     ImgViewerStringId name = ImgViewerStringId::Empty;
     ImgViewerStringId tooltip = ImgViewerStringId::Empty;
-    const wchar_t* automation_id = L"";
     const wchar_t* icon = L"";
     bool danger = false;
 };
@@ -43,14 +42,14 @@ std::unique_ptr<IconButton> CreateButton(const ButtonSpec& spec, UiElementMetada
 }
 
 constexpr std::array<ButtonSpec, ImgViewerUiTitleBar::kButtonCount> kButtonSpecs{{
-    {ImgViewerUiTitleBar::ButtonKey::Menu, ImgViewerAction::OpenMenu, ImgViewerStringId::Menu, ImgViewerStringId::OpenMenuTooltip, L"menu", kMenuIcon},
+    {ImgViewerUiTitleBar::ButtonKey::Menu, ImgViewerAction::OpenMenu, ImgViewerStringId::Menu, ImgViewerStringId::OpenMenuTooltip, kMenuIcon},
     {ImgViewerUiTitleBar::ButtonKey::TopMost, ImgViewerAction::ToggleTopMost, ImgViewerStringId::TopMost, ImgViewerStringId::KeepWindowOnTop,
-        L"top-most", kTopMostIcon},
-    {ImgViewerUiTitleBar::ButtonKey::Minimize, ImgViewerAction::Minimize, ImgViewerStringId::Minimize, ImgViewerStringId::Minimize, L"minimize",
+        kTopMostIcon},
+    {ImgViewerUiTitleBar::ButtonKey::Minimize, ImgViewerAction::Minimize, ImgViewerStringId::Minimize, ImgViewerStringId::Minimize,
         kMinimizeIcon},
     {ImgViewerUiTitleBar::ButtonKey::MaximizeRestore, ImgViewerAction::ToggleMaximize, ImgViewerStringId::MaximizeOrRestore,
-        ImgViewerStringId::MaximizeOrRestore, L"maximize-restore", kMaximizeIcon},
-    {ImgViewerUiTitleBar::ButtonKey::Close, ImgViewerAction::Close, ImgViewerStringId::Close, ImgViewerStringId::Close, L"close", kCloseIcon, true},
+        ImgViewerStringId::MaximizeOrRestore, kMaximizeIcon},
+    {ImgViewerUiTitleBar::ButtonKey::Close, ImgViewerAction::Close, ImgViewerStringId::Close, ImgViewerStringId::Close, kCloseIcon, true},
 }};
 
 constexpr bool ButtonSpecsMatchKeys()
@@ -83,7 +82,7 @@ constexpr size_t ImgViewerUiTitleBar::ButtonIndex(ButtonKey button)
 ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
 {
     caption_buttons_ = static_cast<StackPanel*>(root.AddChild(std::make_unique<StackPanel>(
-        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::CaptionButtons), L"", L"caption-buttons", false, false),
+        UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::CaptionButtons), false, false),
         ui_layout::StackDirection::Horizontal)));
     for (const ButtonSpec& spec : kButtonSpecs) {
         ButtonInstance& button = buttons_[ButtonIndex(spec.button)];
@@ -93,8 +92,7 @@ ImgViewerUiTitleBar::ImgViewerUiTitleBar(UiElement& root)
                 UiElementRole::Button,
                 UiActionFromImgViewerAction(spec.action),
                 ImgViewerString(spec.name),
-                ImgViewerString(spec.tooltip),
-                spec.automation_id));
+                ImgViewerString(spec.tooltip)));
         element->SetVisualDanger(spec.danger);
         button.element = spec.button == ButtonKey::Menu
             ? static_cast<IconButton*>(root.AddChild(std::move(element)))

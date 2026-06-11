@@ -40,31 +40,26 @@ public:
     DeveloperUi()
     {
         auto root = std::make_unique<StackPanel>(
-            UiRootMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::Developer), ImgViewerString(ImgViewerStringId::Developer), L"developer-root"));
+            UiRootMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::Developer), ImgViewerString(ImgViewerStringId::Developer)));
         root->SetPadding(UiThickness{kDeveloperSidePadding, kDeveloperContentTopPadding, kDeveloperSidePadding, 0.0f});
         root->SetGap(8.0f);
         root_ = root.get();
         root_owner_ = std::move(root);
 
         root_->AddItem(ui_decl::Title(
-            ImgViewerString(ImgViewerStringId::Developer),
-            L"developer-title"), 20.0f);
+            ImgViewerString(ImgViewerStringId::Developer)), 20.0f);
         root_->AddItem(ui_decl::Muted(
-            ImgViewerString(ImgViewerStringId::DeveloperControlLab),
-            L"developer-subtitle"), 18.0f);
+            ImgViewerString(ImgViewerStringId::DeveloperControlLab)), 18.0f);
 
         sample_button_ = root_->AddItem(ui_decl::Button(
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton),
-            L"developer-sample-button",
             kRefreshIcon,
             ImgViewerString(ImgViewerStringId::DeveloperSampleButton)), 28.0f);
         sample_checkbox_ = root_->AddItem(ui_decl::Toggle(
             ImgViewerString(ImgViewerStringId::SampleCheckbox),
-            L"developer-sample-checkbox",
             sample_checked_), 24.0f);
         sample_slider_ = root_->AddItem(ui_decl::SliderField(
             ImgViewerString(ImgViewerStringId::SampleSlider),
-            L"developer-sample-slider",
             0,
             100,
             sample_slider_value_,
@@ -75,7 +70,7 @@ public:
             UpdateStateText();
         });
         editable_table_ = root_->AddItem(std::make_unique<Table>(
-            UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::EditableTable), ImgViewerString(ImgViewerStringId::EditableTable), L"developer-editable-table")),
+            UiMetadata(UiElementRole::Pane, kUiActionNone, ImgViewerString(ImgViewerStringId::EditableTable), ImgViewerString(ImgViewerStringId::EditableTable))),
             112.0f);
         editable_table_->SetColumns(std::vector<TableColumn>{
             TableColumn{ImgViewerString(ImgViewerStringId::Name), 120.0f, false},
@@ -97,12 +92,11 @@ public:
             TableRow{.cells = {L"Numeric value", L"50", L"Number"}},
             TableRow{.cells = {L"Theme token", L"Accent", L"Token"}},
         });
-        state_label_ = root_->AddItem(ui_decl::Body(L"", L"developer-state"), 22.0f);
+        state_label_ = root_->AddItem(ui_decl::Body(L""), 22.0f);
 
         close_button_ = root_->AddItem(ui_decl::ActionButton(
             UiActionFromImgViewerAction(ImgViewerAction::CloseDeveloper),
             ImgViewerString(ImgViewerStringId::Close),
-            L"close-developer",
             kCloseIcon,
             ImgViewerString(ImgViewerStringId::Close)), 28.0f);
         UpdateStateText();

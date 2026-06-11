@@ -23,7 +23,6 @@ UiElementMetadata MakeUiElementMetadata(
     UiAction action,
     const wchar_t* name,
     const wchar_t* tooltip,
-    const wchar_t* automation_id,
     bool is_control,
     bool is_content)
 {
@@ -33,7 +32,6 @@ UiElementMetadata MakeUiElementMetadata(
         .action = action,
         .name = name,
         .tooltip = tooltip,
-        .automation_id = automation_id,
         .is_control = is_control,
         .is_content = is_content,
     };
@@ -45,8 +43,17 @@ UiElementMetadata UiMetadata(
     UiElementRole role,
     UiAction action,
     const wchar_t* name,
+    bool is_control,
+    bool is_content)
+{
+    return UiMetadata(role, action, name, L"", is_control, is_content);
+}
+
+UiElementMetadata UiMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
     const wchar_t* tooltip,
-    const wchar_t* automation_id,
     bool is_control,
     bool is_content)
 {
@@ -56,7 +63,6 @@ UiElementMetadata UiMetadata(
         action,
         name,
         tooltip,
-        automation_id,
         is_control,
         is_content);
 }
@@ -65,8 +71,17 @@ UiElementMetadata UiRootMetadata(
     UiElementRole role,
     UiAction action,
     const wchar_t* name,
+    bool is_control,
+    bool is_content)
+{
+    return UiRootMetadata(role, action, name, L"", is_control, is_content);
+}
+
+UiElementMetadata UiRootMetadata(
+    UiElementRole role,
+    UiAction action,
+    const wchar_t* name,
     const wchar_t* tooltip,
-    const wchar_t* automation_id,
     bool is_control,
     bool is_content)
 {
@@ -76,7 +91,6 @@ UiElementMetadata UiRootMetadata(
         action,
         name,
         tooltip,
-        automation_id,
         is_control,
         is_content);
 }

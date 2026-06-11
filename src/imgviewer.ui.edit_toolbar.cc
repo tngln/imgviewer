@@ -27,17 +27,17 @@ constexpr wchar_t kExitIcon[] = L"\xE711";
 constexpr float kDirtyDotSize = 6.0f;
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::EditSelect, ImgViewerStringId::EditSelect, ImgViewerStringId::SelectEditObjects, L"edit-select", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kSelectIcon},
-    {ImgViewerAction::EditPixelSelect, ImgViewerStringId::PixelSelect, ImgViewerStringId::SelectPixels, L"edit-pixel-select", ToolStripItemVisual::PathIcon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", L"", &icons::kRegionScreenshotIcon},
-    {ImgViewerAction::EditPen, ImgViewerStringId::EditPen, ImgViewerStringId::PenAnnotation, L"edit-pen", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPenIcon},
-    {ImgViewerAction::EditShape, ImgViewerStringId::EditShape, ImgViewerStringId::ShapeAnnotation, L"edit-shape", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kShapeIcon},
-    {ImgViewerAction::EditText, ImgViewerStringId::EditText, ImgViewerStringId::TextAnnotation, L"edit-text", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kTextIcon},
-    {ImgViewerAction::EditCrop, ImgViewerStringId::EditCrop, ImgViewerStringId::CropImage, L"edit-crop", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kCropIcon},
-    {ImgViewerAction::EditRotateClockwise, ImgViewerStringId::EditRotateClockwise, ImgViewerStringId::RotateEditClockwise, L"edit-rotate-clockwise", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kRotateIcon},
-    {ImgViewerAction::EditUndo, ImgViewerStringId::UndoEdit, ImgViewerStringId::UndoEdit, L"edit-undo", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kUndoIcon},
-    {ImgViewerAction::EditRedo, ImgViewerStringId::RedoEdit, ImgViewerStringId::RedoEdit, L"edit-redo", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kRedoIcon},
-    {ImgViewerAction::SaveImageAs, ImgViewerStringId::SaveAs, ImgViewerStringId::SaveEditedImageAsPng, L"edit-save-as", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kSaveIcon},
-    {ImgViewerAction::ToggleEditMode, ImgViewerStringId::ExitEditMode, ImgViewerStringId::ExitEditMode, L"edit-exit", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kExitIcon},
+    {ImgViewerAction::EditSelect, ImgViewerStringId::EditSelect, ImgViewerStringId::SelectEditObjects, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kSelectIcon},
+    {ImgViewerAction::EditPixelSelect, ImgViewerStringId::PixelSelect, ImgViewerStringId::SelectPixels, ToolStripItemVisual::PathIcon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", L"", &icons::kRegionScreenshotIcon},
+    {ImgViewerAction::EditPen, ImgViewerStringId::EditPen, ImgViewerStringId::PenAnnotation, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPenIcon},
+    {ImgViewerAction::EditShape, ImgViewerStringId::EditShape, ImgViewerStringId::ShapeAnnotation, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kShapeIcon},
+    {ImgViewerAction::EditText, ImgViewerStringId::EditText, ImgViewerStringId::TextAnnotation, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kTextIcon},
+    {ImgViewerAction::EditCrop, ImgViewerStringId::EditCrop, ImgViewerStringId::CropImage, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kCropIcon},
+    {ImgViewerAction::EditRotateClockwise, ImgViewerStringId::EditRotateClockwise, ImgViewerStringId::RotateEditClockwise, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kRotateIcon},
+    {ImgViewerAction::EditUndo, ImgViewerStringId::UndoEdit, ImgViewerStringId::UndoEdit, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kUndoIcon},
+    {ImgViewerAction::EditRedo, ImgViewerStringId::RedoEdit, ImgViewerStringId::RedoEdit, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kRedoIcon},
+    {ImgViewerAction::SaveImageAs, ImgViewerStringId::SaveAs, ImgViewerStringId::SaveEditedImageAsPng, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kSaveIcon},
+    {ImgViewerAction::ToggleEditMode, ImgViewerStringId::ExitEditMode, ImgViewerStringId::ExitEditMode, ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kExitIcon},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()
@@ -50,7 +50,7 @@ std::vector<ToolStripItemSpec> BuildSpecs()
 ImgViewerUiEditToolbar::ImgViewerUiEditToolbar(UiElement& root)
 {
     toolstrip_ = std::make_unique<ImgViewerUiToolStrip>(
-        root, ImgViewerString(ImgViewerStringId::EditToolbar), L"edit-toolbar", BuildSpecs());
+        root, ImgViewerString(ImgViewerStringId::EditToolbar), BuildSpecs());
     SetScalePercent(125);
     SetState(state_);
 }

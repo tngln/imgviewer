@@ -192,13 +192,12 @@ std::unique_ptr<UiElement> CreateToolStripButton(UiElementMetadata metadata, con
 ImgViewerUiToolStrip::ImgViewerUiToolStrip(
     UiElement& root,
     const wchar_t* name,
-    const wchar_t* automation_id,
     std::vector<ToolStripItemSpec> specs) :
     specs_(std::move(specs)),
     border_color_(ui_theme::color::kBorder),
     border_stroke_width_(ui_theme::metrics::kStrokeWidth)
 {
-    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, name, automation_id);
+    toolbar_ = std::make_unique<ImgViewerFloatingToolbar>(root, name);
 
     buttons_.reserve(specs_.size());
     for (size_t i = 0; i < specs_.size(); ++i) {
@@ -207,8 +206,7 @@ ImgViewerUiToolStrip::ImgViewerUiToolStrip(
             UiElementRole::Button,
             UiAction(static_cast<int>(spec.action), spec.arg),
             ImgViewerString(spec.name),
-            ImgViewerString(spec.tooltip),
-            spec.automation_id);
+            ImgViewerString(spec.tooltip));
         auto element = CreateToolStripButton(metadata, spec);
         ButtonInstance button;
         button.element = toolbar_->Panel()->AddItem(std::move(element), ui_theme::metrics::kToolbarButtonSize);
