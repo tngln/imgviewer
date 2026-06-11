@@ -83,7 +83,7 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
     SyncActionStates(context);
     if (hwnd != nullptr) {
         SyncWindowState(hwnd, context);
-        RETURN_IF_FAILED(RenderImgViewer(context));
+        InvalidateRect(hwnd, nullptr, FALSE);
 
         context->tooltip.reset();
         HWND tooltip = nullptr;
@@ -176,7 +176,7 @@ HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hid
     SyncWindowState(hwnd, context);
     UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
     RETURN_IF_FAILED(context->renderer.SetUiOverlayVisible(true));
-    RETURN_IF_FAILED(RenderImgViewer(context));
+    InvalidateRect(hwnd, nullptr, FALSE);
 
     if (hide_for_transition && was_visible) {
         ShowWindow(hwnd, was_zoomed ? SW_SHOWMAXIMIZED : SW_SHOW);
@@ -308,14 +308,14 @@ void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* tex
     if (text == nullptr || text[0] == L'\0') {
         KillTimer(hwnd, kImgViewerToastTimerId);
         if (context->main_ui->HideToast()) {
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         return;
     }
 
     context->main_ui->ShowToast(text);
     SetTimer(hwnd, kImgViewerToastTimerId, kToastDurationMs, nullptr);
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context)
@@ -424,7 +424,7 @@ void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditToo
     if (toast_text != nullptr) {
         ShowImgViewerToast(hwnd, context, toast_text);
     } else {
-        RenderImgViewer(context);
+        InvalidateRect(hwnd, nullptr, FALSE);
     }
     SyncImgViewerMainWindowIme(hwnd, context);
 }
@@ -536,13 +536,13 @@ void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent)
     if (hwnd != nullptr) {
         UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
     }
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
-void DoAction(ImgViewerContext* context, bool success)
+void DoAction(HWND hwnd, ImgViewerContext* /*context*/, bool success)
 {
     if (success) {
-        RenderImgViewer(context);
+        InvalidateRect(hwnd, nullptr, FALSE);
     }
 }
 
@@ -586,7 +586,7 @@ void SetPenColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
         context->viewer.ToggleAnimationPlayback();
         SyncImgViewerAnimationTimer(hwnd, context);
     }
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SetPenWidth(HWND hwnd, ImgViewerContext* context, float width)
@@ -608,7 +608,7 @@ void SetPenWidth(HWND hwnd, ImgViewerContext* context, float width)
         context->viewer.ToggleAnimationPlayback();
         SyncImgViewerAnimationTimer(hwnd, context);
     }
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SetShapeKind(HWND hwnd, ImgViewerContext* context, ImgViewerShapeKind kind)
@@ -630,7 +630,7 @@ void SetShapeKind(HWND hwnd, ImgViewerContext* context, ImgViewerShapeKind kind)
         context->viewer.ToggleAnimationPlayback();
         SyncImgViewerAnimationTimer(hwnd, context);
     }
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void PrepareTextStyleEdit(HWND hwnd, ImgViewerContext* context)
@@ -670,7 +670,7 @@ void SetTextFontFamily(HWND hwnd, ImgViewerContext* context, std::wstring font_f
         return;
     }
     context->edit.SetTextFontFamily(std::move(font_family));
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SetTextFontSize(HWND hwnd, ImgViewerContext* context, float font_size)
@@ -680,7 +680,7 @@ void SetTextFontSize(HWND hwnd, ImgViewerContext* context, float font_size)
         return;
     }
     context->edit.SetTextFontSize(font_size);
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SetTextColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
@@ -690,7 +690,7 @@ void SetTextColor(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color)
         return;
     }
     context->edit.SetTextColor(color);
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SetTextBackground(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color, bool has_background)
@@ -700,7 +700,7 @@ void SetTextBackground(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color,
         return;
     }
     context->edit.SetTextBackground(color, has_background);
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction action)
@@ -744,33 +744,33 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         NavigateImageFile(hwnd, context, 1);
         break;
     case ImgViewerAction::ZoomIn:
-        if (context != nullptr) DoAction(context, context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize()));
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::ZoomOut:
-        if (context != nullptr) DoAction(context, context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize()));
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::FitWindow:
-        if (context != nullptr) DoAction(context, context->viewer.FitWindow());
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.FitWindow());
         break;
     case ImgViewerAction::ActualSize:
-        if (context != nullptr) DoAction(context, context->viewer.ActualSize(context->renderer.ViewportPixelSize()));
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.ActualSize(context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::RotateClockwise:
-        if (context != nullptr) DoAction(context, context->viewer.RotateClockwise());
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.RotateClockwise());
         break;
     case ImgViewerAction::FlipHorizontal:
-        if (context != nullptr) DoAction(context, context->viewer.FlipHorizontal());
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.FlipHorizontal());
         break;
     case ImgViewerAction::FlipVertical:
-        if (context != nullptr) DoAction(context, context->viewer.FlipVertical());
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.FlipVertical());
         break;
     case ImgViewerAction::ResetView:
-        if (context != nullptr) DoAction(context, context->viewer.ResetView());
+        if (context != nullptr) DoAction(hwnd, context, context->viewer.ResetView());
         break;
     case ImgViewerAction::ToggleColorPicker:
         if (context != nullptr) {
             SetImgViewerColorPickerActive(hwnd, context, !context->color_picker_active);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::CopyColorPickerValue:
@@ -838,7 +838,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         break;
     case ImgViewerAction::EditCancelCrop:
         if (context != nullptr && context->edit.CancelCropSession()) {
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::EditCopySelection:
@@ -853,50 +853,50 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         }
         break;
     case ImgViewerAction::EditMosaicSelection:
-        if (context != nullptr) DoAction(context, context->edit.MosaicSelection());
+        if (context != nullptr) DoAction(hwnd, context, context->edit.MosaicSelection());
         break;
     case ImgViewerAction::EditDeleteSelection:
-        if (context != nullptr) DoAction(context, context->edit.DeleteSelection());
+        if (context != nullptr) DoAction(hwnd, context, context->edit.DeleteSelection());
         break;
     case ImgViewerAction::EditRotateClockwise:
-        if (context != nullptr && EnsureEditDocument(context)) DoAction(context, context->edit.RotateClockwise());
+        if (context != nullptr && EnsureEditDocument(context)) DoAction(hwnd, context, context->edit.RotateClockwise());
         break;
     case ImgViewerAction::EditUndo:
-        if (context != nullptr) DoAction(context, context->edit.Undo());
+        if (context != nullptr) DoAction(hwnd, context, context->edit.Undo());
         break;
     case ImgViewerAction::EditRedo:
-        if (context != nullptr) DoAction(context, context->edit.Redo());
+        if (context != nullptr) DoAction(hwnd, context, context->edit.Redo());
         break;
     case ImgViewerAction::ToggleInfoPanel:
         if (context != nullptr) {
             context->info_panel_visible = !context->info_panel_visible;
             EnsureInfoPanelAnalysis(context);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::ToggleAnimationLoop:
         if (context != nullptr && context->viewer.ToggleAnimationLoop()) {
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::ToggleAnimationPlayback:
         if (context != nullptr && context->viewer.ToggleAnimationPlayback()) {
             SyncImgViewerAnimationTimer(hwnd, context);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::PreviousAnimationFrame:
         if (context != nullptr && context->viewer.StepAnimationFrame(-1)) {
             SyncImgViewerAnimationTimer(hwnd, context);
             InvalidateInfoPanelAnalysis(context);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::NextAnimationFrame:
         if (context != nullptr && context->viewer.StepAnimationFrame(1)) {
             SyncImgViewerAnimationTimer(hwnd, context);
             InvalidateInfoPanelAnalysis(context);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::ToggleTopMost: {
@@ -911,7 +911,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         if (context != nullptr) {
             SyncWindowState(hwnd, context);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     }
@@ -922,7 +922,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         ShowWindow(hwnd, IsZoomed(hwnd) ? SW_RESTORE : SW_MAXIMIZE);
         if (context != nullptr) {
             SyncWindowState(hwnd, context);
-            RenderImgViewer(context);
+            InvalidateRect(hwnd, nullptr, FALSE);
         }
         break;
     case ImgViewerAction::Close:
@@ -965,7 +965,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     context->main_ui->SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     SyncImgViewerAnimationTimer(hwnd, context);
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction)
@@ -1070,7 +1070,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
     context->main_ui->SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     SyncImgViewerAnimationTimer(hwnd, context);
-    RETURN_IF_FAILED(RenderImgViewer(context));
+    InvalidateRect(hwnd, nullptr, FALSE);
     return S_OK;
 }
 
@@ -1177,7 +1177,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     context->main_ui->SetTitleText(title_text.c_str());
     SetWindowTextW(hwnd, title_text.c_str());
     SyncImgViewerAnimationTimer(hwnd, context);
-    RenderImgViewer(context);
+    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 namespace {

@@ -127,6 +127,18 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
         }
         return win32::WindowMessageResult::Unhandled();
 
+    case WM_PAINT: {
+        PAINTSTRUCT paint = {};
+        BeginPaint(hwnd, &paint);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr) {
+            RenderImgViewer(context);
+            PositionMainWindowIme(hwnd, context);
+        }
+        EndPaint(hwnd, &paint);
+        return win32::WindowMessageResult::Handled();
+    }
+
     case WM_ERASEBKGND:
         return win32::WindowMessageResult::Handled(1);
 

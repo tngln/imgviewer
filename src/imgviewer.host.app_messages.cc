@@ -50,7 +50,7 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
             KillTimer(hwnd, kImgViewerToastTimerId);
             ImgViewerContext* context = GetImgViewerContext(hwnd);
             if (context != nullptr && context->main_ui->HideToast()) {
-                RenderImgViewer(context);
+                InvalidateRect(hwnd, nullptr, FALSE);
             }
             return win32::WindowMessageResult::Handled();
         }
@@ -68,7 +68,7 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
             context->animation_last_tick_ms = now;
             if (context->viewer.AdvanceAnimation(elapsed_ms)) {
                 InvalidateImgViewerInfoPanelAnalysis(context);
-                RenderImgViewer(context);
+                InvalidateRect(hwnd, nullptr, FALSE);
             }
             SyncImgViewerAnimationTimer(hwnd, context);
             return win32::WindowMessageResult::Handled();

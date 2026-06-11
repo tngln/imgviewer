@@ -824,7 +824,7 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
         if (frame_changed) {
             ApplyImgViewerWindowFrame(context->owner, context->app, true);
         } else if (!language_changed) {
-            RenderImgViewer(context->app);
+            InvalidateRect(context->owner, nullptr, FALSE);
         }
     }
     context->saved = true;

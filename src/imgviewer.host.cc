@@ -330,8 +330,7 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
     }
 
     if (effects.needs_render) {
-        RenderImgViewer(context);
-        PositionMainWindowIme(hwnd, context);
+        InvalidateRect(hwnd, nullptr, FALSE);
     }
 
     const ImgViewerHostEffects action_effects = DispatchUiAction(hwnd, context, effects.action);
