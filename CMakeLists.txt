@@ -33,6 +33,7 @@ add_executable(imgviewer
     src/imgviewer.ui.selection_toolstrip.cc
     src/imgviewer.ui.shape_toolstrip.cc
     src/imgviewer.ui.text_toolstrip.cc
+    src/imgviewer.ui.toolstrip.cc
     src/imgviewer.ui.animation_toolbar.cc
     src/image.analysis.cc
     src/image.animation_decoder.cc
