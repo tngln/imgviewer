@@ -48,6 +48,7 @@ add_executable(imgviewer
     src/main.cc
     src/ui.a11y.cc
     src/ui.button.cc
+    src/ui.button_behavior.cc
     src/ui.label.cc
     src/ui.draw.cc
     src/ui.element.cc

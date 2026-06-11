@@ -11,67 +11,13 @@
 #include "imgviewer.config.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "math.hpp"
+#include "ui.button_behavior.hpp"
 #include "ui.theme.hpp"
 
 namespace {
 
 constexpr float kToolbarGapAboveAnchor = 6.0f;
-
-bool SameColor(D2D1_COLOR_F left, D2D1_COLOR_F right)
-{
-    constexpr float kTolerance = 0.001f;
-    return std::abs(left.r - right.r) < kTolerance &&
-        std::abs(left.g - right.g) < kTolerance &&
-        std::abs(left.b - right.b) < kTolerance &&
-        std::abs(left.a - right.a) < kTolerance;
-}
-
-UiEventResult ToolButtonPointerEvent(UiElement& button, const UiPointerEvent& event)
-{
-    if (event.button != UiPointerButton::Left &&
-        (event.type == UiEventType::PointerDown || event.type == UiEventType::PointerUp)) {
-        return {};
-    }
-
-    if (event.type == UiEventType::PointerDown) {
-        const bool can_activate = button.IsEnabled();
-        return UiEventResult{
-            .handled = true,
-            .needs_render = can_activate,
-            .capture = can_activate ? UiCaptureRequest::Capture : UiCaptureRequest::None,
-            .focus = can_activate && button.IsFocusable() ? UiFocusRequest::FocusTarget : UiFocusRequest::None,
-            .focus_target = can_activate ? button.Id() : UiElementId::None,
-        };
-    }
-
-    if (event.type == UiEventType::PointerUp && event.captured == button.Id()) {
-        return UiEventResult{
-            .handled = true,
-            .needs_render = button.IsEnabled(),
-            .capture = UiCaptureRequest::Release,
-            .action = button.IsEnabled() && event.target == button.Id() ? button.Action() : kUiActionNone,
-        };
-    }
-
-    return {};
-}
-
-UiEventResult ToolButtonKeyEvent(UiElement& button, const UiKeyEvent& event)
-{
-    if (event.type != UiEventType::KeyDown || !button.IsEnabled()) {
-        return {};
-    }
-
-    if (event.virtual_key != VK_RETURN && event.virtual_key != VK_SPACE) {
-        return {};
-    }
-
-    return UiEventResult{
-        .handled = true,
-        .needs_render = true,
-        .action = button.Action(),
-    };
-}
 
 class ShapeKindButton final : public UiElement {
 public:
@@ -332,7 +278,7 @@ void ImgViewerUiShapeToolstrip::UpdateVisualState()
         element->SetEnabled(state_.visible);
         const ButtonSpec& spec = kButtonSpecs[index];
         const bool active = spec.is_color
-            ? SameColor(state_.color, spec.color)
+            ? math::NearlyEqual(state_.color, spec.color)
             : state_.kind == spec.kind;
         element->SetVisualActive(state_.visible && active);
     }

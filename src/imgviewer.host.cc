@@ -245,8 +245,6 @@ void PositionMainWindowIme(HWND hwnd, ImgViewerContext* context)
     ImmReleaseContext(hwnd, ime);
 }
 
-void SyncPopupModal(ImgViewerContext* context);
-
 ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAction action)
 {
     ImgViewerHostEffects effects;

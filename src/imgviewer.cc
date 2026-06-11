@@ -47,6 +47,18 @@ std::unique_ptr<ImgViewerUi> CreateMainUi(ImgViewerUi** main_ui)
 
 } // namespace
 
+void ApplyInitialImageView(ImgViewerContext* context);
+
+void ResetAfterImageLoad(HWND hwnd, ImgViewerContext* context)
+{
+    context->edit.Clear();
+    context->interaction.EnterViewing();
+    ApplyInitialImageView(context);
+    InvalidateInfoPanelAnalysis(context);
+    SyncActionStates(context);
+    SetImgViewerColorPickerActive(hwnd, context, false);
+}
+
 ImgViewerContext::ImgViewerContext() : ui(CreateMainUi(&main_ui)) {}
 
 HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
@@ -553,14 +565,7 @@ void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent)
     RenderImgViewer(context);
 }
 
-inline void TryViewerAction(ImgViewerContext* context, bool success)
-{
-    if (success) {
-        RenderImgViewer(context);
-    }
-}
-
-inline void TryEditAction(ImgViewerContext* context, bool success)
+void DoAction(ImgViewerContext* context, bool success)
 {
     if (success) {
         RenderImgViewer(context);
@@ -763,28 +768,28 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         NavigateImageFile(hwnd, context, 1);
         break;
     case ImgViewerAction::ZoomIn:
-        if (context != nullptr) TryViewerAction(context, context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize()));
+        if (context != nullptr) DoAction(context, context->viewer.ZoomByStep(1, context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::ZoomOut:
-        if (context != nullptr) TryViewerAction(context, context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize()));
+        if (context != nullptr) DoAction(context, context->viewer.ZoomByStep(-1, context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::FitWindow:
-        if (context != nullptr) TryViewerAction(context, context->viewer.FitWindow());
+        if (context != nullptr) DoAction(context, context->viewer.FitWindow());
         break;
     case ImgViewerAction::ActualSize:
-        if (context != nullptr) TryViewerAction(context, context->viewer.ActualSize(context->renderer.ViewportPixelSize()));
+        if (context != nullptr) DoAction(context, context->viewer.ActualSize(context->renderer.ViewportPixelSize()));
         break;
     case ImgViewerAction::RotateClockwise:
-        if (context != nullptr) TryViewerAction(context, context->viewer.RotateClockwise());
+        if (context != nullptr) DoAction(context, context->viewer.RotateClockwise());
         break;
     case ImgViewerAction::FlipHorizontal:
-        if (context != nullptr) TryViewerAction(context, context->viewer.FlipHorizontal());
+        if (context != nullptr) DoAction(context, context->viewer.FlipHorizontal());
         break;
     case ImgViewerAction::FlipVertical:
-        if (context != nullptr) TryViewerAction(context, context->viewer.FlipVertical());
+        if (context != nullptr) DoAction(context, context->viewer.FlipVertical());
         break;
     case ImgViewerAction::ResetView:
-        if (context != nullptr) TryViewerAction(context, context->viewer.ResetView());
+        if (context != nullptr) DoAction(context, context->viewer.ResetView());
         break;
     case ImgViewerAction::ToggleColorPicker:
         if (context != nullptr) {
@@ -956,19 +961,19 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
         }
         break;
     case ImgViewerAction::EditMosaicSelection:
-        if (context != nullptr) TryEditAction(context, context->edit.MosaicSelection());
+        if (context != nullptr) DoAction(context, context->edit.MosaicSelection());
         break;
     case ImgViewerAction::EditDeleteSelection:
-        if (context != nullptr) TryEditAction(context, context->edit.DeleteSelection());
+        if (context != nullptr) DoAction(context, context->edit.DeleteSelection());
         break;
     case ImgViewerAction::EditRotateClockwise:
-        if (context != nullptr && EnsureEditDocument(context)) TryEditAction(context, context->edit.RotateClockwise());
+        if (context != nullptr && EnsureEditDocument(context)) DoAction(context, context->edit.RotateClockwise());
         break;
     case ImgViewerAction::EditUndo:
-        if (context != nullptr) TryEditAction(context, context->edit.Undo());
+        if (context != nullptr) DoAction(context, context->edit.Undo());
         break;
     case ImgViewerAction::EditRedo:
-        if (context != nullptr) TryEditAction(context, context->edit.Redo());
+        if (context != nullptr) DoAction(context, context->edit.Redo());
         break;
     case ImgViewerAction::ToggleInfoPanel:
         if (context != nullptr) {
@@ -1055,12 +1060,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
     context->current_image_path = path;
     context->current_image_from_clipboard = false;
     context->current_image_from_screenshot = false;
-    context->edit.Clear();
-    context->interaction.EnterViewing();
-    ApplyInitialImageView(context);
-    InvalidateInfoPanelAnalysis(context);
-    SyncActionStates(context);
-    SetImgViewerColorPickerActive(hwnd, context, false);
+    ResetAfterImageLoad(hwnd, context);
 
     const std::wstring file_name = util::FileNameFromPath(path, kImgViewerWindowTitle);
     const ImageSequencePosition position = context->sequence.Position();
@@ -1171,12 +1171,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
     context->current_image_path.clear();
     context->current_image_from_clipboard = false;
     context->current_image_from_screenshot = true;
-    context->edit.Clear();
-    context->interaction.EnterViewing();
-    ApplyInitialImageView(context);
-    InvalidateInfoPanelAnalysis(context);
-    SyncActionStates(context);
-    SetImgViewerColorPickerActive(hwnd, context, false);
+    ResetAfterImageLoad(hwnd, context);
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     const std::wstring title_text = L"<Screenshot>  " + util::FormatImageDimensions(image_size);
@@ -1283,12 +1278,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
     context->current_image_path.clear();
     context->current_image_from_clipboard = true;
     context->current_image_from_screenshot = false;
-    context->edit.Clear();
-    context->interaction.EnterViewing();
-    ApplyInitialImageView(context);
-    InvalidateInfoPanelAnalysis(context);
-    SyncActionStates(context);
-    SetImgViewerColorPickerActive(hwnd, context, false);
+    ResetAfterImageLoad(hwnd, context);
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     const std::wstring title_text = L"<Clipboard>  " + util::FormatImageDimensions(image_size);

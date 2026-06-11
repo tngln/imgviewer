@@ -84,4 +84,13 @@ inline D2D1_POINT_2F TransformVector(D2D1_MATRIX_3X2_F matrix, D2D1_POINT_2F vec
         vector.x * matrix._12 + vector.y * matrix._22);
 }
 
+inline bool NearlyEqual(D2D1_COLOR_F left, D2D1_COLOR_F right)
+{
+    constexpr float kTolerance = 0.001f;
+    return std::abs(left.r - right.r) < kTolerance &&
+        std::abs(left.g - right.g) < kTolerance &&
+        std::abs(left.b - right.b) < kTolerance &&
+        std::abs(left.a - right.a) < kTolerance;
+}
+
 } // namespace math
