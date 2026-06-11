@@ -1,16 +1,12 @@
 #include "imgviewer.ui.hpp"
 
-#include <cmath>
 #include <memory>
-#include <utility>
 #include <vector>
 
 #include <d2d1helper.h>
 
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "imgviewer.palette.hpp"
-#include "math.hpp"
 #include "ui.popup.hpp"
 #include "ui.theme.hpp"
 
@@ -184,63 +180,7 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
                     {ImgViewerString(ImgViewerStringId::EditText), UiActionFromImgViewerAction(ImgViewerAction::EditText), false, edit_toolbar_state_.tool == ImgViewerEditTool::Text, edit_enabled},
                     {ImgViewerString(ImgViewerStringId::EditCrop), UiActionFromImgViewerAction(ImgViewerAction::EditCrop), false, edit_toolbar_state_.tool == ImgViewerEditTool::Crop, edit_enabled},
                 }},
-                {ImgViewerString(ImgViewerStringId::EditPen), kUiActionNone, false, edit_toolbar_state_.tool == ImgViewerEditTool::Pen, edit_enabled, std::vector<MenuItem>{
-                    {ImgViewerString(ImgViewerStringId::RedPen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Red))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Red)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::YellowPen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Yellow))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Yellow)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::GreenPen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Lime))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Lime)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::CyanPen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Cyan))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Cyan)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::BluePen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::DodgerBlue)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::MagentaPen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Magenta))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Magenta)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::WhitePen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::White))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::White)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::BlackPen), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Black))), false, math::NearlyEqual(pen_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Black)), edit_enabled},
-                    {L"", kUiActionNone, true},
-                    {ImgViewerString(ImgViewerStringId::PenWidth2), UiAction(static_cast<int>(ImgViewerAction::EditSetPenWidth), PackFloat(2.0f)), false, std::abs(pen_toolstrip_state_.width - 2.0f) < 0.01f, edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::PenWidth4), UiAction(static_cast<int>(ImgViewerAction::EditSetPenWidth), PackFloat(4.0f)), false, std::abs(pen_toolstrip_state_.width - 4.0f) < 0.01f, edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::PenWidth8), UiAction(static_cast<int>(ImgViewerAction::EditSetPenWidth), PackFloat(8.0f)), false, std::abs(pen_toolstrip_state_.width - 8.0f) < 0.01f, edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::PenWidth12), UiAction(static_cast<int>(ImgViewerAction::EditSetPenWidth), PackFloat(12.0f)), false, std::abs(pen_toolstrip_state_.width - 12.0f) < 0.01f, edit_enabled},
-                }},
-                {ImgViewerString(ImgViewerStringId::EditShape), kUiActionNone, false, edit_toolbar_state_.tool == ImgViewerEditTool::Shape, edit_enabled, std::vector<MenuItem>{
-                    {ImgViewerString(ImgViewerStringId::RectangleShape), UiAction(static_cast<int>(ImgViewerAction::EditSetShapeKind), static_cast<int32_t>(ImgViewerShapeKind::Rectangle)), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Rectangle, edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::EllipseShape), UiAction(static_cast<int>(ImgViewerAction::EditSetShapeKind), static_cast<int32_t>(ImgViewerShapeKind::Ellipse)), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Ellipse, edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::LineShape), UiAction(static_cast<int>(ImgViewerAction::EditSetShapeKind), static_cast<int32_t>(ImgViewerShapeKind::Line)), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Line, edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::ArrowShape), UiAction(static_cast<int>(ImgViewerAction::EditSetShapeKind), static_cast<int32_t>(ImgViewerShapeKind::Arrow)), false, shape_toolstrip_state_.kind == ImgViewerShapeKind::Arrow, edit_enabled},
-                    {L"", kUiActionNone, true},
-                    {ImgViewerString(ImgViewerStringId::RedShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Red))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Red)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::YellowShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Yellow))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Yellow)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::GreenShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Lime))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Lime)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::CyanShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Cyan))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Cyan)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::BlueShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::DodgerBlue)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::MagentaShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Magenta))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Magenta)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::WhiteShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::White))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::White)), edit_enabled},
-                    {ImgViewerString(ImgViewerStringId::BlackShape), UiAction(static_cast<int>(ImgViewerAction::EditSetPenColor), PackColor(D2D1::ColorF(D2D1::ColorF::Black))), false, math::NearlyEqual(shape_toolstrip_state_.color, D2D1::ColorF(D2D1::ColorF::Black)), edit_enabled},
-                }},
-                {ImgViewerString(ImgViewerStringId::EditText), kUiActionNone, false, edit_toolbar_state_.tool == ImgViewerEditTool::Text, edit_enabled, std::vector<MenuItem>{
-                    {ImgViewerString(ImgViewerStringId::Size), kUiActionNone, false, false, edit_enabled, std::vector<MenuItem>{
-                        {ImgViewerString(ImgViewerStringId::TextSize12), UiAction(static_cast<int>(ImgViewerAction::EditSetTextFontSize), PackFloat(12.0f)), false, std::abs(text_toolstrip_state_.style.font_size - 12.0f) < 0.01f, edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextSize16), UiAction(static_cast<int>(ImgViewerAction::EditSetTextFontSize), PackFloat(16.0f)), false, std::abs(text_toolstrip_state_.style.font_size - 16.0f) < 0.01f, edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextSize20), UiAction(static_cast<int>(ImgViewerAction::EditSetTextFontSize), PackFloat(20.0f)), false, std::abs(text_toolstrip_state_.style.font_size - 20.0f) < 0.01f, edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextSize28), UiAction(static_cast<int>(ImgViewerAction::EditSetTextFontSize), PackFloat(28.0f)), false, std::abs(text_toolstrip_state_.style.font_size - 28.0f) < 0.01f, edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextSize36), UiAction(static_cast<int>(ImgViewerAction::EditSetTextFontSize), PackFloat(36.0f)), false, std::abs(text_toolstrip_state_.style.font_size - 36.0f) < 0.01f, edit_enabled},
-                    }},
-                    {ImgViewerString(ImgViewerStringId::Color), kUiActionNone, false, false, edit_enabled, std::vector<MenuItem>{
-                        {ImgViewerString(ImgViewerStringId::TextColorRed), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::Red))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Red)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorYellow), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::Yellow))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Yellow)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorGreen), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::Lime))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Lime)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorCyan), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::Cyan))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Cyan)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorBlue), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::DodgerBlue)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorMagenta), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::Magenta))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Magenta)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorWhite), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::White))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::White)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::TextColorBlack), UiAction(static_cast<int>(ImgViewerAction::EditSetTextColor), PackColor(D2D1::ColorF(D2D1::ColorF::Black))), false, math::NearlyEqual(text_toolstrip_state_.style.text_color, D2D1::ColorF(D2D1::ColorF::Black)), edit_enabled},
-                    }},
-                    {ImgViewerString(ImgViewerStringId::Background), kUiActionNone, false, false, edit_enabled, std::vector<MenuItem>{
-                        {ImgViewerString(ImgViewerStringId::Transparent), UiAction(static_cast<int>(ImgViewerAction::EditSetTextBackground), 0), false, !text_toolstrip_state_.style.has_background, edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::Yellow), UiAction(static_cast<int>(ImgViewerAction::EditSetTextBackground), (PackColor(D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)) << 8) | 1), false, text_toolstrip_state_.style.has_background && math::NearlyEqual(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::White), UiAction(static_cast<int>(ImgViewerAction::EditSetTextBackground), (PackColor(D2D1::ColorF(D2D1::ColorF::White, 0.82f)) << 8) | 1), false, text_toolstrip_state_.style.has_background && math::NearlyEqual(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::White, 0.82f)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::Black), UiAction(static_cast<int>(ImgViewerAction::EditSetTextBackground), (PackColor(D2D1::ColorF(D2D1::ColorF::Black, 0.82f)) << 8) | 1), false, text_toolstrip_state_.style.has_background && math::NearlyEqual(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Black, 0.82f)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::Red), UiAction(static_cast<int>(ImgViewerAction::EditSetTextBackground), (PackColor(D2D1::ColorF(D2D1::ColorF::Red, 0.82f)) << 8) | 1), false, text_toolstrip_state_.style.has_background && math::NearlyEqual(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::Red, 0.82f)), edit_enabled},
-                        {ImgViewerString(ImgViewerStringId::Blue), UiAction(static_cast<int>(ImgViewerAction::EditSetTextBackground), (PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)) << 8) | 1), false, text_toolstrip_state_.style.has_background && math::NearlyEqual(text_toolstrip_state_.style.background_color, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f)), edit_enabled},
-                    }},
-                }},
+
                 {ImgViewerString(ImgViewerStringId::CropSelection), kUiActionNone, false, false, edit_enabled, std::vector<MenuItem>{
                     {ImgViewerString(ImgViewerStringId::EditCancelCrop), UiActionFromImgViewerAction(ImgViewerAction::EditCancelCrop), false, false, edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
                     {ImgViewerString(ImgViewerStringId::EditCopySelection), UiActionFromImgViewerAction(ImgViewerAction::EditCopySelection), false, false, selection_toolstrip_state_.visible},
