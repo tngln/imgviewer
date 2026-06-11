@@ -13,8 +13,8 @@ constexpr wchar_t kCopyIcon[] = L"\xE8C8";
 constexpr wchar_t kMosaicIcon[] = L"\xE9F5";
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::EditCopySelection, ImgViewerStringId::CopySelection, ImgViewerStringId::CopySelectedPixels, L"edit-copy-selection", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kCopyIcon},
-    {ImgViewerAction::EditMosaicSelection, ImgViewerStringId::MosaicSelection, ImgViewerStringId::MosaicSelectedPixels, L"edit-mosaic-selection", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kMosaicIcon},
+    {ImgViewerAction::EditCopySelection, ImgViewerStringId::CopySelection, ImgViewerStringId::CopySelectedPixels, L"edit-copy-selection", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kCopyIcon},
+    {ImgViewerAction::EditMosaicSelection, ImgViewerStringId::MosaicSelection, ImgViewerStringId::MosaicSelectedPixels, L"edit-mosaic-selection", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kMosaicIcon},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()

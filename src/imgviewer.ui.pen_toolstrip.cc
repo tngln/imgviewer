@@ -6,24 +6,25 @@
 #include <vector>
 
 #include "imgviewer.action.hpp"
+#include "imgviewer.palette.hpp"
 #include "imgviewer.strings.hpp"
 #include "math.hpp"
 
 namespace {
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::EditPenColorRed, ImgViewerStringId::Red, ImgViewerStringId::RedPen, L"edit-pen-red", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Red)},
-    {ImgViewerAction::EditPenColorYellow, ImgViewerStringId::Yellow, ImgViewerStringId::YellowPen, L"edit-pen-yellow", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Yellow)},
-    {ImgViewerAction::EditPenColorGreen, ImgViewerStringId::Green, ImgViewerStringId::GreenPen, L"edit-pen-green", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Lime)},
-    {ImgViewerAction::EditPenColorCyan, ImgViewerStringId::Cyan, ImgViewerStringId::CyanPen, L"edit-pen-cyan", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Cyan)},
-    {ImgViewerAction::EditPenColorBlue, ImgViewerStringId::Blue, ImgViewerStringId::BluePen, L"edit-pen-blue", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
-    {ImgViewerAction::EditPenColorMagenta, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaPen, L"edit-pen-magenta", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Magenta)},
-    {ImgViewerAction::EditPenColorWhite, ImgViewerStringId::White, ImgViewerStringId::WhitePen, L"edit-pen-white", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::White)},
-    {ImgViewerAction::EditPenColorBlack, ImgViewerStringId::Black, ImgViewerStringId::BlackPen, L"edit-pen-black", ToolStripItemVisual::ColorSwatch, D2D1::ColorF(D2D1::ColorF::Black)},
-    {ImgViewerAction::EditPenWidth2, ImgViewerStringId::PenWidth2, ImgViewerStringId::PenWidth2, L"edit-pen-width-2", ToolStripItemVisual::WidthLine, {}, 2.0f},
-    {ImgViewerAction::EditPenWidth4, ImgViewerStringId::PenWidth4, ImgViewerStringId::PenWidth4, L"edit-pen-width-4", ToolStripItemVisual::WidthLine, {}, 4.0f},
-    {ImgViewerAction::EditPenWidth8, ImgViewerStringId::PenWidth8, ImgViewerStringId::PenWidth8, L"edit-pen-width-8", ToolStripItemVisual::WidthLine, {}, 8.0f},
-    {ImgViewerAction::EditPenWidth12, ImgViewerStringId::PenWidth12, ImgViewerStringId::PenWidth12, L"edit-pen-width-12", ToolStripItemVisual::WidthLine, {}, 12.0f},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Red, ImgViewerStringId::RedPen, L"edit-pen-red", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Red)), D2D1::ColorF(D2D1::ColorF::Red)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Yellow, ImgViewerStringId::YellowPen, L"edit-pen-yellow", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Yellow)), D2D1::ColorF(D2D1::ColorF::Yellow)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Green, ImgViewerStringId::GreenPen, L"edit-pen-green", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Lime)), D2D1::ColorF(D2D1::ColorF::Lime)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Cyan, ImgViewerStringId::CyanPen, L"edit-pen-cyan", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Cyan)), D2D1::ColorF(D2D1::ColorF::Cyan)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Blue, ImgViewerStringId::BluePen, L"edit-pen-blue", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::DodgerBlue)), D2D1::ColorF(D2D1::ColorF::DodgerBlue)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Magenta, ImgViewerStringId::MagentaPen, L"edit-pen-magenta", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Magenta)), D2D1::ColorF(D2D1::ColorF::Magenta)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::White, ImgViewerStringId::WhitePen, L"edit-pen-white", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::White)), D2D1::ColorF(D2D1::ColorF::White)},
+    {ImgViewerAction::EditSetPenColor, ImgViewerStringId::Black, ImgViewerStringId::BlackPen, L"edit-pen-black", ToolStripItemVisual::ColorSwatch, PackColor(D2D1::ColorF(D2D1::ColorF::Black)), D2D1::ColorF(D2D1::ColorF::Black)},
+    {ImgViewerAction::EditSetPenWidth, ImgViewerStringId::PenWidth2, ImgViewerStringId::PenWidth2, L"edit-pen-width-2", ToolStripItemVisual::WidthLine, PackFloat(2.0f), {}, 2.0f},
+    {ImgViewerAction::EditSetPenWidth, ImgViewerStringId::PenWidth4, ImgViewerStringId::PenWidth4, L"edit-pen-width-4", ToolStripItemVisual::WidthLine, PackFloat(4.0f), {}, 4.0f},
+    {ImgViewerAction::EditSetPenWidth, ImgViewerStringId::PenWidth8, ImgViewerStringId::PenWidth8, L"edit-pen-width-8", ToolStripItemVisual::WidthLine, PackFloat(8.0f), {}, 8.0f},
+    {ImgViewerAction::EditSetPenWidth, ImgViewerStringId::PenWidth12, ImgViewerStringId::PenWidth12, L"edit-pen-width-12", ToolStripItemVisual::WidthLine, PackFloat(12.0f), {}, 12.0f},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()

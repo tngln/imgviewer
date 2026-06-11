@@ -75,7 +75,7 @@ DWORD ImgViewerWindowStyle(bool borderless);
 HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hide_for_transition);
 void SyncWindowState(HWND hwnd, ImgViewerContext* context);
 void SaveWindowSize(HWND hwnd, ImgViewerContext* context);
-bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action);
+bool IsImgViewerActionEnabled(const ImgViewerContext* context, UiAction action);
 void SyncActionStates(ImgViewerContext* context);
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text);
 void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context);
@@ -90,7 +90,7 @@ bool UpdateImgViewerColorPickerSample(ImgViewerContext* context, D2D1_POINT_2F p
 void ApplyWindowOpacity(HWND hwnd, int percent);
 void SetImgViewerWindowOpacity(HWND hwnd, ImgViewerContext* context, int percent);
 void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent);
-void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action);
+void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction action);
 void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t* path);
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 void HandleImgViewerOpenImageCommand(HWND hwnd, ImgViewerContext* context);

@@ -29,6 +29,7 @@ struct ToolStripItemSpec final {
     ImgViewerStringId tooltip = ImgViewerStringId::Empty;
     const wchar_t* automation_id = L"";
     ToolStripItemVisual visual = ToolStripItemVisual::Icon;
+    int32_t arg = 0;
 
     D2D1_COLOR_F color = {};
     float width = 0.0f;

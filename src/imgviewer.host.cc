@@ -259,13 +259,12 @@ ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAc
         return effects;
     }
 
-    const ImgViewerAction viewer_action = ImgViewerActionFromUiAction(action);
-    if (viewer_action == ImgViewerAction::OpenImage) {
+    if (static_cast<ImgViewerAction>(action.value) == ImgViewerAction::OpenImage) {
         HandleImgViewerOpenImageCommand(hwnd, context);
         return effects;
     }
 
-    ExecuteImgViewerAction(hwnd, context, viewer_action);
+    ExecuteImgViewerAction(hwnd, context, action);
     effects.sync_popup_modal = true;
     effects.sync_ime = true;
     return effects;
@@ -526,7 +525,7 @@ bool CommitPendingEdgeClick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F 
     const bool still_in_same_zone = action != ImgViewerAction::None && EdgeClickActionAtPoint(context, point, false) == action;
     ClearPendingEdgeClick(hwnd, context);
     if (still_in_same_zone) {
-        ExecuteImgViewerAction(hwnd, context, action);
+        ExecuteImgViewerAction(hwnd, context, UiAction(action));
     }
     return true;
 }

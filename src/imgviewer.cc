@@ -11,6 +11,7 @@
 #include "imgviewer.about.hpp"
 #include "imgviewer.developer.hpp"
 #include "imgviewer.messages.hpp"
+#include "imgviewer.palette.hpp"
 #include "imgviewer.settings.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
@@ -200,13 +201,15 @@ void SaveWindowSize(HWND hwnd, ImgViewerContext* context)
     }
 }
 
-bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction action)
+bool IsImgViewerActionEnabled(const ImgViewerContext* context, UiAction action)
 {
-    if (action == ImgViewerAction::None) {
+    if (action == kUiActionNone) {
         return false;
     }
 
-    if (action == ImgViewerAction::PreviousImage) {
+    const ImgViewerAction verb = static_cast<ImgViewerAction>(action.value);
+
+    if (verb == ImgViewerAction::PreviousImage) {
         const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
         return position.index > 1;
     }
@@ -226,75 +229,46 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, ImgViewerAction a
     }
 
     if (action == ImgViewerAction::ToggleEditMode ||
-        action == ImgViewerAction::EditSelect ||
-        action == ImgViewerAction::EditPixelSelect ||
-        action == ImgViewerAction::EditPen ||
-        action == ImgViewerAction::EditPenColorRed ||
-        action == ImgViewerAction::EditPenColorYellow ||
-        action == ImgViewerAction::EditPenColorGreen ||
-        action == ImgViewerAction::EditPenColorCyan ||
-        action == ImgViewerAction::EditPenColorBlue ||
-        action == ImgViewerAction::EditPenColorMagenta ||
-        action == ImgViewerAction::EditPenColorWhite ||
-        action == ImgViewerAction::EditPenColorBlack ||
-        action == ImgViewerAction::EditPenWidth2 ||
-        action == ImgViewerAction::EditPenWidth4 ||
-        action == ImgViewerAction::EditPenWidth8 ||
-        action == ImgViewerAction::EditPenWidth12 ||
-        action == ImgViewerAction::EditShape ||
-        action == ImgViewerAction::EditShapeRectangle ||
-        action == ImgViewerAction::EditShapeEllipse ||
-        action == ImgViewerAction::EditShapeLine ||
-        action == ImgViewerAction::EditShapeArrow ||
-        action == ImgViewerAction::EditText ||
-        action == ImgViewerAction::EditTextFontChanged ||
-        action == ImgViewerAction::EditTextSize12 ||
-        action == ImgViewerAction::EditTextSize16 ||
-        action == ImgViewerAction::EditTextSize20 ||
-        action == ImgViewerAction::EditTextSize28 ||
-        action == ImgViewerAction::EditTextSize36 ||
-        action == ImgViewerAction::EditTextColorRed ||
-        action == ImgViewerAction::EditTextColorYellow ||
-        action == ImgViewerAction::EditTextColorGreen ||
-        action == ImgViewerAction::EditTextColorCyan ||
-        action == ImgViewerAction::EditTextColorBlue ||
-        action == ImgViewerAction::EditTextColorMagenta ||
-        action == ImgViewerAction::EditTextColorWhite ||
-        action == ImgViewerAction::EditTextColorBlack ||
-        action == ImgViewerAction::EditTextBackgroundTransparent ||
-        action == ImgViewerAction::EditTextBackgroundYellow ||
-        action == ImgViewerAction::EditTextBackgroundWhite ||
-        action == ImgViewerAction::EditTextBackgroundBlack ||
-        action == ImgViewerAction::EditTextBackgroundRed ||
-        action == ImgViewerAction::EditTextBackgroundBlue ||
-        action == ImgViewerAction::EditCrop ||
-        action == ImgViewerAction::EditCancelCrop ||
-        action == ImgViewerAction::EditCopySelection ||
-        action == ImgViewerAction::EditMosaicSelection ||
-        action == ImgViewerAction::EditDeleteSelection ||
-        action == ImgViewerAction::EditRotateClockwise ||
-        action == ImgViewerAction::EditUndo ||
-        action == ImgViewerAction::EditRedo) {
+        verb == ImgViewerAction::EditSelect ||
+        verb == ImgViewerAction::EditPixelSelect ||
+        verb == ImgViewerAction::EditPen ||
+        verb == ImgViewerAction::EditSetPenColor ||
+        verb == ImgViewerAction::EditSetPenWidth ||
+        verb == ImgViewerAction::EditShape ||
+        verb == ImgViewerAction::EditSetShapeKind ||
+        verb == ImgViewerAction::EditText ||
+        verb == ImgViewerAction::EditTextFontChanged ||
+        verb == ImgViewerAction::EditSetTextFontSize ||
+        verb == ImgViewerAction::EditSetTextColor ||
+        verb == ImgViewerAction::EditSetTextBackground ||
+        verb == ImgViewerAction::EditCrop ||
+        verb == ImgViewerAction::EditCancelCrop ||
+        verb == ImgViewerAction::EditCopySelection ||
+        verb == ImgViewerAction::EditMosaicSelection ||
+        verb == ImgViewerAction::EditDeleteSelection ||
+        verb == ImgViewerAction::EditRotateClockwise ||
+        verb == ImgViewerAction::EditUndo ||
+        verb == ImgViewerAction::EditRedo) {
         if (context == nullptr || !context->viewer.HasCurrentImage()) {
             return false;
         }
-        if (action == ImgViewerAction::EditCopySelection || action == ImgViewerAction::EditMosaicSelection) {
+        if (verb == ImgViewerAction::EditCopySelection || verb == ImgViewerAction::EditMosaicSelection) {
             return context->edit.HasPixelSelection();
         }
-        if (action == ImgViewerAction::EditDeleteSelection) {
+        if (verb == ImgViewerAction::EditDeleteSelection) {
             return context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Select && context->edit.HasSelection();
         }
         return true;
     }
 
-    if (action == ImgViewerAction::ShowInFileExplorer) {
+    if (verb == ImgViewerAction::ShowInFileExplorer) {
         return HasCurrentImageFilePath(context);
     }
 
-    if (action == ImgViewerAction::ToggleAnimationLoop ||
-        action == ImgViewerAction::ToggleAnimationPlayback ||
-        action == ImgViewerAction::PreviousAnimationFrame ||
-        action == ImgViewerAction::NextAnimationFrame) {
+    if (verb == ImgViewerAction::ToggleAnimationLoop ||
+        verb == ImgViewerAction::ToggleAnimationPlayback ||
+        verb == ImgViewerAction::PreviousAnimationFrame ||
+        verb == ImgViewerAction::NextAnimationFrame) {
         return context != nullptr && context->viewer.HasAnimation();
     }
 
@@ -320,8 +294,8 @@ void SyncActionStates(ImgViewerContext* context)
     };
     for (const ImgViewerAction action : kSyncActions) {
         context->main_ui->SetActionEnabled(
-            UiActionFromImgViewerAction(action),
-            IsImgViewerActionEnabled(context, action));
+            UiAction(action),
+            IsImgViewerActionEnabled(context, UiAction(action)));
     }
 }
 
@@ -462,7 +436,7 @@ void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool ac
     }
 
     ResetImgViewerTransientInput(hwnd, context);
-    const bool enabled = active && IsImgViewerActionEnabled(context, ImgViewerAction::ToggleColorPicker);
+    const bool enabled = active && IsImgViewerActionEnabled(context, UiAction(ImgViewerAction::ToggleColorPicker));
     if (enabled) {
         context->edit.SetActive(false);
         context->interaction.BeginColorPick();
@@ -729,13 +703,15 @@ void SetTextBackground(HWND hwnd, ImgViewerContext* context, D2D1_COLOR_F color,
     RenderImgViewer(context);
 }
 
-void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerAction action)
+void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction action)
 {
     if (!IsImgViewerActionEnabled(context, action)) {
         return;
     }
 
-    switch (action) {
+    const ImgViewerAction verb = static_cast<ImgViewerAction>(action.value);
+
+    switch (verb) {
     case ImgViewerAction::OpenImage:
     case ImgViewerAction::OpenMenu:
         break;
@@ -825,56 +801,17 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
     case ImgViewerAction::EditPen:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Pen, L"Edit pen.");
         break;
-    case ImgViewerAction::EditPenColorRed:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Red));
+    case ImgViewerAction::EditSetPenColor:
+        SetPenColor(hwnd, context, UnpackColor(action.arg));
         break;
-    case ImgViewerAction::EditPenColorYellow:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Yellow));
-        break;
-    case ImgViewerAction::EditPenColorGreen:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Lime));
-        break;
-    case ImgViewerAction::EditPenColorCyan:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Cyan));
-        break;
-    case ImgViewerAction::EditPenColorBlue:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::DodgerBlue));
-        break;
-    case ImgViewerAction::EditPenColorMagenta:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Magenta));
-        break;
-    case ImgViewerAction::EditPenColorWhite:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::White));
-        break;
-    case ImgViewerAction::EditPenColorBlack:
-        SetPenColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Black));
-        break;
-    case ImgViewerAction::EditPenWidth2:
-        SetPenWidth(hwnd, context, 2.0f);
-        break;
-    case ImgViewerAction::EditPenWidth4:
-        SetPenWidth(hwnd, context, 4.0f);
-        break;
-    case ImgViewerAction::EditPenWidth8:
-        SetPenWidth(hwnd, context, 8.0f);
-        break;
-    case ImgViewerAction::EditPenWidth12:
-        SetPenWidth(hwnd, context, 12.0f);
+    case ImgViewerAction::EditSetPenWidth:
+        SetPenWidth(hwnd, context, UnpackFloat(action.arg));
         break;
     case ImgViewerAction::EditShape:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Shape, L"Edit shape.");
         break;
-    case ImgViewerAction::EditShapeRectangle:
-        SetShapeKind(hwnd, context, ImgViewerShapeKind::Rectangle);
-        break;
-    case ImgViewerAction::EditShapeEllipse:
-        SetShapeKind(hwnd, context, ImgViewerShapeKind::Ellipse);
-        break;
-    case ImgViewerAction::EditShapeLine:
-        SetShapeKind(hwnd, context, ImgViewerShapeKind::Line);
-        break;
-    case ImgViewerAction::EditShapeArrow:
-        SetShapeKind(hwnd, context, ImgViewerShapeKind::Arrow);
+    case ImgViewerAction::EditSetShapeKind:
+        SetShapeKind(hwnd, context, static_cast<ImgViewerShapeKind>(action.arg));
         break;
     case ImgViewerAction::EditText:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Text, L"Edit text.");
@@ -884,63 +821,18 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, ImgViewerActio
             SetTextFontFamily(hwnd, context, context->main_ui->SelectedTextFontFamily());
         }
         break;
-    case ImgViewerAction::EditTextSize12:
-        SetTextFontSize(hwnd, context, 12.0f);
+    case ImgViewerAction::EditSetTextFontSize:
+        SetTextFontSize(hwnd, context, UnpackFloat(action.arg));
         break;
-    case ImgViewerAction::EditTextSize16:
-        SetTextFontSize(hwnd, context, 16.0f);
+    case ImgViewerAction::EditSetTextColor:
+        SetTextColor(hwnd, context, UnpackColor(action.arg));
         break;
-    case ImgViewerAction::EditTextSize20:
-        SetTextFontSize(hwnd, context, 20.0f);
+    case ImgViewerAction::EditSetTextBackground: {
+        const bool has_bg = (action.arg & 1) != 0;
+        const D2D1_COLOR_F bg_color = has_bg ? UnpackColor(action.arg >> 8) : D2D1::ColorF(D2D1::ColorF::Yellow, 0.0f);
+        SetTextBackground(hwnd, context, bg_color, has_bg);
         break;
-    case ImgViewerAction::EditTextSize28:
-        SetTextFontSize(hwnd, context, 28.0f);
-        break;
-    case ImgViewerAction::EditTextSize36:
-        SetTextFontSize(hwnd, context, 36.0f);
-        break;
-    case ImgViewerAction::EditTextColorRed:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Red));
-        break;
-    case ImgViewerAction::EditTextColorYellow:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Yellow));
-        break;
-    case ImgViewerAction::EditTextColorGreen:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Lime));
-        break;
-    case ImgViewerAction::EditTextColorCyan:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Cyan));
-        break;
-    case ImgViewerAction::EditTextColorBlue:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::DodgerBlue));
-        break;
-    case ImgViewerAction::EditTextColorMagenta:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Magenta));
-        break;
-    case ImgViewerAction::EditTextColorWhite:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::White));
-        break;
-    case ImgViewerAction::EditTextColorBlack:
-        SetTextColor(hwnd, context, D2D1::ColorF(D2D1::ColorF::Black));
-        break;
-    case ImgViewerAction::EditTextBackgroundTransparent:
-        SetTextBackground(hwnd, context, D2D1::ColorF(D2D1::ColorF::Yellow, 0.0f), false);
-        break;
-    case ImgViewerAction::EditTextBackgroundYellow:
-        SetTextBackground(hwnd, context, D2D1::ColorF(D2D1::ColorF::Yellow, 0.82f), true);
-        break;
-    case ImgViewerAction::EditTextBackgroundWhite:
-        SetTextBackground(hwnd, context, D2D1::ColorF(D2D1::ColorF::White, 0.82f), true);
-        break;
-    case ImgViewerAction::EditTextBackgroundBlack:
-        SetTextBackground(hwnd, context, D2D1::ColorF(D2D1::ColorF::Black, 0.82f), true);
-        break;
-    case ImgViewerAction::EditTextBackgroundRed:
-        SetTextBackground(hwnd, context, D2D1::ColorF(D2D1::ColorF::Red, 0.82f), true);
-        break;
-    case ImgViewerAction::EditTextBackgroundBlue:
-        SetTextBackground(hwnd, context, D2D1::ColorF(D2D1::ColorF::DodgerBlue, 0.82f), true);
-        break;
+    }
     case ImgViewerAction::EditCrop:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Crop, L"Edit crop.");
         break;
@@ -1186,7 +1078,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
 
 void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context)
 {
-    if (!IsImgViewerActionEnabled(context, ImgViewerAction::SaveImageAs)) {
+    if (!IsImgViewerActionEnabled(context, UiAction(ImgViewerAction::SaveImageAs))) {
         return;
     }
 

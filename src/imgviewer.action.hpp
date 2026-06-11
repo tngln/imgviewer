@@ -25,44 +25,15 @@
     X(EditSelect, "editSelect", ImgViewerStringId::EditSelect, true, true) \
     X(EditPixelSelect, "editPixelSelect", ImgViewerStringId::EditPixelSelect, true, true) \
     X(EditPen, "editPen", ImgViewerStringId::EditPen, true, true) \
-    X(EditPenColorRed, "editPenColorRed", ImgViewerStringId::RedPen, true, true) \
-    X(EditPenColorYellow, "editPenColorYellow", ImgViewerStringId::YellowPen, true, true) \
-    X(EditPenColorGreen, "editPenColorGreen", ImgViewerStringId::GreenPen, true, true) \
-    X(EditPenColorCyan, "editPenColorCyan", ImgViewerStringId::CyanPen, true, true) \
-    X(EditPenColorBlue, "editPenColorBlue", ImgViewerStringId::BluePen, true, true) \
-    X(EditPenColorMagenta, "editPenColorMagenta", ImgViewerStringId::MagentaPen, true, true) \
-    X(EditPenColorWhite, "editPenColorWhite", ImgViewerStringId::WhitePen, true, true) \
-    X(EditPenColorBlack, "editPenColorBlack", ImgViewerStringId::BlackPen, true, true) \
-    X(EditPenWidth2, "editPenWidth2", ImgViewerStringId::PenWidth2, true, true) \
-    X(EditPenWidth4, "editPenWidth4", ImgViewerStringId::PenWidth4, true, true) \
-    X(EditPenWidth8, "editPenWidth8", ImgViewerStringId::PenWidth8, true, true) \
-    X(EditPenWidth12, "editPenWidth12", ImgViewerStringId::PenWidth12, true, true) \
+    X(EditSetPenColor, "editSetPenColor", ImgViewerStringId::RedPen, true, true) \
+    X(EditSetPenWidth, "editSetPenWidth", ImgViewerStringId::PenWidth2, true, true) \
     X(EditShape, "editShape", ImgViewerStringId::EditShape, true, true) \
-    X(EditShapeRectangle, "editShapeRectangle", ImgViewerStringId::RectangleShape, true, true) \
-    X(EditShapeEllipse, "editShapeEllipse", ImgViewerStringId::EllipseShape, true, true) \
-    X(EditShapeLine, "editShapeLine", ImgViewerStringId::LineShape, true, true) \
-    X(EditShapeArrow, "editShapeArrow", ImgViewerStringId::ArrowShape, true, true) \
+    X(EditSetShapeKind, "editSetShapeKind", ImgViewerStringId::RectangleShape, true, true) \
     X(EditText, "editText", ImgViewerStringId::EditText, true, true) \
     X(EditTextFontChanged, "editTextFontChanged", ImgViewerStringId::TextFont, false, false) \
-    X(EditTextSize12, "editTextSize12", ImgViewerStringId::TextSize12, true, true) \
-    X(EditTextSize16, "editTextSize16", ImgViewerStringId::TextSize16, true, true) \
-    X(EditTextSize20, "editTextSize20", ImgViewerStringId::TextSize20, true, true) \
-    X(EditTextSize28, "editTextSize28", ImgViewerStringId::TextSize28, true, true) \
-    X(EditTextSize36, "editTextSize36", ImgViewerStringId::TextSize36, true, true) \
-    X(EditTextColorRed, "editTextColorRed", ImgViewerStringId::TextColorRed, true, true) \
-    X(EditTextColorYellow, "editTextColorYellow", ImgViewerStringId::TextColorYellow, true, true) \
-    X(EditTextColorGreen, "editTextColorGreen", ImgViewerStringId::TextColorGreen, true, true) \
-    X(EditTextColorCyan, "editTextColorCyan", ImgViewerStringId::TextColorCyan, true, true) \
-    X(EditTextColorBlue, "editTextColorBlue", ImgViewerStringId::TextColorBlue, true, true) \
-    X(EditTextColorMagenta, "editTextColorMagenta", ImgViewerStringId::TextColorMagenta, true, true) \
-    X(EditTextColorWhite, "editTextColorWhite", ImgViewerStringId::TextColorWhite, true, true) \
-    X(EditTextColorBlack, "editTextColorBlack", ImgViewerStringId::TextColorBlack, true, true) \
-    X(EditTextBackgroundTransparent, "editTextBackgroundTransparent", ImgViewerStringId::TextBackgroundTransparent, true, true) \
-    X(EditTextBackgroundYellow, "editTextBackgroundYellow", ImgViewerStringId::TextBackgroundYellow, true, true) \
-    X(EditTextBackgroundWhite, "editTextBackgroundWhite", ImgViewerStringId::TextBackgroundWhite, true, true) \
-    X(EditTextBackgroundBlack, "editTextBackgroundBlack", ImgViewerStringId::TextBackgroundBlack, true, true) \
-    X(EditTextBackgroundRed, "editTextBackgroundRed", ImgViewerStringId::TextBackgroundRed, true, true) \
-    X(EditTextBackgroundBlue, "editTextBackgroundBlue", ImgViewerStringId::TextBackgroundBlue, true, true) \
+    X(EditSetTextFontSize, "editSetTextFontSize", ImgViewerStringId::TextSize12, true, true) \
+    X(EditSetTextColor, "editSetTextColor", ImgViewerStringId::TextColorRed, true, true) \
+    X(EditSetTextBackground, "editSetTextBackground", ImgViewerStringId::TextBackgroundTransparent, true, true) \
     X(EditCrop, "editCrop", ImgViewerStringId::EditCrop, true, true) \
     X(EditCancelCrop, "editCancelCrop", ImgViewerStringId::EditCancelCrop, true, true) \
     X(EditCopySelection, "editCopySelection", ImgViewerStringId::EditCopySelection, true, true) \

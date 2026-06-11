@@ -60,7 +60,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             !key.modifiers.alt &&
             context->edit.Active() &&
             context->edit.Tool() == ImgViewerEditTool::Crop) {
-            ExecuteImgViewerAction(hwnd, context, ImgViewerAction::EditCancelCrop);
+            ExecuteImgViewerAction(hwnd, context, UiAction(ImgViewerAction::EditCancelCrop));
             return win32::WindowMessageResult::Handled();
         }
         if (context != nullptr &&
@@ -89,7 +89,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             return win32::WindowMessageResult::Handled();
         }
         if (message == WM_KEYDOWN && wparam == 'S' && key.modifiers.ctrl && !key.modifiers.shift && !key.modifiers.alt) {
-            ExecuteImgViewerAction(hwnd, context, ImgViewerAction::SaveImageAs);
+            ExecuteImgViewerAction(hwnd, context, UiAction(ImgViewerAction::SaveImageAs));
             return win32::WindowMessageResult::Handled();
         }
 
@@ -107,7 +107,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             return win32::WindowMessageResult::Handled();
         }
         if (action != ImgViewerAction::None) {
-            ExecuteImgViewerAction(hwnd, context, action);
+            ExecuteImgViewerAction(hwnd, context, UiAction(action));
             ApplyImeSync(hwnd, context);
             return win32::WindowMessageResult::Handled();
         }

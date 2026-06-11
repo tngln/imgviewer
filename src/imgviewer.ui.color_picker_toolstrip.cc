@@ -72,6 +72,7 @@ const ToolStripItemSpec kCopySpec = {
     ImgViewerStringId::CopyColorPickerValue,
     L"copy-color-picker-value",
     ToolStripItemVisual::Icon,
+    0,
     {},
     0.0f,
     ImgViewerShapeKind::Rectangle,

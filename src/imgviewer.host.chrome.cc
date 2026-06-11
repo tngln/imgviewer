@@ -97,7 +97,7 @@ win32::WindowMessageResult HandleImgViewerChromeMessage(HWND hwnd, UINT message,
 
     case WM_NCLBUTTONDBLCLK:
         if (wparam == HTCAPTION) {
-            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), ImgViewerAction::ToggleMaximize);
+            ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), UiAction(ImgViewerAction::ToggleMaximize));
             return win32::WindowMessageResult::Handled();
         }
         return win32::WindowMessageResult::Unhandled();

@@ -22,10 +22,10 @@ constexpr wchar_t kPauseIcon[] = L"\xE769";
 constexpr float kFrameLabelWidth = 58.0f;
 
 const ToolStripItemSpec kSpecs[] = {
-    {ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation, ImgViewerStringId::LoopAnimation, L"animation-loop", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kLoopIcon},
-    {ImgViewerAction::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, L"animation-previous-frame", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPreviousIcon},
-    {ImgViewerAction::ToggleAnimationPlayback, ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, L"animation-play-pause", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPauseIcon},
-    {ImgViewerAction::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, L"animation-next-frame", ToolStripItemVisual::Icon, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kNextIcon},
+    {ImgViewerAction::ToggleAnimationLoop, ImgViewerStringId::LoopAnimation, ImgViewerStringId::LoopAnimation, L"animation-loop", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kLoopIcon},
+    {ImgViewerAction::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, ImgViewerStringId::PreviousAnimationFrame, L"animation-previous-frame", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPreviousIcon},
+    {ImgViewerAction::ToggleAnimationPlayback, ImgViewerStringId::PlayOrPauseAnimation, ImgViewerStringId::PlayOrPauseAnimation, L"animation-play-pause", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kPauseIcon},
+    {ImgViewerAction::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, ImgViewerStringId::NextAnimationFrame, L"animation-next-frame", ToolStripItemVisual::Icon, 0, {}, 0.0f, ImgViewerShapeKind::Rectangle, L"", kNextIcon},
 };
 
 std::vector<ToolStripItemSpec> BuildSpecs()

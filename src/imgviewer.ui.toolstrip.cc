@@ -206,7 +206,7 @@ ImgViewerUiToolStrip::ImgViewerUiToolStrip(
         const ToolStripItemSpec& spec = specs_[i];
         UiElementMetadata metadata = UiMetadata(
             UiElementRole::Button,
-            UiActionFromImgViewerAction(spec.action),
+            UiAction(static_cast<int>(spec.action), spec.arg),
             ImgViewerString(spec.name),
             ImgViewerString(spec.tooltip),
             spec.automation_id);
