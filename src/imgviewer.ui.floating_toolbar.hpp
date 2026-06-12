@@ -7,7 +7,6 @@
 #include "ui.draw.hpp"
 #include "ui.element.hpp"
 #include "ui.panel.hpp"
-#include "ui.root.hpp"
 
 struct ImgViewerFloatingToolbarMetrics final {
     float button_size = 0.0f;
