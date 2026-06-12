@@ -360,7 +360,7 @@ private:
                     state_.window_opacity_percent,
                     kOpacitySmallStep,
                     kOpacityLargeStep,
-                    [this](int value) { return ClampWindowOpacityPercent(value); },
+                    [](int value) { return ClampWindowOpacityPercent(value); },
                     [](int value) {
                         wchar_t text[16] = {};
                         swprintf_s(text, L"%d%%", value);
@@ -380,7 +380,7 @@ private:
                     state_.toolbar_scale_percent,
                     kToolbarScaleSmallStep,
                     kToolbarScaleLargeStep,
-                    [this](int value) { return ClampToolbarScalePercent(value); },
+                    [](int value) { return ClampToolbarScalePercent(value); },
                     [](int value) {
                         wchar_t text[16] = {};
                         swprintf_s(text, L"%d%%", value);
@@ -401,7 +401,7 @@ private:
                     state_.edge_click_navigation_zone_percent,
                     kEdgeClickZoneSmallStep,
                     kEdgeClickZoneLargeStep,
-                    [this](int value) { return ClampEdgeClickNavigationZonePercent(value); },
+                    [](int value) { return ClampEdgeClickNavigationZonePercent(value); },
                     [](int value) {
                         wchar_t text[16] = {};
                         swprintf_s(text, L"%d%%", value);
