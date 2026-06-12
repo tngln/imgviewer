@@ -104,6 +104,16 @@ std::unique_ptr<::Checkbox> Toggle(
         checked);
 }
 
+std::unique_ptr<::RadioButton> Radio(
+    const wchar_t* text,
+    bool checked)
+{
+    return std::make_unique<::RadioButton>(
+        UiMetadata(UiElementRole::RadioButton, text, kUiTooltipFromName),
+        text,
+        checked);
+}
+
 std::unique_ptr<::SliderRow> SliderField(
     const wchar_t* name,
     int minimum,

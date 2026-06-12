@@ -13,6 +13,7 @@
 #include <wil/com.h>
 #include <wil/result_macros.h>
 
+#include "experimental/ui.decl.hpp"
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
@@ -23,7 +24,6 @@
 #include "win32.util.hpp"
 #include "ui.button.hpp"
 #include "ui.draw.hpp"
-#include "ui.label.hpp"
 #include "ui.panel.hpp"
 #include "ui.selection.hpp"
 #include "ui.slider.hpp"
@@ -33,6 +33,7 @@
 #include "ui.window.hpp"
 
 namespace {
+namespace ui_decl = experimental::ui_decl;
 
 constexpr wchar_t kSettingsClassName[] = L"ImgViewerSettingsWindow";
 
@@ -257,33 +258,19 @@ public:
     }
 
 private:
-    static UiElementMetadata PaneMetadata()
-    {
-        return UiMetadata(UiElementRole::Pane, L"", false, false);
-    }
-
-    static UiElementMetadata LabelMetadata(const wchar_t* label)
-    {
-        return UiMetadata(UiElementRole::Text, label, false, false);
-    }
-
     StackPanel* AddSection(ImgViewerStringId label, float gap = ui_theme::metrics::kStandardGap)
     {
-        auto* section = root_->AddItem(std::make_unique<StackPanel>(PaneMetadata()));
-        section->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
-        section->SetGap(gap);
-        section->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(label)),
-            ImgViewerString(label),
-            LabelStyle::Muted));
+        auto content = ui_decl::VStack();
+        content->SetGap(gap);
+        StackPanel* section = content.get();
+        root_->AddItem(ui_decl::Section(ImgViewerString(label), std::move(content)));
         return section;
     }
 
     Checkbox* AddCheckboxSetting(StackPanel* section, size_t index)
     {
         const BooleanSettingSpec& spec = kBooleanSettingSpecs[index];
-        auto checkbox = std::make_unique<Checkbox>(
-            UiMetadata(UiElementRole::CheckBox, ImgViewerString(spec.label), kUiTooltipFromName),
+        auto checkbox = ui_decl::Toggle(
             ImgViewerString(spec.label),
             BooleanSettingValue(spec));
         Checkbox* result = section->AddItem(std::move(checkbox));
@@ -294,8 +281,8 @@ private:
     SliderRow* AddSliderSetting(StackPanel* section, size_t index)
     {
         const SliderSettingSpec& spec = kSliderSettingSpecs[index];
-        auto slider = std::make_unique<SliderRow>(
-            UiMetadata(UiElementRole::Slider, ImgViewerString(spec.label), kUiTooltipFromName),
+        auto slider = ui_decl::SliderField(
+            ImgViewerString(spec.label),
             spec.minimum,
             spec.maximum,
             draft_.*(spec.field),
@@ -334,42 +321,31 @@ private:
 
     Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text)
     {
-        return footer_panel_ != nullptr ? footer_panel_->AddItem(std::make_unique<Button>(
-            UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, kUiTooltipFromName),
-            icon,
-            text), kSettingsFooterButtonWidth) : nullptr;
+        return footer_panel_ != nullptr ? footer_panel_->AddItem(
+            ui_decl::ActionButton(UiActionFromImgViewerAction(action), name, icon, text),
+            kSettingsFooterButtonWidth) : nullptr;
     }
 
     void BuildUiTree()
     {
-        // Title
-        root_->AddItem(std::make_unique<Label>(
-            UiMetadata(UiElementRole::Text, ImgViewerString(ImgViewerStringId::Settings), false, false),
-            ImgViewerString(ImgViewerStringId::Settings), LabelStyle::Title), 17.0f);
+        root_->AddItem(ui_decl::Title(ImgViewerString(ImgViewerStringId::Settings)), 17.0f);
 
         StackPanel* language_section = AddSection(ImgViewerStringId::Language, ui_theme::metrics::kSmallGap);
         language_dropdown_ = AddLanguageDropdown(language_section);
 
         StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, 3.0f);
         AddCheckboxSetting(window_size_section, kRememberWindowSizeSetting);
-        remember_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::RememberLastSize), kUiTooltipFromName),
-            ImgViewerString(ImgViewerStringId::RememberLastSize), draft_.remember_window_size));
-        default_radio_ = window_size_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::UseDefaultSize), kUiTooltipFromName),
-            ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
+        remember_radio_ = window_size_section->AddItem(
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), draft_.remember_window_size));
+        default_radio_ = window_size_section->AddItem(
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
 
         StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering);
-        image_section->AddItem(std::make_unique<Label>(
-            LabelMetadata(ImgViewerString(ImgViewerStringId::InitialImageView)),
-            ImgViewerString(ImgViewerStringId::InitialImageView),
-            LabelStyle::Muted));
-        initial_fit_window_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::FitWindow), kUiTooltipFromName),
-            ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
-        initial_actual_size_radio_ = image_section->AddItem(std::make_unique<RadioButton>(
-            UiMetadata(UiElementRole::RadioButton, ImgViewerString(ImgViewerStringId::ActualSize), kUiTooltipFromName),
-            ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
+        image_section->AddItem(ui_decl::Muted(ImgViewerString(ImgViewerStringId::InitialImageView)));
+        initial_fit_window_radio_ = image_section->AddItem(
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
+        initial_actual_size_radio_ = image_section->AddItem(
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
         AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
         AddCheckboxSetting(image_section, kCheckerboardBackgroundSetting);
 
@@ -402,9 +378,7 @@ private:
         action_table_->SetSelectionEnabled(true);
         action_table_->SetRowHeight(21.0f);
 
-        footer_panel_ = root_->AddItem(std::make_unique<StackPanel>(
-            UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), false, true),
-            ui_layout::StackDirection::Horizontal));
+        footer_panel_ = root_->AddItem(ui_decl::HStack());
         footer_panel_->SetGap(kSettingsFooterButtonGap);
         footer_panel_->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
 

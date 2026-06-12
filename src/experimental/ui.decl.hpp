@@ -52,6 +52,9 @@ std::unique_ptr<::Button> Button(
 std::unique_ptr<::Checkbox> Toggle(
     const wchar_t* text,
     bool checked);
+std::unique_ptr<::RadioButton> Radio(
+    const wchar_t* text,
+    bool checked);
 std::unique_ptr<::SliderRow> SliderField(
     const wchar_t* name,
     int minimum,
@@ -73,6 +76,14 @@ std::unique_ptr<StackPanel> Group(Children... children)
 {
     auto panel = VStack(std::move(children)...);
     panel->SetGap(0.0f);
+    return panel;
+}
+
+template <typename... Children>
+std::unique_ptr<StackPanel> HStack(Children... children)
+{
+    auto panel = std::make_unique<StackPanel>(PaneMetadata(), ui_layout::StackDirection::Horizontal);
+    (panel->AddItem(std::move(children)), ...);
     return panel;
 }
 
