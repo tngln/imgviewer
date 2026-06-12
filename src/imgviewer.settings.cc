@@ -60,9 +60,10 @@ constexpr int kSettingsMinClientHeight = 620;
 constexpr float kSettingsSidePadding = 14.0f;
 constexpr float kSettingsContentTopPadding = 9.0f;
 constexpr float kSettingsFooterBottomPadding = 10.0f;
-constexpr float kSettingsFooterButtonHeight = 24.0f;
 constexpr float kSettingsFooterButtonWidth = 72.0f;
 constexpr float kSettingsFooterButtonGap = 5.0f;
+
+namespace settings_detail {
 
 std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction action)
 {
@@ -119,112 +120,70 @@ struct SettingsState final {
     }
 };
 
+struct BooleanControl final {
+    Checkbox* checkbox = nullptr;
+};
+
+struct SliderControl final {
+    SliderRow* row = nullptr;
+    std::wstring value_text;
+};
+
+struct ViewRefs final {
+    BooleanControl remember_window_size;
+    BooleanControl pixelated_sampling;
+    BooleanControl checkerboard_background;
+    BooleanControl borderless_window;
+    BooleanControl edge_click_navigation;
+    SliderControl opacity;
+    SliderControl toolbar_scale;
+    SliderControl edge_click_zone;
+    RadioButton* remember_radio = nullptr;
+    RadioButton* default_radio = nullptr;
+    RadioButton* initial_fit_window_radio = nullptr;
+    RadioButton* initial_actual_size_radio = nullptr;
+    Dropdown* language_dropdown = nullptr;
+    TextBox* filter_box = nullptr;
+    Table* action_table = nullptr;
+    Button* reset_button = nullptr;
+    Button* save_button = nullptr;
+    Button* cancel_button = nullptr;
+};
+
+inline size_t LanguageIndex(ImgViewerLanguage language)
+{
+    return language == ImgViewerLanguage::SimplifiedChinese ? 1 : 0;
+}
+
+inline ImgViewerLanguage LanguageFromIndex(size_t index)
+{
+    return index == 1 ? ImgViewerLanguage::SimplifiedChinese : ImgViewerLanguage::English;
+}
+
+inline SettingsState CreateState(ImgViewerConfig config)
+{
+    return SettingsState(
+        std::move(config.action_bindings),
+        config.initial_image_view_mode,
+        util::Signal<bool>(config.remember_window_size),
+        util::Signal<bool>(config.pixelated_sampling),
+        util::Signal<bool>(config.checkerboard_background),
+        util::Signal<bool>(config.borderless_window),
+        util::Signal<bool>(config.edge_click_navigation),
+        util::Signal<int>(config.window_opacity_percent),
+        util::Signal<int>(config.toolbar_scale_percent),
+        util::Signal<int>(config.edge_click_navigation_zone_percent),
+        util::Signal<int>(static_cast<int>(LanguageIndex(config.language))));
+}
+
+} // namespace settings_detail
+
 
 class SettingsUi final : public UiRoot {
 private:
-    using BoolField = bool ImgViewerConfig::*;
-    using IntField = int ImgViewerConfig::*;
-    using ClampIntFn = int (*)(int);
-
-    struct BooleanSettingSpec final {
-        ImgViewerStringId label = ImgViewerStringId::Empty;
-        BoolField field = nullptr;
-        bool inverted = false;
-    };
-
-    struct BooleanControl final {
-        const BooleanSettingSpec* spec = nullptr;
-        Checkbox* checkbox = nullptr;
-    };
-
-    struct SliderSettingSpec final {
-        ImgViewerStringId label = ImgViewerStringId::Empty;
-        IntField field = nullptr;
-        int minimum = 0;
-        int maximum = 100;
-        int small_step = 1;
-        int large_step = 10;
-        ClampIntFn clamp = nullptr;
-    };
-
-    struct SliderControl final {
-        const SliderSettingSpec* spec = nullptr;
-        SliderRow* row = nullptr;
-        std::wstring value_text;
-    };
-
-    struct ViewRefs final {
-        BooleanControl remember_window_size;
-        BooleanControl pixelated_sampling;
-        BooleanControl checkerboard_background;
-        BooleanControl borderless_window;
-        BooleanControl edge_click_navigation;
-        SliderControl opacity;
-        SliderControl toolbar_scale;
-        SliderControl edge_click_zone;
-        RadioButton* remember_radio = nullptr;
-        RadioButton* default_radio = nullptr;
-        RadioButton* initial_fit_window_radio = nullptr;
-        RadioButton* initial_actual_size_radio = nullptr;
-        Dropdown* language_dropdown = nullptr;
-        TextBox* filter_box = nullptr;
-        Table* action_table = nullptr;
-        Button* reset_button = nullptr;
-        Button* save_button = nullptr;
-        Button* cancel_button = nullptr;
-    };
-
-    static constexpr size_t kRememberWindowSizeSetting = 0;
-    static constexpr size_t kPixelatedSamplingSetting = 1;
-    static constexpr size_t kCheckerboardBackgroundSetting = 2;
-    static constexpr size_t kBorderlessWindowSetting = 3;
-    static constexpr size_t kEdgeClickNavigationSetting = 4;
-    static constexpr std::array<BooleanSettingSpec, 5> kBooleanSettingSpecs{{
-        {ImgViewerStringId::RememberWindowSize, &ImgViewerConfig::remember_window_size},
-        {ImgViewerStringId::PixelatedSampling, &ImgViewerConfig::pixelated_sampling},
-        {ImgViewerStringId::CheckerboardBackground, &ImgViewerConfig::checkerboard_background},
-        {ImgViewerStringId::BorderlessWindow, &ImgViewerConfig::borderless_window},
-        {ImgViewerStringId::EdgeClickNavigation, &ImgViewerConfig::edge_click_navigation},
-    }};
-
-    static constexpr size_t kOpacitySliderSetting = 0;
-    static constexpr size_t kToolbarScaleSliderSetting = 1;
-    static constexpr size_t kEdgeClickZoneSliderSetting = 2;
-    static constexpr std::array<SliderSettingSpec, 3> kSliderSettingSpecs{{
-        {ImgViewerStringId::Opacity, &ImgViewerConfig::window_opacity_percent,
-            kOpacityMinimum, kOpacityMaximum, kOpacitySmallStep, kOpacityLargeStep, ClampWindowOpacityPercent},
-        {ImgViewerStringId::ToolbarSize, &ImgViewerConfig::toolbar_scale_percent,
-            kToolbarScaleMinimum, kToolbarScaleMaximum, kToolbarScaleSmallStep, kToolbarScaleLargeStep, ClampToolbarScalePercent},
-        {ImgViewerStringId::EdgeClickZone, &ImgViewerConfig::edge_click_navigation_zone_percent,
-            kEdgeClickZoneMinimum, kEdgeClickZoneMaximum, kEdgeClickZoneSmallStep, kEdgeClickZoneLargeStep,
-            ClampEdgeClickNavigationZonePercent},
-    }};
-
-    static bool BooleanSettingValue(const ImgViewerConfig& config, const BooleanSettingSpec& spec)
-    {
-        const bool value = config.*(spec.field);
-        return spec.inverted ? !value : value;
-    }
-
-    static SettingsState CreateState(ImgViewerConfig config)
-    {
-        return SettingsState(
-            std::move(config.action_bindings),
-            config.initial_image_view_mode,
-            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[kRememberWindowSizeSetting])),
-            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[kPixelatedSamplingSetting])),
-            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[kCheckerboardBackgroundSetting])),
-            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[kBorderlessWindowSetting])),
-            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[kEdgeClickNavigationSetting])),
-            util::Signal<int>(config.*(kSliderSettingSpecs[kOpacitySliderSetting].field)),
-            util::Signal<int>(config.*(kSliderSettingSpecs[kToolbarScaleSliderSetting].field)),
-            util::Signal<int>(config.*(kSliderSettingSpecs[kEdgeClickZoneSliderSetting].field)),
-            util::Signal<int>(static_cast<int>(LanguageIndex(config.language))));
-    }
-
 public:
     explicit SettingsUi(ImgViewerConfig config) :
-        state_(CreateState(std::move(config)))
+        state_(settings_detail::CreateState(std::move(config)))
     {
         auto scroll_panel = std::make_unique<ScrollPanel>(
             UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), kUiTooltipFromName, false, true));
@@ -246,7 +205,7 @@ public:
     ImgViewerConfig Draft() const
     {
         ImgViewerConfig config;
-        config.language = LanguageFromIndex(static_cast<size_t>(state_.language_index_signal.Get()));
+        config.language = settings_detail::LanguageFromIndex(static_cast<size_t>(state_.language_index_signal.Get()));
         config.initial_image_view_mode = state_.initial_image_view_mode;
         config.remember_window_size = state_.remember_window_size.Get();
         config.pixelated_sampling = state_.pixelated_sampling.Get();
@@ -364,94 +323,79 @@ private:
         return section;
     }
 
-    Checkbox* AddCheckboxSetting(
-        StackPanel* section,
-        const BooleanSettingSpec& spec,
-        util::Signal<bool>& signal,
-        BooleanControl* control_slot)
-    {
-        auto checkbox = ui_decl::Toggle(
-            ImgViewerString(spec.label),
-            signal.Get());
-        Checkbox* result = section->AddItem(std::move(checkbox));
-        if (control_slot != nullptr) {
-            *control_slot = BooleanControl{.spec = &spec, .checkbox = result};
-        }
-        result->SetOnToggled([&signal](bool checked) {
-            signal.Set(checked);
-        });
-        return result;
-    }
-
-    SliderRow* AddSliderSetting(
-        StackPanel* section,
-        const SliderSettingSpec& spec,
-        util::Signal<int>& signal,
-        SliderControl* control_slot)
-    {
-        auto slider = ui_decl::SliderField(
-            ImgViewerString(spec.label),
-            spec.minimum,
-            spec.maximum,
-            signal.Get(),
-            spec.small_step,
-            spec.large_step);
-        SliderRow* result = section->AddItem(std::move(slider));
-        if (control_slot != nullptr) {
-            *control_slot = SliderControl{.spec = &spec, .row = result};
-        }
-        result->GetSlider()->SetOnValueChanged([this, &signal, control_slot](int value) {
-            SetSliderValue(*control_slot, signal, value);
-        });
-        result->GetSlider()->SetAccessibilityValueChangedHandler([this, &signal, control_slot](int value) {
-            SetSliderValue(*control_slot, signal, value);
-        });
-        UpdateSliderText(*control_slot, signal.Get());
-        return result;
-    }
-
-    static size_t LanguageIndex(ImgViewerLanguage language)
-    {
-        return language == ImgViewerLanguage::SimplifiedChinese ? 1 : 0;
-    }
-
-    static ImgViewerLanguage LanguageFromIndex(size_t index)
-    {
-        return index == 1 ? ImgViewerLanguage::SimplifiedChinese : ImgViewerLanguage::English;
-    }
-
-    Dropdown* AddLanguageDropdown(StackPanel* section)
-    {
-        auto dropdown = std::make_unique<Dropdown>(
-            UiMetadata(UiElementRole::ComboBox, ImgViewerString(ImgViewerStringId::Language), kUiTooltipFromName),
-            std::vector<DropdownOption>{
-                DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
-                DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
-            });
-        dropdown->SetSelectedIndex(static_cast<size_t>(state_.language_index_signal.Get()));
-        Dropdown* result = section->AddItem(std::move(dropdown));
-        result->SetOnSelectionChanged([this](size_t index) {
-            state_.language_index_signal.Set(static_cast<int>(index));
-        });
-        return result;
-    }
-
-    Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text)
-    {
-        return footer_panel_ != nullptr ? footer_panel_->AddItem(
-            ui_decl::ActionButton(UiActionFromImgViewerAction(action), name, icon, text),
-            kSettingsFooterButtonWidth) : nullptr;
-    }
-
     void BuildUiTree()
     {
+        const auto add_checkbox = [this](
+                                      StackPanel* section,
+                                      const wchar_t* label,
+                                      util::Signal<bool>& signal,
+                                      settings_detail::BooleanControl* control_slot) {
+            auto checkbox = ui_decl::Toggle(label, signal.Get());
+            Checkbox* result = section->AddItem(std::move(checkbox));
+            if (control_slot != nullptr) {
+                *control_slot = settings_detail::BooleanControl{.checkbox = result};
+            }
+            result->SetOnToggled([&signal](bool checked) {
+                signal.Set(checked);
+            });
+            return result;
+        };
+        const auto add_slider = [this](
+                                    StackPanel* section,
+                                    const wchar_t* label,
+                                    int minimum,
+                                    int maximum,
+                                    int small_step,
+                                    int large_step,
+                                    util::Signal<int>& signal,
+                                    settings_detail::SliderControl* control_slot) {
+            auto slider = ui_decl::SliderField(
+                label,
+                minimum,
+                maximum,
+                signal.Get(),
+                small_step,
+                large_step);
+            SliderRow* result = section->AddItem(std::move(slider));
+            if (control_slot != nullptr) {
+                *control_slot = settings_detail::SliderControl{.row = result};
+            }
+            result->GetSlider()->SetOnValueChanged([this, &signal, control_slot](int value) {
+                SetSliderValue(*control_slot, signal, value);
+            });
+            result->GetSlider()->SetAccessibilityValueChangedHandler([this, &signal, control_slot](int value) {
+                SetSliderValue(*control_slot, signal, value);
+            });
+            UpdateSliderText(*control_slot, signal.Get());
+            return result;
+        };
+        const auto add_language_dropdown = [this](StackPanel* section) {
+            auto dropdown = std::make_unique<Dropdown>(
+                UiMetadata(UiElementRole::ComboBox, ImgViewerString(ImgViewerStringId::Language), kUiTooltipFromName),
+                std::vector<DropdownOption>{
+                    DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
+                    DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
+                });
+            dropdown->SetSelectedIndex(static_cast<size_t>(state_.language_index_signal.Get()));
+            Dropdown* result = section->AddItem(std::move(dropdown));
+            result->SetOnSelectionChanged([this](size_t index) {
+                state_.language_index_signal.Set(static_cast<int>(index));
+            });
+            return result;
+        };
+        const auto add_footer_button = [this](ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text) {
+            return footer_panel_ != nullptr ? footer_panel_->AddItem(
+                ui_decl::ActionButton(UiActionFromImgViewerAction(action), name, icon, text),
+                kSettingsFooterButtonWidth) : nullptr;
+        };
+
         root_->AddItem(ui_decl::Title(ImgViewerString(ImgViewerStringId::Settings)), 17.0f);
 
         StackPanel* language_section = AddSection(ImgViewerStringId::Language, ui_theme::metrics::kSmallGap);
-        view_.language_dropdown = AddLanguageDropdown(language_section);
+        view_.language_dropdown = add_language_dropdown(language_section);
 
         StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, 3.0f);
-        AddCheckboxSetting(window_size_section, kBooleanSettingSpecs[kRememberWindowSizeSetting], state_.remember_window_size, &view_.remember_window_size);
+        add_checkbox(window_size_section, ImgViewerString(ImgViewerStringId::RememberWindowSize), state_.remember_window_size, &view_.remember_window_size);
         view_.remember_radio = window_size_section->AddItem(
             ui_decl::Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), state_.remember_window_size.Get()));
         view_.default_radio = window_size_section->AddItem(
@@ -467,21 +411,45 @@ private:
             ui_decl::Radio(ImgViewerString(ImgViewerStringId::ActualSize), state_.initial_image_view_mode == InitialImageViewMode::ActualSize));
         view_.initial_fit_window_radio->SetOnSelected([this]() { SelectInitialFitWindow(); });
         view_.initial_actual_size_radio->SetOnSelected([this]() { SelectInitialActualSize(); });
-        AddCheckboxSetting(image_section, kBooleanSettingSpecs[kPixelatedSamplingSetting], state_.pixelated_sampling, &view_.pixelated_sampling);
-        AddCheckboxSetting(image_section, kBooleanSettingSpecs[kCheckerboardBackgroundSetting], state_.checkerboard_background, &view_.checkerboard_background);
+        add_checkbox(image_section, ImgViewerString(ImgViewerStringId::PixelatedSampling), state_.pixelated_sampling, &view_.pixelated_sampling);
+        add_checkbox(image_section, ImgViewerString(ImgViewerStringId::CheckerboardBackground), state_.checkerboard_background, &view_.checkerboard_background);
 
         StackPanel* frame_section = AddSection(ImgViewerStringId::WindowFrame);
-        AddCheckboxSetting(frame_section, kBooleanSettingSpecs[kBorderlessWindowSetting], state_.borderless_window, &view_.borderless_window);
+        add_checkbox(frame_section, ImgViewerString(ImgViewerStringId::BorderlessWindow), state_.borderless_window, &view_.borderless_window);
 
         StackPanel* opacity_section = AddSection(ImgViewerStringId::Opacity, ui_theme::metrics::kSmallGap);
-        AddSliderSetting(opacity_section, kSliderSettingSpecs[kOpacitySliderSetting], state_.window_opacity_percent, &view_.opacity);
+        add_slider(
+            opacity_section,
+            ImgViewerString(ImgViewerStringId::Opacity),
+            kOpacityMinimum,
+            kOpacityMaximum,
+            kOpacitySmallStep,
+            kOpacityLargeStep,
+            state_.window_opacity_percent,
+            &view_.opacity);
 
         StackPanel* toolbar_section = AddSection(ImgViewerStringId::ToolbarSize, ui_theme::metrics::kSmallGap);
-        AddSliderSetting(toolbar_section, kSliderSettingSpecs[kToolbarScaleSliderSetting], state_.toolbar_scale_percent, &view_.toolbar_scale);
+        add_slider(
+            toolbar_section,
+            ImgViewerString(ImgViewerStringId::ToolbarSize),
+            kToolbarScaleMinimum,
+            kToolbarScaleMaximum,
+            kToolbarScaleSmallStep,
+            kToolbarScaleLargeStep,
+            state_.toolbar_scale_percent,
+            &view_.toolbar_scale);
 
         StackPanel* navigation_section = AddSection(ImgViewerStringId::Navigation, ui_theme::metrics::kSmallGap);
-        AddCheckboxSetting(navigation_section, kBooleanSettingSpecs[kEdgeClickNavigationSetting], state_.edge_click_navigation, &view_.edge_click_navigation);
-        AddSliderSetting(navigation_section, kSliderSettingSpecs[kEdgeClickZoneSliderSetting], state_.edge_click_navigation_zone_percent, &view_.edge_click_zone);
+        add_checkbox(navigation_section, ImgViewerString(ImgViewerStringId::EdgeClickNavigation), state_.edge_click_navigation, &view_.edge_click_navigation);
+        add_slider(
+            navigation_section,
+            ImgViewerString(ImgViewerStringId::EdgeClickZone),
+            kEdgeClickZoneMinimum,
+            kEdgeClickZoneMaximum,
+            kEdgeClickZoneSmallStep,
+            kEdgeClickZoneLargeStep,
+            state_.edge_click_navigation_zone_percent,
+            &view_.edge_click_zone);
 
         StackPanel* filter_section = AddSection(ImgViewerStringId::ShortcutFilter, ui_theme::metrics::kSmallGap);
         view_.filter_box = filter_section->AddItem(std::make_unique<TextBox>(
@@ -503,9 +471,9 @@ private:
         footer_panel_->SetGap(kSettingsFooterButtonGap);
         footer_panel_->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
 
-        view_.reset_button = AddFooterButton(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
-        view_.save_button = AddFooterButton(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
-        view_.cancel_button = AddFooterButton(ImgViewerAction::CloseSettings, ImgViewerString(ImgViewerStringId::Cancel), kCancelIcon, ImgViewerString(ImgViewerStringId::Cancel));
+        view_.reset_button = add_footer_button(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
+        view_.save_button = add_footer_button(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
+        view_.cancel_button = add_footer_button(ImgViewerAction::CloseSettings, ImgViewerString(ImgViewerStringId::Cancel), kCancelIcon, ImgViewerString(ImgViewerStringId::Cancel));
     }
 
     void SelectRememberWindowSize()
@@ -530,9 +498,9 @@ private:
         UpdateInitialImageViewModeControls();
     }
 
-    void SetSliderValue(SliderControl& control, util::Signal<int>& signal, int value)
+    void SetSliderValue(settings_detail::SliderControl& control, util::Signal<int>& signal, int value)
     {
-        const int clamped = control.spec->clamp(value);
+        const int clamped = ClampSliderValue(signal, value);
         signal.Set(clamped);
         if (control.row != nullptr) {
             control.row->SetValue(clamped);
@@ -540,7 +508,18 @@ private:
         UpdateSliderText(control, clamped);
     }
 
-    void UpdateSliderText(SliderControl& control, int value)
+    int ClampSliderValue(const util::Signal<int>& signal, int value) const
+    {
+        if (&signal == &state_.window_opacity_percent) {
+            return ClampWindowOpacityPercent(value);
+        }
+        if (&signal == &state_.toolbar_scale_percent) {
+            return ClampToolbarScalePercent(value);
+        }
+        return ClampEdgeClickNavigationZonePercent(value);
+    }
+
+    void UpdateSliderText(settings_detail::SliderControl& control, int value)
     {
         wchar_t text[16] = {};
         swprintf_s(text, L"%d%%", value);
@@ -631,7 +610,7 @@ private:
         }
         std::wstring haystack = ImgViewerActionDisplayName(action);
         haystack += L" ";
-        haystack += ShortcutsForAction(state_.action_bindings, action);
+        haystack += settings_detail::ShortcutsForAction(state_.action_bindings, action);
         std::wstring needle = filter;
         for (wchar_t& ch : haystack) {
             ch = static_cast<wchar_t>(towlower(ch));
@@ -648,7 +627,7 @@ private:
         for (const ImgViewerActionInfo& action : ImgViewerActions()) {
             if (action.shown_in_settings && MatchesFilter(action.action)) {
                 rows.push_back(TableRow{
-                    .cells = {ImgViewerString(action.display_name), ShortcutsForAction(state_.action_bindings, action.action)},
+                    .cells = {ImgViewerString(action.display_name), settings_detail::ShortcutsForAction(state_.action_bindings, action.action)},
                     .action = UiActionFromImgViewerAction(action.action),
                 });
             }
@@ -667,8 +646,8 @@ private:
         view_.action_table->SetRows(BuildShortcutRows());
     }
 
-    SettingsState state_;
-    ViewRefs view_;
+    settings_detail::SettingsState state_;
+    settings_detail::ViewRefs view_;
     std::unique_ptr<ScrollPanel> root_owner_;
     ScrollPanel* scroll_root_ = nullptr;
     StackPanel* root_ = nullptr;
