@@ -167,6 +167,9 @@ private:
 
         dropdown_->selected_index_ = option;
         dropdown_->hovered_index_ = option;
+        if (dropdown_->selection_changed_handler_) {
+            dropdown_->selection_changed_handler_(option);
+        }
         return UiEventResult{
             .handled = true,
             .needs_render = true,
@@ -191,6 +194,9 @@ private:
                 dropdown_->selected_index_ = dropdown_->selected_index_ == 0 ? 0 : dropdown_->selected_index_ - 1;
             }
             dropdown_->hovered_index_ = dropdown_->selected_index_;
+            if (dropdown_->selection_changed_handler_) {
+                dropdown_->selection_changed_handler_(dropdown_->selected_index_);
+            }
             return UiEventResult{
                 .handled = true,
                 .needs_render = true,
@@ -246,6 +252,11 @@ void Checkbox::SetChecked(bool checked)
     checked_ = checked;
 }
 
+void Checkbox::SetOnToggled(std::function<void(bool)> handler)
+{
+    toggled_handler_ = std::move(handler);
+}
+
 D2D1_SIZE_F Checkbox::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
 {
     return D2D1::SizeF((std::max)(1.0f, available_size.width), ui_theme::metrics::kWidgetRowHeight);
@@ -271,12 +282,26 @@ void Checkbox::Render(const UiDrawContext& context, UiRootState root_state) cons
 
 UiEventResult Checkbox::OnPointerEvent(const UiPointerEvent& event)
 {
-    return ChoicePointerEvent(*this, event);
+    UiEventResult result = ChoicePointerEvent(*this, event);
+    if (result.handled && event.type == UiEventType::PointerUp && event.captured == Id() && event.target == Id() && IsEnabled()) {
+        checked_ = !checked_;
+        if (toggled_handler_) {
+            toggled_handler_(checked_);
+        }
+    }
+    return result;
 }
 
 UiEventResult Checkbox::OnKeyEvent(const UiKeyEvent& event)
 {
-    return ChoiceKeyEvent(*this, event);
+    UiEventResult result = ChoiceKeyEvent(*this, event);
+    if (result.handled && event.type == UiEventType::KeyDown && IsEnabled()) {
+        checked_ = !checked_;
+        if (toggled_handler_) {
+            toggled_handler_(checked_);
+        }
+    }
+    return result;
 }
 
 RadioButton::RadioButton(UiElementMetadata metadata, const wchar_t* text, bool selected) :
@@ -295,6 +320,11 @@ bool RadioButton::IsSelected() const
 void RadioButton::SetSelected(bool selected)
 {
     selected_ = selected;
+}
+
+void RadioButton::SetOnSelected(std::function<void()> handler)
+{
+    selected_handler_ = std::move(handler);
 }
 
 D2D1_SIZE_F RadioButton::Measure(const UiDrawContext&, D2D1_SIZE_F available_size) const
@@ -323,12 +353,26 @@ void RadioButton::Render(const UiDrawContext& context, UiRootState root_state) c
 
 UiEventResult RadioButton::OnPointerEvent(const UiPointerEvent& event)
 {
-    return ChoicePointerEvent(*this, event);
+    UiEventResult result = ChoicePointerEvent(*this, event);
+    if (result.handled && event.type == UiEventType::PointerUp && event.captured == Id() && event.target == Id() && IsEnabled()) {
+        selected_ = true;
+        if (selected_handler_) {
+            selected_handler_();
+        }
+    }
+    return result;
 }
 
 UiEventResult RadioButton::OnKeyEvent(const UiKeyEvent& event)
 {
-    return ChoiceKeyEvent(*this, event);
+    UiEventResult result = ChoiceKeyEvent(*this, event);
+    if (result.handled && event.type == UiEventType::KeyDown && IsEnabled()) {
+        selected_ = true;
+        if (selected_handler_) {
+            selected_handler_();
+        }
+    }
+    return result;
 }
 
 Dropdown::Dropdown(UiElementMetadata metadata, std::vector<DropdownOption> options) :
@@ -353,6 +397,11 @@ void Dropdown::SetSelectedIndex(size_t index)
     if (!options_.empty()) {
         selected_index_ = (std::min)(index, options_.size() - 1);
     }
+}
+
+void Dropdown::SetOnSelectionChanged(std::function<void(size_t)> handler)
+{
+    selection_changed_handler_ = std::move(handler);
 }
 
 void Dropdown::SetOptions(std::vector<DropdownOption> options)

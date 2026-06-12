@@ -14,6 +14,7 @@ public:
     int Maximum() const;
     int Value() const;
     bool SetValue(int value);
+    void SetOnValueChanged(std::function<void(int)> handler);
     void SetAccessibilityValueChangedHandler(std::function<void(int)> handler);
     double AccessibilityRangeValue() const override;
     double AccessibilityRangeMinimum() const override;
@@ -39,6 +40,7 @@ private:
     int small_step_ = 1;
     int large_step_ = 10;
     bool dragging_ = false;
+    std::function<void(int)> value_changed_handler_;
     std::function<void(int)> accessibility_value_changed_handler_;
 };
 

@@ -275,6 +275,10 @@ private:
             BooleanSettingValue(spec));
         Checkbox* result = section->AddItem(std::move(checkbox));
         boolean_controls_[index] = BooleanControl{.spec = &spec, .checkbox = result};
+        result->SetOnToggled([this, &spec](bool checked) {
+            draft_.*(spec.field) = spec.inverted ? !checked : checked;
+            SyncChoiceControls();
+        });
         return result;
     }
 
@@ -290,6 +294,9 @@ private:
             spec.large_step);
         SliderRow* result = section->AddItem(std::move(slider));
         slider_controls_[index] = SliderControl{.spec = &spec, .row = result};
+        result->GetSlider()->SetOnValueChanged([this, index](int value) {
+            SetSliderValue(index, value);
+        });
         result->GetSlider()->SetAccessibilityValueChangedHandler([this, index](int value) {
             SetSliderValue(index, value);
         });
@@ -316,7 +323,12 @@ private:
                 DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
             });
         dropdown->SetSelectedIndex(LanguageIndex(draft_.language));
-        return section->AddItem(std::move(dropdown));
+        Dropdown* result = section->AddItem(std::move(dropdown));
+        result->SetOnSelectionChanged([this](size_t index) {
+            draft_.language = LanguageFromIndex(index);
+            SyncChoiceControls();
+        });
+        return result;
     }
 
     Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text)
@@ -339,6 +351,8 @@ private:
             ui_decl::Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), draft_.remember_window_size));
         default_radio_ = window_size_section->AddItem(
             ui_decl::Radio(ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
+        remember_radio_->SetOnSelected([this]() { SelectRememberWindowSize(); });
+        default_radio_->SetOnSelected([this]() { SelectDefaultWindowSize(); });
 
         StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering);
         image_section->AddItem(ui_decl::Muted(ImgViewerString(ImgViewerStringId::InitialImageView)));
@@ -346,6 +360,8 @@ private:
             ui_decl::Radio(ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
         initial_actual_size_radio_ = image_section->AddItem(
             ui_decl::Radio(ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
+        initial_fit_window_radio_->SetOnSelected([this]() { SelectInitialFitWindow(); });
+        initial_actual_size_radio_->SetOnSelected([this]() { SelectInitialActualSize(); });
         AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
         AddCheckboxSetting(image_section, kCheckerboardBackgroundSetting);
 
@@ -385,18 +401,6 @@ private:
         reset_button_ = AddFooterButton(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
         save_button_ = AddFooterButton(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
         cancel_button_ = AddFooterButton(ImgViewerAction::CloseSettings, ImgViewerString(ImgViewerStringId::Cancel), kCancelIcon, ImgViewerString(ImgViewerStringId::Cancel));
-    }
-
-    void ApplyElementEffect(UiElementId id) override
-    {
-        if (id == remember_radio_->Id()) { SelectRememberWindowSize(); return; }
-        if (id == default_radio_->Id()) { SelectDefaultWindowSize(); return; }
-        if (id == initial_fit_window_radio_->Id()) { SelectInitialFitWindow(); return; }
-        if (id == initial_actual_size_radio_->Id()) { SelectInitialActualSize(); return; }
-        if (ApplyBooleanSetting(id)) { return; }
-        if (ApplySliderSetting(id)) { return; }
-        if (ApplyLanguageSetting(id)) { return; }
-        if (id == action_table_->Id()) { return; }
     }
 
     void SelectRememberWindowSize()
@@ -447,28 +451,6 @@ private:
         return spec.inverted ? !value : value;
     }
 
-    bool ApplyBooleanSetting(UiElementId id)
-    {
-        for (const BooleanControl& control : boolean_controls_) {
-            if (control.checkbox != nullptr && control.checkbox->Id() == id) {
-                draft_.*(control.spec->field) = !(draft_.*(control.spec->field));
-                SyncChoiceControls();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool ApplyLanguageSetting(UiElementId id)
-    {
-        if (language_dropdown_ == nullptr || language_dropdown_->Id() != id) {
-            return false;
-        }
-        draft_.language = LanguageFromIndex(language_dropdown_->SelectedIndex());
-        SyncChoiceControls();
-        return true;
-    }
-
     void SyncSliderControls()
     {
         for (SliderControl& control : slider_controls_) {
@@ -476,25 +458,6 @@ private:
                 SetSliderValue(control, draft_.*(control.spec->field));
             }
         }
-    }
-
-    bool ApplySliderSetting(UiElementId id)
-    {
-        if (SliderControl* control = SliderControlForId(id)) {
-            SetSliderValue(*control, control->row->Value());
-            return true;
-        }
-        return false;
-    }
-
-    SliderControl* SliderControlForId(UiElementId id)
-    {
-        for (SliderControl& control : slider_controls_) {
-            if (control.row != nullptr && control.row->GetSlider()->Id() == id) {
-                return &control;
-            }
-        }
-        return nullptr;
     }
 
     void SetSliderValue(size_t index, int value)

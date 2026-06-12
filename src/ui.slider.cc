@@ -41,6 +41,11 @@ int Slider::Value() const
     return value_;
 }
 
+void Slider::SetOnValueChanged(std::function<void(int)> handler)
+{
+    value_changed_handler_ = std::move(handler);
+}
+
 void Slider::SetAccessibilityValueChangedHandler(std::function<void(int)> handler)
 {
     accessibility_value_changed_handler_ = std::move(handler);
@@ -73,8 +78,13 @@ double Slider::AccessibilityRangeLargeChange() const
 
 HRESULT Slider::AccessibilitySetRangeValue(double value)
 {
-    if (SetValue(static_cast<int>(value + 0.5)) && accessibility_value_changed_handler_) {
-        accessibility_value_changed_handler_(value_);
+    if (SetValue(static_cast<int>(value + 0.5))) {
+        if (value_changed_handler_) {
+            value_changed_handler_(value_);
+        }
+        if (accessibility_value_changed_handler_) {
+            accessibility_value_changed_handler_(value_);
+        }
     }
     return S_OK;
 }
@@ -142,6 +152,9 @@ UiEventResult Slider::OnPointerEvent(const UiPointerEvent& event)
     if (event.type == UiEventType::PointerDown && event.button == UiPointerButton::Left) {
         dragging_ = true;
         const bool changed = SetValue(ValueFromPoint(event.point));
+        if (changed && value_changed_handler_) {
+            value_changed_handler_(value_);
+        }
         return UiEventResult{
             .handled = true,
             .needs_render = true,
@@ -154,12 +167,18 @@ UiEventResult Slider::OnPointerEvent(const UiPointerEvent& event)
 
     if (event.type == UiEventType::PointerMove && dragging_ && event.captured == Id()) {
         const bool changed = SetValue(ValueFromPoint(event.point));
+        if (changed && value_changed_handler_) {
+            value_changed_handler_(value_);
+        }
         return UiEventResult{.handled = true, .needs_render = changed, .value_changed = changed};
     }
 
     if (event.type == UiEventType::PointerUp && event.captured == Id()) {
         dragging_ = false;
         const bool changed = SetValue(ValueFromPoint(event.point));
+        if (changed && value_changed_handler_) {
+            value_changed_handler_(value_);
+        }
         return UiEventResult{
             .handled = true,
             .needs_render = true,
@@ -204,6 +223,9 @@ UiEventResult Slider::OnKeyEvent(const UiKeyEvent& event)
     }
 
     const bool changed = SetValue(next);
+    if (changed && value_changed_handler_) {
+        value_changed_handler_(value_);
+    }
     return UiEventResult{.handled = true, .needs_render = changed, .value_changed = changed};
 }
 
