@@ -71,7 +71,7 @@ struct ImgViewerContext final {
 
 HRESULT RenderImgViewer(ImgViewerContext* context);
 HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context);
-DWORD ImgViewerWindowStyle(bool borderless);
+DWORD ImgViewerMainWindowStyle(bool borderless);
 HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hide_for_transition);
 void SyncWindowState(HWND hwnd, ImgViewerContext* context);
 void SaveWindowSize(HWND hwnd, ImgViewerContext* context);

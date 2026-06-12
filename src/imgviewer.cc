@@ -135,7 +135,7 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
     return S_OK;
 }
 
-DWORD ImgViewerWindowStyle(bool borderless)
+DWORD ImgViewerMainWindowStyle(bool borderless)
 {
     if (borderless) {
         return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
@@ -159,7 +159,7 @@ HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hid
     const LONG_PTR previous_style = SetWindowLongPtrW(
         hwnd,
         GWL_STYLE,
-        static_cast<LONG_PTR>(ImgViewerWindowStyle(context->config.borderless_window)));
+        static_cast<LONG_PTR>(ImgViewerMainWindowStyle(context->config.borderless_window)));
     if (previous_style == 0 && GetLastError() != ERROR_SUCCESS) {
         RETURN_LAST_ERROR();
     }

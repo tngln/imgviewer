@@ -4,6 +4,12 @@
 
 namespace win32 {
 
+enum class NativeWindowFrame {
+    MainWindow,
+    BorderlessMainWindow,
+    Dialog,
+};
+
 struct WindowMessageResult final {
     bool handled = false;
     LRESULT value = 0;
@@ -34,17 +40,14 @@ public:
 
 struct NativeWindowOptions final {
     HINSTANCE instance = nullptr;
-    const wchar_t* class_name = L"";
+    HCURSOR cursor = nullptr;
     const wchar_t* title = L"";
-    DWORD style = WS_OVERLAPPEDWINDOW;
-    DWORD ex_style = 0;
+    NativeWindowFrame frame = NativeWindowFrame::MainWindow;
     int x = CW_USEDEFAULT;
     int y = CW_USEDEFAULT;
     int width = CW_USEDEFAULT;
     int height = CW_USEDEFAULT;
     HWND owner = nullptr;
-    HCURSOR cursor = nullptr;
-    int show_command = SW_SHOWNORMAL;
     void* user_data = nullptr;
 };
 

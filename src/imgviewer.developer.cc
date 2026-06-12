@@ -23,7 +23,6 @@
 namespace {
 namespace ui_decl = experimental::ui_decl;
 
-constexpr wchar_t kDeveloperClassName[] = L"ImgViewerDeveloperWindow";
 constexpr wchar_t kCloseIcon[] = L"\xE711";
 constexpr wchar_t kRefreshIcon[] = L"\xE72C";
 constexpr int kDeveloperInitialWidth = 460;
@@ -355,14 +354,11 @@ HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context)
         UiWindowOptions{
             .native = win32::NativeWindowOptions{
                 .instance = instance,
-                .class_name = kDeveloperClassName,
                 .title = ImgViewerString(ImgViewerStringId::Developer),
-                .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
-                .ex_style = WS_EX_DLGMODALFRAME,
+                .frame = win32::NativeWindowFrame::Dialog,
                 .width = kDeveloperInitialWidth,
                 .height = kDeveloperInitialHeight,
                 .owner = owner,
-                .show_command = SW_SHOWNORMAL,
             },
             .action_message = kImgViewerUiActionMessage,
             .body_font_size = 9.0f,

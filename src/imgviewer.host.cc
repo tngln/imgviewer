@@ -33,7 +33,6 @@
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
-constexpr wchar_t kWindowClassName[] = L"ImgViewerWindow";
 constexpr float kEdgeClickDragCancelDistance = 6.0f;
 
 bool IsDeveloperCommandLineArgument(const wchar_t* arg)
@@ -598,9 +597,10 @@ HRESULT RunImgViewerApplicationAsHresult()
     RETURN_IF_FAILED(window.Create(
         win32::NativeWindowOptions{
             .instance = instance,
-            .class_name = kWindowClassName,
             .title = kImgViewerWindowTitle,
-            .style = ImgViewerWindowStyle(context.config.borderless_window),
+            .frame = context.config.borderless_window
+                ? win32::NativeWindowFrame::BorderlessMainWindow
+                : win32::NativeWindowFrame::MainWindow,
             .width = initial_window_size.width,
             .height = initial_window_size.height,
             .user_data = &context,

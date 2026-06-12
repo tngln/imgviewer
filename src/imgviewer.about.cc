@@ -19,7 +19,6 @@
 
 namespace {
 
-constexpr wchar_t kAboutClassName[] = L"ImgViewerAboutWindow";
 constexpr int kAboutInitialWidth = 280;
 constexpr int kAboutInitialHeight = 260;
 constexpr int kAboutMinClientWidth = 240;
@@ -192,14 +191,11 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
         UiWindowOptions{
             .native = win32::NativeWindowOptions{
                 .instance = instance,
-                .class_name = kAboutClassName,
                 .title = ImgViewerString(ImgViewerStringId::AboutImgViewer),
-                .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
-                .ex_style = WS_EX_DLGMODALFRAME,
+                .frame = win32::NativeWindowFrame::Dialog,
                 .width = kAboutInitialWidth,
                 .height = kAboutInitialHeight,
                 .owner = owner,
-                .show_command = SW_SHOWNORMAL,
             },
             .action_message = kImgViewerUiActionMessage,
             .body_font_size = 9.0f,

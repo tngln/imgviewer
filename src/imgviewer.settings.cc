@@ -36,8 +36,6 @@
 namespace {
 namespace ui_decl = experimental::ui_decl;
 
-constexpr wchar_t kSettingsClassName[] = L"ImgViewerSettingsWindow";
-
 constexpr wchar_t kSaveIcon[] = L"\xE105";
 constexpr wchar_t kCancelIcon[] = L"\xE711";
 constexpr wchar_t kResetIcon[] = L"\xE777";
@@ -866,14 +864,11 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
         UiWindowOptions{
             .native = win32::NativeWindowOptions{
                 .instance = instance,
-                .class_name = kSettingsClassName,
                 .title = ImgViewerString(ImgViewerStringId::Settings),
-                .style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME,
-                .ex_style = WS_EX_DLGMODALFRAME | WS_EX_NOREDIRECTIONBITMAP,
+                .frame = win32::NativeWindowFrame::Dialog,
                 .width = kSettingsInitialWidth,
                 .height = kSettingsInitialHeight,
                 .owner = owner,
-                .show_command = SW_SHOWNORMAL,
             },
             .action_message = kImgViewerUiActionMessage,
             .caret_timer_id = kCaretTimerId,

@@ -4,6 +4,34 @@
 
 namespace win32 {
 
+namespace {
+
+constexpr wchar_t kNativeWindowClassName[] = L"ImgViewerNativeWindow";
+
+DWORD NativeWindowStyle(NativeWindowFrame frame)
+{
+    switch (frame) {
+    case NativeWindowFrame::BorderlessMainWindow:
+        return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    case NativeWindowFrame::Dialog:
+        return WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
+    case NativeWindowFrame::MainWindow:
+    default:
+        return WS_OVERLAPPEDWINDOW;
+    }
+}
+
+DWORD NativeWindowExStyle(const NativeWindowOptions& options)
+{
+    DWORD ex_style = 0;
+    if (options.frame == NativeWindowFrame::Dialog) {
+        ex_style |= WS_EX_DLGMODALFRAME;
+    }
+    return ex_style;
+}
+
+} // namespace
+
 NativeWindow::~NativeWindow()
 {
     Destroy();
@@ -12,7 +40,6 @@ NativeWindow::~NativeWindow()
 HRESULT NativeWindow::Create(const NativeWindowOptions& options, NativeWindowDelegate* delegate)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, options.instance);
-    RETURN_HR_IF(E_INVALIDARG, options.class_name == nullptr || options.class_name[0] == L'\0');
     RETURN_HR_IF_NULL(E_INVALIDARG, delegate);
     RETURN_HR_IF(E_UNEXPECTED, hwnd_ != nullptr);
 
@@ -22,10 +49,10 @@ HRESULT NativeWindow::Create(const NativeWindowOptions& options, NativeWindowDel
     instance_ = options.instance;
     user_data_ = options.user_data;
     HWND hwnd = CreateWindowExW(
-        options.ex_style,
-        options.class_name,
+        NativeWindowExStyle(options),
+        kNativeWindowClassName,
         options.title,
-        options.style,
+        NativeWindowStyle(options.frame),
         options.x,
         options.y,
         options.width,
@@ -90,7 +117,7 @@ HRESULT NativeWindow::RegisterWindowClass(const NativeWindowOptions& options)
     window_class.lpfnWndProc = NativeWindow::WindowProc;
     window_class.hInstance = options.instance;
     window_class.hCursor = options.cursor != nullptr ? options.cursor : LoadCursorW(nullptr, IDC_ARROW);
-    window_class.lpszClassName = options.class_name;
+    window_class.lpszClassName = kNativeWindowClassName;
 
     const ATOM atom = RegisterClassExW(&window_class);
     if (atom == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
