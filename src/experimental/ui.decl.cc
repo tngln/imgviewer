@@ -13,6 +13,61 @@ constexpr float kSectionTopPadding = 10.0f;
 
 } // namespace
 
+BoundBuilder::BoundBuilder(ui_bind::SubscriptionBag& subscriptions) : subscriptions_(&subscriptions) {}
+
+Owned<::Checkbox> BoundBuilder::Toggle(
+    const wchar_t* text,
+    util::Signal<bool>& signal) const
+{
+    return Owned<::Checkbox>(ui_decl::Toggle(text, signal, *subscriptions_));
+}
+
+Owned<::RadioButton> BoundBuilder::Radio(
+    const wchar_t* text,
+    util::Signal<bool>& signal,
+    bool selected_value) const
+{
+    return Owned<::RadioButton>(ui_decl::Radio(text, signal, selected_value, *subscriptions_));
+}
+
+Owned<::RadioButton> BoundBuilder::Radio(
+    const wchar_t* text,
+    util::Signal<int>& signal,
+    int selected_value) const
+{
+    return Owned<::RadioButton>(ui_decl::Radio(text, signal, selected_value, *subscriptions_));
+}
+
+Owned<::SliderRow> BoundBuilder::SliderField(
+    const wchar_t* name,
+    int minimum,
+    int maximum,
+    util::Signal<int>& signal,
+    int small_step,
+    int large_step,
+    std::function<int(int)> normalize,
+    std::function<std::wstring(int)> format_value) const
+{
+    return Owned<::SliderRow>(ui_decl::SliderField(
+        name,
+        minimum,
+        maximum,
+        signal,
+        small_step,
+        large_step,
+        std::move(normalize),
+        std::move(format_value),
+        *subscriptions_));
+}
+
+Owned<::Dropdown> BoundBuilder::DropdownField(
+    const wchar_t* name,
+    std::vector<DropdownOption> options,
+    util::Signal<int>& signal) const
+{
+    return Owned<::Dropdown>(ui_decl::DropdownField(name, std::move(options), signal, *subscriptions_));
+}
+
 BorderedStack::BorderedStack(UiElementMetadata metadata) : UiElement(metadata)
 {
     panel_ = static_cast<StackPanel*>(AddChild(std::make_unique<StackPanel>(PaneMetadata())));
@@ -54,6 +109,11 @@ UiElementMetadata PaneMetadata()
 UiElementMetadata TextMetadata(const wchar_t* text)
 {
     return UiMetadata(UiElementRole::Text, text, false, false);
+}
+
+BoundBuilder Bind(ui_bind::SubscriptionBag& subscriptions)
+{
+    return BoundBuilder(subscriptions);
 }
 
 std::unique_ptr<Label> Title(const wchar_t* text)
@@ -104,6 +164,16 @@ std::unique_ptr<::Checkbox> Toggle(
         checked);
 }
 
+std::unique_ptr<::Checkbox> Toggle(
+    const wchar_t* text,
+    util::Signal<bool>& signal,
+    ui_bind::SubscriptionBag& subscriptions)
+{
+    auto checkbox = Toggle(text, signal.Get());
+    ui_bind::BindCheckbox(*checkbox, signal, subscriptions);
+    return checkbox;
+}
+
 std::unique_ptr<::RadioButton> Radio(
     const wchar_t* text,
     bool checked)
@@ -112,6 +182,28 @@ std::unique_ptr<::RadioButton> Radio(
         UiMetadata(UiElementRole::RadioButton, text, kUiTooltipFromName),
         text,
         checked);
+}
+
+std::unique_ptr<::RadioButton> Radio(
+    const wchar_t* text,
+    util::Signal<bool>& signal,
+    bool selected_value,
+    ui_bind::SubscriptionBag& subscriptions)
+{
+    auto radio = Radio(text, signal.Get() == selected_value);
+    ui_bind::BindRadioBool(*radio, signal, selected_value, subscriptions);
+    return radio;
+}
+
+std::unique_ptr<::RadioButton> Radio(
+    const wchar_t* text,
+    util::Signal<int>& signal,
+    int selected_value,
+    ui_bind::SubscriptionBag& subscriptions)
+{
+    auto radio = Radio(text, signal.Get() == selected_value);
+    ui_bind::BindRadioInt(*radio, signal, selected_value, subscriptions);
+    return radio;
 }
 
 std::unique_ptr<::SliderRow> SliderField(
@@ -131,7 +223,42 @@ std::unique_ptr<::SliderRow> SliderField(
         large_step);
 }
 
-std::unique_ptr<StackPanel> Section(
+std::unique_ptr<::SliderRow> SliderField(
+    const wchar_t* name,
+    int minimum,
+    int maximum,
+    util::Signal<int>& signal,
+    int small_step,
+    int large_step,
+    std::function<int(int)> normalize,
+    std::function<std::wstring(int)> format_value,
+    ui_bind::SubscriptionBag& subscriptions)
+{
+    auto slider = SliderField(
+        name,
+        minimum,
+        maximum,
+        normalize(signal.Get()),
+        small_step,
+        large_step);
+    ui_bind::BindSliderRow(*slider, signal, std::move(normalize), std::move(format_value), subscriptions);
+    return slider;
+}
+
+std::unique_ptr<::Dropdown> DropdownField(
+    const wchar_t* name,
+    std::vector<DropdownOption> options,
+    util::Signal<int>& signal,
+    ui_bind::SubscriptionBag& subscriptions)
+{
+    auto dropdown = std::make_unique<::Dropdown>(
+        UiMetadata(UiElementRole::ComboBox, name, kUiTooltipFromName),
+        std::move(options));
+    ui_bind::BindDropdownIndex(*dropdown, signal, subscriptions);
+    return dropdown;
+}
+
+Owned<StackPanel> Section(
     const wchar_t* title,
     std::unique_ptr<UiElement> content)
 {
@@ -140,7 +267,7 @@ std::unique_ptr<StackPanel> Section(
     section->SetGap(kSectionGap);
     section->AddItem(Body(title));
     section->AddItem(std::move(content));
-    return section;
+    return Owned<StackPanel>(std::move(section));
 }
 
 } // namespace experimental::ui_decl

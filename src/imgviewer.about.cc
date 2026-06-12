@@ -18,6 +18,7 @@
 #include "ui.window.hpp"
 
 namespace {
+namespace ui_decl = experimental::ui_decl;
 
 constexpr int kAboutInitialWidth = 280;
 constexpr int kAboutInitialHeight = 260;
@@ -44,11 +45,11 @@ class AboutUi final : public UiRoot {
 public:
     AboutUi()
     {
-        auto root_panel = std::make_unique<StackPanel>(
-            UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::AboutImgViewer), kUiTooltipFromName));
-        root_panel->SetPadding(UiThickness{kAboutSidePadding, kAboutTopPadding, kAboutSidePadding, 0.0f});
-        root_panel->SetGap(0.0f);
-        root_ = root_panel.get();
+        auto root_panel = ui_decl::VStack(
+            UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::AboutImgViewer), kUiTooltipFromName))
+            .Padding(UiThickness{kAboutSidePadding, kAboutTopPadding, kAboutSidePadding, 0.0f})
+            .Gap(0.0f);
+        root_ = root_panel.Get();
         root_owner_ = std::move(root_panel);
 
         BuildUiTree();
@@ -99,21 +100,19 @@ private:
     {
         using namespace experimental::ui_decl;
 
-        auto notice_box = BorderBox(
-            BuildNoticeEntry(kNoticeLines[0]),
-            BuildNoticeEntry(kNoticeLines[1]),
-            BuildNoticeEntry(kNoticeLines[2]));
-        notice_box->SetGap(kAboutNoticeEntryGap);
-        notice_box->SetPadding(UiThickness{
-            kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding});
-
         root_->AddItem(VStack(
             Title(ImgViewerString(ImgViewerStringId::AppName)),
             Muted(ImgViewerString(ImgViewerStringId::AboutDescription)),
             Muted(ImgViewerString(ImgViewerStringId::DevelopmentBuild)),
             Section(
                 ImgViewerString(ImgViewerStringId::ThirdPartyNotices),
-                std::move(notice_box))));
+                BorderBox(
+                    BuildNoticeEntry(kNoticeLines[0]),
+                    BuildNoticeEntry(kNoticeLines[1]),
+                    BuildNoticeEntry(kNoticeLines[2]))
+                    .Gap(kAboutNoticeEntryGap)
+                    .Padding(UiThickness{
+                        kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding, kAboutNoticeInnerPadding}))));
     }
 
     std::unique_ptr<UiElement> root_owner_;

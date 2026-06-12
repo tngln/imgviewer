@@ -122,34 +122,9 @@ struct SettingsState final {
     }
 };
 
-struct BooleanControl final {
-    Checkbox* checkbox = nullptr;
-};
-
-struct SliderControl final {
-    SliderRow* row = nullptr;
-    std::wstring value_text;
-};
-
 struct ViewRefs final {
-    BooleanControl remember_window_size;
-    BooleanControl pixelated_sampling;
-    BooleanControl checkerboard_background;
-    BooleanControl borderless_window;
-    BooleanControl edge_click_navigation;
-    SliderControl opacity;
-    SliderControl toolbar_scale;
-    SliderControl edge_click_zone;
-    RadioButton* remember_radio = nullptr;
-    RadioButton* default_radio = nullptr;
-    RadioButton* initial_fit_window_radio = nullptr;
-    RadioButton* initial_actual_size_radio = nullptr;
-    Dropdown* language_dropdown = nullptr;
     TextBox* filter_box = nullptr;
     Table* action_table = nullptr;
-    Button* reset_button = nullptr;
-    Button* save_button = nullptr;
-    Button* cancel_button = nullptr;
 };
 
 inline size_t LanguageIndex(ImgViewerLanguage language)
@@ -205,8 +180,7 @@ public:
         root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, kSettingsFooterBottomPadding});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
-        scroll_root_ = scroll_panel.get();
-        scroll_root_->SetContent(std::move(root_panel));
+        scroll_panel->SetContent(std::move(root_panel));
         root_owner_ = std::move(scroll_panel);
 
         BuildUiTree();
@@ -325,164 +299,167 @@ public:
     }
 
 private:
-    StackPanel* AddSection(ImgViewerStringId label, float gap = ui_theme::metrics::kStandardGap)
-    {
-        auto content = ui_decl::VStack();
-        content->SetGap(gap);
-        StackPanel* section = content.get();
-        root_->AddItem(ui_decl::Section(ImgViewerString(label), std::move(content)));
-        return section;
-    }
-
     void BuildUiTree()
     {
-        const auto add_checkbox = [this](
-                                      StackPanel* section,
-                                      const wchar_t* label,
-                                      util::Signal<bool>& signal,
-                                      settings_detail::BooleanControl* control_slot) {
-            auto checkbox = ui_decl::Toggle(label, signal.Get());
-            Checkbox* result = section->AddItem(std::move(checkbox));
-            if (control_slot != nullptr) {
-                *control_slot = settings_detail::BooleanControl{.checkbox = result};
-            }
-            ui_bind::BindCheckbox(*result, signal, bindings_);
-            return result;
-        };
-        const auto add_slider = [this](
-                                    StackPanel* section,
-                                    const wchar_t* label,
-                                    int minimum,
-                                    int maximum,
-                                    int small_step,
-                                    int large_step,
-                                    util::Signal<int>& signal,
-                                    settings_detail::SliderControl* control_slot) {
-            auto slider = ui_decl::SliderField(
-                label,
-                minimum,
-                maximum,
-                signal.Get(),
-                small_step,
-                large_step);
-            SliderRow* result = section->AddItem(std::move(slider));
-            if (control_slot != nullptr) {
-                *control_slot = settings_detail::SliderControl{.row = result};
-            }
-            ui_bind::BindSliderRow(
-                *result,
-                signal,
-                [this, &signal](int value) { return ClampSliderValue(signal, value); },
-                [](int value) {
-                    wchar_t text[16] = {};
-                    swprintf_s(text, L"%d%%", value);
-                    return std::wstring(text);
-                },
-                bindings_);
-            return result;
-        };
-        const auto add_language_dropdown = [this](StackPanel* section) {
-            auto dropdown = std::make_unique<Dropdown>(
-                UiMetadata(UiElementRole::ComboBox, ImgViewerString(ImgViewerStringId::Language), kUiTooltipFromName),
-                std::vector<DropdownOption>{
-                    DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
-                    DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
-                });
-            Dropdown* result = section->AddItem(std::move(dropdown));
-            ui_bind::BindDropdownIndex(*result, state_.language_index_signal, bindings_);
-            return result;
-        };
-        const auto add_footer_button = [this](ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text) {
-            return footer_panel_ != nullptr ? footer_panel_->AddItem(
-                ui_decl::ActionButton(UiActionFromImgViewerAction(action), name, icon, text),
-                kSettingsFooterButtonWidth) : nullptr;
-        };
-
+        const auto bound = ui_decl::Bind(bindings_);
         root_->AddItem(ui_decl::Title(ImgViewerString(ImgViewerStringId::Settings)), 17.0f);
 
-        StackPanel* language_section = AddSection(ImgViewerStringId::Language, ui_theme::metrics::kSmallGap);
-        view_.language_dropdown = add_language_dropdown(language_section);
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kSmallGap);
+            StackPanel& section = *content.Get();
+            section.AddItem(
+                bound.DropdownField(
+                    ImgViewerString(ImgViewerStringId::Language),
+                    std::vector<DropdownOption>{
+                        DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
+                        DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
+                    },
+                    state_.language_index_signal));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::Language), std::move(content)));
+        }
 
-        StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, 3.0f);
-        add_checkbox(window_size_section, ImgViewerString(ImgViewerStringId::RememberWindowSize), state_.remember_window_size, &view_.remember_window_size);
-        view_.remember_radio = window_size_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), state_.remember_window_size.Get()));
-        view_.default_radio = window_size_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::UseDefaultSize), !state_.remember_window_size.Get()));
-        ui_bind::BindRadioBool(*view_.remember_radio, state_.remember_window_size, true, bindings_);
-        ui_bind::BindRadioBool(*view_.default_radio, state_.remember_window_size, false, bindings_);
+        {
+            auto content = ui_decl::VStack().Gap(3.0f);
+            StackPanel& section = *content.Get();
+            section.AddItem(bound.Toggle(ImgViewerString(ImgViewerStringId::RememberWindowSize), state_.remember_window_size));
+            section.AddItem(
+                bound.Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), state_.remember_window_size, true));
+            section.AddItem(
+                bound.Radio(ImgViewerString(ImgViewerStringId::UseDefaultSize), state_.remember_window_size, false));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::WindowSize), std::move(content)));
+        }
 
-        StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering);
-        image_section->AddItem(ui_decl::Muted(ImgViewerString(ImgViewerStringId::InitialImageView)));
-        view_.initial_fit_window_radio = image_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::FitWindow), state_.initial_image_view_mode_index.Get() == 0));
-        view_.initial_actual_size_radio = image_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::ActualSize), state_.initial_image_view_mode_index.Get() == 1));
-        ui_bind::BindRadioInt(*view_.initial_fit_window_radio, state_.initial_image_view_mode_index, 0, bindings_);
-        ui_bind::BindRadioInt(*view_.initial_actual_size_radio, state_.initial_image_view_mode_index, 1, bindings_);
-        add_checkbox(image_section, ImgViewerString(ImgViewerStringId::PixelatedSampling), state_.pixelated_sampling, &view_.pixelated_sampling);
-        add_checkbox(image_section, ImgViewerString(ImgViewerStringId::CheckerboardBackground), state_.checkerboard_background, &view_.checkerboard_background);
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kStandardGap);
+            StackPanel& section = *content.Get();
+            section.AddItem(ui_decl::Muted(ImgViewerString(ImgViewerStringId::InitialImageView)));
+            section.AddItem(
+                bound.Radio(ImgViewerString(ImgViewerStringId::FitWindow), state_.initial_image_view_mode_index, 0));
+            section.AddItem(
+                bound.Radio(ImgViewerString(ImgViewerStringId::ActualSize), state_.initial_image_view_mode_index, 1));
+            section.AddItem(bound.Toggle(ImgViewerString(ImgViewerStringId::PixelatedSampling), state_.pixelated_sampling));
+            section.AddItem(bound.Toggle(ImgViewerString(ImgViewerStringId::CheckerboardBackground), state_.checkerboard_background));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::ImageRendering), std::move(content)));
+        }
 
-        StackPanel* frame_section = AddSection(ImgViewerStringId::WindowFrame);
-        add_checkbox(frame_section, ImgViewerString(ImgViewerStringId::BorderlessWindow), state_.borderless_window, &view_.borderless_window);
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kStandardGap);
+            StackPanel& section = *content.Get();
+            section.AddItem(bound.Toggle(ImgViewerString(ImgViewerStringId::BorderlessWindow), state_.borderless_window));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::WindowFrame), std::move(content)));
+        }
 
-        StackPanel* opacity_section = AddSection(ImgViewerStringId::Opacity, ui_theme::metrics::kSmallGap);
-        add_slider(
-            opacity_section,
-            ImgViewerString(ImgViewerStringId::Opacity),
-            kOpacityMinimum,
-            kOpacityMaximum,
-            kOpacitySmallStep,
-            kOpacityLargeStep,
-            state_.window_opacity_percent,
-            &view_.opacity);
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kSmallGap);
+            StackPanel& section = *content.Get();
+            section.AddItem(
+                bound.SliderField(
+                    ImgViewerString(ImgViewerStringId::Opacity),
+                    kOpacityMinimum,
+                    kOpacityMaximum,
+                    state_.window_opacity_percent,
+                    kOpacitySmallStep,
+                    kOpacityLargeStep,
+                    [this](int value) { return ClampWindowOpacityPercent(value); },
+                    [](int value) {
+                        wchar_t text[16] = {};
+                        swprintf_s(text, L"%d%%", value);
+                        return std::wstring(text);
+                    }));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::Opacity), std::move(content)));
+        }
 
-        StackPanel* toolbar_section = AddSection(ImgViewerStringId::ToolbarSize, ui_theme::metrics::kSmallGap);
-        add_slider(
-            toolbar_section,
-            ImgViewerString(ImgViewerStringId::ToolbarSize),
-            kToolbarScaleMinimum,
-            kToolbarScaleMaximum,
-            kToolbarScaleSmallStep,
-            kToolbarScaleLargeStep,
-            state_.toolbar_scale_percent,
-            &view_.toolbar_scale);
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kSmallGap);
+            StackPanel& section = *content.Get();
+            section.AddItem(
+                bound.SliderField(
+                    ImgViewerString(ImgViewerStringId::ToolbarSize),
+                    kToolbarScaleMinimum,
+                    kToolbarScaleMaximum,
+                    state_.toolbar_scale_percent,
+                    kToolbarScaleSmallStep,
+                    kToolbarScaleLargeStep,
+                    [this](int value) { return ClampToolbarScalePercent(value); },
+                    [](int value) {
+                        wchar_t text[16] = {};
+                        swprintf_s(text, L"%d%%", value);
+                        return std::wstring(text);
+                    }));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::ToolbarSize), std::move(content)));
+        }
 
-        StackPanel* navigation_section = AddSection(ImgViewerStringId::Navigation, ui_theme::metrics::kSmallGap);
-        add_checkbox(navigation_section, ImgViewerString(ImgViewerStringId::EdgeClickNavigation), state_.edge_click_navigation, &view_.edge_click_navigation);
-        add_slider(
-            navigation_section,
-            ImgViewerString(ImgViewerStringId::EdgeClickZone),
-            kEdgeClickZoneMinimum,
-            kEdgeClickZoneMaximum,
-            kEdgeClickZoneSmallStep,
-            kEdgeClickZoneLargeStep,
-            state_.edge_click_navigation_zone_percent,
-            &view_.edge_click_zone);
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kSmallGap);
+            StackPanel& section = *content.Get();
+            section.AddItem(bound.Toggle(ImgViewerString(ImgViewerStringId::EdgeClickNavigation), state_.edge_click_navigation));
+            section.AddItem(
+                bound.SliderField(
+                    ImgViewerString(ImgViewerStringId::EdgeClickZone),
+                    kEdgeClickZoneMinimum,
+                    kEdgeClickZoneMaximum,
+                    state_.edge_click_navigation_zone_percent,
+                    kEdgeClickZoneSmallStep,
+                    kEdgeClickZoneLargeStep,
+                    [this](int value) { return ClampEdgeClickNavigationZonePercent(value); },
+                    [](int value) {
+                        wchar_t text[16] = {};
+                        swprintf_s(text, L"%d%%", value);
+                        return std::wstring(text);
+                    }));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::Navigation), std::move(content)));
+        }
 
-        StackPanel* filter_section = AddSection(ImgViewerStringId::ShortcutFilter, ui_theme::metrics::kSmallGap);
-        view_.filter_box = filter_section->AddItem(std::make_unique<TextBox>(
-            UiMetadata(UiElementRole::Edit, ImgViewerString(ImgViewerStringId::ShortcutFilter), kUiTooltipFromName),
-            ImgViewerString(ImgViewerStringId::FilterActions)));
+        {
+            auto content = ui_decl::VStack().Gap(ui_theme::metrics::kSmallGap);
+            StackPanel& section = *content.Get();
+            view_.filter_box = section.AddItem(std::make_unique<TextBox>(
+                UiMetadata(UiElementRole::Edit, ImgViewerString(ImgViewerStringId::ShortcutFilter), kUiTooltipFromName),
+                ImgViewerString(ImgViewerStringId::FilterActions)));
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::ShortcutFilter), std::move(content)));
+        }
 
-        StackPanel* shortcuts_section = AddSection(ImgViewerStringId::ActionShortcuts, 8.0f);
-        view_.action_table = shortcuts_section->AddItem(std::make_unique<Table>(
-            UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::ActionShortcuts), kUiTooltipFromName)));
-        view_.action_table->SetColumns(std::vector<TableColumn>{
-            TableColumn{ImgViewerString(ImgViewerStringId::Action), 170.0f, false},
-            TableColumn{ImgViewerString(ImgViewerStringId::Shortcut), 0.0f, true},
-        });
-        view_.action_table->SetHeaderVisible(true);
-        view_.action_table->SetSelectionEnabled(true);
-        view_.action_table->SetRowHeight(21.0f);
+        {
+            auto content = ui_decl::VStack().Gap(8.0f);
+            StackPanel& section = *content.Get();
+            view_.action_table = section.AddItem(std::make_unique<Table>(
+                UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::ActionShortcuts), kUiTooltipFromName)));
+            view_.action_table->SetColumns(std::vector<TableColumn>{
+                TableColumn{ImgViewerString(ImgViewerStringId::Action), 170.0f, false},
+                TableColumn{ImgViewerString(ImgViewerStringId::Shortcut), 0.0f, true},
+            });
+            view_.action_table->SetHeaderVisible(true);
+            view_.action_table->SetSelectionEnabled(true);
+            view_.action_table->SetRowHeight(21.0f);
+            root_->AddItem(ui_decl::Section(ImgViewerString(ImgViewerStringId::ActionShortcuts), std::move(content)));
+        }
 
-        footer_panel_ = root_->AddItem(ui_decl::HStack());
-        footer_panel_->SetGap(kSettingsFooterButtonGap);
-        footer_panel_->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
+        StackPanel* footer_panel = root_->AddItem(
+            ui_decl::HStack()
+                .Gap(kSettingsFooterButtonGap)
+                .Padding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f}));
 
-        view_.reset_button = add_footer_button(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
-        view_.save_button = add_footer_button(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
-        view_.cancel_button = add_footer_button(ImgViewerAction::CloseSettings, ImgViewerString(ImgViewerStringId::Cancel), kCancelIcon, ImgViewerString(ImgViewerStringId::Cancel));
+        footer_panel->AddItem(
+            ui_decl::ActionButton(
+                UiActionFromImgViewerAction(ImgViewerAction::ResetKeyBindings),
+                ImgViewerString(ImgViewerStringId::ResetShortcuts),
+                kResetIcon,
+                ImgViewerString(ImgViewerStringId::Reset)),
+            kSettingsFooterButtonWidth);
+        footer_panel->AddItem(
+            ui_decl::ActionButton(
+                UiActionFromImgViewerAction(ImgViewerAction::SaveSettings),
+                ImgViewerString(ImgViewerStringId::Save),
+                kSaveIcon,
+                ImgViewerString(ImgViewerStringId::Save)),
+            kSettingsFooterButtonWidth);
+        footer_panel->AddItem(
+            ui_decl::ActionButton(
+                UiActionFromImgViewerAction(ImgViewerAction::CloseSettings),
+                ImgViewerString(ImgViewerStringId::Cancel),
+                kCancelIcon,
+                ImgViewerString(ImgViewerStringId::Cancel)),
+            kSettingsFooterButtonWidth);
     }
 
     int ClampSliderValue(const util::Signal<int>& signal, int value) const
@@ -544,9 +521,7 @@ private:
     settings_detail::ViewRefs view_;
     ui_bind::SubscriptionBag bindings_;
     std::unique_ptr<ScrollPanel> root_owner_;
-    ScrollPanel* scroll_root_ = nullptr;
     StackPanel* root_ = nullptr;
-    StackPanel* footer_panel_ = nullptr;
 };
 
 struct SettingsWindowContext final : public UiWindowDelegate {

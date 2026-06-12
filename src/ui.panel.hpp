@@ -33,6 +33,13 @@ public:
         return raw_child;
     }
 
+    template <typename TOwned>
+    auto AddItem(TOwned child, float fixed_main_size = 0.0f)
+        -> decltype(this->AddItem(child.Release(), fixed_main_size))
+    {
+        return AddItem(child.Release(), fixed_main_size);
+    }
+
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const override;
     void Arrange(D2D1_RECT_F final_rect) override;
     void Render(const UiDrawContext& context, UiRootState state) const override;
