@@ -77,6 +77,7 @@ add_executable(imgviewer
     src/ui.window.cc
     src/ui.cc
     src/util.format.cc
+    src/experimental/util.signal.cc
     src/win32.clipboard.cc
     src/win32.dialog.cc
     src/imgviewer.rc
