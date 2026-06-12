@@ -14,6 +14,7 @@
 #include <wil/result_macros.h>
 
 #include "experimental/ui.decl.hpp"
+#include "experimental/util.signal.hpp"
 #include "imgviewer.hpp"
 #include "imgviewer.action.hpp"
 #include "imgviewer.config.hpp"
@@ -140,8 +141,39 @@ private:
             ClampEdgeClickNavigationZonePercent},
     }};
 
+    static bool BooleanSettingValue(const ImgViewerConfig& config, const BooleanSettingSpec& spec)
+    {
+        const bool value = config.*(spec.field);
+        return spec.inverted ? !value : value;
+    }
+
+    static std::array<util::Signal<bool>, kBooleanSettingSpecs.size()> CreateBooleanSignals(const ImgViewerConfig& config)
+    {
+        return std::array<util::Signal<bool>, kBooleanSettingSpecs.size()>{{
+            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[0])),
+            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[1])),
+            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[2])),
+            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[3])),
+            util::Signal<bool>(BooleanSettingValue(config, kBooleanSettingSpecs[4])),
+        }};
+    }
+
+    static std::array<util::Signal<int>, kSliderSettingSpecs.size()> CreateSliderSignals(const ImgViewerConfig& config)
+    {
+        return std::array<util::Signal<int>, kSliderSettingSpecs.size()>{{
+            util::Signal<int>(config.*(kSliderSettingSpecs[0].field)),
+            util::Signal<int>(config.*(kSliderSettingSpecs[1].field)),
+            util::Signal<int>(config.*(kSliderSettingSpecs[2].field)),
+        }};
+    }
+
 public:
-    explicit SettingsUi(ImgViewerConfig config) : draft_(std::move(config))
+    explicit SettingsUi(ImgViewerConfig config) :
+        action_bindings_(std::move(config.action_bindings)),
+        initial_image_view_mode_(config.initial_image_view_mode),
+        boolean_signals_(CreateBooleanSignals(config)),
+        slider_signals_(CreateSliderSignals(config)),
+        language_index_signal_(static_cast<int>(LanguageIndex(config.language)))
     {
         auto scroll_panel = std::make_unique<ScrollPanel>(
             UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), kUiTooltipFromName, false, true));
@@ -156,14 +188,28 @@ public:
         root_owner_ = std::move(scroll_panel);
 
         BuildUiTree();
-        SyncChoiceControls();
-        SyncSliderControls();
+        ConnectSignals();
         UpdateFilterResults();
     }
 
-    const ImgViewerConfig& Draft() const { return draft_; }
-    int OpacityPercent() const { return draft_.window_opacity_percent; }
-    int ToolbarScalePercent() const { return draft_.toolbar_scale_percent; }
+    ImgViewerConfig Draft() const
+    {
+        ImgViewerConfig config;
+        config.language = LanguageFromIndex(static_cast<size_t>(language_index_signal_.Get()));
+        config.initial_image_view_mode = initial_image_view_mode_;
+        for (size_t index = 0; index < boolean_signals_.size(); ++index) {
+            const BooleanSettingSpec& spec = kBooleanSettingSpecs[index];
+            config.*(spec.field) = spec.inverted ? !boolean_signals_[index].Get() : boolean_signals_[index].Get();
+        }
+        for (size_t index = 0; index < slider_signals_.size(); ++index) {
+            const SliderSettingSpec& spec = kSliderSettingSpecs[index];
+            config.*(spec.field) = spec.clamp(slider_signals_[index].Get());
+        }
+        config.action_bindings = action_bindings_;
+        return config;
+    }
+    int OpacityPercent() const { return slider_signals_[kOpacitySliderSetting].Get(); }
+    int ToolbarScalePercent() const { return slider_signals_[kToolbarScaleSliderSetting].Get(); }
 
     void SetOpacityPercent(int percent)
     {
@@ -272,12 +318,11 @@ private:
         const BooleanSettingSpec& spec = kBooleanSettingSpecs[index];
         auto checkbox = ui_decl::Toggle(
             ImgViewerString(spec.label),
-            BooleanSettingValue(spec));
+            boolean_signals_[index].Get());
         Checkbox* result = section->AddItem(std::move(checkbox));
         boolean_controls_[index] = BooleanControl{.spec = &spec, .checkbox = result};
-        result->SetOnToggled([this, &spec](bool checked) {
-            draft_.*(spec.field) = spec.inverted ? !checked : checked;
-            SyncChoiceControls();
+        result->SetOnToggled([this, index](bool checked) {
+            boolean_signals_[index].Set(checked);
         });
         return result;
     }
@@ -289,7 +334,7 @@ private:
             ImgViewerString(spec.label),
             spec.minimum,
             spec.maximum,
-            draft_.*(spec.field),
+            slider_signals_[index].Get(),
             spec.small_step,
             spec.large_step);
         SliderRow* result = section->AddItem(std::move(slider));
@@ -300,7 +345,7 @@ private:
         result->GetSlider()->SetAccessibilityValueChangedHandler([this, index](int value) {
             SetSliderValue(index, value);
         });
-        UpdateSliderText(slider_controls_[index]);
+        UpdateSliderText(slider_controls_[index], slider_signals_[index].Get());
         return result;
     }
 
@@ -322,11 +367,10 @@ private:
                 DropdownOption{ImgViewerString(ImgViewerStringId::EnglishLanguage), kUiActionNone},
                 DropdownOption{ImgViewerString(ImgViewerStringId::SimplifiedChineseLanguage), kUiActionNone},
             });
-        dropdown->SetSelectedIndex(LanguageIndex(draft_.language));
+        dropdown->SetSelectedIndex(static_cast<size_t>(language_index_signal_.Get()));
         Dropdown* result = section->AddItem(std::move(dropdown));
         result->SetOnSelectionChanged([this](size_t index) {
-            draft_.language = LanguageFromIndex(index);
-            SyncChoiceControls();
+            language_index_signal_.Set(static_cast<int>(index));
         });
         return result;
     }
@@ -348,18 +392,18 @@ private:
         StackPanel* window_size_section = AddSection(ImgViewerStringId::WindowSize, 3.0f);
         AddCheckboxSetting(window_size_section, kRememberWindowSizeSetting);
         remember_radio_ = window_size_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), draft_.remember_window_size));
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::RememberLastSize), boolean_signals_[kRememberWindowSizeSetting].Get()));
         default_radio_ = window_size_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::UseDefaultSize), !draft_.remember_window_size));
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::UseDefaultSize), !boolean_signals_[kRememberWindowSizeSetting].Get()));
         remember_radio_->SetOnSelected([this]() { SelectRememberWindowSize(); });
         default_radio_->SetOnSelected([this]() { SelectDefaultWindowSize(); });
 
         StackPanel* image_section = AddSection(ImgViewerStringId::ImageRendering);
         image_section->AddItem(ui_decl::Muted(ImgViewerString(ImgViewerStringId::InitialImageView)));
         initial_fit_window_radio_ = image_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::FitWindow), draft_.initial_image_view_mode == InitialImageViewMode::FitWindow));
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::FitWindow), initial_image_view_mode_ == InitialImageViewMode::FitWindow));
         initial_actual_size_radio_ = image_section->AddItem(
-            ui_decl::Radio(ImgViewerString(ImgViewerStringId::ActualSize), draft_.initial_image_view_mode == InitialImageViewMode::ActualSize));
+            ui_decl::Radio(ImgViewerString(ImgViewerStringId::ActualSize), initial_image_view_mode_ == InitialImageViewMode::ActualSize));
         initial_fit_window_radio_->SetOnSelected([this]() { SelectInitialFitWindow(); });
         initial_actual_size_radio_->SetOnSelected([this]() { SelectInitialActualSize(); });
         AddCheckboxSetting(image_section, kPixelatedSamplingSetting);
@@ -405,59 +449,24 @@ private:
 
     void SelectRememberWindowSize()
     {
-        draft_.remember_window_size = true;
-        SyncChoiceControls();
+        boolean_signals_[kRememberWindowSizeSetting].Set(true);
     }
 
     void SelectDefaultWindowSize()
     {
-        draft_.remember_window_size = false;
-        SyncChoiceControls();
+        boolean_signals_[kRememberWindowSizeSetting].Set(false);
     }
 
     void SelectInitialFitWindow()
     {
-        draft_.initial_image_view_mode = InitialImageViewMode::FitWindow;
-        SyncChoiceControls();
+        initial_image_view_mode_ = InitialImageViewMode::FitWindow;
+        UpdateInitialImageViewModeControls();
     }
 
     void SelectInitialActualSize()
     {
-        draft_.initial_image_view_mode = InitialImageViewMode::ActualSize;
-        SyncChoiceControls();
-    }
-
-    void SyncChoiceControls()
-    {
-        for (BooleanControl& control : boolean_controls_) {
-            if (control.checkbox != nullptr && control.spec != nullptr) {
-                control.checkbox->SetChecked(BooleanSettingValue(*control.spec));
-            }
-        }
-        remember_radio_->SetSelected(draft_.remember_window_size);
-        default_radio_->SetSelected(!draft_.remember_window_size);
-        initial_fit_window_radio_->SetSelected(
-            draft_.initial_image_view_mode == InitialImageViewMode::FitWindow);
-        initial_actual_size_radio_->SetSelected(
-            draft_.initial_image_view_mode == InitialImageViewMode::ActualSize);
-        if (language_dropdown_ != nullptr) {
-            language_dropdown_->SetSelectedIndex(LanguageIndex(draft_.language));
-        }
-    }
-
-    bool BooleanSettingValue(const BooleanSettingSpec& spec) const
-    {
-        const bool value = draft_.*(spec.field);
-        return spec.inverted ? !value : value;
-    }
-
-    void SyncSliderControls()
-    {
-        for (SliderControl& control : slider_controls_) {
-            if (control.row != nullptr && control.spec != nullptr) {
-                SetSliderValue(control, draft_.*(control.spec->field));
-            }
-        }
+        initial_image_view_mode_ = InitialImageViewMode::ActualSize;
+        UpdateInitialImageViewModeControls();
     }
 
     void SetSliderValue(size_t index, int value)
@@ -468,19 +477,70 @@ private:
     void SetSliderValue(SliderControl& control, int value)
     {
         const int clamped = control.spec->clamp(value);
-        draft_.*(control.spec->field) = clamped;
-        control.row->SetValue(clamped);
-        UpdateSliderText(control);
+        const size_t index = static_cast<size_t>(&control - slider_controls_.data());
+        slider_signals_[index].Set(clamped);
+        if (control.row != nullptr) {
+            control.row->SetValue(clamped);
+        }
+        UpdateSliderText(control, clamped);
     }
 
-    void UpdateSliderText(SliderControl& control)
+    void UpdateSliderText(SliderControl& control, int value)
     {
         wchar_t text[16] = {};
-        swprintf_s(text, L"%d%%", draft_.*(control.spec->field));
+        swprintf_s(text, L"%d%%", value);
         control.value_text = text;
         if (control.row != nullptr) {
             control.row->SetValueText(control.value_text.c_str());
         }
+    }
+
+    void UpdateInitialImageViewModeControls()
+    {
+        if (initial_fit_window_radio_ != nullptr) {
+            initial_fit_window_radio_->SetSelected(initial_image_view_mode_ == InitialImageViewMode::FitWindow);
+        }
+        if (initial_actual_size_radio_ != nullptr) {
+            initial_actual_size_radio_->SetSelected(initial_image_view_mode_ == InitialImageViewMode::ActualSize);
+        }
+    }
+
+    void ConnectSignals()
+    {
+        for (size_t index = 0; index < boolean_signals_.size(); ++index) {
+            boolean_signals_[index].Subscribe([this, index](bool) {
+                BooleanControl& control = boolean_controls_[index];
+                if (control.checkbox != nullptr) {
+                    control.checkbox->SetChecked(boolean_signals_[index].Get());
+                }
+                if (index == kRememberWindowSizeSetting) {
+                    if (remember_radio_ != nullptr) {
+                        remember_radio_->SetSelected(boolean_signals_[index].Get());
+                    }
+                    if (default_radio_ != nullptr) {
+                        default_radio_->SetSelected(!boolean_signals_[index].Get());
+                    }
+                }
+            });
+        }
+
+        for (size_t index = 0; index < slider_signals_.size(); ++index) {
+            slider_signals_[index].Subscribe([this, index](int value) {
+                SliderControl& control = slider_controls_[index];
+                const SliderSettingSpec& spec = kSliderSettingSpecs[index];
+                const int clamped = spec.clamp(value);
+                if (control.row != nullptr) {
+                    control.row->SetValue(clamped);
+                }
+                UpdateSliderText(control, clamped);
+            });
+        }
+
+        language_index_signal_.Subscribe([this](int) {
+            if (language_dropdown_ != nullptr) {
+                language_dropdown_->SetSelectedIndex(static_cast<size_t>(language_index_signal_.Get()));
+            }
+        });
     }
 
     bool MatchesFilter(ImgViewerAction action) const
@@ -491,7 +551,7 @@ private:
         }
         std::wstring haystack = ImgViewerActionDisplayName(action);
         haystack += L" ";
-        haystack += ShortcutsForAction(draft_.action_bindings, action);
+        haystack += ShortcutsForAction(action_bindings_, action);
         std::wstring needle = filter;
         for (wchar_t& ch : haystack) {
             ch = static_cast<wchar_t>(towlower(ch));
@@ -508,7 +568,7 @@ private:
         for (const ImgViewerActionInfo& action : ImgViewerActions()) {
             if (action.shown_in_settings && MatchesFilter(action.action)) {
                 rows.push_back(TableRow{
-                    .cells = {ImgViewerString(action.display_name), ShortcutsForAction(draft_.action_bindings, action.action)},
+                    .cells = {ImgViewerString(action.display_name), ShortcutsForAction(action_bindings_, action.action)},
                     .action = UiActionFromImgViewerAction(action.action),
                 });
             }
@@ -527,7 +587,11 @@ private:
         action_table_->SetRows(BuildShortcutRows());
     }
 
-    ImgViewerConfig draft_;
+    ActionBindings action_bindings_;
+    InitialImageViewMode initial_image_view_mode_ = InitialImageViewMode::FitWindow;
+    std::array<util::Signal<bool>, kBooleanSettingSpecs.size()> boolean_signals_;
+    std::array<util::Signal<int>, kSliderSettingSpecs.size()> slider_signals_;
+    util::Signal<int> language_index_signal_;
     std::unique_ptr<ScrollPanel> root_owner_;
     ScrollPanel* scroll_root_ = nullptr;
     StackPanel* root_ = nullptr;
