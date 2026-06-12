@@ -147,7 +147,7 @@ public:
         scroll_panel->SetScrollStep(42.0f);
         auto root_panel = std::make_unique<StackPanel>(
             UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), kUiTooltipFromName));
-        root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, 0.0f});
+        root_panel->SetPadding(UiThickness{kSettingsSidePadding, kSettingsContentTopPadding, kSettingsSidePadding, kSettingsFooterBottomPadding});
         root_panel->SetGap(0.0f);
         root_ = root_panel.get();
         scroll_root_ = scroll_panel.get();
@@ -180,31 +180,13 @@ public:
 
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) override
     {
-        const float footer_height = kSettingsFooterButtonHeight + kSettingsFooterBottomPadding;
-        D2D1_SIZE_F content_available = D2D1::SizeF(available_size.width, available_size.height - footer_height);
-        root_owner_->Measure(context, content_available);
+        root_owner_->Measure(context, available_size);
         return available_size;
     }
 
     void Arrange(D2D1_RECT_F final_rect) override
     {
-        const float footer_top = final_rect.bottom - kSettingsFooterButtonHeight - kSettingsFooterBottomPadding;
-        const float footer_bottom = footer_top + kSettingsFooterButtonHeight;
-
-        // Footer buttons: reset left, save+cancel right
-        reset_button_->Arrange(D2D1::RectF(
-            final_rect.left + kSettingsSidePadding,
-            footer_top,
-            final_rect.left + kSettingsSidePadding + kSettingsFooterButtonWidth,
-            footer_bottom));
-        const float cancel_right = final_rect.right - kSettingsSidePadding;
-        const float save_right = cancel_right - kSettingsFooterButtonWidth - kSettingsFooterButtonGap;
-        const float reset_right = save_right - kSettingsFooterButtonWidth - kSettingsFooterButtonGap;
-        save_button_->Arrange(D2D1::RectF(reset_right, footer_top, save_right, footer_bottom));
-        cancel_button_->Arrange(D2D1::RectF(save_right + kSettingsFooterButtonGap, footer_top, cancel_right, footer_bottom));
-
-        // Content panel takes everything above the footer
-        root_owner_->Arrange(D2D1::RectF(final_rect.left, final_rect.top, final_rect.right, footer_top));
+        root_owner_->Arrange(final_rect);
     }
 
     void Render(const UiDrawContext& context, UiRootState state) override
@@ -212,9 +194,6 @@ public:
         const UiDraw draw(context);
         draw.Clear(ui_theme::color::kWindowBackground);
         root_owner_->Render(context, state);
-        reset_button_->Render(context, state);
-        save_button_->Render(context, state);
-        cancel_button_->Render(context, state);
     }
 
     UiEventResult OnInputEvent(const UiInputEvent& event) override
@@ -244,21 +223,6 @@ public:
     {
         return root_owner_ != nullptr ? root_owner_->OnPointerEvent(event) : UiEventResult{};
     }
-/// XXX: This should be removed later.
-    UiElementId HitTest(D2D1_POINT_2F point) const override
-    {
-        if (cancel_button_ != nullptr && cancel_button_->Contains(point)) {
-            return cancel_button_->Id();
-        }
-        if (save_button_ != nullptr && save_button_->Contains(point)) {
-            return save_button_->Id();
-        }
-        if (reset_button_ != nullptr && reset_button_->Contains(point)) {
-            return reset_button_->Id();
-        }
-        return UiRoot::HitTest(point);
-    }
-
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override
     {
         if (event.type != UiEventType::KeyDown) {
@@ -370,10 +334,10 @@ private:
 
     Button* AddFooterButton(ImgViewerAction action, const wchar_t* name, const wchar_t* icon, const wchar_t* text)
     {
-        return static_cast<Button*>(root_owner_->AddChild(std::make_unique<Button>(
+        return footer_panel_ != nullptr ? footer_panel_->AddItem(std::make_unique<Button>(
             UiMetadata(UiElementRole::Button, UiActionFromImgViewerAction(action), name, kUiTooltipFromName),
             icon,
-            text)));
+            text), kSettingsFooterButtonWidth) : nullptr;
     }
 
     void BuildUiTree()
@@ -437,6 +401,12 @@ private:
         action_table_->SetHeaderVisible(true);
         action_table_->SetSelectionEnabled(true);
         action_table_->SetRowHeight(21.0f);
+
+        footer_panel_ = root_->AddItem(std::make_unique<StackPanel>(
+            UiMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), false, true),
+            ui_layout::StackDirection::Horizontal));
+        footer_panel_->SetGap(kSettingsFooterButtonGap);
+        footer_panel_->SetPadding(UiThickness{0.0f, ui_theme::metrics::kLargeGap, 0.0f, 0.0f});
 
         reset_button_ = AddFooterButton(ImgViewerAction::ResetKeyBindings, ImgViewerString(ImgViewerStringId::ResetShortcuts), kResetIcon, ImgViewerString(ImgViewerStringId::Reset));
         save_button_ = AddFooterButton(ImgViewerAction::SaveSettings, ImgViewerString(ImgViewerStringId::Save), kSaveIcon, ImgViewerString(ImgViewerStringId::Save));
@@ -624,6 +594,7 @@ private:
     std::unique_ptr<ScrollPanel> root_owner_;
     ScrollPanel* scroll_root_ = nullptr;
     StackPanel* root_ = nullptr;
+    StackPanel* footer_panel_ = nullptr;
     std::array<BooleanControl, kBooleanSettingSpecs.size()> boolean_controls_{};
     std::array<SliderControl, kSliderSettingSpecs.size()> slider_controls_{};
     RadioButton* remember_radio_ = nullptr;
