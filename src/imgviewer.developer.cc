@@ -60,6 +60,10 @@ public:
         sample_checkbox_ = root_->AddItem(ui_decl::Toggle(
             ImgViewerString(ImgViewerStringId::SampleCheckbox),
             sample_checked_), 24.0f);
+        sample_checkbox_->SetOnToggled([this](bool checked) {
+            sample_checked_ = checked;
+            UpdateStateText();
+        });
         sample_slider_ = root_->AddItem(ui_decl::SliderField(
             ImgViewerString(ImgViewerStringId::SampleSlider),
             0,
@@ -67,6 +71,10 @@ public:
             sample_slider_value_,
             1,
             10), 28.0f);
+        sample_slider_->GetSlider()->SetOnValueChanged([this](int value) {
+            sample_slider_value_ = value;
+            UpdateStateText();
+        });
         sample_slider_->GetSlider()->SetAccessibilityValueChangedHandler([this](int value) {
             sample_slider_value_ = value;
             UpdateStateText();
@@ -195,17 +203,6 @@ public:
     {
         if (id == sample_button_->Id()) {
             ++sample_button_clicks_;
-            UpdateStateText();
-            return;
-        }
-        if (id == sample_checkbox_->Id()) {
-            sample_checked_ = !sample_checked_;
-            sample_checkbox_->SetChecked(sample_checked_);
-            UpdateStateText();
-            return;
-        }
-        if (id == sample_slider_->GetSlider()->Id()) {
-            sample_slider_value_ = sample_slider_->Value();
             UpdateStateText();
             return;
         }
