@@ -84,20 +84,25 @@ void BindSliderRow(
     std::function<std::wstring(int)> format_value,
     SubscriptionBag& subscriptions)
 {
-    const auto apply_value = [&row, &format_value](int value) {
-        row.SetValue(value);
-        row.SetValueText(format_value(value).c_str());
-    };
-    const auto update_signal = [&signal, normalize](int value) {
-        signal.Set(normalize(value));
-    };
+    // The slider's value text comes from format_value. The immediate apply below
+    // runs while format_value is still alive, but the signal subscription outlives
+    // this function, so it must own its own copies of normalize/format_value
+    // rather than capturing the (by-value) parameters by reference.
+    row.SetValue(normalize(signal.Get()));
+    row.SetValueText(format_value(normalize(signal.Get())).c_str());
 
-    apply_value(normalize(signal.Get()));
-    row.GetSlider()->SetOnValueChanged(update_signal);
-    row.GetSlider()->SetAccessibilityValueChangedHandler(update_signal);
-    subscriptions.Add(signal, signal.Subscribe([apply_value, normalize](int value) {
-        apply_value(normalize(value));
-    }));
+    row.GetSlider()->SetOnValueChanged([&signal, normalize](int value) {
+        signal.Set(normalize(value));
+    });
+    row.GetSlider()->SetAccessibilityValueChangedHandler([&signal, normalize](int value) {
+        signal.Set(normalize(value));
+    });
+    subscriptions.Add(signal, signal.Subscribe(
+        [&row, normalize, format_value](int value) {
+            const int normalized = normalize(value);
+            row.SetValue(normalized);
+            row.SetValueText(format_value(normalized).c_str());
+        }));
 }
 
 } // namespace experimental::ui_bind
