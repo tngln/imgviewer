@@ -15,7 +15,7 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
 namespace {
 
 constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
-constexpr float kMenuBodyFontSize = 8.5f;
+constexpr float kMenuBodyFontSize = 12.0f;
 constexpr float kMenuIconFontSize = 10.0f;
 constexpr float kPopupContentInset = 1.0f;
 

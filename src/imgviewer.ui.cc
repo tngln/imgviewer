@@ -275,13 +275,6 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost *popup_host) {
       {ImgViewerString(ImgViewerStringId::FlipVertical),
        UiActionFromImgViewerAction(ImgViewerAction::FlipVertical)},
       {L"", kUiActionNone, true},
-      {ImgViewerString(ImgViewerStringId::TopMost),
-       UiActionFromImgViewerAction(ImgViewerAction::ToggleTopMost), false,
-       top_most_},
-      {ImgViewerString(ImgViewerStringId::Minimize),
-       UiActionFromImgViewerAction(ImgViewerAction::Minimize)},
-      {ImgViewerString(ImgViewerStringId::MaximizeOrRestore),
-       UiActionFromImgViewerAction(ImgViewerAction::ToggleMaximize)},
       {ImgViewerString(ImgViewerStringId::Close),
        UiActionFromImgViewerAction(ImgViewerAction::Close)},
   };
