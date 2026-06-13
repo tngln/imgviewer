@@ -93,6 +93,30 @@ void TestPointerRouter()
     CHECK(ActivePointerTarget(active, true) == ImgViewerPointerTarget::Viewer);
 }
 
+// Multiple modal owners can coexist (e.g. Settings open + main-window popup);
+// clearing one must not drop the others (refactor.md L1).
+void TestModalStack()
+{
+    ImgViewerInteractionState state;
+    CHECK(!state.HasModal());
+
+    state.SetModal(ImgViewerModalOwner::Settings);
+    CHECK(state.HasModal());
+    CHECK(state.IsModal(ImgViewerModalOwner::Settings));
+
+    state.SetModal(ImgViewerModalOwner::Popup);
+    CHECK(state.IsModal(ImgViewerModalOwner::Settings));
+    CHECK(state.IsModal(ImgViewerModalOwner::Popup));
+
+    state.ClearModal(ImgViewerModalOwner::Popup);
+    CHECK(state.HasModal());
+    CHECK(state.IsModal(ImgViewerModalOwner::Settings));
+    CHECK(!state.IsModal(ImgViewerModalOwner::Popup));
+
+    state.ClearModal(ImgViewerModalOwner::Settings);
+    CHECK(!state.HasModal());
+}
+
 // ---------------------------------------------------------------------------
 // ui.layout
 // ---------------------------------------------------------------------------
@@ -290,6 +314,7 @@ void TestButtonClickCallback()
 int main()
 {
     TestPointerRouter();
+    TestModalStack();
     TestLayout();
     TestEditGeometry();
     TestKeybindings();

@@ -20,9 +20,18 @@ ImgViewerPointerCaptureOwner ImgViewerInteractionState::PointerCapture() const
     return pointer_capture_;
 }
 
-ImgViewerModalOwner ImgViewerInteractionState::Modal() const
+namespace {
+
+constexpr unsigned ModalBit(ImgViewerModalOwner owner)
 {
-    return modal_;
+    return 1u << static_cast<unsigned>(owner);
+}
+
+} // namespace
+
+bool ImgViewerInteractionState::IsModal(ImgViewerModalOwner owner) const
+{
+    return (modal_mask_ & ModalBit(owner)) != 0;
 }
 
 bool ImgViewerInteractionState::IsEditing() const
@@ -37,7 +46,7 @@ bool ImgViewerInteractionState::HasPointerCapture() const
 
 bool ImgViewerInteractionState::HasModal() const
 {
-    return modal_ != ImgViewerModalOwner::None;
+    return modal_mask_ != 0;
 }
 
 void ImgViewerInteractionState::EnterViewing()
@@ -111,7 +120,7 @@ void ImgViewerInteractionState::ClearPointerCapture()
 
 void ImgViewerInteractionState::SetModal(ImgViewerModalOwner owner)
 {
-    modal_ = owner;
+    modal_mask_ |= ModalBit(owner);
     ResetTransientInput();
     if (owner == ImgViewerModalOwner::Popup) {
         keyboard_owner_ = ImgViewerKeyboardOwner::Popup;
@@ -120,9 +129,7 @@ void ImgViewerInteractionState::SetModal(ImgViewerModalOwner owner)
 
 void ImgViewerInteractionState::ClearModal(ImgViewerModalOwner owner)
 {
-    if (modal_ == owner) {
-        modal_ = ImgViewerModalOwner::None;
-    }
+    modal_mask_ &= ~ModalBit(owner);
     if (owner == ImgViewerModalOwner::Popup && keyboard_owner_ == ImgViewerKeyboardOwner::Popup) {
         keyboard_owner_ = ImgViewerKeyboardOwner::ViewerShortcut;
     }

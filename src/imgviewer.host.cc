@@ -371,7 +371,7 @@ void SyncPopupModal(ImgViewerContext* context)
     }
 
     if (context->popup.IsOpen()) {
-        if (context->interaction.Modal() != ImgViewerModalOwner::Popup) {
+        if (!context->interaction.IsModal(ImgViewerModalOwner::Popup)) {
             context->interaction.SetModal(ImgViewerModalOwner::Popup);
         }
     } else {
@@ -432,7 +432,7 @@ ImgViewerAction EdgeClickActionAtPoint(const ImgViewerContext* context, D2D1_POI
 {
     if (context == nullptr ||
         !context->config.edge_click_navigation ||
-        context->interaction.Modal() != ImgViewerModalOwner::None ||
+        context->interaction.HasModal() ||
         (require_no_capture && context->interaction.HasPointerCapture()) ||
         context->interaction.CanvasOwner() != ImgViewerCanvasOwner::Viewer) {
         return ImgViewerAction::None;

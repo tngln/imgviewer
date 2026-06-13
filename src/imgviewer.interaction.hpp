@@ -46,7 +46,7 @@ public:
     ImgViewerCanvasOwner CanvasOwner() const;
     ImgViewerKeyboardOwner KeyboardOwner() const;
     ImgViewerPointerCaptureOwner PointerCapture() const;
-    ImgViewerModalOwner Modal() const;
+    bool IsModal(ImgViewerModalOwner owner) const;
 
     bool IsEditing() const;
     bool HasPointerCapture() const;
@@ -70,5 +70,5 @@ private:
     ImgViewerCanvasOwner canvas_owner_ = ImgViewerCanvasOwner::Viewer;
     ImgViewerKeyboardOwner keyboard_owner_ = ImgViewerKeyboardOwner::ViewerShortcut;
     ImgViewerPointerCaptureOwner pointer_capture_ = ImgViewerPointerCaptureOwner::None;
-    ImgViewerModalOwner modal_ = ImgViewerModalOwner::None;
+    unsigned modal_mask_ = 0;
 };
