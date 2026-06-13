@@ -88,7 +88,7 @@ void ImgViewerUi::Render(const UiDrawContext &draw_context, UiRootState state) {
   shape_toolstrip_.Render(draw_context, state);
   selection_toolstrip_.Render(draw_context, state);
   animation_toolbar_.Render(draw_context, state);
-  info_panel_.Render(draw_context);
+  info_panel_.Render(draw_context, state);
   toast_.Render(draw_context);
 }
 

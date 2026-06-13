@@ -1487,7 +1487,6 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
 
     if (tool_ == ImgViewerEditTool::Crop && has_pending_crop_) {
         const ImgViewerCropEdge edge = CropEdgeAt(document_point, DocumentHitSlop(viewer, viewport_size));
-        const bool changed = edge != active_crop_edge_;
         active_crop_edge_ = edge;
         return ImgViewerEventResult{.handled = edge != ImgViewerCropEdge::None};
     }

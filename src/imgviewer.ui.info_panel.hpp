@@ -12,6 +12,8 @@
 #include "ui.element.hpp"
 #include "ui.table.hpp"
 
+class IconButton;
+
 enum class ImgViewerHistogramChannel {
     Luma,
     Red,
@@ -42,7 +44,7 @@ public:
     bool IsVisible() const;
     D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F available_size) const;
     void Arrange(D2D1_RECT_F final_rect) const;
-    void Render(const UiDrawContext& draw_context) const;
+    void Render(const UiDrawContext& draw_context, UiRootState state) const;
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
 
 private:
@@ -66,6 +68,7 @@ private:
     bool ScrollByWheelDelta(int wheel_delta);
 
     UiElement* panel_ = nullptr;
+    IconButton* close_button_ = nullptr;
     Table* basic_table_ = nullptr;
     Table* color_table_ = nullptr;
     Table* exif_table_ = nullptr;

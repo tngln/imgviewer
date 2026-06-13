@@ -4,13 +4,8 @@
 
 #include "imgviewer.strings.hpp"
 
-#define IMGVIEWER_ACTIONS(X) \
-    X(OpenImage, "openImage", ImgViewerStringId::OpenImage, true, true) \
-    X(CaptureRegion, "captureRegion", ImgViewerStringId::CaptureRegion, true, true) \
+#define IMGVIEWER_IMAGE_ACTIONS(X) \
     X(SaveImageAs, "saveImageAs", ImgViewerStringId::SaveAs, false, false) \
-    X(ShowInFileExplorer, "showInFileExplorer", ImgViewerStringId::ShowInFileExplorer, true, true) \
-    X(PreviousImage, "previousImage", ImgViewerStringId::PreviousImage, true, true) \
-    X(NextImage, "nextImage", ImgViewerStringId::NextImage, true, true) \
     X(ZoomIn, "zoomIn", ImgViewerStringId::ZoomIn, true, true) \
     X(ZoomOut, "zoomOut", ImgViewerStringId::ZoomOut, true, true) \
     X(FitWindow, "fitWindow", ImgViewerStringId::FitWindow, true, true) \
@@ -19,8 +14,13 @@
     X(FlipHorizontal, "flipHorizontal", ImgViewerStringId::FlipHorizontal, true, true) \
     X(FlipVertical, "flipVertical", ImgViewerStringId::FlipVertical, true, true) \
     X(ResetView, "resetView", ImgViewerStringId::ResetView, true, true) \
-    X(ToggleColorPicker, "toggleColorPicker", ImgViewerStringId::ColorPicker, false, false) \
-    X(CopyColorPickerValue, "copyColorPickerValue", ImgViewerStringId::CopyColorPickerValue, false, false) \
+    X(ToggleColorPicker, "toggleColorPicker", ImgViewerStringId::ColorPicker, false, false)
+
+#define IMGVIEWER_SEQUENCE_ACTIONS(X) \
+    X(PreviousImage, "previousImage", ImgViewerStringId::PreviousImage, true, true) \
+    X(NextImage, "nextImage", ImgViewerStringId::NextImage, true, true)
+
+#define IMGVIEWER_EDIT_ACTIONS(X) \
     X(ToggleEditMode, "toggleEditMode", ImgViewerStringId::EditMode, true, true) \
     X(EditSelect, "editSelect", ImgViewerStringId::EditSelect, true, true) \
     X(EditPixelSelect, "editPixelSelect", ImgViewerStringId::EditPixelSelect, true, true) \
@@ -41,12 +41,20 @@
     X(EditDeleteSelection, "editDeleteSelection", ImgViewerStringId::EditDeleteSelection, true, true) \
     X(EditRotateClockwise, "editRotateClockwise", ImgViewerStringId::EditRotateClockwise, true, true) \
     X(EditUndo, "editUndo", ImgViewerStringId::EditUndo, true, true) \
-    X(EditRedo, "editRedo", ImgViewerStringId::EditRedo, true, true) \
-    X(ToggleInfoPanel, "toggleInfoPanel", ImgViewerStringId::ToggleInfoPanel, true, false) \
+    X(EditRedo, "editRedo", ImgViewerStringId::EditRedo, true, true)
+
+#define IMGVIEWER_ANIMATION_ACTIONS(X) \
     X(ToggleAnimationLoop, "toggleAnimationLoop", ImgViewerStringId::LoopAnimation, false, false) \
     X(ToggleAnimationPlayback, "toggleAnimationPlayback", ImgViewerStringId::PlayOrPauseAnimation, false, false) \
     X(PreviousAnimationFrame, "previousAnimationFrame", ImgViewerStringId::PreviousAnimationFrame, false, false) \
-    X(NextAnimationFrame, "nextAnimationFrame", ImgViewerStringId::NextAnimationFrame, false, false) \
+    X(NextAnimationFrame, "nextAnimationFrame", ImgViewerStringId::NextAnimationFrame, false, false)
+
+#define IMGVIEWER_OTHER_ACTIONS(X) \
+    X(OpenImage, "openImage", ImgViewerStringId::OpenImage, true, true) \
+    X(CaptureRegion, "captureRegion", ImgViewerStringId::CaptureRegion, true, true) \
+    X(ShowInFileExplorer, "showInFileExplorer", ImgViewerStringId::ShowInFileExplorer, true, true) \
+    X(CopyColorPickerValue, "copyColorPickerValue", ImgViewerStringId::CopyColorPickerValue, false, false) \
+    X(ToggleInfoPanel, "toggleInfoPanel", ImgViewerStringId::ToggleInfoPanel, true, false) \
     X(OpenMenu, "openMenu", ImgViewerStringId::Menu, false, false) \
     X(OpenSettings, "openSettings", ImgViewerStringId::Settings, false, false) \
     X(CloseSettings, "closeSettings", ImgViewerStringId::CloseSettings, false, false) \
@@ -65,12 +73,65 @@
     X(ToggleMaximize, "toggleMaximize", ImgViewerStringId::MaximizeOrRestore, false, false) \
     X(Close, "close", ImgViewerStringId::Close, false, false)
 
+#define IMGVIEWER_ACTIONS(X) \
+    IMGVIEWER_OTHER_ACTIONS(X) \
+    IMGVIEWER_IMAGE_ACTIONS(X) \
+    IMGVIEWER_SEQUENCE_ACTIONS(X) \
+    IMGVIEWER_EDIT_ACTIONS(X) \
+    IMGVIEWER_ANIMATION_ACTIONS(X)
+
 enum class ImgViewerAction {
     None,
+    ImageActionBegin,
 #define IMGVIEWER_ACTION_ENUM(value, name, display_name, configurable_key, shown_in_settings) value,
-    IMGVIEWER_ACTIONS(IMGVIEWER_ACTION_ENUM)
+    IMGVIEWER_IMAGE_ACTIONS(IMGVIEWER_ACTION_ENUM)
+#undef IMGVIEWER_ACTION_ENUM
+    ImageActionEnd,
+    SequenceActionBegin,
+#define IMGVIEWER_ACTION_ENUM(value, name, display_name, configurable_key, shown_in_settings) value,
+    IMGVIEWER_SEQUENCE_ACTIONS(IMGVIEWER_ACTION_ENUM)
+#undef IMGVIEWER_ACTION_ENUM
+    SequenceActionEnd,
+    EditActionBegin,
+#define IMGVIEWER_ACTION_ENUM(value, name, display_name, configurable_key, shown_in_settings) value,
+    IMGVIEWER_EDIT_ACTIONS(IMGVIEWER_ACTION_ENUM)
+#undef IMGVIEWER_ACTION_ENUM
+    EditActionEnd,
+    AnimationActionBegin,
+#define IMGVIEWER_ACTION_ENUM(value, name, display_name, configurable_key, shown_in_settings) value,
+    IMGVIEWER_ANIMATION_ACTIONS(IMGVIEWER_ACTION_ENUM)
+#undef IMGVIEWER_ACTION_ENUM
+    AnimationActionEnd,
+#define IMGVIEWER_ACTION_ENUM(value, name, display_name, configurable_key, shown_in_settings) value,
+    IMGVIEWER_OTHER_ACTIONS(IMGVIEWER_ACTION_ENUM)
 #undef IMGVIEWER_ACTION_ENUM
 };
+
+constexpr bool IsImgViewerActionInRange(ImgViewerAction action, ImgViewerAction begin, ImgViewerAction end)
+{
+    return static_cast<int>(begin) < static_cast<int>(action) &&
+        static_cast<int>(action) < static_cast<int>(end);
+}
+
+constexpr bool IsImgViewerImageAction(ImgViewerAction action)
+{
+    return IsImgViewerActionInRange(action, ImgViewerAction::ImageActionBegin, ImgViewerAction::ImageActionEnd);
+}
+
+constexpr bool IsImgViewerEditAction(ImgViewerAction action)
+{
+    return IsImgViewerActionInRange(action, ImgViewerAction::EditActionBegin, ImgViewerAction::EditActionEnd);
+}
+
+constexpr bool IsImgViewerSequenceAction(ImgViewerAction action)
+{
+    return IsImgViewerActionInRange(action, ImgViewerAction::SequenceActionBegin, ImgViewerAction::SequenceActionEnd);
+}
+
+constexpr bool IsImgViewerAnimationAction(ImgViewerAction action)
+{
+    return IsImgViewerActionInRange(action, ImgViewerAction::AnimationActionBegin, ImgViewerAction::AnimationActionEnd);
+}
 
 struct ImgViewerActionInfo final {
     ImgViewerAction action = ImgViewerAction::None;

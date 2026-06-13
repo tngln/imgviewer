@@ -183,67 +183,50 @@ bool IsImgViewerActionEnabled(const ImgViewerContext* context, UiAction action)
 
     const ImgViewerAction verb = static_cast<ImgViewerAction>(action.value);
 
-    if (verb == ImgViewerAction::PreviousImage) {
-        const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
-        return position.index > 1;
-    }
+    if (context != nullptr) {
+        if (verb == ImgViewerAction::PreviousImage) {
+            const ImageSequencePosition position = context->sequence.Position();
+            return position.index > 1;
+        }
+        if (verb == ImgViewerAction::NextImage) {
+            const ImageSequencePosition position = context->sequence.Position();
+            return position.total > 0 && position.index < position.total;
+        }
+        if (verb == ImgViewerAction::ShowInFileExplorer) {
+            return HasCurrentImageFilePath(context);
+        }
+        if (IsImgViewerAnimationAction(verb)) {
+            return context->viewer.HasAnimation();
+        }
 
-    if (action == ImgViewerAction::NextImage) {
-        const ImageSequencePosition position = context != nullptr ? context->sequence.Position() : ImageSequencePosition{};
-        return position.total > 0 && position.index < position.total;
-    }
-
-    if (action == ImgViewerAction::ToggleColorPicker) {
-        const D2D1_SIZE_U image_size = context != nullptr ? context->viewer.CurrentImagePixelSize() : D2D1_SIZE_U{};
-        return image_size.width > 0 && image_size.height > 0;
-    }
-
-    if (action == ImgViewerAction::SaveImageAs) {
-        return context != nullptr && context->viewer.HasCurrentImage();
-    }
-
-    if (action == ImgViewerAction::ToggleEditMode ||
-        verb == ImgViewerAction::EditSelect ||
-        verb == ImgViewerAction::EditPixelSelect ||
-        verb == ImgViewerAction::EditPen ||
-        verb == ImgViewerAction::EditSetPenColor ||
-        verb == ImgViewerAction::EditSetPenWidth ||
-        verb == ImgViewerAction::EditShape ||
-        verb == ImgViewerAction::EditSetShapeKind ||
-        verb == ImgViewerAction::EditText ||
-        verb == ImgViewerAction::EditTextFontChanged ||
-        verb == ImgViewerAction::EditSetTextFontSize ||
-        verb == ImgViewerAction::EditSetTextColor ||
-        verb == ImgViewerAction::EditSetTextBackground ||
-        verb == ImgViewerAction::EditCrop ||
-        verb == ImgViewerAction::EditCancelCrop ||
-        verb == ImgViewerAction::EditCopySelection ||
-        verb == ImgViewerAction::EditMosaicSelection ||
-        verb == ImgViewerAction::EditDeleteSelection ||
-        verb == ImgViewerAction::EditRotateClockwise ||
-        verb == ImgViewerAction::EditUndo ||
-        verb == ImgViewerAction::EditRedo) {
-        if (context == nullptr || !context->viewer.HasCurrentImage()) {
+        if (context->viewer.HasCurrentImage()) {
+            if (IsImgViewerImageAction(verb)) {
+                return true;
+            }
+            if (IsImgViewerEditAction(verb)) {
+                if (verb == ImgViewerAction::EditCopySelection || verb == ImgViewerAction::EditMosaicSelection) {
+                    return context->edit.HasPixelSelection();
+                }
+                if (verb == ImgViewerAction::EditDeleteSelection) {
+                    return context->edit.Active() &&
+                        context->edit.Tool() == ImgViewerEditTool::Select &&
+                        context->edit.HasSelection();
+                }
+                return true;
+            }
+        } else if (IsImgViewerImageAction(verb) || IsImgViewerEditAction(verb)) {
             return false;
         }
-        if (verb == ImgViewerAction::EditCopySelection || verb == ImgViewerAction::EditMosaicSelection) {
-            return context->edit.HasPixelSelection();
-        }
-        if (verb == ImgViewerAction::EditDeleteSelection) {
-            return context->edit.Active() && context->edit.Tool() == ImgViewerEditTool::Select && context->edit.HasSelection();
-        }
+
         return true;
     }
 
-    if (verb == ImgViewerAction::ShowInFileExplorer) {
-        return HasCurrentImageFilePath(context);
-    }
-
-    if (verb == ImgViewerAction::ToggleAnimationLoop ||
-        verb == ImgViewerAction::ToggleAnimationPlayback ||
-        verb == ImgViewerAction::PreviousAnimationFrame ||
-        verb == ImgViewerAction::NextAnimationFrame) {
-        return context != nullptr && context->viewer.HasAnimation();
+    if (IsImgViewerSequenceAction(verb) ||
+        IsImgViewerImageAction(verb) ||
+        IsImgViewerEditAction(verb) ||
+        IsImgViewerAnimationAction(verb) ||
+        verb == ImgViewerAction::ShowInFileExplorer) {
+        return false;
     }
 
     return true;

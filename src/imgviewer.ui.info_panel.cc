@@ -9,7 +9,9 @@
 #include <d2d1helper.h>
 
 #include "imgviewer.strings.hpp"
+#include "imgviewer.ui.action.hpp"
 #include "math.hpp"
+#include "ui.button.hpp"
 #include "ui.events.hpp"
 #include "ui.theme.hpp"
 
@@ -17,6 +19,7 @@ namespace {
 
 constexpr float kPanelWidth = 320.0f;
 constexpr float kHeaderHeight = 22.0f;
+constexpr float kCloseButtonSize = 18.0f;
 constexpr float kRowHeight = 21.0f;
 constexpr float kLabelWidth = 112.0f;
 constexpr float kHistogramHeaderHeight = 20.0f;
@@ -41,6 +44,7 @@ constexpr float kPanelMinWidth = 90.0f;
 constexpr float kPanelBackgroundOpacity = 0.94f;
 constexpr float kScrollbarThumbOpacity = 0.35f;
 constexpr float kHistogramBarOpacity = 0.42f;
+constexpr wchar_t kCloseIcon[] = L"\xE711";
 
 D2D1_COLOR_F WithOpacity(D2D1_COLOR_F color, float opacity)
 {
@@ -128,6 +132,15 @@ ImgViewerUiInfoPanel::ImgViewerUiInfoPanel(UiElement& root)
     panel_id_ = panel_->Id();
     panel_->SetHitTestVisible(false);
 
+    close_button_ = static_cast<IconButton*>(panel_->AddChild(std::make_unique<IconButton>(
+        UiMetadata(
+            UiElementRole::Button,
+            UiActionFromImgViewerAction(ImgViewerAction::ToggleInfoPanel),
+            ImgViewerString(ImgViewerStringId::Close),
+            ImgViewerString(ImgViewerStringId::Close)),
+        kCloseIcon)));
+    close_button_->SetHitTestVisible(false);
+
     basic_table_ = static_cast<Table*>(panel_->AddChild(std::make_unique<Table>(UiMetadata(
         UiElementRole::Pane,
         ImgViewerString(ImgViewerStringId::ImageDetails),
@@ -207,6 +220,9 @@ void ImgViewerUiInfoPanel::SetState(ImgViewerUiInfoPanelState state)
     if (panel_ != nullptr) {
         panel_->SetHitTestVisible(state_.visible);
     }
+    if (close_button_ != nullptr) {
+        close_button_->SetHitTestVisible(state_.visible);
+    }
 }
 
 bool ImgViewerUiInfoPanel::IsVisible() const
@@ -232,9 +248,16 @@ void ImgViewerUiInfoPanel::Arrange(D2D1_RECT_F final_rect) const
     const float left = (std::max)(ui_theme::metrics::kStandardGap, final_rect.right - size.width - ui_theme::metrics::kStandardGap);
     const float top = ui_theme::metrics::kTitleBarHeight + ui_theme::metrics::kStandardGap;
     panel_->Arrange(D2D1::RectF(left, top, left + size.width, top + size.height));
+    if (close_button_ != nullptr) {
+        close_button_->Arrange(D2D1::RectF(
+            left + size.width - ui_theme::metrics::kSectionPadding - kCloseButtonSize,
+            top + ui_theme::metrics::kSectionPadding - 1.0f,
+            left + size.width - ui_theme::metrics::kSectionPadding,
+            top + ui_theme::metrics::kSectionPadding - 1.0f + kCloseButtonSize));
+    }
 }
 
-void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
+void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context, UiRootState state) const
 {
     if (!state_.visible || panel_ == nullptr) {
         return;
@@ -254,8 +277,11 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
         rect.bottom - ui_theme::metrics::kSectionPadding);
     draw.DrawBodyText(
         ImgViewerString(ImgViewerStringId::Info),
-        D2D1::RectF(content.left, content.top, content.right, content.top + kHeaderHeight),
+        D2D1::RectF(content.left, content.top, content.right - kCloseButtonSize - ui_theme::metrics::kSmallGap, content.top + kHeaderHeight),
         ui_theme::color::kBodyText);
+    if (close_button_ != nullptr) {
+        close_button_->Render(draw_context, state);
+    }
 
     const D2D1_RECT_F body_clip = D2D1::RectF(
         content.left,
@@ -315,7 +341,16 @@ void ImgViewerUiInfoPanel::Render(const UiDrawContext& draw_context) const
 
 UiEventResult ImgViewerUiInfoPanel::OnPointerEvent(const UiPointerEvent& event)
 {
-    if (!state_.visible || panel_ == nullptr || event.target != panel_id_) {
+    if (!state_.visible || panel_ == nullptr) {
+        return {};
+    }
+
+    if (close_button_ != nullptr &&
+        (event.target == close_button_->Id() || event.captured == close_button_->Id())) {
+        return close_button_->OnPointerEvent(event);
+    }
+
+    if (event.target != panel_id_) {
         return {};
     }
 
