@@ -14,6 +14,7 @@
 #include "imgviewer.host.pointer_router.hpp"
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.keybindings.hpp"
+#include "script.quickjs_runtime.hpp"
 #include "ui.button_behavior.hpp"
 #include "ui.element.hpp"
 #include "ui.layout.hpp"
@@ -309,6 +310,40 @@ void TestButtonClickCallback()
     CHECK(key_result.action == kUiActionNone);
 }
 
+// ---------------------------------------------------------------------------
+// QuickJS runtime
+// ---------------------------------------------------------------------------
+
+void TestQuickJsRuntime()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    CHECK(runtime.IsInitialized());
+
+    const script::QuickJsEvalResult value = runtime.EvalScript("40 + 2", "quickjs-value-test.js");
+    CHECK(value.ok);
+    CHECK(value.value_utf8 == "42");
+
+    const script::QuickJsEvalResult promise = runtime.EvalScript(
+        "globalThis.__imgviewerQuickJsTest = 0;"
+        "Promise.resolve().then(() => { globalThis.__imgviewerQuickJsTest = 7; });",
+        "quickjs-promise-test.js");
+    CHECK(promise.ok);
+    CHECK(runtime.PumpJobs() == 1);
+    const script::QuickJsEvalResult pumped = runtime.EvalScript(
+        "globalThis.__imgviewerQuickJsTest",
+        "quickjs-promise-check.js");
+    CHECK(pumped.ok);
+    CHECK(pumped.value_utf8 == "7");
+
+    const script::QuickJsEvalResult thrown = runtime.EvalScript(
+        "throw new Error('quickjs smoke failure');",
+        "quickjs-error-test.js");
+    CHECK(!thrown.ok);
+    const std::string exception = runtime.TakeExceptionTextUtf8();
+    CHECK(exception.find("quickjs smoke failure") != std::string::npos);
+}
+
 } // namespace
 
 int main()
@@ -321,6 +356,7 @@ int main()
     TestSignal();
     TestSignalReentrancy();
     TestButtonClickCallback();
+    TestQuickJsRuntime();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

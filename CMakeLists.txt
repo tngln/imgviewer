@@ -2,6 +2,18 @@ cmake_minimum_required(VERSION 3.29)
 
 project(imgviewer LANGUAGES CXX RC)
 
+if(WIN32 AND CMAKE_CXX_COMPILER)
+    set(CMAKE_C_COMPILER "${CMAKE_CXX_COMPILER}" CACHE FILEPATH "C compiler" FORCE)
+endif()
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+enable_language(C)
+
+set(QJS_ENABLE_INSTALL OFF CACHE BOOL "Disable QuickJS-NG install rules" FORCE)
+set(QJS_BUILD_LIBC OFF CACHE BOOL "Do not build QuickJS-NG libc into qjs" FORCE)
+set(QJS_BUILD_EXAMPLES OFF CACHE BOOL "Do not build QuickJS-NG examples" FORCE)
+set(QJS_BUILD_WERROR OFF CACHE BOOL "Do not build QuickJS-NG with warnings as errors" FORCE)
+add_subdirectory(third_parties/quickjs EXCLUDE_FROM_ALL)
+
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
     "Semicolon-separated build configurations that show the Developer window.")
@@ -47,6 +59,7 @@ add_executable(imgviewer
     src/imgviewer.ui.titlebar.cc
     src/imgviewer.ui.toolbar.cc
     src/main.cc
+    src/script.quickjs_runtime.cc
     src/ui.a11y.cc
     src/ui.button.cc
     src/ui.button_behavior.cc
@@ -117,6 +130,10 @@ set_target_properties(imgviewer PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
+set_target_properties(qjs PROPERTIES
+    MSVC_RUNTIME_LIBRARY "$<$<CONFIG:Debug>:MultiThreadedDebugDLL>$<$<CONFIG:Release>:MultiThreaded>"
+)
+
 if(MSVC)
     target_compile_options(imgviewer PRIVATE
         /W4
@@ -146,6 +163,7 @@ target_link_libraries(imgviewer PRIVATE
     windowscodecs
     gdi32
     imm32
+    qjs
 )
 
 # ---------------------------------------------------------------------------
@@ -160,6 +178,7 @@ add_executable(imgviewer_tests
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.strings.cc
+    src/script.quickjs_runtime.cc
     src/ui.button_behavior.cc
     src/ui.element.cc
     src/ui.layout.cc
@@ -198,4 +217,5 @@ endif()
 target_link_libraries(imgviewer_tests PRIVATE
     d2d1
     user32
+    qjs
 )
