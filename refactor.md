@@ -5,6 +5,27 @@
 
 ---
 
+## 实施进度（2026-06-13 执行记录）
+
+已执行并提交（每步独立编译 + `imgviewer_tests` 89 checks 全绿）：
+
+- **Step 0a 测试护栏**：新增 `imgviewer_tests` console 目标 + `tests/imgviewer_tests.cc`，覆盖 `pointer_router` / `ui.layout` / `edit_geometry` / `keybindings` / `Signal`（含重入）/ 按钮点击回调。
+- **Step 0b/0c 信号地基**：`util::Signal<T>` 由 bool/int/wstring 三特化合并为**单一泛型模板**（header-only，`util.signal.cc` 清空），并实现**通知重入安全**（快照计数 + tombstone + Compact）。Signal 改为可移动、不可拷贝。
+- **Step 4/R1 绘制核心 brush 缓存**：`UiDrawContext` 增加可选共享 brush；`UiDraw::ResolveBrush` 复用一支 brush（`SetColor`）替代每图元 `CreateSolidColorBrush`；`UiRenderer` UI overlay 每帧仅建一支 scratch brush。
+- **Step 1 控件回调出口**：`UiElement` 新增 `SetOnClick/HasOnClick/InvokeClick`；四个共享按钮行为函数在激活时优先调回调并抑制 action（与 action-return 共存）。
+- **Step 2a/2b 全量重绘 + 删 needs_render**：宿主边界一律 `Invalidate`（§3.4 doctrine）；**`UiEventResult::needs_render` 字段及 116 处使用全部删除**（grep=0），副作用调用就地上提。
+- **Step 3（部分）**：删除死代码 `PopupHost::ForwardAction`。（结论：popup 走同步 `SendMessageW` 非异步隧道；a11y/UIA invoke 合理保留 `kImgViewerUiActionMessage`，full 回调化收益低，未做。）
+- **Step 5（部分）**：pen/shape/selection 三个**纯转发** toolstrip wrapper 类删除（6 文件），由 `ImgViewerUi` 直接持有 `ImgViewerUiToolStrip` + spec builder（`imgviewer.ui.toolstrip.{hpp,cc}`），active 计算内联。净删约 225 行。
+- **缺陷修复（非计划内，重要）**：`experimental/ui.bind.cc` 的 `BindSliderRow` 此前将**按值参数 `format_value` 以引用捕获**进 `apply_value`，再把该 lambda 拷入比函数更长寿的信号订阅 → 悬垂 `std::function` 调用 → 任意 settings slider 改变即 `abort()`。本次会话的内存布局变化把潜伏 UB 暴露为硬崩溃。已修：延迟订阅按值持有 `normalize`/`format_value`。
+
+**Step 2c（三入口事件归一）评估后暂缓**：触及约 12 个控件，每控件事件逻辑不变，仅“三虚函数→一虚函数 + 删 `UiInputEvent`”，churn 大而净删小、回归面广，列为低优先 polish。
+
+**Step 5 剩余部分的诚实评估**：余下四个 wrapper（edit_toolbar 含 dirty-dot 自定义渲染 + tool/undo 状态、text 含字体枚举、color_picker 含取值显示元素、animation 含帧标签）**并非纯样板**，折叠只会把真实逻辑搬进 `ImgViewerUi`，不降复杂度且增回归风险，故止步。删除 `ImgViewerUi` 的 Measure/Arrange/Render 手工 fan-out 与 toolstrip 的**自定义锚定布局**强耦合（纯子树无法表达“居于 edit toolbar 上方居中”），属高风险结构性改造，未做。
+
+**性能备注（用户观察，已推迟到计划后专项）**：复杂交互下 CPU/GPU 偏高，根因是全量重绘 + 每帧重画全部三层 DComp（image/edit/ui_overlay）。按 §3.4，正解是**按层失效**——UI overlay 变化时不应重画昂贵的 image 层。属计划后性能热点专项。
+
+---
+
 ## 0. 一句话结论
 
 `refactor.old.md` 的 P1（toolstrip 统一）和 P2（参数化 action）**已经做完**，并且额外诞生了一套干净的信号/声明式框架（`experimental/`），Settings 窗口已是它的样板。**现在最大的杠杆不再是“合并平行结构”，而是“删掉 retained 派发机制”**：三入口事件、`UiInputEvent` 万物结构体、十字段 `UiEventResult` 合并链、`ApplyElementEffect` 字符串回调、action 经窗口消息隧道回流——这些都是为“判断是否重绘 + 把控件激活回传给应用”而存在的。一旦接受“任何输入后无脑全量重绘”，再让控件直接持有回调（信号已经证明可行），**这套机制可以整体删除，预计净删 3500–5000 行，且让框架真正变成信号驱动**。
