@@ -2,6 +2,7 @@
 
 #include <d2d1_1.h>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -174,6 +175,12 @@ public:
     bool IsVisualActive() const;
     void SetVisualDanger(bool danger);
     bool IsVisualDanger() const;
+    // Direct activation callback. When set, the shared button behaviours invoke
+    // this on click/Enter/Space instead of returning the element's UiAction.
+    // This is the migration path off the action-return dispatch (refactor.md N1).
+    void SetOnClick(std::function<void()> on_click);
+    bool HasOnClick() const;
+    void InvokeClick() const;
     UiElementState VisualState(UiRootState state) const;
     bool Contains(D2D1_POINT_2F point) const;
     virtual void Render(const UiDrawContext& context, UiRootState state) const;
@@ -197,6 +204,7 @@ private:
     bool hit_test_visible_ = true;
     bool visual_active_ = false;
     bool visual_danger_ = false;
+    std::function<void()> on_click_;
     std::vector<std::unique_ptr<UiElement>> children_;
 };
 

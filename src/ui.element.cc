@@ -257,6 +257,23 @@ bool UiElement::IsVisualDanger() const
     return visual_danger_;
 }
 
+void UiElement::SetOnClick(std::function<void()> on_click)
+{
+    on_click_ = std::move(on_click);
+}
+
+bool UiElement::HasOnClick() const
+{
+    return static_cast<bool>(on_click_);
+}
+
+void UiElement::InvokeClick() const
+{
+    if (on_click_) {
+        on_click_();
+    }
+}
+
 UiElementState UiElement::VisualState(UiRootState state) const
 {
     return UiElementState{

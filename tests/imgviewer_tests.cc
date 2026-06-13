@@ -14,6 +14,8 @@
 #include "imgviewer.host.pointer_router.hpp"
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.keybindings.hpp"
+#include "ui.button_behavior.hpp"
+#include "ui.element.hpp"
 #include "ui.layout.hpp"
 
 namespace {
@@ -239,6 +241,50 @@ void TestSignal()
     CHECK(inner == 2);
 }
 
+// Step 1: a control with an on-click callback fires it and suppresses the
+// UiAction; without a callback it still returns the action (coexistence).
+void TestButtonClickCallback()
+{
+    const UiAction action{42};
+
+    // With callback: invokes it, suppresses action.
+    UiElement with_callback(UiMetadata(UiElementRole::Button, action, L"with"));
+    int clicks = 0;
+    with_callback.SetOnClick([&]() { ++clicks; });
+
+    const UiPointerEvent up{
+        .type = UiEventType::PointerUp,
+        .button = UiPointerButton::Left,
+        .target = with_callback.Id(),
+        .captured = with_callback.Id(),
+    };
+    const UiEventResult result = ToolButtonPointerEvent(with_callback, up);
+    CHECK(clicks == 1);
+    CHECK(result.handled);
+    CHECK(result.action == kUiActionNone);
+    CHECK(result.capture == UiCaptureRequest::Release);
+
+    // Without callback: still returns the action.
+    UiElement without_callback(UiMetadata(UiElementRole::Button, action, L"without"));
+    const UiPointerEvent up2{
+        .type = UiEventType::PointerUp,
+        .button = UiPointerButton::Left,
+        .target = without_callback.Id(),
+        .captured = without_callback.Id(),
+    };
+    const UiEventResult result2 = ToolButtonPointerEvent(without_callback, up2);
+    CHECK(result2.handled);
+    CHECK(result2.action == action);
+
+    // Keyboard activation routes through the callback too.
+    int key_clicks = 0;
+    with_callback.SetOnClick([&]() { ++key_clicks; });
+    const UiKeyEvent key{.type = UiEventType::KeyDown, .virtual_key = VK_RETURN};
+    const UiEventResult key_result = ToolButtonKeyEvent(with_callback, key);
+    CHECK(key_clicks == 1);
+    CHECK(key_result.action == kUiActionNone);
+}
+
 } // namespace
 
 int main()
@@ -249,6 +295,7 @@ int main()
     TestKeybindings();
     TestSignal();
     TestSignalReentrancy();
+    TestButtonClickCallback();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

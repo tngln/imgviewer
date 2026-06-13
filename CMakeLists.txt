@@ -161,6 +161,8 @@ add_executable(imgviewer_tests
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.strings.cc
+    src/ui.button_behavior.cc
+    src/ui.element.cc
     src/ui.layout.cc
 )
 

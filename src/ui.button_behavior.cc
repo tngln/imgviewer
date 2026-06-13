@@ -23,11 +23,20 @@ UiEventResult ToolButtonPointerEvent(UiElement& button, const UiPointerEvent& ev
     }
 
     if (event.type == UiEventType::PointerUp && event.captured == button.Id()) {
+        const bool activated = button.IsEnabled() && event.target == button.Id();
+        if (activated && button.HasOnClick()) {
+            button.InvokeClick();
+            return UiEventResult{
+                .handled = true,
+                .needs_render = true,
+                .capture = UiCaptureRequest::Release,
+            };
+        }
         return UiEventResult{
             .handled = true,
             .needs_render = button.IsEnabled(),
             .capture = UiCaptureRequest::Release,
-            .action = button.IsEnabled() && event.target == button.Id() ? button.Action() : kUiActionNone,
+            .action = activated ? button.Action() : kUiActionNone,
         };
     }
 
@@ -42,6 +51,14 @@ UiEventResult ToolButtonKeyEvent(UiElement& button, const UiKeyEvent& event)
 
     if (event.virtual_key != VK_RETURN && event.virtual_key != VK_SPACE) {
         return {};
+    }
+
+    if (button.HasOnClick()) {
+        button.InvokeClick();
+        return UiEventResult{
+            .handled = true,
+            .needs_render = true,
+        };
     }
 
     return UiEventResult{
