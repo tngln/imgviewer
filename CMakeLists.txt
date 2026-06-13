@@ -148,3 +148,53 @@ target_link_libraries(imgviewer PRIVATE
     gdi32
     imm32
 )
+
+# ---------------------------------------------------------------------------
+# imgviewer_tests: minimal console regression harness for the pure modules.
+# Safety net for the signal-driven/declarative refactor (see refactor.md).
+# ---------------------------------------------------------------------------
+add_executable(imgviewer_tests
+    tests/imgviewer_tests.cc
+    src/experimental/util.signal.cc
+    src/imgviewer.action.cc
+    src/imgviewer.host.pointer_router.cc
+    src/imgviewer.interaction.cc
+    src/imgviewer.keybindings.cc
+    src/imgviewer.strings.cc
+    src/ui.layout.cc
+)
+
+target_include_directories(imgviewer_tests PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/nlohmann_json/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/wil/include"
+)
+
+target_compile_features(imgviewer_tests PRIVATE cxx_std_20)
+
+target_compile_definitions(imgviewer_tests PRIVATE
+    NOMINMAX
+    UNICODE
+    WIN32_LEAN_AND_MEAN
+    _UNICODE
+)
+
+set_target_properties(imgviewer_tests PROPERTIES
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+    MSVC_RUNTIME_LIBRARY "$<$<CONFIG:Debug>:MultiThreadedDebugDLL>$<$<CONFIG:Release>:MultiThreaded>"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
+if(MSVC)
+    target_compile_options(imgviewer_tests PRIVATE
+        /W4
+        /permissive-
+        /utf-8
+    )
+endif()
+
+target_link_libraries(imgviewer_tests PRIVATE
+    d2d1
+    user32
+)
