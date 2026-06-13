@@ -22,6 +22,24 @@ Tung's ImgViewer 是一个轻量、快速、极简主义的，面向 Windows 10/
 
 因为。
 
+## 构建
+
+项目目前支持 Windows 下的 `x64` 和 `arm64` 构建。
+
+- 默认构建 x64 Debug：`build.bat`
+- 显式构建 x64 Release：`build.bat Release x64`
+- 构建 ARM64 Debug：`build.bat Debug arm64`
+- 构建 ARM64 Release：`build.bat Release arm64`
+
+也可以直接使用 CMake 预设：
+
+- `cmake --preset Debug-x64 && cmake --build --preset Debug-x64`
+- `cmake --preset Release-x64 && cmake --build --preset Release-x64`
+- `cmake --preset Debug-arm64 && cmake --build --preset Debug-arm64`
+- `cmake --preset Release-arm64 && cmake --build --preset Release-arm64`
+
+ARM64 构建依赖已安装的 Visual Studio ARM64 MSVC 工具链；`build.bat` 会自动通过 `vcvarsall.bat amd64_arm64` 配置交叉编译环境。
+
 ## 默认操作
 
 | 操作 | 说明 |

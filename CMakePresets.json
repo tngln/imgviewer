@@ -11,21 +11,77 @@
       }
     },
     {
-      "name": "Debug",
+      "name": "base-x64",
+      "hidden": true,
       "inherits": "base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "base-arm64",
+      "hidden": true,
+      "inherits": "base",
+      "architecture": {
+        "value": "arm64",
+        "strategy": "external"
+      }
+    },
+    {
+      "name": "Debug-x64",
+      "inherits": "base-x64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
-      "name": "Release",
-      "inherits": "base",
+      "name": "Release-x64",
+      "inherits": "base-x64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "Debug-arm64",
+      "inherits": "base-arm64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "Release-arm64",
+      "inherits": "base-arm64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "Debug",
+      "inherits": "Debug-x64"
+    },
+    {
+      "name": "Release",
+      "inherits": "Release-x64"
     }
   ],
   "buildPresets": [
+    {
+      "name": "Debug-x64",
+      "configurePreset": "Debug-x64"
+    },
+    {
+      "name": "Release-x64",
+      "configurePreset": "Release-x64"
+    },
+    {
+      "name": "Debug-arm64",
+      "configurePreset": "Debug-arm64"
+    },
+    {
+      "name": "Release-arm64",
+      "configurePreset": "Release-arm64"
+    },
     {
       "name": "Debug",
       "configurePreset": "Debug"
