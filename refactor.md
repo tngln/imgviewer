@@ -31,6 +31,13 @@
   - 新增 `ui.host_input.{hpp,cc}`：共享坐标换算（`ClientPixelSize`/`PhysicalClientPointToUi`/`ScreenPointToUi`/`DpiScale`/`UiPointToPhysicalClient`），`UiWindowHost` 与主窗口 pointer 处理器均采用之。
   - 完整合并（render-delegation hook + 画布/chrome/IME hooks + `ImgViewerMainDelegate`）留待更晚，收益主要是架构一致性而非删码量。
 
+- **归位与小幅去重（A1/A2/A3 + 收尾去重）**：
+  - A1：主窗口 IME caret/viewport 几何（`EditingTextCaretPoint`/`DocumentPointToViewportPoint`/`PositionMainWindowIme`/`SyncImgViewerMainWindowIme`）由 `imgviewer.host.cc` 迁入新 `imgviewer.host.ime.cc`（忠实移动，行为不变）。
+  - A2/A3：`ImgViewerMainWindowStyle`/`ApplyImgViewerWindowFrame`/`SyncWindowState`/`SaveWindowSize` 由 `imgviewer.cc` 迁入 `imgviewer.host.chrome.cc`。
+  - 抽 `FinishImgViewerImageLoad`，合并 file/paste/screenshot 三处装载收尾（`SetTitleText`+`SetWindowTextW`+`SyncAnimationTimer`+`Invalidate`）。注：更大的“换图重置”块 `ResetAfterImageLoad` 早已是共享函数，本次仅剩收尾尾巴。
+
+**当前结论**：可安全、低风险、独立小提交完成的去重/归位/缺陷修复基本做完。余下均为**大件或已推迟项**：完整双宿主合并（用户已决定更晚做）、按层失效的性能专项（用户已定在计划后）、`imgviewer.cc`/`imgviewer.edit` 的大型拆分（A5/P6，高改动量）。建议下一个大动作为**按层失效性能专项**（直接缓解用户观察到的 CPU/GPU 负载）。
+
 ---
 
 ## 0. 一句话结论
