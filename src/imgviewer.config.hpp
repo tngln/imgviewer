@@ -6,8 +6,8 @@
 #include "imgviewer.strings.hpp"
 
 struct WindowSizeConfig final {
-    int width = 480;
-    int height = 320;
+    int width = 960;
+    int height = 640;
 };
 
 enum class InitialImageViewMode {

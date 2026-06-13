@@ -54,8 +54,8 @@ constexpr int kEdgeClickZoneMinimum = 5;
 constexpr int kEdgeClickZoneMaximum = 40;
 constexpr int kEdgeClickZoneSmallStep = 1;
 constexpr int kEdgeClickZoneLargeStep = 5;
-constexpr int kSettingsInitialWidth = 500;
-constexpr int kSettingsInitialHeight = 650;
+constexpr int kSettingsInitialWidth = 1000;
+constexpr int kSettingsInitialHeight = 1300;
 constexpr int kSettingsMinClientWidth = 400;
 constexpr int kSettingsMinClientHeight = 620;
 
@@ -735,4 +735,3 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
     context->interaction.SetModal(ImgViewerModalOwner::Settings);
     return S_OK;
 }
-

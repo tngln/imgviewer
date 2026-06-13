@@ -20,8 +20,8 @@
 namespace {
 namespace ui_decl = experimental::ui_decl;
 
-constexpr int kAboutInitialWidth = 280;
-constexpr int kAboutInitialHeight = 260;
+constexpr int kAboutInitialWidth = 560;
+constexpr int kAboutInitialHeight = 520;
 constexpr int kAboutMinClientWidth = 240;
 constexpr int kAboutMinClientHeight = 210;
 constexpr float kAboutSidePadding = 14.0f;

@@ -11,8 +11,8 @@
 
 namespace {
 
-constexpr int kDefaultWindowWidth = 480;
-constexpr int kDefaultWindowHeight = 320;
+constexpr int kDefaultWindowWidth = 960;
+constexpr int kDefaultWindowHeight = 640;
 constexpr int kMinimumWindowWidth = 160;
 constexpr int kMinimumWindowHeight = 120;
 constexpr int kMinimumWindowOpacityPercent = 10;

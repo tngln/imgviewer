@@ -25,8 +25,8 @@ namespace ui_decl = experimental::ui_decl;
 
 constexpr wchar_t kCloseIcon[] = L"\xE711";
 constexpr wchar_t kRefreshIcon[] = L"\xE72C";
-constexpr int kDeveloperInitialWidth = 460;
-constexpr int kDeveloperInitialHeight = 360;
+constexpr int kDeveloperInitialWidth = 920;
+constexpr int kDeveloperInitialHeight = 720;
 constexpr int kDeveloperMinClientWidth = 360;
 constexpr int kDeveloperMinClientHeight = 260;
 constexpr float kDeveloperSidePadding = 14.0f;
