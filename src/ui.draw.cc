@@ -17,42 +17,42 @@ void UiDraw::Clear(D2D1_COLOR_F color) const
 
 void UiDraw::FillRect(D2D1_RECT_F rect, D2D1_COLOR_F color) const
 {
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (CreateBrush(color, brush.put()) == nullptr) {
+    ID2D1SolidColorBrush* brush = ResolveBrush(color);
+    if (brush == nullptr) {
         return;
     }
 
-    context_.d2d_context->FillRectangle(rect, brush.get());
+    context_.d2d_context->FillRectangle(rect, brush);
 }
 
 void UiDraw::DrawRect(D2D1_RECT_F rect, D2D1_COLOR_F color, float stroke_width) const
 {
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (CreateBrush(color, brush.put()) == nullptr) {
+    ID2D1SolidColorBrush* brush = ResolveBrush(color);
+    if (brush == nullptr) {
         return;
     }
 
-    context_.d2d_context->DrawRectangle(rect, brush.get(), stroke_width);
+    context_.d2d_context->DrawRectangle(rect, brush, stroke_width);
 }
 
 void UiDraw::FillRoundedRect(D2D1_ROUNDED_RECT rect, D2D1_COLOR_F color) const
 {
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (CreateBrush(color, brush.put()) == nullptr) {
+    ID2D1SolidColorBrush* brush = ResolveBrush(color);
+    if (brush == nullptr) {
         return;
     }
 
-    context_.d2d_context->FillRoundedRectangle(rect, brush.get());
+    context_.d2d_context->FillRoundedRectangle(rect, brush);
 }
 
 void UiDraw::DrawRoundedRect(D2D1_ROUNDED_RECT rect, D2D1_COLOR_F color, float stroke_width) const
 {
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (CreateBrush(color, brush.put()) == nullptr) {
+    ID2D1SolidColorBrush* brush = ResolveBrush(color);
+    if (brush == nullptr) {
         return;
     }
 
-    context_.d2d_context->DrawRoundedRectangle(rect, brush.get(), stroke_width);
+    context_.d2d_context->DrawRoundedRectangle(rect, brush, stroke_width);
 }
 
 void UiDraw::DrawBodyText(
@@ -87,8 +87,8 @@ void UiDraw::DrawText(
         return;
     }
 
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (CreateBrush(color, brush.put()) == nullptr) {
+    ID2D1SolidColorBrush* brush = ResolveBrush(color);
+    if (brush == nullptr) {
         return;
     }
 
@@ -97,7 +97,7 @@ void UiDraw::DrawText(
         static_cast<UINT32>(text.size()),
         text_format,
         rect,
-        brush.get(),
+        brush,
         options,
         measuring_mode);
 }
@@ -108,22 +108,36 @@ void UiDraw::DrawGeometry(ID2D1Geometry* geometry, D2D1_COLOR_F color, float str
         return;
     }
 
-    wil::com_ptr<ID2D1SolidColorBrush> brush;
-    if (CreateBrush(color, brush.put()) == nullptr) {
+    ID2D1SolidColorBrush* brush = ResolveBrush(color);
+    if (brush == nullptr) {
         return;
     }
 
-    context_.d2d_context->DrawGeometry(geometry, brush.get(), stroke_width);
+    context_.d2d_context->DrawGeometry(geometry, brush, stroke_width);
 }
 
-ID2D1SolidColorBrush* UiDraw::CreateBrush(D2D1_COLOR_F color, ID2D1SolidColorBrush** brush) const
+ID2D1SolidColorBrush* UiDraw::ResolveBrush(D2D1_COLOR_F color) const
 {
-    if (context_.d2d_context == nullptr || brush == nullptr) {
+    if (context_.d2d_context == nullptr) {
         return nullptr;
     }
 
-    *brush = nullptr;
-    return SUCCEEDED(context_.d2d_context->CreateSolidColorBrush(color, brush)) ? *brush : nullptr;
+    // Prefer the pass-shared scratch brush when the caller supplied one.
+    if (context_.brush != nullptr) {
+        context_.brush->SetColor(color);
+        return context_.brush;
+    }
+
+    // Otherwise lazily create a single brush for this UiDraw's lifetime.
+    if (!cached_brush_) {
+        if (FAILED(context_.d2d_context->CreateSolidColorBrush(color, cached_brush_.put()))) {
+            return nullptr;
+        }
+        return cached_brush_.get();
+    }
+
+    cached_brush_->SetColor(color);
+    return cached_brush_.get();
 }
 
 HRESULT CreatePathGeometryFromIcon(

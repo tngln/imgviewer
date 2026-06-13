@@ -5,6 +5,7 @@
 
 #include <d2d1_1.h>
 #include <dwrite.h>
+#include <wil/com.h>
 
 #include "icons.inc"
 
@@ -16,6 +17,10 @@ struct UiDrawContext final {
     IDWriteTextFormat* icon_text_format = nullptr;
     D2D1_SIZE_F viewport_size = {};
     float dpi_scale = 1.0f;
+    // Optional scratch brush shared across a whole draw pass. When set, UiDraw
+    // recolours it per primitive instead of allocating a new brush each call.
+    // When null, UiDraw lazily caches one brush for its own lifetime.
+    ID2D1SolidColorBrush* brush = nullptr;
 };
 
 class UiDraw final {
@@ -49,9 +54,10 @@ public:
     void DrawGeometry(ID2D1Geometry* geometry, D2D1_COLOR_F color, float stroke_width = 1.0f) const;
 
 private:
-    ID2D1SolidColorBrush* CreateBrush(D2D1_COLOR_F color, ID2D1SolidColorBrush** brush) const;
+    ID2D1SolidColorBrush* ResolveBrush(D2D1_COLOR_F color) const;
 
     const UiDrawContext& context_;
+    mutable wil::com_ptr<ID2D1SolidColorBrush> cached_brush_;
 };
 
 HRESULT CreatePathGeometryFromIcon(

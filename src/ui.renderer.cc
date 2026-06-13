@@ -123,6 +123,13 @@ HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
                 context.draw.viewport_size.width / dpi_scale,
                 context.draw.viewport_size.height / dpi_scale);
 
+            // One scratch brush recoloured per primitive for the whole overlay.
+            wil::com_ptr<ID2D1SolidColorBrush> shared_brush;
+            if (SUCCEEDED(context.draw.d2d_context->CreateSolidColorBrush(
+                    D2D1::ColorF(D2D1::ColorF::Black), shared_brush.put()))) {
+                ui_draw.brush = shared_brush.get();
+            }
+
             const UiDraw draw(ui_draw);
             draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
             context.draw.d2d_context->SetTransform(&ui_transform);
