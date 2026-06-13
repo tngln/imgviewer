@@ -1,6 +1,5 @@
 #include "imgviewer.ui.hpp"
 
-#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -8,7 +7,6 @@
 
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "math.hpp"
 #include "ui.popup.hpp"
 #include "ui.theme.hpp"
 
@@ -23,20 +21,9 @@ ImgViewerUi::ImgViewerUi()
     : root_(std::make_unique<UiElement>(
           UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer"))),
       titlebar_(*root_), toolbar_(*root_), color_picker_toolstrip_(*root_),
-      edit_toolbar_(*root_),
-      pen_toolstrip_(*root_, ImgViewerString(ImgViewerStringId::PenTools), BuildPenToolStripSpecs()),
-      shape_toolstrip_(*root_, ImgViewerString(ImgViewerStringId::ShapeTools), BuildShapeToolStripSpecs()),
-      text_toolstrip_(*root_),
-      selection_toolstrip_(*root_, ImgViewerString(ImgViewerStringId::PixelSelectionTools), BuildSelectionToolStripSpecs()),
-      animation_toolbar_(*root_), info_panel_(*root_) {
-  pen_toolstrip_.SetScalePercent(125);
-  shape_toolstrip_.SetScalePercent(125);
-  selection_toolstrip_.SetScalePercent(125);
-  selection_toolstrip_.SetBorderColor(ui_theme::color::kAccent);
-  SetPenToolstripState(pen_toolstrip_state_);
-  SetShapeToolstripState(shape_toolstrip_state_);
-  SetSelectionToolstripState(selection_toolstrip_state_);
-}
+      edit_toolbar_(*root_), pen_toolstrip_(*root_), shape_toolstrip_(*root_),
+      text_toolstrip_(*root_), selection_toolstrip_(*root_),
+      animation_toolbar_(*root_), info_panel_(*root_) {}
 
 UiElement *ImgViewerUi::Root() { return root_.get(); }
 
@@ -404,30 +391,12 @@ void ImgViewerUi::SetColorPickerToolstripState(
 
 void ImgViewerUi::SetPenToolstripState(ImgViewerUiPenToolstripState state) {
   pen_toolstrip_state_ = state;
-  pen_toolstrip_.SetVisible(state.visible);
-  const auto &specs = pen_toolstrip_.Specs();
-  std::vector<bool> active(specs.size());
-  for (size_t i = 0; i < specs.size(); ++i) {
-    const ToolStripItemSpec &spec = specs[i];
-    active[i] = spec.width > 0.0f
-                    ? std::abs(state.width - spec.width) < 0.01f
-                    : math::NearlyEqual(state.color, spec.color);
-  }
-  pen_toolstrip_.SetActiveStates(active);
+  pen_toolstrip_.SetState(state);
 }
 
 void ImgViewerUi::SetShapeToolstripState(ImgViewerUiShapeToolstripState state) {
   shape_toolstrip_state_ = state;
-  shape_toolstrip_.SetVisible(state.visible);
-  const auto &specs = shape_toolstrip_.Specs();
-  std::vector<bool> active(specs.size());
-  for (size_t i = 0; i < specs.size(); ++i) {
-    const ToolStripItemSpec &spec = specs[i];
-    active[i] = spec.visual == ToolStripItemVisual::ColorSwatch
-                    ? math::NearlyEqual(state.color, spec.color)
-                    : state.kind == spec.shape_kind;
-  }
-  shape_toolstrip_.SetActiveStates(active);
+  shape_toolstrip_.SetState(state);
 }
 
 void ImgViewerUi::SetTextToolstripState(ImgViewerUiTextToolstripState state) {
@@ -438,7 +407,7 @@ void ImgViewerUi::SetTextToolstripState(ImgViewerUiTextToolstripState state) {
 void ImgViewerUi::SetSelectionToolstripState(
     ImgViewerUiSelectionToolstripState state) {
   selection_toolstrip_state_ = state;
-  selection_toolstrip_.SetVisible(state.visible);
+  selection_toolstrip_.SetState(state);
 }
 
 const std::wstring &ImgViewerUi::SelectedTextFontFamily() const {

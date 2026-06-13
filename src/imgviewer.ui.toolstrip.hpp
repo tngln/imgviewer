@@ -89,26 +89,3 @@ private:
 };
 
 std::unique_ptr<UiElement> CreateToolStripButton(UiElementMetadata metadata, const ToolStripItemSpec& spec);
-
-// State for the pure spec-table tool strips. ImgViewerUi owns the strips
-// directly and computes per-item active states from these (see imgviewer.ui.cc),
-// so no per-strip wrapper class is needed.
-struct ImgViewerUiPenToolstripState final {
-    bool visible = false;
-    D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);
-    float width = 4.0f;
-};
-
-struct ImgViewerUiShapeToolstripState final {
-    bool visible = false;
-    ImgViewerShapeKind kind = ImgViewerShapeKind::Rectangle;
-    D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);
-};
-
-struct ImgViewerUiSelectionToolstripState final {
-    bool visible = false;
-};
-
-std::vector<ToolStripItemSpec> BuildPenToolStripSpecs();
-std::vector<ToolStripItemSpec> BuildShapeToolStripSpecs();
-std::vector<ToolStripItemSpec> BuildSelectionToolStripSpecs();

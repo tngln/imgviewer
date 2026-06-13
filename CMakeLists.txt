@@ -31,6 +31,9 @@ add_executable(imgviewer
     src/imgviewer.ui.edit_toolbar.cc
     src/imgviewer.ui.floating_toolbar.cc
     src/imgviewer.ui.info_panel.cc
+    src/imgviewer.ui.pen_toolstrip.cc
+    src/imgviewer.ui.selection_toolstrip.cc
+    src/imgviewer.ui.shape_toolstrip.cc
     src/imgviewer.ui.text_toolstrip.cc
     src/imgviewer.ui.toolstrip.cc
     src/imgviewer.ui.animation_toolbar.cc
