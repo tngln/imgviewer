@@ -18,6 +18,7 @@ add_executable(imgviewer
     src/imgviewer.host.app_messages.cc
     src/imgviewer.host.chrome.cc
     src/imgviewer.host.cc
+    src/imgviewer.host.ime.cc
     src/imgviewer.host.keyboard.cc
     src/imgviewer.host.lifecycle.cc
     src/imgviewer.host.pointer.cc
