@@ -2,6 +2,7 @@
 
 #include "imgviewer.host.pointer_router.hpp"
 #include "math.hpp"
+#include "ui.host_input.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
@@ -18,8 +19,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
         util::TrackMouseLeave(hwnd);
         if (context != nullptr) {
-            const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(hwnd);
-            const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / coordinates.scale(), point.y / coordinates.scale());
+            const D2D1_POINT_2F ui_point = ui_host_input::PhysicalClientPointToUi(hwnd, lparam);
             UiPointerEvent pointer{
                 .type = UiEventType::PointerMove,
                 .point = ui_point,
@@ -66,8 +66,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
     case WM_LBUTTONDOWN: {
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         const D2D1_POINT_2F point = GetPointerPoint(hwnd, lparam);
-        const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
-        const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
+        const D2D1_POINT_2F ui_point = ui_host_input::PhysicalClientPointToUi(hwnd, lparam);
         UiPointerEvent pointer{
             .type = UiEventType::PointerDown,
             .point = ui_point,
@@ -165,8 +164,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         if (context != nullptr &&
             !viewer_result.handled &&
             CanUiReceivePointer(context->interaction)) {
-            const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd).scale();
-            const D2D1_POINT_2F ui_point = D2D1::Point2F(point.x / dpi_scale, point.y / dpi_scale);
+            const D2D1_POINT_2F ui_point = ui_host_input::PhysicalClientPointToUi(hwnd, lparam);
             UiPointerEvent pointer{
                 .type = UiEventType::PointerUp,
                 .point = ui_point,
