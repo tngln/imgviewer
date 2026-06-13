@@ -248,7 +248,7 @@ int main()
     TestEditGeometry();
     TestKeybindings();
     TestSignal();
-    // TestSignalReentrancy is activated in Step 0c together with the notify fix.
+    TestSignalReentrancy();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;
