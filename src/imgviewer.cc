@@ -87,6 +87,7 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
 
     ClosePopupIfOpen(&context->popup);
     context->ui.ResetRoot(CreateMainUi(&context->main_ui));
+    context->info_panel_key_valid = false;
     context->main_ui->SetTitleText(title_text.empty() ? kImgViewerWindowTitle : title_text.c_str());
     context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);
     SyncActionStates(context);
@@ -102,13 +103,44 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
     return S_OK;
 }
 
+namespace {
+
+uint64_t ComputeImgViewerInfoPanelKey(const ImgViewerContext* context)
+{
+    const ImgViewerSnapshot snapshot = context->viewer.Snapshot();
+    uint64_t key = 1469598103934665603ull;
+    const auto mix = [&key](uint64_t value) {
+        key = (key ^ value) * 1099511628211ull;
+    };
+    mix(context->info_panel_visible ? 1u : 0u);
+    mix(context->viewer.HasCurrentImage() ? 1u : 0u);
+    mix(snapshot.pixel_size.width);
+    mix(snapshot.pixel_size.height);
+    mix(context->current_image_from_clipboard ? 1u : 0u);
+    mix(context->current_image_from_screenshot ? 1u : 0u);
+    mix(context->current_image_analysis.has_value() ? 1u : 0u);
+    mix(context->current_image_analysis_failed ? 1u : 0u);
+    mix(static_cast<uint64_t>(std::hash<std::wstring>{}(context->current_image_path)));
+    return key;
+}
+
+} // namespace
+
 HRESULT RenderImgViewer(ImgViewerContext* context)
 {
     if (context == nullptr) {
         return S_OK;
     }
 
-    UpdateImgViewerInfoPanelState(context);
+    // Info-panel content depends only on the image/analysis/visibility (not on
+    // pan/zoom/cursor), so rebuild its heavy state (strings, metadata vectors,
+    // file stat) only when that source key changes.
+    const uint64_t info_panel_key = ComputeImgViewerInfoPanelKey(context);
+    if (!context->info_panel_key_valid || info_panel_key != context->last_info_panel_key) {
+        UpdateImgViewerInfoPanelState(context);
+        context->last_info_panel_key = info_panel_key;
+        context->info_panel_key_valid = true;
+    }
     context->main_ui->SetAnimationState(context->viewer.AnimationState());
     context->main_ui->SetEditToolbarState(ImgViewerUiEditToolbarState{
         .visible = context->edit.Active(),

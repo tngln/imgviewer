@@ -68,6 +68,11 @@ struct ImgViewerContext final {
     DWORD animation_last_tick_ms = 0;
     int last_window_size_toast_width = 0;
     int last_window_size_toast_height = 0;
+    // Gating for the per-frame info-panel state rebuild (which formats strings,
+    // copies metadata vectors, and stats the file). Rebuilt only when its source
+    // key changes; reset by ResetImgViewerUi so a fresh UI re-pushes.
+    uint64_t last_info_panel_key = 0;
+    bool info_panel_key_valid = false;
 };
 
 HRESULT RenderImgViewer(ImgViewerContext* context);
