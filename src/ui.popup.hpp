@@ -49,7 +49,6 @@ private:
     HRESULT RenderDCompPopup();
     HRESULT RenderDCompPopup(UINT width, UINT height);
     void HandlePopupResult(UiEventResult result);
-    void ForwardAction(UiAction action, UiElementId effect_target);
     IDWriteTextFormat* MenuBodyTextFormat() const;
     IDWriteTextFormat* MenuIconTextFormat() const;
 

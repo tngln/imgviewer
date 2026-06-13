@@ -502,17 +502,6 @@ void PopupHost::HandlePopupResult(UiEventResult result)
     }
 }
 
-void PopupHost::ForwardAction(UiAction action, UiElementId effect_target)
-{
-    if (action != kUiActionNone) {
-        PostMessageW(
-            owner_,
-            action_message_,
-            static_cast<WPARAM>(UiActionValue(action)),
-            static_cast<LPARAM>(UiElementIdValue(effect_target)));
-    }
-}
-
 IDWriteTextFormat* PopupHost::MenuBodyTextFormat() const
 {
     return menu_body_text_format_ != nullptr ? menu_body_text_format_.get() : body_text_format_;
