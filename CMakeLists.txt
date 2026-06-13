@@ -52,6 +52,7 @@ add_executable(imgviewer
     src/ui.host_accessibility.cc
     src/ui.host_effects.cc
     src/ui.host_ime.cc
+    src/ui.host_input.cc
     src/ui.host_popup.cc
     src/ui.label.cc
     src/ui.draw.cc
