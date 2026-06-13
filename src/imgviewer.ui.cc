@@ -147,59 +147,71 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost *popup_host) {
   const bool edit_enabled = edit_toolbar_state_.visible;
   std::vector<MenuItem> menu_items{
       {ImgViewerString(ImgViewerStringId::OpenImage),
-       UiActionFromImgViewerAction(ImgViewerAction::OpenImage)},
+       UiActionFromImgViewerAction(ImgViewerAction::OpenImage), false, false,
+       ActionEnabled(ImgViewerAction::OpenImage)},
       {ImgViewerString(ImgViewerStringId::CaptureRegion),
-       UiActionFromImgViewerAction(ImgViewerAction::CaptureRegion)},
+       UiActionFromImgViewerAction(ImgViewerAction::CaptureRegion), false, false,
+       ActionEnabled(ImgViewerAction::CaptureRegion)},
       {ImgViewerString(ImgViewerStringId::SaveAs),
        UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false,
-       save_image_as_enabled_},
+       ActionEnabled(ImgViewerAction::SaveImageAs)},
       {ImgViewerString(ImgViewerStringId::ShowInFileExplorer),
        UiActionFromImgViewerAction(ImgViewerAction::ShowInFileExplorer), false,
-       false, show_in_file_explorer_enabled_},
+       false, ActionEnabled(ImgViewerAction::ShowInFileExplorer)},
       {L"", kUiActionNone, true},
       {ImgViewerString(ImgViewerStringId::Settings),
-       UiActionFromImgViewerAction(ImgViewerAction::OpenSettings)},
+       UiActionFromImgViewerAction(ImgViewerAction::OpenSettings), false, false,
+       ActionEnabled(ImgViewerAction::OpenSettings)},
       {ImgViewerString(ImgViewerStringId::About),
-       UiActionFromImgViewerAction(ImgViewerAction::OpenAbout)},
+       UiActionFromImgViewerAction(ImgViewerAction::OpenAbout), false, false,
+       ActionEnabled(ImgViewerAction::OpenAbout)},
       {L"", kUiActionNone, true},
       {ImgViewerString(ImgViewerStringId::InfoPanel),
        UiActionFromImgViewerAction(ImgViewerAction::ToggleInfoPanel), false,
-       info_panel_.IsVisible()},
+       info_panel_.IsVisible(),
+       ActionEnabled(ImgViewerAction::ToggleInfoPanel)},
       {ImgViewerString(ImgViewerStringId::LoopAnimation),
        UiActionFromImgViewerAction(ImgViewerAction::ToggleAnimationLoop), false,
-       animation_state_.loop, animation_state_.available},
+       animation_state_.loop,
+       ActionEnabled(ImgViewerAction::ToggleAnimationLoop)},
       {ImgViewerString(animation_state_.playing
                            ? ImgViewerStringId::PauseAnimation
                            : ImgViewerStringId::PlayAnimation),
        UiActionFromImgViewerAction(ImgViewerAction::ToggleAnimationPlayback),
-       false, false, animation_state_.available},
+       false, false, ActionEnabled(ImgViewerAction::ToggleAnimationPlayback)},
       {ImgViewerString(ImgViewerStringId::PreviousAnimationFrame),
        UiActionFromImgViewerAction(ImgViewerAction::PreviousAnimationFrame),
-       false, false, animation_state_.available},
+       false, false, ActionEnabled(ImgViewerAction::PreviousAnimationFrame)},
       {ImgViewerString(ImgViewerStringId::NextAnimationFrame),
        UiActionFromImgViewerAction(ImgViewerAction::NextAnimationFrame), false,
-       false, animation_state_.available},
+       false, ActionEnabled(ImgViewerAction::NextAnimationFrame)},
       {L"", kUiActionNone, true},
       {ImgViewerString(ImgViewerStringId::ZoomIn),
-       UiActionFromImgViewerAction(ImgViewerAction::ZoomIn)},
+       UiActionFromImgViewerAction(ImgViewerAction::ZoomIn), false, false,
+       ActionEnabled(ImgViewerAction::ZoomIn)},
       {ImgViewerString(ImgViewerStringId::ZoomOut),
-       UiActionFromImgViewerAction(ImgViewerAction::ZoomOut)},
+       UiActionFromImgViewerAction(ImgViewerAction::ZoomOut), false, false,
+       ActionEnabled(ImgViewerAction::ZoomOut)},
       {ImgViewerString(ImgViewerStringId::FitWindow),
-       UiActionFromImgViewerAction(ImgViewerAction::FitWindow)},
+       UiActionFromImgViewerAction(ImgViewerAction::FitWindow), false, false,
+       ActionEnabled(ImgViewerAction::FitWindow)},
       {ImgViewerString(ImgViewerStringId::ActualSize),
-       UiActionFromImgViewerAction(ImgViewerAction::ActualSize)},
+       UiActionFromImgViewerAction(ImgViewerAction::ActualSize), false, false,
+       ActionEnabled(ImgViewerAction::ActualSize)},
       {ImgViewerString(ImgViewerStringId::ResetView),
-       UiActionFromImgViewerAction(ImgViewerAction::ResetView)},
+       UiActionFromImgViewerAction(ImgViewerAction::ResetView), false, false,
+       ActionEnabled(ImgViewerAction::ResetView)},
       {ImgViewerString(ImgViewerStringId::ColorPicker),
        UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker), false,
-       color_picker_active_},
+       color_picker_active_, ActionEnabled(ImgViewerAction::ToggleColorPicker)},
       {L"", kUiActionNone, true},
       {ImgViewerString(ImgViewerStringId::EditMode), kUiActionNone, false,
-       edit_toolbar_state_.visible, true,
+       edit_toolbar_state_.visible, ActionEnabled(ImgViewerAction::ToggleEditMode),
        std::vector<MenuItem>{
            {ImgViewerString(ImgViewerStringId::ToggleEditMode),
             UiActionFromImgViewerAction(ImgViewerAction::ToggleEditMode), false,
-            edit_toolbar_state_.visible},
+            edit_toolbar_state_.visible,
+            ActionEnabled(ImgViewerAction::ToggleEditMode)},
            {L"", kUiActionNone, true},
            {ImgViewerString(ImgViewerStringId::Tool), kUiActionNone, false,
             false, edit_enabled,
@@ -207,28 +219,28 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost *popup_host) {
                 {ImgViewerString(ImgViewerStringId::EditSelect),
                  UiActionFromImgViewerAction(ImgViewerAction::EditSelect),
                  false, edit_toolbar_state_.tool == ImgViewerEditTool::Select,
-                 edit_enabled},
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditSelect)},
                 {ImgViewerString(ImgViewerStringId::PixelSelect),
                  UiActionFromImgViewerAction(ImgViewerAction::EditPixelSelect),
                  false,
                  edit_toolbar_state_.tool == ImgViewerEditTool::PixelSelect,
-                 edit_enabled},
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditPixelSelect)},
                 {ImgViewerString(ImgViewerStringId::EditPen),
                  UiActionFromImgViewerAction(ImgViewerAction::EditPen), false,
                  edit_toolbar_state_.tool == ImgViewerEditTool::Pen,
-                 edit_enabled},
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditPen)},
                 {ImgViewerString(ImgViewerStringId::EditShape),
                  UiActionFromImgViewerAction(ImgViewerAction::EditShape), false,
                  edit_toolbar_state_.tool == ImgViewerEditTool::Shape,
-                 edit_enabled},
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditShape)},
                 {ImgViewerString(ImgViewerStringId::EditText),
                  UiActionFromImgViewerAction(ImgViewerAction::EditText), false,
                  edit_toolbar_state_.tool == ImgViewerEditTool::Text,
-                 edit_enabled},
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditText)},
                 {ImgViewerString(ImgViewerStringId::EditCrop),
                  UiActionFromImgViewerAction(ImgViewerAction::EditCrop), false,
                  edit_toolbar_state_.tool == ImgViewerEditTool::Crop,
-                 edit_enabled},
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditCrop)},
             }},
 
            {ImgViewerString(ImgViewerStringId::CropSelection), kUiActionNone,
@@ -237,20 +249,20 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost *popup_host) {
                 {ImgViewerString(ImgViewerStringId::EditCancelCrop),
                  UiActionFromImgViewerAction(ImgViewerAction::EditCancelCrop),
                  false, false,
-                 edit_toolbar_state_.tool == ImgViewerEditTool::Crop},
+                 edit_toolbar_state_.tool == ImgViewerEditTool::Crop &&
+                     ActionEnabled(ImgViewerAction::EditCancelCrop)},
                 {ImgViewerString(ImgViewerStringId::EditCopySelection),
                  UiActionFromImgViewerAction(
                      ImgViewerAction::EditCopySelection),
-                 false, false, selection_toolstrip_state_.visible},
+                 false, false, ActionEnabled(ImgViewerAction::EditCopySelection)},
                 {ImgViewerString(ImgViewerStringId::EditMosaicSelection),
                  UiActionFromImgViewerAction(
                      ImgViewerAction::EditMosaicSelection),
-                 false, false, selection_toolstrip_state_.visible},
+                 false, false, ActionEnabled(ImgViewerAction::EditMosaicSelection)},
                 {ImgViewerString(ImgViewerStringId::DeleteSelection),
                  UiActionFromImgViewerAction(
                      ImgViewerAction::EditDeleteSelection),
-                 false, false,
-                 edit_toolbar_state_.tool == ImgViewerEditTool::Select},
+                 false, false, ActionEnabled(ImgViewerAction::EditDeleteSelection)},
             }},
            {ImgViewerString(ImgViewerStringId::History), kUiActionNone, false,
             false, edit_enabled,
@@ -258,31 +270,39 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost *popup_host) {
                 {ImgViewerString(ImgViewerStringId::EditRotateClockwise),
                  UiActionFromImgViewerAction(
                      ImgViewerAction::EditRotateClockwise),
-                 false, false, edit_enabled},
+                 false, false,
+                 edit_enabled && ActionEnabled(ImgViewerAction::EditRotateClockwise)},
                 {ImgViewerString(ImgViewerStringId::UndoEdit),
                  UiActionFromImgViewerAction(ImgViewerAction::EditUndo), false,
-                 false, edit_enabled},
+                 false, edit_enabled && ActionEnabled(ImgViewerAction::EditUndo)},
                 {ImgViewerString(ImgViewerStringId::RedoEdit),
                  UiActionFromImgViewerAction(ImgViewerAction::EditRedo), false,
-                 false, edit_enabled},
+                 false, edit_enabled && ActionEnabled(ImgViewerAction::EditRedo)},
             }},
        }},
       {L"", kUiActionNone, true},
       {ImgViewerString(ImgViewerStringId::RotateClockwise),
-       UiActionFromImgViewerAction(ImgViewerAction::RotateClockwise)},
+       UiActionFromImgViewerAction(ImgViewerAction::RotateClockwise), false,
+       false, ActionEnabled(ImgViewerAction::RotateClockwise)},
       {ImgViewerString(ImgViewerStringId::FlipHorizontal),
-       UiActionFromImgViewerAction(ImgViewerAction::FlipHorizontal)},
+       UiActionFromImgViewerAction(ImgViewerAction::FlipHorizontal), false,
+       false, ActionEnabled(ImgViewerAction::FlipHorizontal)},
       {ImgViewerString(ImgViewerStringId::FlipVertical),
-       UiActionFromImgViewerAction(ImgViewerAction::FlipVertical)},
+       UiActionFromImgViewerAction(ImgViewerAction::FlipVertical), false,
+       false, ActionEnabled(ImgViewerAction::FlipVertical)},
       {L"", kUiActionNone, true},
       {ImgViewerString(ImgViewerStringId::Close),
-       UiActionFromImgViewerAction(ImgViewerAction::Close)},
+       UiActionFromImgViewerAction(ImgViewerAction::Close), false, false,
+       ActionEnabled(ImgViewerAction::Close)},
   };
 #if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
   menu_items.insert(
       menu_items.begin() + 6,
       MenuItem{ImgViewerString(ImgViewerStringId::Developer),
-               UiActionFromImgViewerAction(ImgViewerAction::OpenDeveloper)});
+               UiActionFromImgViewerAction(ImgViewerAction::OpenDeveloper),
+               false,
+               false,
+               ActionEnabled(ImgViewerAction::OpenDeveloper)});
 #endif
   return SUCCEEDED(
       popup_host->OpenMenu(kMainMenuOrigin, std::move(menu_items)));
@@ -327,14 +347,21 @@ void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled) {
     return;
   }
 
-  if (action == UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs)) {
-    save_image_as_enabled_ = enabled;
-  }
-  if (action ==
-      UiActionFromImgViewerAction(ImgViewerAction::ShowInFileExplorer)) {
-    show_in_file_explorer_enabled_ = enabled;
-  }
+  action_enabled_[action.value] = enabled;
   SetActionEnabledRecursive(root_.get(), action, enabled);
+}
+
+bool ImgViewerUi::ActionEnabled(UiAction action) const {
+  if (action == kUiActionNone) {
+    return false;
+  }
+
+  const auto found = action_enabled_.find(action.value);
+  return found == action_enabled_.end() ? true : found->second;
+}
+
+bool ImgViewerUi::ActionEnabled(ImgViewerAction action) const {
+  return ActionEnabled(UiActionFromImgViewerAction(action));
 }
 
 D2D1_RECT_F ImgViewerUi::ActiveToolstripAnchorRect() const {

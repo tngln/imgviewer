@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include <d2d1_1.h>
 #include <dwrite.h>
@@ -10,6 +11,7 @@
 #include "ui.events.hpp"
 #include "ui.root.hpp"
 
+#include "imgviewer.action.hpp"
 #include "imgviewer.ui.animation_toolbar.hpp"
 #include "imgviewer.ui.color_picker_toolstrip.hpp"
 #include "imgviewer.ui.edit_toolbar.hpp"
@@ -56,6 +58,8 @@ public:
 
 private:
     D2D1_RECT_F ActiveToolstripAnchorRect() const;
+    bool ActionEnabled(UiAction action) const;
+    bool ActionEnabled(ImgViewerAction action) const;
     void SetActionEnabledRecursive(UiElement* element, UiAction action, bool enabled);
 
     std::unique_ptr<UiElement> root_;
@@ -73,8 +77,7 @@ private:
     bool top_most_ = false;
     bool maximized_ = false;
     bool color_picker_active_ = false;
-    bool save_image_as_enabled_ = false;
-    bool show_in_file_explorer_enabled_ = false;
+    std::unordered_map<int, bool> action_enabled_;
     ImgViewerUiEditToolbarState edit_toolbar_state_;
     ImgViewerUiColorPickerToolstripState color_picker_toolstrip_state_;
     ImgViewerUiPenToolstripState pen_toolstrip_state_;
