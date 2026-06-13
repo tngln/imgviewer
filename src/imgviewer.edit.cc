@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <utility>
 
 #include <d2d1helper.h>
@@ -227,24 +226,6 @@ ImgViewerEditShape OffsetShape(ImgViewerEditShape shape, D2D1_POINT_2F offset)
     shape.start = D2D1::Point2F(shape.start.x + offset.x, shape.start.y + offset.y);
     shape.end = D2D1::Point2F(shape.end.x + offset.x, shape.end.y + offset.y);
     return shape;
-}
-
-D2D1_RECT_F ShapeBounds(const ImgViewerEditShape& shape)
-{
-    if (shape.kind == ImgViewerShapeKind::Rectangle || shape.kind == ImgViewerShapeKind::Ellipse) {
-        const float padding = (std::max)(2.0f, shape.width * 0.5f + 2.0f);
-        return D2D1::RectF(
-            shape.rect.left - padding,
-            shape.rect.top - padding,
-            shape.rect.right + padding,
-            shape.rect.bottom + padding);
-    }
-    const float padding = (std::max)(2.0f, shape.width * 0.5f + 8.0f);
-    return D2D1::RectF(
-        (std::min)(shape.start.x, shape.end.x) - padding,
-        (std::min)(shape.start.y, shape.end.y) - padding,
-        (std::max)(shape.start.x, shape.end.x) + padding,
-        (std::max)(shape.start.y, shape.end.y) + padding);
 }
 
 bool IsUsefulShape(const ImgViewerEditShape& shape)
