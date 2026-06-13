@@ -223,7 +223,6 @@ ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAc
     }
 
     if (context->ui.Root() != nullptr && context->ui.Root()->HandleUiAction(action, &context->popup)) {
-        effects.needs_render = true;
         effects.sync_popup_modal = true;
         effects.sync_ime = true;
         return effects;
@@ -243,7 +242,6 @@ ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAc
 void ImgViewerHostEffects::Merge(UiEventResult result, bool request_popup_modal_sync)
 {
     handled = handled || result.handled;
-    needs_render = needs_render || result.needs_render;
     if (result.capture != UiCaptureRequest::None) {
         capture = result.capture;
     }
@@ -260,7 +258,6 @@ void ImgViewerHostEffects::Merge(UiEventResult result, bool request_popup_modal_
 void ImgViewerHostEffects::Merge(ImgViewerEventResult result)
 {
     handled = handled || result.handled;
-    needs_render = needs_render || result.needs_render;
     released_capture = released_capture || result.released_capture;
     sync_ime = true;
 }
@@ -327,14 +324,12 @@ void ApplyMerged(HWND hwnd, ImgViewerContext* context, ImgViewerEventResult resu
 void ApplyRender(HWND hwnd, ImgViewerContext* context)
 {
     ImgViewerHostEffects effects;
-    effects.needs_render = true;
     ApplyHostEffects(hwnd, context, effects);
 }
 
 void ApplyRenderAndIme(HWND hwnd, ImgViewerContext* context)
 {
     ImgViewerHostEffects effects;
-    effects.needs_render = true;
     effects.sync_ime = true;
     ApplyHostEffects(hwnd, context, effects);
 }

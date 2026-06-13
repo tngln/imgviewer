@@ -98,7 +98,6 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 capture_effects.begin_pointer_capture = ImgViewerPointerCaptureOwner::ColorPicker;
                 ApplyHostEffects(hwnd, context, capture_effects);
                 ui_result.handled = true;
-                ui_result.needs_render = true;
             } else if (canvas_target == ImgViewerPointerTarget::EditTool) {
                 viewer_result = context->edit.OnPointerDown(point, context->viewer.Snapshot(), context->renderer.ViewportPixelSize());
             } else {

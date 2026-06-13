@@ -157,7 +157,6 @@ UiEventResult Slider::OnPointerEvent(const UiPointerEvent& event)
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Capture,
             .focus = UiFocusRequest::FocusTarget,
             .focus_target = Id(),
@@ -170,7 +169,7 @@ UiEventResult Slider::OnPointerEvent(const UiPointerEvent& event)
         if (changed && value_changed_handler_) {
             value_changed_handler_(value_);
         }
-        return UiEventResult{.handled = true, .needs_render = changed, .value_changed = changed};
+        return UiEventResult{.handled = true, .value_changed = changed};
     }
 
     if (event.type == UiEventType::PointerUp && event.captured == Id()) {
@@ -181,7 +180,6 @@ UiEventResult Slider::OnPointerEvent(const UiPointerEvent& event)
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Release,
             .value_changed = changed,
         };
@@ -226,7 +224,7 @@ UiEventResult Slider::OnKeyEvent(const UiKeyEvent& event)
     if (changed && value_changed_handler_) {
         value_changed_handler_(value_);
     }
-    return UiEventResult{.handled = true, .needs_render = changed, .value_changed = changed};
+    return UiEventResult{.handled = true, .value_changed = changed};
 }
 
 int Slider::ValueFromPoint(D2D1_POINT_2F point) const

@@ -37,9 +37,9 @@ bool ApplyUiEffectAndInvalidate(HWND hwnd, UiController* ui, UiElementId effect_
     return true;
 }
 
-void RequestWindowRender(HWND hwnd, bool needs_render)
+void RequestWindowRender(HWND hwnd, bool render)
 {
-    if (hwnd != nullptr && needs_render) {
+    if (hwnd != nullptr && render) {
         InvalidateRect(hwnd, nullptr, FALSE);
     }
 }

@@ -117,7 +117,6 @@ enum class UiFocusRequest {
 
 struct UiEventResult final {
     bool handled = false;
-    bool needs_render = false;
     UiCaptureRequest capture = UiCaptureRequest::None;
     UiFocusRequest focus = UiFocusRequest::None;
     UiElementId focus_target = UiElementId::None;

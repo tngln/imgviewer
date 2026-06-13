@@ -13,7 +13,6 @@
 
 struct ImgViewerEventResult final {
     bool handled = false;
-    bool needs_render = false;
     bool captured = false;
     bool released_capture = false;
 };

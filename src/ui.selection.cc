@@ -38,7 +38,6 @@ UiEventResult ChoicePointerEvent(UiElement& element, const UiPointerEvent& event
         const bool enabled = element.IsEnabled();
         return UiEventResult{
             .handled = true,
-            .needs_render = enabled,
             .capture = enabled ? UiCaptureRequest::Capture : UiCaptureRequest::None,
             .focus = enabled ? UiFocusRequest::FocusTarget : UiFocusRequest::None,
             .focus_target = enabled ? element.Id() : UiElementId::None,
@@ -48,7 +47,6 @@ UiEventResult ChoicePointerEvent(UiElement& element, const UiPointerEvent& event
     if (event.type == UiEventType::PointerUp && event.captured == element.Id()) {
         return UiEventResult{
             .handled = true,
-            .needs_render = element.IsEnabled(),
             .capture = UiCaptureRequest::Release,
             .action = element.IsEnabled() && event.target == element.Id() ? element.Action() : kUiActionNone,
         };
@@ -67,7 +65,6 @@ UiEventResult ChoiceKeyEvent(UiElement& element, const UiKeyEvent& event)
     }
     return UiEventResult{
         .handled = true,
-        .needs_render = true,
         .action = element.Action(),
     };
 }
@@ -154,7 +151,6 @@ private:
         dropdown_->hovered_index_ = OptionAt(point);
         return UiEventResult{
             .handled = true,
-            .needs_render = previous_hovered != dropdown_->hovered_index_,
         };
     }
 
@@ -172,7 +168,6 @@ private:
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .action = dropdown_->options_[option].action,
             .close_popup = true,
             .effect_target = dropdown_->Id(),
@@ -199,7 +194,6 @@ private:
             }
             return UiEventResult{
                 .handled = true,
-                .needs_render = true,
                 .action = dropdown_->options_[dropdown_->selected_index_].action,
                 .effect_target = dropdown_->Id(),
             };
@@ -207,7 +201,6 @@ private:
 
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .action = dropdown_->options_[dropdown_->selected_index_].action,
             .close_popup = true,
             .effect_target = dropdown_->Id(),
@@ -452,7 +445,6 @@ UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
         hovered_index_ = OptionAt(event.point);
         return UiEventResult{
             .handled = true,
-            .needs_render = previous_hovered != hovered_index_,
         };
     }
 
@@ -462,7 +454,6 @@ UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
     if (event.type == UiEventType::PointerDown) {
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Capture,
             .focus = UiFocusRequest::FocusTarget,
             .focus_target = Id(),
@@ -476,7 +467,6 @@ UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Release,
         };
     }
@@ -490,7 +480,7 @@ UiEventResult Dropdown::OnKeyEvent(const UiKeyEvent& event)
     }
     if (event.virtual_key == VK_ESCAPE) {
         Collapse();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     if (event.virtual_key == VK_RETURN || event.virtual_key == VK_SPACE) {
         if (expanded_) {
@@ -500,7 +490,7 @@ UiEventResult Dropdown::OnKeyEvent(const UiKeyEvent& event)
         } else if (FAILED(OpenPopup(event.popup_host))) {
             Collapse();
         }
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     if ((event.virtual_key == VK_DOWN || event.virtual_key == VK_UP) && !options_.empty()) {
         if (event.virtual_key == VK_DOWN) {
@@ -509,7 +499,7 @@ UiEventResult Dropdown::OnKeyEvent(const UiKeyEvent& event)
             selected_index_ = selected_index_ == 0 ? 0 : selected_index_ - 1;
         }
         hovered_index_ = selected_index_;
-        return UiEventResult{.handled = true, .needs_render = true, .action = options_[selected_index_].action};
+        return UiEventResult{.handled = true, .action = options_[selected_index_].action};
     }
     return {};
 }

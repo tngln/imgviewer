@@ -13,4 +13,4 @@ UiPostedActionMessage DecodeUiPostedActionMessage(WPARAM wparam, LPARAM lparam);
 void ApplyUiCaptureRequest(HWND hwnd, UiCaptureRequest capture);
 bool ApplyUiEffect(UiController* ui, UiElementId effect_target);
 bool ApplyUiEffectAndInvalidate(HWND hwnd, UiController* ui, UiElementId effect_target);
-void RequestWindowRender(HWND hwnd, bool needs_render = true);
+void RequestWindowRender(HWND hwnd, bool render = true);

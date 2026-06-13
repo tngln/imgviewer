@@ -19,7 +19,6 @@ void TrackNonClientMouseLeave(HWND hwnd);
 
 struct ImgViewerHostEffects final {
     bool handled = false;
-    bool needs_render = false;
     UiCaptureRequest capture = UiCaptureRequest::None;
     bool released_capture = false;
     ImgViewerPointerCaptureOwner begin_pointer_capture = ImgViewerPointerCaptureOwner::None;
@@ -33,8 +32,7 @@ struct ImgViewerHostEffects final {
     void Merge(ImgViewerEventResult result);
     bool HasFollowUpWork() const
     {
-        return needs_render ||
-            capture != UiCaptureRequest::None ||
+        return capture != UiCaptureRequest::None ||
             released_capture ||
             begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             end_pointer_capture != ImgViewerPointerCaptureOwner::None ||

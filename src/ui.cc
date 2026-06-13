@@ -81,7 +81,7 @@ UiEventResult UiController::OnInputEvent(const UiInputEvent& event)
         return OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
     case UiEventType::OwnerDeactivated:
         root_->OnKeyEvent(UiKeyEvent{.type = UiEventType::KeyDown, .virtual_key = VK_ESCAPE, .focused = focused_id_});
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     case UiEventType::ContextMenu: {
         UiInputEvent root_event = event;
         root_event.focused = focused_id_;
@@ -114,7 +114,6 @@ UiEventResult UiController::OnPointerEvent(const UiPointerEvent& event)
     if (root_->HandleUiAction(result.action, event.popup_host)) {
         result.action = kUiActionNone;
         result.handled = true;
-        result.needs_render = true;
     }
     const UiElementId target = event.captured != UiElementId::None ? event.captured : result.focus_target;
     ApplyEventResult(result, target != UiElementId::None ? target : event.target);
@@ -132,7 +131,6 @@ UiEventResult UiController::OnKeyEvent(const UiKeyEvent& event)
     if (root_->HandleUiAction(result.action, event.popup_host)) {
         result.action = kUiActionNone;
         result.handled = true;
-        result.needs_render = true;
     }
     ApplyEventResult(result, event.focused);
     if (result.handled && event.focused != UiElementId::None) {
@@ -168,7 +166,6 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
         hovered_id_ = UiElementId::None;
         return UiEventResult{
             .handled = had_hover || captured_id_ != UiElementId::None,
-            .needs_render = had_hover,
         };
     }
 
@@ -183,7 +180,6 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
 
     UiEventResult root_result = root_->OnPointerEvent(target_event);
     if (root_result.handled) {
-        root_result.needs_render = root_result.needs_render || was_hovered != hovered_id_;
         return root_result;
     }
 
@@ -191,7 +187,6 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     if (UiElement* target = root_->Root()->FindById(target_id)) {
         UiEventResult target_result =
             target->OnInputEvent(UiInputEvent{.type = target_event.type, .pointer = target_event, .point = target_event.point});
-        target_result.needs_render = target_result.needs_render || root_result.needs_render;
         if (target_result.focus == UiFocusRequest::None && root_result.focus != UiFocusRequest::None) {
             target_result.focus = root_result.focus;
             target_result.focus_target = root_result.focus_target;
@@ -202,7 +197,6 @@ UiEventResult UiController::DispatchPointerEvent(const UiPointerEvent& event)
     if (!result.handled && target_id != UiElementId::None) {
         result.handled = true;
     }
-    result.needs_render = result.needs_render || was_hovered != hovered_id_;
 
     if (event.type == UiEventType::PointerDown && result.capture == UiCaptureRequest::Capture) {
         result.focus_target = target_id;

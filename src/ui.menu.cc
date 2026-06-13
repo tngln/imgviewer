@@ -225,7 +225,7 @@ UiEventResult MenuOverlay::OnInputEvent(const UiInputEvent& event)
     case UiEventType::OwnerDeactivated:
         if (open_) {
             Close();
-            return UiEventResult{.handled = true, .needs_render = true};
+            return UiEventResult{.handled = true};
         }
         return {};
     default:
@@ -253,13 +253,13 @@ UiEventResult MenuOverlay::OnPointerEvent(const UiPointerEvent& event)
             if (has_children) {
                 OpenChild(panel);
             }
-            return UiEventResult{.handled = true, .needs_render = changed};
+            return UiEventResult{.handled = true};
         }
         return Contains(event.point) ? UiEventResult{.handled = true} : UiEventResult{};
     }
     if (event.type == UiEventType::PointerDown && !Contains(event.point)) {
         Close();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     if (event.type == UiEventType::PointerUp && Contains(event.point)) {
         const size_t panel = PanelAt(event.point);
@@ -270,11 +270,11 @@ UiEventResult MenuOverlay::OnPointerEvent(const UiPointerEvent& event)
             selected_path_[panel] = item;
             if (!(*items)[item].children.empty()) {
                 OpenChild(panel);
-                return UiEventResult{.handled = true, .needs_render = true};
+                return UiEventResult{.handled = true};
             }
             const UiAction action = (*items)[item].action;
             Close();
-            return UiEventResult{.handled = true, .needs_render = true, .action = action};
+            return UiEventResult{.handled = true, .action = action};
         }
         return UiEventResult{.handled = true};
     }
@@ -288,16 +288,16 @@ UiEventResult MenuOverlay::OnKeyEvent(const UiKeyEvent& event)
     }
     if (event.virtual_key == VK_ESCAPE) {
         Close();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     if (event.virtual_key == VK_DOWN || event.virtual_key == VK_UP) {
         MoveSelection(event.virtual_key == VK_DOWN ? 1 : -1);
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     if (event.virtual_key == VK_LEFT) {
         if (selected_path_.size() > 1) {
             TrimToDepth(selected_path_.size() - 2);
-            return UiEventResult{.handled = true, .needs_render = true};
+            return UiEventResult{.handled = true};
         }
         return UiEventResult{.handled = true};
     }
@@ -306,7 +306,7 @@ UiEventResult MenuOverlay::OnKeyEvent(const UiKeyEvent& event)
         const MenuItem* item = SelectedItem(depth);
         if (item != nullptr && item->enabled && !item->children.empty()) {
             OpenChild(depth);
-            return UiEventResult{.handled = true, .needs_render = true};
+            return UiEventResult{.handled = true};
         }
         return UiEventResult{.handled = true};
     }
@@ -316,11 +316,11 @@ UiEventResult MenuOverlay::OnKeyEvent(const UiKeyEvent& event)
         if (item != nullptr && item->enabled && !item->separator) {
             if (!item->children.empty()) {
                 OpenChild(depth);
-                return UiEventResult{.handled = true, .needs_render = true};
+                return UiEventResult{.handled = true};
             }
             const UiAction action = item->action;
             Close();
-            return UiEventResult{.handled = true, .needs_render = true, .action = action};
+            return UiEventResult{.handled = true, .action = action};
         }
     }
     return UiEventResult{.handled = true};

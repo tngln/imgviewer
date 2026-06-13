@@ -320,11 +320,12 @@ UiEventResult ImgViewerUiInfoPanel::OnPointerEvent(const UiPointerEvent& event)
     }
 
     if (event.type == UiEventType::PointerWheel) {
-        return UiEventResult{.handled = true, .needs_render = ScrollByWheelDelta(event.wheel_delta)};
+        ScrollByWheelDelta(event.wheel_delta);
+        return UiEventResult{.handled = true};
     }
 
     if (event.type == UiEventType::PointerUp && ToggleHistogramChannelFromPoint(event.point)) {
-        return UiEventResult{.handled = true, .needs_render = true, .value_changed = true};
+        return UiEventResult{.handled = true, .value_changed = true};
     }
 
     return UiEventResult{.handled = true};

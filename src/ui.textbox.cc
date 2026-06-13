@@ -181,13 +181,12 @@ UiEventResult TextBox::OnInputEvent(const UiInputEvent& event)
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .focus = UiFocusRequest::FocusTarget,
             .focus_target = Id(),
         };
     case UiEventType::Timer:
         caret_visible_ = !caret_visible_;
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     default:
         return {};
     }
@@ -202,7 +201,6 @@ UiEventResult TextBox::OnPointerEvent(const UiPointerEvent& event)
         dragging_ = true;
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Capture,
             .focus = UiFocusRequest::FocusTarget,
             .focus_target = Id(),
@@ -212,12 +210,12 @@ UiEventResult TextBox::OnPointerEvent(const UiPointerEvent& event)
     if (event.type == UiEventType::PointerMove && dragging_) {
         edit_.MoveCaret(HitTest(event.point), true);
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
 
     if (event.type == UiEventType::PointerUp && event.captured == Id()) {
         dragging_ = false;
-        return UiEventResult{.handled = true, .needs_render = true, .capture = UiCaptureRequest::Release};
+        return UiEventResult{.handled = true, .capture = UiCaptureRequest::Release};
     }
 
     return {};
@@ -232,7 +230,7 @@ UiEventResult TextBox::OnKeyEvent(const UiKeyEvent& event)
     const bool ctrl = event.modifiers.ctrl;
     if (ctrl && event.virtual_key == 'A') {
         edit_.SelectAll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     if (ctrl && (event.virtual_key == 'C' || event.virtual_key == 'X' || event.virtual_key == 'V')) {
         return UiEventResult{.handled = true, .action = event.virtual_key == 'C' ? kUiActionTextCopy : event.virtual_key == 'X' ? kUiActionTextCut : kUiActionTextPaste};
@@ -242,27 +240,27 @@ UiEventResult TextBox::OnKeyEvent(const UiKeyEvent& event)
     case VK_LEFT:
         edit_.MoveLeft(event.modifiers.shift);
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     case VK_RIGHT:
         edit_.MoveRight(event.modifiers.shift);
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     case VK_HOME:
         edit_.MoveHome(event.modifiers.shift);
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     case VK_END:
         edit_.MoveEnd(event.modifiers.shift);
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     case VK_BACK:
         edit_.Backspace();
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     case VK_DELETE:
         edit_.Delete();
         UpdateHorizontalScroll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     default:
         break;
     }
@@ -276,19 +274,19 @@ UiEventResult TextBox::InsertCharacter(wchar_t ch)
         return {};
     }
     UpdateHorizontalScroll();
-    return UiEventResult{.handled = true, .needs_render = true};
+    return UiEventResult{.handled = true};
 }
 
 UiEventResult TextBox::UpdateImeComposition(std::wstring composition)
 {
     edit_.SetComposition(std::move(composition));
-    return UiEventResult{.handled = true, .needs_render = true};
+    return UiEventResult{.handled = true};
 }
 
 UiEventResult TextBox::EndImeComposition()
 {
     edit_.ClearComposition();
-    return UiEventResult{.handled = true, .needs_render = true};
+    return UiEventResult{.handled = true};
 }
 
 UiEventResult TextBox::ExecuteEditAction(UiAction action, HWND hwnd)
@@ -300,16 +298,16 @@ UiEventResult TextBox::ExecuteEditAction(UiAction action, HWND hwnd)
         if (CopySelection(hwnd)) {
             edit_.Delete();
             UpdateHorizontalScroll();
-            return UiEventResult{.handled = true, .needs_render = true};
+            return UiEventResult{.handled = true};
         }
         return {};
     }
     if (action == kUiActionTextPaste) {
-        return UiEventResult{.handled = PasteClipboard(hwnd), .needs_render = true};
+        return UiEventResult{.handled = PasteClipboard(hwnd)};
     }
     if (action == kUiActionTextSelectAll) {
         edit_.SelectAll();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
     return {};
 }

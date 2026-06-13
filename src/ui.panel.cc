@@ -221,7 +221,8 @@ void ScrollPanel::Render(const UiDrawContext& context, UiRootState state) const
 UiEventResult ScrollPanel::OnPointerEvent(const UiPointerEvent& event)
 {
     if (event.type == UiEventType::PointerWheel) {
-        return UiEventResult{.handled = true, .needs_render = ScrollByWheelDelta(event.wheel_delta)};
+        ScrollByWheelDelta(event.wheel_delta);
+        return UiEventResult{.handled = true};
     }
 
     if (MaxScrollOffset() <= 0.0f) {
@@ -233,24 +234,20 @@ UiEventResult ScrollPanel::OnPointerEvent(const UiPointerEvent& event)
         drag_thumb_pointer_offset_ = event.point.y - thumb.top;
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Capture,
             .focus = UiFocusRequest::ClearFocus,
         };
     }
 
     if (event.type == UiEventType::PointerMove && event.captured == Id()) {
-        return UiEventResult{
-            .handled = true,
-            .needs_render = SetScrollOffsetFromThumbTop(event.point.y - drag_thumb_pointer_offset_),
-        };
+        SetScrollOffsetFromThumbTop(event.point.y - drag_thumb_pointer_offset_);
+        return UiEventResult{.handled = true};
     }
 
     if (event.type == UiEventType::PointerUp && event.captured == Id() && event.button == UiPointerButton::Left) {
-        const bool changed = SetScrollOffsetFromThumbTop(event.point.y - drag_thumb_pointer_offset_);
+        SetScrollOffsetFromThumbTop(event.point.y - drag_thumb_pointer_offset_);
         return UiEventResult{
             .handled = true,
-            .needs_render = changed,
             .capture = UiCaptureRequest::Release,
         };
     }

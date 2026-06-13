@@ -59,7 +59,6 @@ UiEventResult ButtonPointerEvent(UiElement& button, const UiPointerEvent& event)
         const bool can_activate = button.IsEnabled();
         return UiEventResult{
             .handled = true,
-            .needs_render = can_activate,
             .capture = can_activate ? UiCaptureRequest::Capture : UiCaptureRequest::None,
             .focus = can_activate && button.IsFocusable() ? UiFocusRequest::FocusTarget : UiFocusRequest::None,
             .focus_target = can_activate ? button.Id() : UiElementId::None,
@@ -72,13 +71,11 @@ UiEventResult ButtonPointerEvent(UiElement& button, const UiPointerEvent& event)
             button.InvokeClick();
             return UiEventResult{
                 .handled = true,
-                .needs_render = true,
                 .capture = UiCaptureRequest::Release,
             };
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = button.IsEnabled(),
             .capture = UiCaptureRequest::Release,
             .action = activated ? button.Action() : kUiActionNone,
         };
@@ -101,13 +98,11 @@ UiEventResult ButtonKeyEvent(UiElement& button, const UiKeyEvent& event)
         button.InvokeClick();
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
         };
     }
 
     return UiEventResult{
         .handled = true,
-        .needs_render = true,
         .action = button.Action(),
     };
 }

@@ -294,7 +294,6 @@ UiEventResult ImgViewerUiToolbar::OnDragHandlePointerEvent(const UiPointerEvent&
         Drag(event.point);
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
         };
     }
 
@@ -302,7 +301,6 @@ UiEventResult ImgViewerUiToolbar::OnDragHandlePointerEvent(const UiPointerEvent&
         EndDrag();
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Release,
         };
     }

@@ -1357,14 +1357,14 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         if (!HitTestObject(document_point, DocumentHitSlop(viewer, viewport_size), &object)) {
             const bool had_selection = HasSelection();
             CancelSelection();
-            return ImgViewerEventResult{.handled = had_selection, .needs_render = had_selection};
+            return ImgViewerEventResult{.handled = had_selection};
         }
 
         selected_object_ = object;
         has_selected_object_ = true;
         move_start_document_point_ = document_point;
         moving_selected_object_ = CaptureMoveOriginal(object);
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = moving_selected_object_};
+        return ImgViewerEventResult{.handled = true, .captured = moving_selected_object_};
     }
 
     if (tool_ == ImgViewerEditTool::Pen) {
@@ -1374,7 +1374,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         };
         AppendStrokePoint(&current_stroke_, document_point);
         drawing_stroke_ = true;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+        return ImgViewerEventResult{.handled = true, .captured = true};
     }
 
     if (tool_ == ImgViewerEditTool::Shape) {
@@ -1387,7 +1387,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
             .width = pen_width_,
         };
         drawing_shape_ = true;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+        return ImgViewerEventResult{.handled = true, .captured = true};
     }
 
     if (tool_ == ImgViewerEditTool::PixelSelect) {
@@ -1397,7 +1397,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
             document_.source_size);
         drawing_pixel_selection_ = true;
         has_pixel_selection_ = false;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+        return ImgViewerEventResult{.handled = true, .captured = true};
     }
 
     if (tool_ == ImgViewerEditTool::Text) {
@@ -1409,7 +1409,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         };
         document_.texts.push_back(text);
         BeginTextEditSession(document_.texts.size() - 1, true);
-        return ImgViewerEventResult{.handled = true, .needs_render = true};
+        return ImgViewerEventResult{.handled = true};
     }
 
     if (tool_ == ImgViewerEditTool::Crop) {
@@ -1420,7 +1420,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
             active_crop_edge_ = edge;
             dragging_crop_edge_kind_ = edge;
             dragging_crop_edge_ = true;
-            return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+            return ImgViewerEventResult{.handled = true, .captured = true};
         }
 
         crop_start_ = document_point;
@@ -1430,7 +1430,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDown(
         active_crop_edge_ = ImgViewerCropEdge::None;
         dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
         dragging_crop_edge_ = true;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .captured = true};
+        return ImgViewerEventResult{.handled = true, .captured = true};
     }
 
     return {};
@@ -1455,7 +1455,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
     if (!DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
         if (tool_ == ImgViewerEditTool::Crop && !dragging_crop_edge_ && active_crop_edge_ != ImgViewerCropEdge::None) {
             active_crop_edge_ = ImgViewerCropEdge::None;
-            return ImgViewerEventResult{.handled = true, .needs_render = true};
+            return ImgViewerEventResult{.handled = true};
         }
         return ImgViewerEventResult{.handled = true};
     }
@@ -1466,14 +1466,13 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
             document_point.y - move_start_document_point_.y);
         return ImgViewerEventResult{
             .handled = true,
-            .needs_render = ApplyObjectOffset(selected_object_, offset),
         };
     }
 
     if (drawing_shape_) {
         current_shape_.end = document_point;
         current_shape_.rect = NormalizedRect(current_shape_.start, document_point, document_.source_size);
-        return ImgViewerEventResult{.handled = true, .needs_render = true};
+        return ImgViewerEventResult{.handled = true};
     }
 
     if (tool_ == ImgViewerEditTool::Crop && dragging_crop_edge_) {
@@ -1483,25 +1482,25 @@ ImgViewerEventResult ImgViewerEditController::OnPointerMove(
             UpdatePendingCropEdge(document_point);
         }
         current_crop_rect_ = pending_crop_rect_;
-        return ImgViewerEventResult{.handled = true, .needs_render = true};
+        return ImgViewerEventResult{.handled = true};
     }
 
     if (tool_ == ImgViewerEditTool::Crop && has_pending_crop_) {
         const ImgViewerCropEdge edge = CropEdgeAt(document_point, DocumentHitSlop(viewer, viewport_size));
         const bool changed = edge != active_crop_edge_;
         active_crop_edge_ = edge;
-        return ImgViewerEventResult{.handled = edge != ImgViewerCropEdge::None, .needs_render = changed};
+        return ImgViewerEventResult{.handled = edge != ImgViewerCropEdge::None};
     }
 
     if (drawing_pixel_selection_) {
         current_pixel_selection_rect_ = PixelAlignedRect(
             NormalizedRect(pixel_selection_start_, document_point, document_.source_size),
             document_.source_size);
-        return ImgViewerEventResult{.handled = true, .needs_render = true};
+        return ImgViewerEventResult{.handled = true};
     }
 
     AppendStrokePoint(&current_stroke_, document_point);
-    return ImgViewerEventResult{.handled = true, .needs_render = true};
+    return ImgViewerEventResult{.handled = true};
 }
 
 ImgViewerEventResult ImgViewerEditController::OnPointerUp(
@@ -1523,7 +1522,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
         }
         CommitObjectMove();
         moving_selected_object_ = false;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+        return ImgViewerEventResult{.handled = true, .released_capture = true};
     }
 
     if (drawing_stroke_ && DocumentPointFromViewportPoint(point, viewer, viewport_size, &document_point)) {
@@ -1542,7 +1541,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
         }
         current_shape_ = ImgViewerEditShape{};
         drawing_shape_ = false;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+        return ImgViewerEventResult{.handled = true, .released_capture = true};
     }
 
     if (dragging_crop_edge_) {
@@ -1557,7 +1556,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
         dragging_crop_edge_ = false;
         dragging_crop_edge_kind_ = ImgViewerCropEdge::None;
         current_crop_rect_ = pending_crop_rect_;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+        return ImgViewerEventResult{.handled = true, .released_capture = true};
     }
 
     if (drawing_pixel_selection_) {
@@ -1571,7 +1570,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
         pixel_selection_rect_ = has_pixel_selection_ ? selection_rect : D2D1_RECT_F{};
         current_pixel_selection_rect_ = D2D1_RECT_F{};
         drawing_pixel_selection_ = false;
-        return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+        return ImgViewerEventResult{.handled = true, .released_capture = true};
     }
 
     if (current_stroke_.points.size() > 1) {
@@ -1581,7 +1580,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerUp(
     }
     current_stroke_ = ImgViewerEditStroke{};
     drawing_stroke_ = false;
-    return ImgViewerEventResult{.handled = true, .needs_render = true, .released_capture = true};
+    return ImgViewerEventResult{.handled = true, .released_capture = true};
 }
 
 ImgViewerEventResult ImgViewerEditController::OnPointerDoubleClick(
@@ -1608,7 +1607,7 @@ ImgViewerEventResult ImgViewerEditController::OnPointerDoubleClick(
     if (object.kind == ImgViewerEditObjectKind::Text) {
         BeginTextEditSession(object.index, false);
     }
-    return ImgViewerEventResult{.handled = true, .needs_render = true};
+    return ImgViewerEventResult{.handled = true};
 }
 
 HRESULT ImgViewerEditController::ExportPngSource(

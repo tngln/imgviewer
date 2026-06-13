@@ -264,7 +264,7 @@ UiEventResult Table::OnPointerEvent(const UiPointerEvent& event)
         const float old_offset = scroll_offset_;
         scroll_offset_ = std::clamp(scroll_offset_ - static_cast<float>(event.wheel_delta) / static_cast<float>(WHEEL_DELTA) * row_height_ * 2.0f, 0.0f, MaxScrollOffset());
         ArrangeEditor();
-        return UiEventResult{.handled = true, .needs_render = old_offset != scroll_offset_};
+        return UiEventResult{.handled = true};
     }
     if (event.button != UiPointerButton::Left &&
         (event.type == UiEventType::PointerDown || event.type == UiEventType::PointerUp)) {
@@ -275,7 +275,7 @@ UiEventResult Table::OnPointerEvent(const UiPointerEvent& event)
         const size_t old_hovered = hovered_index_;
         const size_t row = RowAt(event.point);
         hovered_index_ = IsSelectableRow(row) ? row : kNoSelection;
-        return UiEventResult{.handled = true, .needs_render = old_hovered != hovered_index_};
+        return UiEventResult{.handled = true};
     }
 
     if (event.type == UiEventType::PointerDown) {
@@ -284,7 +284,6 @@ UiEventResult Table::OnPointerEvent(const UiPointerEvent& event)
         }
         return UiEventResult{
             .handled = true,
-            .needs_render = true,
             .capture = UiCaptureRequest::Capture,
             .focus = UiFocusRequest::FocusTarget,
             .focus_target = Id(),
@@ -306,13 +305,12 @@ UiEventResult Table::OnPointerEvent(const UiPointerEvent& event)
             }
             return UiEventResult{
                 .handled = true,
-                .needs_render = true,
                 .capture = UiCaptureRequest::Release,
                 .value_changed = changed,
                 .effect_target = Id(),
             };
         }
-        return UiEventResult{.handled = true, .needs_render = true, .capture = UiCaptureRequest::Release};
+        return UiEventResult{.handled = true, .capture = UiCaptureRequest::Release};
     }
 
     return {};
@@ -367,7 +365,6 @@ UiEventResult Table::OnKeyEvent(const UiKeyEvent& event)
     EnsureSelectionVisible();
     return UiEventResult{
         .handled = true,
-        .needs_render = true,
         .value_changed = changed,
         .effect_target = Id(),
     };
@@ -589,7 +586,6 @@ UiEventResult Table::BeginEdit(size_t row, size_t column)
     UiElement* editor = ActiveEditor();
     return UiEventResult{
         .handled = true,
-        .needs_render = true,
         .focus = UiFocusRequest::FocusTarget,
         .focus_target = editor != nullptr ? editor->Id() : Id(),
     };
@@ -639,7 +635,6 @@ UiEventResult Table::EndEdit(bool commit)
     }
     return UiEventResult{
         .handled = true,
-        .needs_render = true,
         .focus = UiFocusRequest::FocusTarget,
         .focus_target = Id(),
         .value_changed = can_commit,

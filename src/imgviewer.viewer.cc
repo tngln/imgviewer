@@ -265,7 +265,6 @@ ImgViewerEventResult ImgViewerController::OnPointerMove(float x, float y, D2D1_S
         image_last_rotation_angle_ = angle;
         return ImgViewerEventResult{
             .handled = true,
-            .needs_render = true,
         };
     }
 
@@ -290,7 +289,6 @@ ImgViewerEventResult ImgViewerController::OnPointerMove(float x, float y, D2D1_S
         image_last_pan_point_ = point;
         return ImgViewerEventResult{
             .handled = true,
-            .needs_render = true,
         };
     }
 
@@ -600,7 +598,6 @@ ImgViewerEventResult ImgViewerController::OnActionUp(ImgViewerAction action)
         if (should_rotate_clockwise && RotateClockwise()) {
             return ImgViewerEventResult{
                 .handled = true,
-                .needs_render = true,
             };
         }
 

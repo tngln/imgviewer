@@ -222,12 +222,12 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
     if (event.type == UiEventType::Cancel || event.type == UiEventType::OwnerDeactivated ||
         (event.type == UiEventType::KeyDown && event.key.virtual_key == VK_ESCAPE)) {
         Close();
-        return UiEventResult{.handled = true, .needs_render = true};
+        return UiEventResult{.handled = true};
     }
 
     if (event.type == UiEventType::PointerDown && event.hwnd == owner_) {
         Close();
-        return UiEventResult{.needs_render = true};
+        return UiEventResult{};
     }
 
     if (content_ != nullptr) {
