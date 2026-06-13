@@ -14,12 +14,10 @@
 #include "imgviewer.ui.color_picker_toolstrip.hpp"
 #include "imgviewer.ui.edit_toolbar.hpp"
 #include "imgviewer.ui.info_panel.hpp"
-#include "imgviewer.ui.pen_toolstrip.hpp"
-#include "imgviewer.ui.selection_toolstrip.hpp"
-#include "imgviewer.ui.shape_toolstrip.hpp"
 #include "imgviewer.ui.text_toolstrip.hpp"
 #include "imgviewer.ui.titlebar.hpp"
 #include "imgviewer.ui.toolbar.hpp"
+#include "imgviewer.ui.toolstrip.hpp"
 #include "ui.toast.hpp"
 
 class ImgViewerUi final : public UiRoot {
@@ -65,10 +63,10 @@ private:
     ImgViewerUiToolbar toolbar_;
     ImgViewerUiColorPickerToolstrip color_picker_toolstrip_;
     ImgViewerUiEditToolbar edit_toolbar_;
-    ImgViewerUiPenToolstrip pen_toolstrip_;
-    ImgViewerUiShapeToolstrip shape_toolstrip_;
+    ImgViewerUiToolStrip pen_toolstrip_;
+    ImgViewerUiToolStrip shape_toolstrip_;
     ImgViewerUiTextToolstrip text_toolstrip_;
-    ImgViewerUiSelectionToolstrip selection_toolstrip_;
+    ImgViewerUiToolStrip selection_toolstrip_;
     ImgViewerUiAnimationToolbar animation_toolbar_;
     ImgViewerUiInfoPanel info_panel_;
     UiToast toast_;
