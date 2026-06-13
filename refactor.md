@@ -24,6 +24,13 @@
 
 **性能备注（用户观察，已推迟到计划后专项）**：复杂交互下 CPU/GPU 偏高，根因是全量重绘 + 每帧重画全部三层 DComp（image/edit/ui_overlay）。按 §3.4，正解是**按层失效**——UI overlay 变化时不应重画昂贵的 image 层。属计划后性能热点专项。
 
+### 后续会话追加
+
+- **缺陷修复 L1（modal 集合）**：`ImgViewerInteractionState` 的 `modal_` 单槽改为**位掩码集合**（`IsModal(owner)` + `HasModal()`）。修复“开 Settings 后主窗口弹出菜单 → `SyncPopupModal` 用 Popup 覆盖 Settings → 关菜单后 modal 清空 → edge-click 误重新启用”。加 `TestModalStack` 单测（98 checks）。
+- **双宿主合并：评估后暂缓（用户同意）**。细读两宿主后的诚实结论：主窗口宿主的体量是**固有复杂度**而非重复——两者已共享 `ui.host_ime/popup/accessibility/effects`；`imgviewer.host.*` 余下的是画布输入路由（viewer/edit/取色/edge-click + capture 门控）、三层 DComp 渲染、文档坐标 IME、borderless chrome、动画 timer 等主窗口专属逻辑，迁到 delegate 也不会消失。真正重复的只有 `WM_* → UiInputEvent` 构造 + 坐标换算。故**不做强行合并**，改为定点抽取：
+  - 新增 `ui.host_input.{hpp,cc}`：共享坐标换算（`ClientPixelSize`/`PhysicalClientPointToUi`/`ScreenPointToUi`/`DpiScale`/`UiPointToPhysicalClient`），`UiWindowHost` 与主窗口 pointer 处理器均采用之。
+  - 完整合并（render-delegation hook + 画布/chrome/IME hooks + `ImgViewerMainDelegate`）留待更晚，收益主要是架构一致性而非删码量。
+
 ---
 
 ## 0. 一句话结论
