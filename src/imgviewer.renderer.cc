@@ -488,10 +488,44 @@ HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, const ImgVi
 {
     const ImgViewerSnapshot image = viewer.Snapshot();
     const ImgViewerEditSnapshot edit_snapshot = edit.Snapshot();
-    RETURN_IF_FAILED(RenderImageLayer(image, edit_snapshot));
+
+    // Per-layer invalidation: the image layer (large bitmap blit) is only
+    // re-rendered when its inputs change, so high-frequency UI/edit interaction
+    // over a big image does not keep repainting it (refactor.md 3.4).
+    const ImageLayerKey image_key = ComputeImageLayerKey(image, edit_snapshot);
+    if (!last_image_key_.has_value() || *last_image_key_ != image_key) {
+        RETURN_IF_FAILED(RenderImageLayer(image, edit_snapshot));
+        last_image_key_ = image_key;
+    }
     RETURN_IF_FAILED(RenderEditLayer(image, edit_snapshot));
     RETURN_IF_FAILED(ui_renderer_.RenderUiOverlay(ui_overlay_surface_, ui));
     return ui_renderer_.Commit();
+}
+
+ImgViewerRenderer::ImageLayerKey ImgViewerRenderer::ComputeImageLayerKey(
+    const ImgViewerSnapshot& image,
+    const ImgViewerEditSnapshot& edit) const
+{
+    const D2D1_SIZE_U viewport = ui_renderer_.ViewportPixelSize();
+    return ImageLayerKey{
+        .bitmap = image.bitmap,
+        .display_format = image.bitmap != nullptr ? image.display_format : DXGI_FORMAT_B8G8R8A8_UNORM,
+        .pixel_width = image.pixel_size.width,
+        .pixel_height = image.pixel_size.height,
+        .zoom_multiplier = image.zoom_multiplier,
+        .view_center_x = image.view_center.x,
+        .view_center_y = image.view_center.y,
+        .rotation_degrees = image.rotation_degrees,
+        .flipped_horizontal = image.flipped_horizontal,
+        .flipped_vertical = image.flipped_vertical,
+        .pixelated_sampling = image.pixelated_sampling,
+        .edit_active = edit.active,
+        .edit_rotation_quadrants = edit.active ? edit.rotation_quadrants : 0,
+        .checkerboard_background = checkerboard_background_,
+        .dpi_scale = ui_renderer_.DpiScale(),
+        .viewport_width = viewport.width,
+        .viewport_height = viewport.height,
+    };
 }
 
 HRESULT ImgViewerRenderer::SetUiOverlayVisible(bool visible)
