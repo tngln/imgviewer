@@ -61,6 +61,14 @@ void ResetAfterImageLoad(HWND hwnd, ImgViewerContext* context)
     SetImgViewerColorPickerActive(hwnd, context, false);
 }
 
+void FinishImgViewerImageLoad(HWND hwnd, ImgViewerContext* context, const std::wstring& title_text)
+{
+    context->main_ui->SetTitleText(title_text.c_str());
+    SetWindowTextW(hwnd, title_text.c_str());
+    SyncImgViewerAnimationTimer(hwnd, context);
+    InvalidateRect(hwnd, nullptr, FALSE);
+}
+
 ImgViewerContext::ImgViewerContext() : ui(CreateMainUi(&main_ui)) {}
 
 HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
@@ -896,10 +904,7 @@ void LoadImgViewerImageFile(HWND hwnd, ImgViewerContext* context, const wchar_t*
         swprintf_s(position_text, L" (%zu/%zu)", position.index, position.total);
     }
     const std::wstring title_text = file_name + position_text + L"  " + util::FormatImageDimensions(image_size);
-    context->main_ui->SetTitleText(title_text.c_str());
-    SetWindowTextW(hwnd, title_text.c_str());
-    SyncImgViewerAnimationTimer(hwnd, context);
-    InvalidateRect(hwnd, nullptr, FALSE);
+    FinishImgViewerImageLoad(hwnd, context, title_text);
 }
 
 bool NavigateImgViewerImageFile(HWND hwnd, ImgViewerContext* context, int direction)
@@ -1001,10 +1006,7 @@ HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWIC
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     const std::wstring title_text = L"<Screenshot>  " + util::FormatImageDimensions(image_size);
-    context->main_ui->SetTitleText(title_text.c_str());
-    SetWindowTextW(hwnd, title_text.c_str());
-    SyncImgViewerAnimationTimer(hwnd, context);
-    InvalidateRect(hwnd, nullptr, FALSE);
+    FinishImgViewerImageLoad(hwnd, context, title_text);
     return S_OK;
 }
 
@@ -1108,10 +1110,7 @@ void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context)
 
     const D2D1_SIZE_U image_size = context->viewer.CurrentImagePixelSize();
     const std::wstring title_text = L"<Clipboard>  " + util::FormatImageDimensions(image_size);
-    context->main_ui->SetTitleText(title_text.c_str());
-    SetWindowTextW(hwnd, title_text.c_str());
-    SyncImgViewerAnimationTimer(hwnd, context);
-    InvalidateRect(hwnd, nullptr, FALSE);
+    FinishImgViewerImageLoad(hwnd, context, title_text);
 }
 
 namespace {
