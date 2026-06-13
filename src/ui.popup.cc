@@ -232,7 +232,7 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
 
     if (content_ != nullptr) {
         UiEventResult result = content_->OnInputEvent(OffsetPopupEvent(event));
-        if (result.needs_render && !result.close_popup && popup_hwnd_ != nullptr) {
+        if (!result.close_popup && popup_hwnd_ != nullptr) {
             bool resized = false;
             ResizeNativePopupToContent(&resized);
             if (!resized) {
@@ -476,7 +476,7 @@ HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
 
 void PopupHost::HandlePopupResult(UiEventResult result)
 {
-    if (result.needs_render && !result.close_popup && popup_hwnd_ != nullptr) {
+    if (!result.close_popup && popup_hwnd_ != nullptr) {
         bool resized = false;
         ResizeNativePopupToContent(&resized);
         if (!resized) {

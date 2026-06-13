@@ -293,10 +293,8 @@ struct DeveloperWindowContext final : public UiWindowDelegate {
             action == kUiActionTextPaste ||
             action == kUiActionTextSelectAll) {
             if (ui != nullptr) {
-                const UiEventResult result = ui->ExecuteTextAction(action, window_host.Hwnd());
-                if (result.needs_render) {
-                    window_host.Invalidate();
-                }
+                ui->ExecuteTextAction(action, window_host.Hwnd());
+                window_host.Invalidate();
             }
             return true;
         }

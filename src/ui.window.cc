@@ -502,7 +502,8 @@ void UiWindowHost::HandleUiResult(UiEventResult result)
 {
     ApplyUiCaptureRequest(window_.Hwnd(), result.capture);
     const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(window_.Hwnd(), &ui_, result.effect_target);
-    RequestWindowRender(window_.Hwnd(), result.needs_render && !invalidated_for_effect);
+    // Full-repaint doctrine: any dispatched event repaints the layer (refactor.md 3.4).
+    RequestWindowRender(window_.Hwnd(), !invalidated_for_effect);
     if (result.value_changed) {
         delegate_->OnUiValueChanged(*this, result);
     }

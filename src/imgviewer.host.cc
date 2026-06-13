@@ -295,8 +295,8 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
     }
 
     const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(hwnd, &context->ui, effects.effect_target);
-    effects.needs_render = invalidated_for_effect || effects.needs_render;
-    RequestWindowRender(hwnd, effects.needs_render && !invalidated_for_effect);
+    // Full-repaint doctrine: dispatched events repaint the layer (refactor.md 3.4).
+    RequestWindowRender(hwnd, !invalidated_for_effect);
 
     const ImgViewerHostEffects action_effects = DispatchUiAction(hwnd, context, effects.action);
     if (effects.sync_popup_modal) {

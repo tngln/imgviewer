@@ -616,10 +616,8 @@ bool SettingsWindowContext::OnUiAction(UiWindowHost& window_host, UiAction actio
         action == kUiActionTextPaste ||
         action == kUiActionTextSelectAll) {
         if (ui != nullptr) {
-            const UiEventResult result = ui->ExecuteTextAction(action, window_host.Hwnd());
-            if (result.needs_render) {
-                window_host.Invalidate();
-            }
+            ui->ExecuteTextAction(action, window_host.Hwnd());
+            window_host.Invalidate();
         }
         return true;
     }
