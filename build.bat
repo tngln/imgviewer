@@ -59,10 +59,17 @@ if errorlevel 1 (
     exit /b 1
 )
 
+set "BUILD_LOG=%TEMP%\imgviewer-build-%RANDOM%-%RANDOM%.log"
+
 "%CMAKE_EXE%" --preset "%CONFIG%"
 if errorlevel 1 exit /b %errorlevel%
 
-"%CMAKE_EXE%" --build --preset "%CONFIG%"
-if errorlevel 1 exit /b %errorlevel%
+"%CMAKE_EXE%" --build --preset "%CONFIG%" >"%BUILD_LOG%" 2>&1
+set "BUILD_EXIT=%ERRORLEVEL%"
+python "%ROOT%tools\filter_build_output.py" "%BUILD_LOG%"
+set "FILTER_EXIT=%ERRORLEVEL%"
+del "%BUILD_LOG%" >nul 2>nul
+if not "%FILTER_EXIT%"=="0" exit /b %FILTER_EXIT%
+if not "%BUILD_EXIT%"=="0" exit /b %BUILD_EXIT%
 
 echo Built %ROOT%build\%CONFIG%\imgviewer.exe
