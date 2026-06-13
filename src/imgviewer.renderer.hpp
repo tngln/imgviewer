@@ -59,4 +59,8 @@ private:
     bool ui_overlay_visible_ = true;
     bool checkerboard_background_ = false;
     std::optional<ImageLayerKey> last_image_key_;
+    // Edit overlay is empty unless editing; once it has settled into the
+    // inactive (cleared) state, stop repainting it. While editing it always
+    // renders (stroke/selection content changes per frame).
+    bool last_edit_active_ = true;
 };

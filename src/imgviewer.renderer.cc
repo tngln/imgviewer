@@ -497,7 +497,12 @@ HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, const ImgVi
         RETURN_IF_FAILED(RenderImageLayer(image, edit_snapshot));
         last_image_key_ = image_key;
     }
-    RETURN_IF_FAILED(RenderEditLayer(image, edit_snapshot));
+    // Render the edit overlay while editing, plus once more on the transition to
+    // inactive so the surface is cleared; then leave it untouched.
+    if (edit_snapshot.active || last_edit_active_) {
+        RETURN_IF_FAILED(RenderEditLayer(image, edit_snapshot));
+        last_edit_active_ = edit_snapshot.active;
+    }
     RETURN_IF_FAILED(ui_renderer_.RenderUiOverlay(ui_overlay_surface_, ui));
     return ui_renderer_.Commit();
 }
