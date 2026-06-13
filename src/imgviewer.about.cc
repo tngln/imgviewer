@@ -131,7 +131,7 @@ struct AboutWindowContext final : public UiWindowDelegate {
     void OnDestroy(UiWindowHost&) override
     {
         if (owner != nullptr) {
-            PostMessageW(owner, kImgViewerAboutDestroyedMessage, 0, reinterpret_cast<LPARAM>(this));
+            PostMessageW(owner, kImgViewerOwnedWindowDestroyedMessage, 0, reinterpret_cast<LPARAM>(static_cast<UiWindowDelegate*>(this)));
         }
     }
 
@@ -212,13 +212,4 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
     about_context->host.Window().Show(SW_SHOWNORMAL);
     context->interaction.SetModal(ImgViewerModalOwner::About);
     return S_OK;
-}
-
-void CleanupImgViewerAboutWindow(ImgViewerContext* context, void* about_context)
-{
-    if (context != nullptr && context->about_context == about_context) {
-        context->about_context = nullptr;
-        context->interaction.ClearModal(ImgViewerModalOwner::About);
-    }
-    delete static_cast<AboutWindowContext*>(about_context);
 }

@@ -280,7 +280,7 @@ struct DeveloperWindowContext final : public UiWindowDelegate {
     void OnDestroy(UiWindowHost&) override
     {
         if (owner != nullptr) {
-            PostMessageW(owner, kImgViewerDeveloperDestroyedMessage, 0, reinterpret_cast<LPARAM>(this));
+            PostMessageW(owner, kImgViewerOwnedWindowDestroyedMessage, 0, reinterpret_cast<LPARAM>(static_cast<UiWindowDelegate*>(this)));
         } else if (standalone) {
             PostQuitMessage(0);
         }
@@ -378,20 +378,6 @@ HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context)
     UNREFERENCED_PARAMETER(owner);
     UNREFERENCED_PARAMETER(context);
     return S_FALSE;
-#endif
-}
-
-void CleanupImgViewerDeveloperWindow(ImgViewerContext* context, void* developer_context)
-{
-#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
-    if (context != nullptr && context->developer_context == developer_context) {
-        context->developer_context = nullptr;
-        context->interaction.ClearModal(ImgViewerModalOwner::Developer);
-    }
-    delete static_cast<DeveloperWindowContext*>(developer_context);
-#else
-    UNREFERENCED_PARAMETER(context);
-    UNREFERENCED_PARAMETER(developer_context);
 #endif
 }
 

@@ -4,11 +4,36 @@
 #include "imgviewer.ui.hpp"
 #include "ui.host_accessibility.hpp"
 #include "ui.host_effects.hpp"
+#include "ui.window.hpp"
 
 #include <windows.h>
 #include <shellapi.h>
 
 #include <vector>
+
+// Owned child windows (Settings/About/Developer) post a single
+// kImgViewerOwnedWindowDestroyedMessage with their UiWindowDelegate* on destroy.
+// One cleanup clears the matching slot/modal and deletes via the virtual base
+// dtor (replaces three near-identical per-window handshakes; refactor.md L2).
+void CleanupImgViewerOwnedWindow(ImgViewerContext* context, UiWindowDelegate* window)
+{
+    if (window == nullptr) {
+        return;
+    }
+    if (context != nullptr) {
+        if (context->settings_context == window) {
+            context->settings_context = nullptr;
+            context->interaction.ClearModal(ImgViewerModalOwner::Settings);
+        } else if (context->about_context == window) {
+            context->about_context = nullptr;
+            context->interaction.ClearModal(ImgViewerModalOwner::About);
+        } else if (context->developer_context == window) {
+            context->developer_context = nullptr;
+            context->interaction.ClearModal(ImgViewerModalOwner::Developer);
+        }
+    }
+    delete window;
+}
 
 win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
@@ -28,24 +53,10 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
         return win32::WindowMessageResult::Handled();
     }
 
-    case kImgViewerSettingsDestroyedMessage: {
-        CleanupImgViewerSettingsWindow(
+    case kImgViewerOwnedWindowDestroyedMessage: {
+        CleanupImgViewerOwnedWindow(
             GetImgViewerContext(hwnd),
-            reinterpret_cast<void*>(lparam));
-        return win32::WindowMessageResult::Handled();
-    }
-
-    case kImgViewerAboutDestroyedMessage: {
-        CleanupImgViewerAboutWindow(
-            GetImgViewerContext(hwnd),
-            reinterpret_cast<void*>(lparam));
-        return win32::WindowMessageResult::Handled();
-    }
-
-    case kImgViewerDeveloperDestroyedMessage: {
-        CleanupImgViewerDeveloperWindow(
-            GetImgViewerContext(hwnd),
-            reinterpret_cast<void*>(lparam));
+            reinterpret_cast<UiWindowDelegate*>(lparam));
         return win32::WindowMessageResult::Handled();
     }
 

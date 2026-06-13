@@ -27,6 +27,7 @@
 constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 
 class ImgViewerUi;
+class UiWindowDelegate;
 
 struct ImgViewerContext final {
     ImgViewerContext();
@@ -52,9 +53,9 @@ struct ImgViewerContext final {
     wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
     wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
-    void* settings_context = nullptr;
-    void* about_context = nullptr;
-    void* developer_context = nullptr;
+    UiWindowDelegate* settings_context = nullptr;
+    UiWindowDelegate* about_context = nullptr;
+    UiWindowDelegate* developer_context = nullptr;
     bool color_picker_active = false;
     bool color_picker_has_sample = false;
     std::wstring color_picker_hex_text;
@@ -98,8 +99,6 @@ void HandleImgViewerCaptureRegion(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);
-void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_context);
 HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context);
-void CleanupImgViewerAboutWindow(ImgViewerContext* context, void* about_context);
 HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context);
-void CleanupImgViewerDeveloperWindow(ImgViewerContext* context, void* developer_context);
+void CleanupImgViewerOwnedWindow(ImgViewerContext* context, UiWindowDelegate* window);

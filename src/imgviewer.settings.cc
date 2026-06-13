@@ -556,7 +556,7 @@ struct SettingsWindowContext final : public UiWindowDelegate {
                 SetImgViewerToolbarScale(owner, app, original_toolbar_scale_percent);
             }
             app->settings_window = nullptr;
-            PostMessageW(owner, kImgViewerSettingsDestroyedMessage, 0, reinterpret_cast<LPARAM>(this));
+            PostMessageW(owner, kImgViewerOwnedWindowDestroyedMessage, 0, reinterpret_cast<LPARAM>(static_cast<UiWindowDelegate*>(this)));
         }
     }
 
@@ -736,11 +736,3 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
     return S_OK;
 }
 
-void CleanupImgViewerSettingsWindow(ImgViewerContext* context, void* settings_context)
-{
-    if (context != nullptr && context->settings_context == settings_context) {
-        context->settings_context = nullptr;
-        context->interaction.ClearModal(ImgViewerModalOwner::Settings);
-    }
-    delete static_cast<SettingsWindowContext*>(settings_context);
-}
