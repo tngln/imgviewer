@@ -155,33 +155,59 @@ std::wstring PngPrimariesName(BYTE value)
     }
 }
 
-void InspectIccProfileHint(const BYTE* data, size_t size, ImageColorInfo* color)
+uint32_t ReadBe32(const BYTE* data)
 {
-    if (data == nullptr || color == nullptr || size == 0) {
+    return (static_cast<uint32_t>(data[0]) << 24) |
+        (static_cast<uint32_t>(data[1]) << 16) |
+        (static_cast<uint32_t>(data[2]) << 8) |
+        static_cast<uint32_t>(data[3]);
+}
+
+void ApplyCicpMetadata(BYTE primaries, BYTE transfer, ImageColorInfo* color)
+{
+    color->dynamic_range.primaries = PngPrimariesName(primaries);
+    color->dynamic_range.transfer_function = PngTransferName(transfer);
+    const bool high_dynamic_range = transfer == 16 || transfer == 18;
+    color->dynamic_range.high_dynamic_range = color->dynamic_range.high_dynamic_range || high_dynamic_range;
+    color->dynamic_range.has_hdr_metadata = color->dynamic_range.has_hdr_metadata || high_dynamic_range;
+}
+
+void InspectIccProfileMetadata(const BYTE* data, size_t size, ImageColorInfo* color)
+{
+    if (data == nullptr || color == nullptr || size < 132) {
         return;
     }
 
-    std::string text;
-    text.reserve(size);
-    for (size_t index = 0; index < size; ++index) {
-        const BYTE value = data[index];
-        if (value >= 0x20 && value <= 0x7E) {
-            text.push_back(static_cast<char>(value));
+    constexpr char kIccSignature[] = "acsp";
+    if (std::memcmp(data + 36, kIccSignature, sizeof(kIccSignature) - 1) != 0) {
+        return;
+    }
+
+    const uint32_t tag_count = ReadBe32(data + 128);
+    if (tag_count > (size - 132) / 12) {
+        return;
+    }
+
+    constexpr char kCicpTag[] = "cicp";
+    for (uint32_t index = 0; index < tag_count; ++index) {
+        const BYTE* tag = data + 132 + static_cast<size_t>(index) * 12;
+        if (std::memcmp(tag, kCicpTag, sizeof(kCicpTag) - 1) != 0) {
+            continue;
         }
-    }
 
-    if (text.find("HLG") != std::string::npos) {
-        color->dynamic_range.transfer_function = L"HLG";
-        color->dynamic_range.high_dynamic_range = true;
-        color->dynamic_range.has_hdr_metadata = true;
-    } else if (text.find("PeQ") != std::string::npos || text.find("PQ") != std::string::npos) {
-        color->dynamic_range.transfer_function = L"PQ";
-        color->dynamic_range.high_dynamic_range = true;
-        color->dynamic_range.has_hdr_metadata = true;
-    }
+        const uint32_t offset = ReadBe32(tag + 4);
+        const uint32_t length = ReadBe32(tag + 8);
+        if (offset > size || length > size - offset || length < 12) {
+            return;
+        }
 
-    if (text.find("202") != std::string::npos || text.find("BT2020") != std::string::npos) {
-        color->dynamic_range.primaries = L"BT.2020";
+        const BYTE* cicp = data + offset;
+        if (std::memcmp(cicp, kCicpTag, sizeof(kCicpTag) - 1) != 0) {
+            return;
+        }
+
+        ApplyCicpMetadata(cicp[8], cicp[9], color);
+        return;
     }
 }
 
@@ -218,11 +244,7 @@ void InspectPngMetadata(const wchar_t* path, ImageColorInfo* color)
         } else if (IsChunkType(type, "iCCP")) {
             color->has_icc_profile = true;
         } else if (IsChunkType(type, "cICP") && length >= 4) {
-            color->dynamic_range.primaries = PngPrimariesName(bytes[data_offset]);
-            color->dynamic_range.transfer_function = PngTransferName(bytes[data_offset + 1]);
-            color->dynamic_range.high_dynamic_range =
-                bytes[data_offset + 1] == 16 || bytes[data_offset + 1] == 18;
-            color->dynamic_range.has_hdr_metadata = color->dynamic_range.high_dynamic_range;
+            ApplyCicpMetadata(bytes[data_offset], bytes[data_offset + 1], color);
         } else if (IsChunkType(type, "cLLi") || IsChunkType(type, "mDCv")) {
             color->dynamic_range.has_hdr_metadata = true;
         } else if (IsChunkType(type, "IEND")) {
@@ -276,7 +298,7 @@ void InspectJpegMetadata(const wchar_t* path, ImageColorInfo* color)
             constexpr char kIccSignature[] = "ICC_PROFILE";
             if (std::memcmp(bytes.data() + data_offset, kIccSignature, sizeof(kIccSignature) - 1) == 0) {
                 color->has_icc_profile = true;
-                InspectIccProfileHint(
+                InspectIccProfileMetadata(
                     bytes.data() + data_offset + 14,
                     static_cast<size_t>(length - 2 - 14),
                     color);
