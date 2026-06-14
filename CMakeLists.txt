@@ -59,6 +59,7 @@ add_executable(imgviewer
     src/imgviewer.ui.titlebar.cc
     src/imgviewer.ui.toolbar.cc
     src/main.cc
+    src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.a11y.cc
     src/ui.button.cc
@@ -178,6 +179,7 @@ add_executable(imgviewer_tests
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.strings.cc
+    src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.button_behavior.cc
     src/ui.element.cc

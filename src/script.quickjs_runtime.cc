@@ -122,6 +122,9 @@ int QuickJsRuntime::InterruptHandler(JSRuntime*, void*)
 void QuickJsRuntime::CaptureException(JSContext* context)
 {
     if (context == nullptr) {
+        context = context_;
+    }
+    if (context == nullptr) {
         last_exception_utf8_ = "JavaScript exception";
         return;
     }

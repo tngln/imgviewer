@@ -58,6 +58,15 @@ if errorlevel 1 (
     echo ninja.exe was not found in PATH.
     exit /b 1
 )
+where bun >nul 2>nul
+if errorlevel 1 (
+    echo bun.exe was not found in PATH.
+    exit /b 1
+)
+
+if not exist "%ROOT%build\%CONFIG%\scripts" mkdir "%ROOT%build\%CONFIG%\scripts"
+bun build "%ROOT%scripts\ui\src\developer_ui.ts" --target=browser --format=iife --outdir "%ROOT%build\%CONFIG%\scripts" --entry-naming developer_ui.js --sourcemap=external
+if errorlevel 1 exit /b %errorlevel%
 
 set "BUILD_LOG=%TEMP%\imgviewer-build-%RANDOM%-%RANDOM%.log"
 

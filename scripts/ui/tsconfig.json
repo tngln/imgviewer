@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2020"],
+    "types": ["./types/imgviewer"]
+  },
+  "include": ["src/**/*.ts", "types/**/*.d.ts"]
+}

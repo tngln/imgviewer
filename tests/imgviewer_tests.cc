@@ -6,14 +6,18 @@
 
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <string>
 #include <vector>
+
+#include <quickjs.h>
 
 #include "experimental/util.signal.hpp"
 #include "imgviewer.edit_geometry.hpp"
 #include "imgviewer.host.pointer_router.hpp"
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.keybindings.hpp"
+#include "script.canvas_color.hpp"
 #include "script.quickjs_runtime.hpp"
 #include "ui.button_behavior.hpp"
 #include "ui.element.hpp"
@@ -38,6 +42,123 @@ void CheckImpl(bool condition, const char* expr, const char* file, int line)
 bool NearF(float a, float b, float eps = 0.01f)
 {
     return std::fabs(a - b) < eps;
+}
+
+std::string JsValueToUtf8(JSContext* context, JSValueConst value)
+{
+    const char* text = JS_ToCString(context, value);
+    if (text == nullptr) {
+        return {};
+    }
+    std::string result(text);
+    JS_FreeCString(context, text);
+    return result;
+}
+
+JSValue TestNativeAdd(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    int32_t left = 0;
+    int32_t right = 0;
+    if (argc > 0) {
+        JS_ToInt32(context, &left, argv[0]);
+    }
+    if (argc > 1) {
+        JS_ToInt32(context, &right, argv[1]);
+    }
+    return JS_NewInt32(context, left + right);
+}
+
+struct TestSignalApi final {
+    util::Signal<int> value{0};
+    JSValue callback = JS_UNDEFINED;
+    size_t subscription = 0;
+};
+
+TestSignalApi* TestSignalApiFromContext(JSContext* context)
+{
+    return static_cast<TestSignalApi*>(JS_GetContextOpaque(context));
+}
+
+std::string TestSignalName(JSContext* context, JSValueConst value)
+{
+    return JsValueToUtf8(context, value);
+}
+
+JSValue TestSignalsGet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    TestSignalApi* api = TestSignalApiFromContext(context);
+    if (api == nullptr || argc < 1 || TestSignalName(context, argv[0]) != "developer.counter") {
+        return JS_UNDEFINED;
+    }
+    return JS_NewInt32(context, api->value.Get());
+}
+
+JSValue TestSignalsSet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    TestSignalApi* api = TestSignalApiFromContext(context);
+    if (api == nullptr || argc < 2 || TestSignalName(context, argv[0]) != "developer.counter") {
+        return JS_FALSE;
+    }
+    int32_t next = 0;
+    JS_ToInt32(context, &next, argv[1]);
+    return JS_NewBool(context, api->value.Set(next));
+}
+
+JSValue TestSignalsSubscribe(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    TestSignalApi* api = TestSignalApiFromContext(context);
+    if (api == nullptr || argc < 2 || TestSignalName(context, argv[0]) != "developer.counter" ||
+        !JS_IsFunction(context, argv[1])) {
+        return JS_NewInt32(context, 0);
+    }
+    if (api->subscription != 0) {
+        api->value.Unsubscribe(api->subscription);
+        JS_FreeValue(context, api->callback);
+    }
+    api->callback = JS_DupValue(context, argv[1]);
+    api->subscription = api->value.Subscribe([context, api](int value) {
+        JSValue arg = JS_NewInt32(context, value);
+        JSValue result = JS_Call(context, api->callback, JS_UNDEFINED, 1, &arg);
+        JS_FreeValue(context, arg);
+        JS_FreeValue(context, result);
+    });
+    return JS_NewInt32(context, 1);
+}
+
+JSValue TestSignalsUnsubscribe(JSContext* context, JSValueConst, int argc, JSValueConst*)
+{
+    TestSignalApi* api = TestSignalApiFromContext(context);
+    if (api == nullptr || argc < 1 || api->subscription == 0) {
+        return JS_FALSE;
+    }
+    api->value.Unsubscribe(api->subscription);
+    api->subscription = 0;
+    JS_FreeValue(context, api->callback);
+    api->callback = JS_UNDEFINED;
+    return JS_TRUE;
+}
+
+void InstallTestSignals(JSContext* context, TestSignalApi* api)
+{
+    JS_SetContextOpaque(context, api);
+    JSValue global = JS_GetGlobalObject(context);
+    JSValue signals = JS_NewObject(context);
+    JS_SetPropertyStr(context, signals, "get", JS_NewCFunction(context, TestSignalsGet, "get", 1));
+    JS_SetPropertyStr(context, signals, "set", JS_NewCFunction(context, TestSignalsSet, "set", 2));
+    JS_SetPropertyStr(context, signals, "subscribe", JS_NewCFunction(context, TestSignalsSubscribe, "subscribe", 2));
+    JS_SetPropertyStr(context, signals, "unsubscribe", JS_NewCFunction(context, TestSignalsUnsubscribe, "unsubscribe", 1));
+    JS_SetPropertyStr(context, global, "signals", signals);
+    JS_FreeValue(context, global);
+}
+
+std::filesystem::path CurrentExeDirectory()
+{
+    std::vector<wchar_t> buffer(MAX_PATH);
+    DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    if (length == 0) {
+        return {};
+    }
+    return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
 }
 
 // ---------------------------------------------------------------------------
@@ -344,6 +465,69 @@ void TestQuickJsRuntime()
     CHECK(exception.find("quickjs smoke failure") != std::string::npos);
 }
 
+void TestQuickJsNativeFunctionRegistration()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    JSContext* context = runtime.Context();
+    JSValue global = JS_GetGlobalObject(context);
+    JS_SetPropertyStr(context, global, "nativeAdd", JS_NewCFunction(context, TestNativeAdd, "nativeAdd", 2));
+    JS_FreeValue(context, global);
+
+    const script::QuickJsEvalResult result = runtime.EvalScript("nativeAdd(19, 23)", "quickjs-native-test.js");
+    CHECK(result.ok);
+    CHECK(result.value_utf8 == "42");
+}
+
+void TestQuickJsSignalApiSmoke()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    TestSignalApi api;
+    InstallTestSignals(runtime.Context(), &api);
+
+    const script::QuickJsEvalResult result = runtime.EvalScript(
+        "globalThis.seen = 0;"
+        "const sub = signals.subscribe('developer.counter', value => { globalThis.seen = value; });"
+        "signals.set('developer.counter', 5);"
+        "signals.unsubscribe(sub);"
+        "signals.set('developer.counter', 8);"
+        "signals.get('developer.counter') + ':' + globalThis.seen;",
+        "quickjs-signal-test.js");
+    CHECK(result.ok);
+    CHECK(result.value_utf8 == "8:5");
+
+    if (api.subscription != 0) {
+        api.value.Unsubscribe(api.subscription);
+    }
+    JS_FreeValue(runtime.Context(), api.callback);
+}
+
+void TestCanvasColorParser()
+{
+    const std::optional<D2D1_COLOR_F> rgb = script::ParseCanvasColor("#336699");
+    CHECK(rgb.has_value());
+    CHECK(NearF(rgb->r, 0x33 / 255.0f));
+    CHECK(NearF(rgb->g, 0x66 / 255.0f));
+    CHECK(NearF(rgb->b, 0x99 / 255.0f));
+    CHECK(NearF(rgb->a, 1.0f));
+
+    const std::optional<D2D1_COLOR_F> argb = script::ParseCanvasColor("#80336699");
+    CHECK(argb.has_value());
+    CHECK(NearF(argb->a, 0x80 / 255.0f));
+    CHECK(NearF(argb->r, 0x33 / 255.0f));
+
+    CHECK(!script::ParseCanvasColor("336699").has_value());
+    CHECK(!script::ParseCanvasColor("#GG6699").has_value());
+    CHECK(!script::ParseCanvasColor("#12345").has_value());
+}
+
+void TestDeveloperScriptBundlePath()
+{
+    const std::filesystem::path script_path = CurrentExeDirectory() / L"scripts" / L"developer_ui.js";
+    CHECK(std::filesystem::exists(script_path));
+}
+
 } // namespace
 
 int main()
@@ -357,6 +541,10 @@ int main()
     TestSignalReentrancy();
     TestButtonClickCallback();
     TestQuickJsRuntime();
+    TestQuickJsNativeFunctionRegistration();
+    TestQuickJsSignalApiSmoke();
+    TestCanvasColorParser();
+    TestDeveloperScriptBundlePath();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

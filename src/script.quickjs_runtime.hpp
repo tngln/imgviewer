@@ -32,12 +32,14 @@ public:
     QuickJsEvalResult EvalScript(std::string_view source_utf8, std::string_view filename_utf8);
     int PumpJobs();
     std::string TakeExceptionTextUtf8();
+    void CaptureException(JSContext* context = nullptr);
 
     bool IsInitialized() const { return runtime_ != nullptr && context_ != nullptr; }
+    JSRuntime* Runtime() const { return runtime_; }
+    JSContext* Context() const { return context_; }
 
 private:
     static int InterruptHandler(JSRuntime* runtime, void* opaque);
-    void CaptureException(JSContext* context);
 
     JSRuntime* runtime_ = nullptr;
     JSContext* context_ = nullptr;
