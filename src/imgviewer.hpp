@@ -7,6 +7,7 @@
 #include <UIAutomationCore.h>
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <string>
 #include <wil/com.h>
@@ -29,14 +30,20 @@ constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 class ImgViewerUi;
 class UiWindowDelegate;
 
+namespace imgviewer::v2 {
+class ScriptEngine;
+}
+
 struct ImgViewerContext final {
     ImgViewerContext();
+    ~ImgViewerContext();
 
     GraphicsDevice graphics_device;
     ImgViewerRenderer renderer;
     ImgViewerUi* main_ui = nullptr;
     UiController ui;
     PopupHost popup;
+    std::unique_ptr<imgviewer::v2::ScriptEngine> script_engine;
     ImgViewerController viewer;
     ImgViewerEditController edit;
     ImgViewerInteractionState interaction;

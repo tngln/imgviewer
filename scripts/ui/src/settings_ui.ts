@@ -1,6 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
-type Rect = { x: number; y: number; width: number; height: number };
+import { type Rect, clamp, drawButton as drawCommonButton, drawText, hitTestReverse } from "./common";
+
 type ControlKind = "button" | "toggle" | "radio" | "slider" | "filter";
 type Control = Rect & {
   id: string;
@@ -28,6 +29,8 @@ let active = "";
 let scrollY = 0;
 let maxScrollY = 0;
 let filter = "";
+let composition = "";
+let filterFocused = false;
 let draggingSlider = "";
 let controls: Control[] = [];
 
@@ -39,30 +42,13 @@ function b(key: SettingKey): boolean {
   return Boolean(settings.get(key));
 }
 
-function contains(rect: Rect, x: number, y: number): boolean {
-  return x >= rect.x && y >= rect.y && x <= rect.x + rect.width && y <= rect.y + rect.height;
-}
-
 function hitTest(x: number, y: number): Control | undefined {
-  for (let index = controls.length - 1; index >= 0; --index) {
-    if (contains(controls[index], x, y)) {
-      return controls[index];
-    }
-  }
-  return undefined;
-}
-
-function contentY(y: number): number {
-  return y - scrollY;
+  return hitTestReverse(controls, x, y);
 }
 
 function addControl(control: Control): Control {
   controls.push(control);
   return control;
-}
-
-function drawText(canvas: CanvasApi, text: string, x: number, y: number, w: number, color = colors.text): void {
-  canvas.fillText(text, x, y, w, 22, color);
 }
 
 function section(canvas: CanvasApi, title: string, x: number, y: number, w: number): number {
@@ -72,12 +58,21 @@ function section(canvas: CanvasApi, title: string, x: number, y: number, w: numb
 }
 
 function button(canvas: CanvasApi, id: string, label: string, x: number, y: number, w: number, primary = false): void {
-  const fill = active === id ? colors.active : hover === id ? colors.hover : primary ? colors.accent : colors.panel;
-  const text = primary ? colors.accentText : colors.text;
   addControl({ id, kind: "button", x, y, width: w, height: 34 });
-  canvas.fillRect(x, y, w, 34, fill);
-  canvas.strokeRect(x, y, w, 34, primary ? colors.accent : colors.line, 1);
-  drawText(canvas, label, x + 12, y + 8, w - 24, text);
+  drawCommonButton(
+    canvas,
+    { x, y, width: w, height: 34 },
+    label,
+    { hover: hover === id, active: active === id },
+    {
+      fill: primary ? colors.accent : colors.panel,
+      hoverFill: colors.hover,
+      activeFill: colors.active,
+      stroke: primary ? colors.accent : colors.line,
+      hoverStroke: primary ? colors.accent : colors.line,
+      text: primary ? colors.accentText : colors.text,
+    },
+  );
 }
 
 function toggle(canvas: CanvasApi, id: string, key: SettingKey, label: string, x: number, y: number, w: number): void {
@@ -104,7 +99,7 @@ function radio(canvas: CanvasApi, id: string, key: SettingKey, value: number, la
 
 function slider(canvas: CanvasApi, id: string, key: SettingKey, label: string, min: number, max: number, x: number, y: number, w: number): void {
   const value = n(key);
-  const clamped = Math.max(min, Math.min(max, value));
+  const clamped = clamp(value, min, max);
   const pct = (clamped - min) / (max - min);
   const trackX = x + 170;
   const trackW = Math.max(80, w - 245);
@@ -122,9 +117,28 @@ function setSliderFromPointer(control: Control, x: number): void {
   }
   const trackX = control.x + 170;
   const trackW = Math.max(80, control.width - 245);
-  const pct = Math.max(0, Math.min(1, (x - trackX) / trackW));
+  const pct = clamp((x - trackX) / trackW, 0, 1);
   const value = Math.round(control.min + pct * (control.max - control.min));
   settings.set(control.key, value);
+}
+
+function filterControl(): Control | undefined {
+  return controls.find(control => control.id === "filter");
+}
+
+function filterImeCaret(): ImeCaretPoint | undefined {
+  const control = filterControl();
+  if (!control) {
+    return undefined;
+  }
+  const estimatedCharacterWidth = 7.5;
+  const textLength = filter.length + composition.length;
+  const x = control.x + 10 + clamp(textLength * estimatedCharacterWidth, 0, control.width - 20);
+  return { x, y: control.y + 27 };
+}
+
+function filterInputResult(invalidate = true): InputEventResult {
+  return { handled: true, invalidate, imeCaret: filterImeCaret() };
 }
 
 function activate(control: Control): void {
@@ -137,6 +151,33 @@ function activate(control: Control): void {
   } else if (control.kind === "radio" && control.key && typeof control.value === "number") {
     settings.set(control.key, control.value);
   }
+}
+
+function handleNativeInput(event: NativeInputEvent): InputEventResult {
+  if (!filterFocused) {
+    return { handled: false };
+  }
+  if (event.kind === "text") {
+    if (event.text >= " " && event.text !== "\u007f") {
+      filter += event.text;
+      composition = "";
+      return filterInputResult();
+    }
+    return filterInputResult(false);
+  }
+  if (event.kind === "imeStart") {
+    composition = "";
+    return filterInputResult();
+  }
+  if (event.kind === "imeComposition") {
+    composition = event.text;
+    return filterInputResult();
+  }
+  if (event.kind === "imeEnd") {
+    composition = "";
+    return filterInputResult();
+  }
+  return { handled: false };
 }
 
 globalThis.imgviewerSettingsUi = {
@@ -184,9 +225,16 @@ globalThis.imgviewerSettingsUi = {
 
     y = section(canvas, "Action Shortcuts", left, y, contentWidth);
     addControl({ id: "filter", kind: "filter", x: left, y, width: contentWidth, height: 32 });
-    canvas.fillRect(left, y, contentWidth, 32, hover === "filter" ? colors.hover : colors.panel);
-    canvas.strokeRect(left, y, contentWidth, 32, colors.line, 1);
-    drawText(canvas, filter === "" ? "Type to filter actions..." : filter, left + 10, y + 8, contentWidth - 20, filter === "" ? colors.muted : colors.text);
+    canvas.fillRect(left, y, contentWidth, 32, hover === "filter" || filterFocused ? colors.hover : colors.panel);
+    canvas.strokeRect(left, y, contentWidth, 32, filterFocused ? colors.accent : colors.line, 1);
+    const filterText = filter + composition;
+    drawText(canvas, filterText === "" ? "Type to filter actions..." : filterText, left + 10, y + 8, contentWidth - 20, filterText === "" ? colors.muted : colors.text);
+    if (filterFocused) {
+      const caret = filterImeCaret();
+      if (caret) {
+        canvas.fillRect(caret.x, y + 7, 1.5, 18, colors.text);
+      }
+    }
     y += 42;
     const rows = settings.actionRows(filter);
     for (const row of rows.slice(0, 18)) {
@@ -212,7 +260,7 @@ globalThis.imgviewerSettingsUi = {
 
   pointer(event) {
     if (event.type === "wheel") {
-      scrollY = Math.max(0, Math.min(maxScrollY, scrollY - event.wheelDelta / 2));
+      scrollY = clamp(scrollY - event.wheelDelta / 2, 0, maxScrollY);
       return { handled: true, invalidate: true };
     }
     const target = hitTest(event.x, event.y);
@@ -228,11 +276,18 @@ globalThis.imgviewerSettingsUi = {
     }
     if (event.type === "down" && event.button === "left") {
       active = target?.id ?? "";
+      const previousFilterFocused = filterFocused;
+      filterFocused = target?.id === "filter";
       if (target?.kind === "slider") {
         draggingSlider = target.id;
         setSliderFromPointer(target, event.x);
       }
-      return { handled: active !== "", capture: active !== "", invalidate: active !== "" };
+      return {
+        handled: active !== "",
+        capture: active !== "",
+        invalidate: active !== "" || previousFilterFocused !== filterFocused,
+        imeCaret: filterFocused ? filterImeCaret() : undefined,
+      };
     }
     if (event.type === "up" && event.button === "left") {
       const wasActive = active;
@@ -262,18 +317,23 @@ globalThis.imgviewerSettingsUi = {
       host.reload();
       return { handled: true };
     }
-    if (event.virtualKey === 0x08 && filter.length > 0) {
-      filter = filter.slice(0, -1);
-      return { handled: true, invalidate: true };
+    if (filterFocused && event.virtualKey === 0x08) {
+      if (composition !== "") {
+        return filterInputResult();
+      }
+      if (filter.length > 0) {
+        filter = filter.slice(0, -1);
+        return filterInputResult();
+      }
     }
     return { handled: false };
   },
 
+  input(event) {
+    return handleNativeInput(event);
+  },
+
   text(event) {
-    if (event.text >= " " && event.text !== "\u007f") {
-      filter += event.text;
-      return { handled: true, invalidate: true };
-    }
-    return { handled: false };
+    return handleNativeInput({ kind: "text", text: event.text });
   },
 };

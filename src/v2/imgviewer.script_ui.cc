@@ -326,6 +326,58 @@ JSValue CreateTextEvent(JSContext* context, wchar_t ch)
     return value;
 }
 
+JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event)
+{
+    JSValue value = JS_NewObject(context);
+    switch (event.type) {
+    case UiEventType::TextChar: {
+        const std::wstring text(1, event.character);
+        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "text"));
+        JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(text).c_str()));
+        break;
+    }
+    case UiEventType::ImeStartComposition:
+        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "imeStart"));
+        break;
+    case UiEventType::ImeComposition:
+        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "imeComposition"));
+        JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(event.text).c_str()));
+        break;
+    case UiEventType::ImeEndComposition:
+        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "imeEnd"));
+        break;
+    default:
+        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "unknown"));
+        break;
+    }
+    return value;
+}
+
+std::optional<D2D1_POINT_2F> ImeCaretPointProperty(JSContext* context, JSValueConst object)
+{
+    if (!JS_IsObject(object)) {
+        return std::nullopt;
+    }
+    JSValue caret = JS_GetPropertyStr(context, object, "imeCaret");
+    if (!JS_IsObject(caret)) {
+        JS_FreeValue(context, caret);
+        return std::nullopt;
+    }
+
+    JSValue x_value = JS_GetPropertyStr(context, caret, "x");
+    JSValue y_value = JS_GetPropertyStr(context, caret, "y");
+    double x = 0.0;
+    double y = 0.0;
+    const bool ok = JS_ToFloat64(context, &x, x_value) == 0 && JS_ToFloat64(context, &y, y_value) == 0;
+    JS_FreeValue(context, y_value);
+    JS_FreeValue(context, x_value);
+    JS_FreeValue(context, caret);
+    if (!ok) {
+        return std::nullopt;
+    }
+    return D2D1::Point2F(static_cast<float>(x), static_cast<float>(y));
+}
+
 void RenderScriptError(
     const UiDrawContext& context,
     std::wstring_view title,

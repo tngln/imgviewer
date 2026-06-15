@@ -1,6 +1,6 @@
 /// <reference types="../types/imgviewer" />
 
-type Rect = { x: number; y: number; width: number; height: number };
+import { type Rect, drawButton as drawCommonButton, hitTestRecord } from "./common";
 
 const counterName = "developer.counter";
 let hover = "";
@@ -15,27 +15,22 @@ const buttons: Record<string, Rect> = {
   close: { x: 380, y: 96, width: 90, height: 34 },
 };
 
-function contains(rect: Rect, x: number, y: number): boolean {
-  return x >= rect.x && y >= rect.y && x <= rect.x + rect.width && y <= rect.y + rect.height;
-}
-
 function hitTest(x: number, y: number): string {
-  for (const [name, rect] of Object.entries(buttons)) {
-    if (contains(rect, x, y)) {
-      return name;
-    }
-  }
-  return "";
+  return hitTestRecord(buttons, x, y);
 }
 
 function drawButton(canvas: CanvasApi, name: string, label: string): void {
   const rect = buttons[name];
   const isActive = active === name;
   const isHover = hover === name;
-  const fill = isActive ? "#FF3366AA" : isHover ? "#FF2E4A6F" : "#FF243044";
-  canvas.fillRect(rect.x, rect.y, rect.width, rect.height, fill);
-  canvas.strokeRect(rect.x, rect.y, rect.width, rect.height, isHover ? "#FF7DB7FF" : "#FF546276", 1);
-  canvas.fillText(label, rect.x + 12, rect.y + 8, rect.width - 24, rect.height - 8, "#FFEAF2FF");
+  drawCommonButton(canvas, rect, label, { hover: isHover, active: isActive }, {
+    fill: "#FF243044",
+    hoverFill: "#FF2E4A6F",
+    activeFill: "#FF3366AA",
+    stroke: "#FF546276",
+    hoverStroke: "#FF7DB7FF",
+    text: "#FFEAF2FF",
+  });
 }
 
 function counter(): number {

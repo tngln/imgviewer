@@ -465,6 +465,9 @@ void UiWindowHost::Render()
 
 void UiWindowHost::HandleUiResult(UiEventResult result)
 {
+    if (result.ime_caret_point.has_value()) {
+        ime_caret_point_ = result.ime_caret_point;
+    }
     ApplyUiCaptureRequest(window_.Hwnd(), result.capture);
     const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(window_.Hwnd(), &ui_, result.effect_target);
     // Full-repaint doctrine: any dispatched event repaints the layer (refactor.md 3.4).
@@ -521,10 +524,16 @@ void UiWindowHost::SyncCaretTimer()
 
 void UiWindowHost::PositionIme()
 {
-    if (!options_.enable_ime || !IsFocusedTextElement()) {
+    if (!options_.enable_ime) {
         return;
     }
-    SetImeCompositionWindowClientPoint(window_.Hwnd(), UiPointToPhysicalClient(window_.Hwnd(), CaretPoint()));
+    if (ime_caret_point_.has_value()) {
+        SetImeCompositionWindowClientPoint(window_.Hwnd(), UiPointToPhysicalClient(window_.Hwnd(), *ime_caret_point_));
+        return;
+    }
+    if (IsFocusedTextElement()) {
+        SetImeCompositionWindowClientPoint(window_.Hwnd(), UiPointToPhysicalClient(window_.Hwnd(), CaretPoint()));
+    }
 }
 
 D2D1_POINT_2F UiWindowHost::CaretPoint() const

@@ -9,16 +9,14 @@
 #include <wil/resource.h>
 
 #include "imgviewer.about.hpp"
-#include "imgviewer.developer.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.palette.hpp"
-#include "imgviewer.settings.hpp"
 #include "imgviewer.strings.hpp"
-#include "imgviewer.ui.action.hpp"
 #include "imgviewer.ui.hpp"
 #include "ui.host_popup.hpp"
 #include "ui.tooltip.hpp"
 #include "util.format.hpp"
+#include "v2/imgviewer.script_engine.hpp"
 #include "win32.clipboard.hpp"
 #include "win32.dialog.hpp"
 #include "win32.screen_capture.hpp"
@@ -69,7 +67,13 @@ void FinishImgViewerImageLoad(HWND hwnd, ImgViewerContext* context, const std::w
     InvalidateRect(hwnd, nullptr, FALSE);
 }
 
-ImgViewerContext::ImgViewerContext() : ui(CreateMainUi(&main_ui)) {}
+ImgViewerContext::ImgViewerContext() :
+    ui(CreateMainUi(&main_ui)),
+    script_engine(std::make_unique<imgviewer::v2::ScriptEngine>())
+{
+}
+
+ImgViewerContext::~ImgViewerContext() = default;
 
 HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
 {

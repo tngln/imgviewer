@@ -56,6 +56,7 @@ export interface DeveloperEventResult {
   handled?: boolean;
   capture?: boolean;
   invalidate?: boolean;
+  imeCaret?: ImeCaretPoint;
 }
 
 export interface DeveloperUiApp {
@@ -93,14 +94,30 @@ export interface SettingsTextEvent {
   text: string;
 }
 
+export type NativeInputEvent =
+  | { kind: "text"; text: string }
+  | { kind: "imeStart" }
+  | { kind: "imeComposition"; text: string }
+  | { kind: "imeEnd" };
+
+export interface ImeCaretPoint {
+  x: number;
+  y: number;
+}
+
+export interface InputEventResult extends DeveloperEventResult {
+  imeCaret?: ImeCaretPoint;
+}
+
 export type SettingsPointerEvent = DeveloperPointerEvent;
 export type SettingsKeyEvent = DeveloperKeyEvent;
-export type SettingsEventResult = DeveloperEventResult;
+export type SettingsEventResult = InputEventResult;
 
 export interface SettingsUiApp {
   render(canvas: CanvasApi, env: RenderEnvironment): void;
   pointer(event: SettingsPointerEvent): SettingsEventResult | void;
   key(event: SettingsKeyEvent): SettingsEventResult | void;
+  input?(event: NativeInputEvent): InputEventResult | void;
   text(event: SettingsTextEvent): SettingsEventResult | void;
 }
 

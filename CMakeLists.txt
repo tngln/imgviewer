@@ -41,6 +41,7 @@ add_executable(imgviewer
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
     ${IMGVIEWER_SETTINGS_SOURCE}
+    src/v2/imgviewer.script_engine.cc
     src/v2/imgviewer.script_ui.cc
     src/imgviewer.strings.cc
     src/imgviewer.ui.color_picker_toolstrip.cc

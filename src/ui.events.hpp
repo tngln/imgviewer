@@ -4,6 +4,7 @@
 
 #include <d2d1_1.h>
 
+#include <optional>
 #include <string>
 
 #include "ui.element.hpp"
@@ -122,6 +123,7 @@ struct UiEventResult final {
     UiElementId focus_target = UiElementId::None;
     UiAction action = kUiActionNone;
     bool wants_ime_position = false;
+    std::optional<D2D1_POINT_2F> ime_caret_point;
     bool value_changed = false;
     bool close_popup = false;
     UiElementId effect_target = UiElementId::None;

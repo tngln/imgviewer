@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
@@ -19,9 +18,9 @@
 #include "imgviewer.messages.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "script.quickjs_runtime.hpp"
 #include "ui.element.hpp"
 #include "ui.window.hpp"
+#include "v2/imgviewer.script_engine.hpp"
 #include "v2/imgviewer.script_ui.hpp"
 #include "win32.util.hpp"
 
@@ -48,8 +47,9 @@ DeveloperScriptUi* ScriptUi(JSContext* context)
 
 class DeveloperScriptUi final : public imgviewer::v2::ScriptUiHost, public UiRoot {
 public:
-    DeveloperScriptUi()
-        : root_(std::make_unique<UiElement>(
+    explicit DeveloperScriptUi(imgviewer::v2::ScriptEngine& engine)
+        : engine_(engine),
+          root_(std::make_unique<UiElement>(
               UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Developer), false, true))),
           counter_signal_(0)
     {
@@ -88,7 +88,7 @@ public:
             return;
         }
 
-        JSContext* js_context = runtime_->Context();
+        JSContext* js_context = script_context_->Context();
         JSValue app = AppObject();
         JSValue render = JS_GetPropertyStr(js_context, app, "render");
         if (!JS_IsFunction(js_context, render)) {
@@ -112,8 +112,8 @@ public:
 
         if (JS_IsException(result)) {
             JS_FreeValue(js_context, result);
-            runtime_->CaptureException();
-            SetError(runtime_->TakeExceptionTextUtf8());
+            script_context_->CaptureException();
+            SetError(engine_.TakeExceptionTextUtf8());
             RenderError(context);
             return;
         }
@@ -207,19 +207,20 @@ private:
     void ReloadScript()
     {
         ClearSubscriptions();
-        runtime_ = std::make_unique<script::QuickJsRuntime>();
+        script_context_.reset();
+        script_context_ = engine_.CreateContext();
         ready_ = false;
         error_text_.clear();
         reload_requested_ = false;
         close_requested_ = false;
         invalidate_requested_ = true;
 
-        if (!runtime_->Initialize()) {
-            SetError(runtime_->TakeExceptionTextUtf8());
+        if (script_context_ == nullptr) {
+            SetError(engine_.TakeExceptionTextUtf8());
             return;
         }
 
-        JS_SetContextOpaque(runtime_->Context(), this);
+        JS_SetContextOpaque(script_context_->Context(), this);
         InstallGlobals();
 
         script_path_ = DeveloperScriptPath();
@@ -229,25 +230,25 @@ private:
             return;
         }
 
-        const script::QuickJsEvalResult eval = runtime_->EvalScript(*source, script_path_.string());
+        const imgviewer::v2::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
         if (!eval.ok) {
-            SetError(runtime_->TakeExceptionTextUtf8());
+            SetError(engine_.TakeExceptionTextUtf8());
             return;
         }
 
         JSValue app = AppObject();
         if (!JS_IsObject(app)) {
-            JS_FreeValue(runtime_->Context(), app);
+            JS_FreeValue(script_context_->Context(), app);
             SetError("globalThis.imgviewerDeveloperUi was not defined");
             return;
         }
-        JS_FreeValue(runtime_->Context(), app);
+        JS_FreeValue(script_context_->Context(), app);
         ready_ = true;
     }
 
     void InstallGlobals()
     {
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue global = JS_GetGlobalObject(context);
 
         JSValue host = JS_NewObject(context);
@@ -269,12 +270,12 @@ private:
 
     void SetFunction(JSValue object, const char* name, JSCFunction* function, int length)
     {
-        JS_SetPropertyStr(runtime_->Context(), object, name, JS_NewCFunction(runtime_->Context(), function, name, length));
+        JS_SetPropertyStr(script_context_->Context(), object, name, JS_NewCFunction(script_context_->Context(), function, name, length));
     }
 
     JSValue AppObject() const
     {
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue global = JS_GetGlobalObject(context);
         JSValue app = JS_GetPropertyStr(context, global, "imgviewerDeveloperUi");
         JS_FreeValue(context, global);
@@ -283,7 +284,7 @@ private:
 
     UiEventResult DispatchPointerToScript(const UiPointerEvent& event)
     {
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue app = AppObject();
         JSValue handler = JS_GetPropertyStr(context, app, "pointer");
         if (!JS_IsFunction(context, handler)) {
@@ -303,7 +304,7 @@ private:
 
     UiEventResult DispatchKeyToScript(const UiKeyEvent& event)
     {
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue app = AppObject();
         JSValue handler = JS_GetPropertyStr(context, app, "key");
         if (!JS_IsFunction(context, handler)) {
@@ -325,9 +326,9 @@ private:
     {
         UiEventResult event_result{};
         if (JS_IsException(result)) {
-            JS_FreeValue(runtime_->Context(), result);
-            runtime_->CaptureException();
-            SetError(runtime_->TakeExceptionTextUtf8());
+            JS_FreeValue(script_context_->Context(), result);
+            script_context_->CaptureException();
+            SetError(engine_.TakeExceptionTextUtf8());
             event_result.handled = true;
             return event_result;
         }
@@ -335,7 +336,8 @@ private:
         const bool handled = BoolProperty(result, "handled", false);
         const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
         const bool invalidate = BoolProperty(result, "invalidate", false);
-        JS_FreeValue(runtime_->Context(), result);
+        event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(script_context_->Context(), result);
+        JS_FreeValue(script_context_->Context(), result);
 
         if (reload_requested_) {
             ReloadScript();
@@ -360,7 +362,7 @@ private:
         if (!JS_IsObject(object)) {
             return fallback;
         }
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue value = JS_GetPropertyStr(context, object, name);
         const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
         JS_FreeValue(context, value);
@@ -372,7 +374,7 @@ private:
         if (!JS_IsObject(object)) {
             return std::nullopt;
         }
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue value = JS_GetPropertyStr(context, object, name);
         if (JS_IsUndefined(value)) {
             JS_FreeValue(context, value);
@@ -385,7 +387,7 @@ private:
 
     void NotifySignalSubscription(int js_id, int value)
     {
-        if (runtime_ == nullptr || runtime_->Context() == nullptr) {
+        if (script_context_ == nullptr || script_context_->Context() == nullptr) {
             return;
         }
         auto it = std::find_if(subscriptions_.begin(), subscriptions_.end(), [js_id](const SignalSubscription& item) {
@@ -395,18 +397,18 @@ private:
             return;
         }
 
-        JSContext* context = runtime_->Context();
+        JSContext* context = script_context_->Context();
         JSValue arg = JS_NewInt32(context, value);
         JSValue result = JS_Call(context, it->callback, JS_UNDEFINED, 1, &arg);
         JS_FreeValue(context, arg);
         if (JS_IsException(result)) {
             JS_FreeValue(context, result);
-            runtime_->CaptureException();
-            SetError(runtime_->TakeExceptionTextUtf8());
+            script_context_->CaptureException();
+            SetError(engine_.TakeExceptionTextUtf8());
             return;
         }
         JS_FreeValue(context, result);
-        runtime_->PumpJobs();
+        engine_.PumpJobs();
         invalidate_requested_ = true;
     }
 
@@ -419,20 +421,20 @@ private:
             return false;
         }
         counter_signal_.Unsubscribe(it->native_id);
-        JS_FreeValue(runtime_->Context(), it->callback);
+        JS_FreeValue(script_context_->Context(), it->callback);
         subscriptions_.erase(it);
         return true;
     }
 
     void ClearSubscriptions()
     {
-        if (runtime_ == nullptr || runtime_->Context() == nullptr) {
+        if (script_context_ == nullptr || script_context_->Context() == nullptr) {
             subscriptions_.clear();
             return;
         }
         for (const SignalSubscription& subscription : subscriptions_) {
             counter_signal_.Unsubscribe(subscription.native_id);
-            JS_FreeValue(runtime_->Context(), subscription.callback);
+            JS_FreeValue(script_context_->Context(), subscription.callback);
         }
         subscriptions_.clear();
     }
@@ -449,7 +451,8 @@ private:
     }
 
     std::unique_ptr<UiElement> root_;
-    std::unique_ptr<script::QuickJsRuntime> runtime_;
+    imgviewer::v2::ScriptEngine& engine_;
+    std::unique_ptr<imgviewer::v2::ScriptContext> script_context_;
     util::Signal<int> counter_signal_;
     std::vector<SignalSubscription> subscriptions_;
     const UiDrawContext* active_draw_context_ = nullptr;
@@ -526,7 +529,7 @@ HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context)
     developer_context->owner = owner;
     context->developer_context = developer_context;
 
-    auto root = std::make_unique<DeveloperScriptUi>();
+    auto root = std::make_unique<DeveloperScriptUi>(*context->script_engine);
     const HRESULT create_hr = developer_context->host.Create(
         UiWindowOptions{
             .native = win32::NativeWindowOptions{

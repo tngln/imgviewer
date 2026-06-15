@@ -38,6 +38,8 @@ JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_co
 JSValue CreatePointerEvent(JSContext* context, const UiPointerEvent& event);
 JSValue CreateKeyEvent(JSContext* context, const UiKeyEvent& event);
 JSValue CreateTextEvent(JSContext* context, wchar_t ch);
+JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event);
+std::optional<D2D1_POINT_2F> ImeCaretPointProperty(JSContext* context, JSValueConst object);
 
 void RenderScriptError(
     const UiDrawContext& context,
