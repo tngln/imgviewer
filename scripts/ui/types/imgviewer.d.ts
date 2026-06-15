@@ -64,9 +64,51 @@ export interface DeveloperUiApp {
   key(event: DeveloperKeyEvent): DeveloperEventResult | void;
 }
 
+export type SettingKey =
+  | "language"
+  | "initialImageViewMode"
+  | "rememberWindowSize"
+  | "pixelatedSampling"
+  | "checkerboardBackground"
+  | "borderlessWindow"
+  | "edgeClickNavigation"
+  | "windowOpacityPercent"
+  | "toolbarScalePercent"
+  | "edgeClickNavigationZonePercent";
+
+export interface SettingsActionRow {
+  name: string;
+  shortcut: string;
+}
+
+export interface SettingsApi {
+  get(name: SettingKey): number | boolean | undefined;
+  set(name: SettingKey, value: number | boolean): boolean;
+  save(): void;
+  resetKeyBindings(): void;
+  actionRows(filter: string): SettingsActionRow[];
+}
+
+export interface SettingsTextEvent {
+  text: string;
+}
+
+export type SettingsPointerEvent = DeveloperPointerEvent;
+export type SettingsKeyEvent = DeveloperKeyEvent;
+export type SettingsEventResult = DeveloperEventResult;
+
+export interface SettingsUiApp {
+  render(canvas: CanvasApi, env: RenderEnvironment): void;
+  pointer(event: SettingsPointerEvent): SettingsEventResult | void;
+  key(event: SettingsKeyEvent): SettingsEventResult | void;
+  text(event: SettingsTextEvent): SettingsEventResult | void;
+}
+
 declare global {
   const host: HostApi;
   const signals: SignalsApi;
+  const settings: SettingsApi;
 
   var imgviewerDeveloperUi: DeveloperUiApp;
+  var imgviewerSettingsUi: SettingsUiApp;
 }

@@ -1,5 +1,3 @@
-#if !defined(VER2)
-
 #include "imgviewer.developer.hpp"
 
 #include <algorithm>
@@ -21,12 +19,10 @@
 #include "imgviewer.messages.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "script.canvas_color.hpp"
 #include "script.quickjs_runtime.hpp"
-#include "ui.draw.hpp"
 #include "ui.element.hpp"
-#include "ui.theme.hpp"
 #include "ui.window.hpp"
+#include "v2/imgviewer.script_ui.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -38,112 +34,9 @@ constexpr int kDeveloperMinClientHeight = 260;
 constexpr char kDeveloperScriptRelativePath[] = "scripts/developer_ui.js";
 constexpr char kDeveloperCounterSignalName[] = "developer.counter";
 
-std::wstring WideFromUtf8(std::string_view text)
-{
-    if (text.empty()) {
-        return {};
-    }
-    const int length = MultiByteToWideChar(
-        CP_UTF8,
-        MB_ERR_INVALID_CHARS,
-        text.data(),
-        static_cast<int>(text.size()),
-        nullptr,
-        0);
-    if (length <= 0) {
-        return {};
-    }
-    std::wstring value(static_cast<size_t>(length), L'\0');
-    MultiByteToWideChar(
-        CP_UTF8,
-        MB_ERR_INVALID_CHARS,
-        text.data(),
-        static_cast<int>(text.size()),
-        value.data(),
-        length);
-    return value;
-}
-
-std::string Utf8FromValue(JSContext* context, JSValueConst value)
-{
-    const char* text = JS_ToCString(context, value);
-    if (text == nullptr) {
-        return {};
-    }
-    std::string result(text);
-    JS_FreeCString(context, text);
-    return result;
-}
-
-std::optional<std::string> ReadTextFileUtf8(const std::filesystem::path& path)
-{
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return std::nullopt;
-    }
-    return std::string(
-        std::istreambuf_iterator<char>(input),
-        std::istreambuf_iterator<char>());
-}
-
-std::filesystem::path ExecutableDirectory()
-{
-    std::vector<wchar_t> buffer(MAX_PATH);
-    DWORD length = 0;
-    while (true) {
-        length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-        if (length == 0) {
-            return std::filesystem::current_path();
-        }
-        if (length < buffer.size() - 1) {
-            break;
-        }
-        buffer.resize(buffer.size() * 2);
-    }
-    std::filesystem::path path(std::wstring(buffer.data(), length));
-    return path.parent_path();
-}
-
 std::filesystem::path DeveloperScriptPath()
 {
-    return ExecutableDirectory() / kDeveloperScriptRelativePath;
-}
-
-const char* PointerTypeName(UiEventType type)
-{
-    switch (type) {
-    case UiEventType::PointerMove:
-        return "move";
-    case UiEventType::PointerDown:
-        return "down";
-    case UiEventType::PointerUp:
-        return "up";
-    case UiEventType::PointerLeave:
-        return "leave";
-    case UiEventType::PointerWheel:
-        return "wheel";
-    default:
-        return "move";
-    }
-}
-
-const char* PointerButtonName(UiPointerButton button)
-{
-    switch (button) {
-    case UiPointerButton::Left:
-        return "left";
-    case UiPointerButton::Right:
-        return "right";
-    case UiPointerButton::Middle:
-        return "middle";
-    default:
-        return "none";
-    }
-}
-
-const char* KeyTypeName(UiEventType type)
-{
-    return type == UiEventType::KeyUp ? "up" : "down";
+    return imgviewer::v2::ScriptPath(kDeveloperScriptRelativePath);
 }
 
 class DeveloperScriptUi;
@@ -153,7 +46,7 @@ DeveloperScriptUi* ScriptUi(JSContext* context)
     return static_cast<DeveloperScriptUi*>(JS_GetContextOpaque(context));
 }
 
-class DeveloperScriptUi final : public UiRoot {
+class DeveloperScriptUi final : public imgviewer::v2::ScriptUiHost, public UiRoot {
 public:
     DeveloperScriptUi()
         : root_(std::make_unique<UiElement>(
@@ -171,6 +64,10 @@ public:
     UiElement* Root() override { return root_.get(); }
     const UiElement* Root() const override { return root_.get(); }
     const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::Developer); }
+    const UiDrawContext* ActiveDrawContext() const override { return active_draw_context_; }
+    void RequestInvalidate() override { invalidate_requested_ = true; }
+    void RequestReload() override { reload_requested_ = true; }
+    void RequestClose() override { close_requested_ = true; }
 
     D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F available_size) override
     {
@@ -202,8 +99,8 @@ public:
             return;
         }
 
-        JSValue canvas = CreateCanvasObject();
-        JSValue env = CreateRenderEnvironment(context, state);
+        JSValue canvas = imgviewer::v2::CreateCanvasObject(js_context);
+        JSValue env = imgviewer::v2::CreateRenderEnvironment(js_context, context, state);
         JSValue args[] = {canvas, env};
         active_draw_context_ = &context;
         JSValue result = JS_Call(js_context, render, app, 2, args);
@@ -253,43 +150,10 @@ private:
         JSValue callback = JS_UNDEFINED;
     };
 
-    static JSValue HostInvalidate(JSContext* context, JSValueConst, int, JSValueConst*)
-    {
-        if (DeveloperScriptUi* ui = ScriptUi(context)) {
-            ui->invalidate_requested_ = true;
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue HostReload(JSContext* context, JSValueConst, int, JSValueConst*)
-    {
-        if (DeveloperScriptUi* ui = ScriptUi(context)) {
-            ui->reload_requested_ = true;
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue HostClose(JSContext* context, JSValueConst, int, JSValueConst*)
-    {
-        if (DeveloperScriptUi* ui = ScriptUi(context)) {
-            ui->close_requested_ = true;
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue HostLog(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
-    {
-        if (argc > 0) {
-            const std::string text = Utf8FromValue(context, argv[0]);
-            OutputDebugStringW(WideFromUtf8(text + "\n").c_str());
-        }
-        return JS_UNDEFINED;
-    }
-
     static JSValue SignalsGet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     {
         DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || argc < 1 || Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
+        if (ui == nullptr || argc < 1 || imgviewer::v2::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
             return JS_UNDEFINED;
         }
         return JS_NewInt32(context, ui->counter_signal_.Get());
@@ -298,7 +162,7 @@ private:
     static JSValue SignalsSet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     {
         DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || argc < 2 || Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
+        if (ui == nullptr || argc < 2 || imgviewer::v2::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
             return JS_FALSE;
         }
         int32_t value = 0;
@@ -311,7 +175,7 @@ private:
     static JSValue SignalsSubscribe(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     {
         DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || argc < 2 || Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName ||
+        if (ui == nullptr || argc < 2 || imgviewer::v2::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName ||
             !JS_IsFunction(context, argv[1])) {
             return JS_NewInt32(context, 0);
         }
@@ -340,114 +204,6 @@ private:
         return JS_NewBool(context, ui->Unsubscribe(js_id));
     }
 
-    static JSValue CanvasClear(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
-    {
-        DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || ui->active_draw_context_ == nullptr || argc < 1) {
-            return JS_UNDEFINED;
-        }
-        const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[0]));
-        if (color.has_value()) {
-            UiDraw(*ui->active_draw_context_).Clear(*color);
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue CanvasFillRect(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
-    {
-        DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || ui->active_draw_context_ == nullptr || argc < 5) {
-            return JS_UNDEFINED;
-        }
-        double x = 0.0, y = 0.0, width = 0.0, height = 0.0;
-        JS_ToFloat64(context, &x, argv[0]);
-        JS_ToFloat64(context, &y, argv[1]);
-        JS_ToFloat64(context, &width, argv[2]);
-        JS_ToFloat64(context, &height, argv[3]);
-        const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[4]));
-        if (color.has_value()) {
-            UiDraw(*ui->active_draw_context_).FillRect(
-                D2D1::RectF(static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + width), static_cast<float>(y + height)),
-                *color);
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue CanvasStrokeRect(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
-    {
-        DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || ui->active_draw_context_ == nullptr || argc < 5) {
-            return JS_UNDEFINED;
-        }
-        double x = 0.0, y = 0.0, width = 0.0, height = 0.0, stroke_width = 1.0;
-        JS_ToFloat64(context, &x, argv[0]);
-        JS_ToFloat64(context, &y, argv[1]);
-        JS_ToFloat64(context, &width, argv[2]);
-        JS_ToFloat64(context, &height, argv[3]);
-        if (argc > 5) {
-            JS_ToFloat64(context, &stroke_width, argv[5]);
-        }
-        const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[4]));
-        if (color.has_value()) {
-            UiDraw(*ui->active_draw_context_).DrawRect(
-                D2D1::RectF(static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + width), static_cast<float>(y + height)),
-                *color,
-                static_cast<float>(stroke_width));
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue CanvasFillText(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
-    {
-        DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || ui->active_draw_context_ == nullptr || argc < 6) {
-            return JS_UNDEFINED;
-        }
-        const std::wstring text = WideFromUtf8(Utf8FromValue(context, argv[0]));
-        double x = 0.0, y = 0.0, width = 0.0, height = 0.0;
-        JS_ToFloat64(context, &x, argv[1]);
-        JS_ToFloat64(context, &y, argv[2]);
-        JS_ToFloat64(context, &width, argv[3]);
-        JS_ToFloat64(context, &height, argv[4]);
-        const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[5]));
-        if (color.has_value()) {
-            UiDraw(*ui->active_draw_context_).DrawBodyText(
-                text,
-                D2D1::RectF(static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + width), static_cast<float>(y + height)),
-                *color,
-                D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        }
-        return JS_UNDEFINED;
-    }
-
-    static JSValue CanvasStrokeLine(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
-    {
-        DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || ui->active_draw_context_ == nullptr || argc < 5) {
-            return JS_UNDEFINED;
-        }
-        double x1 = 0.0, y1 = 0.0, x2 = 0.0, y2 = 0.0, stroke_width = 1.0;
-        JS_ToFloat64(context, &x1, argv[0]);
-        JS_ToFloat64(context, &y1, argv[1]);
-        JS_ToFloat64(context, &x2, argv[2]);
-        JS_ToFloat64(context, &y2, argv[3]);
-        if (argc > 5) {
-            JS_ToFloat64(context, &stroke_width, argv[5]);
-        }
-        const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[4]));
-        if (color.has_value() && ui->active_draw_context_->d2d_context != nullptr) {
-            wil::com_ptr<ID2D1SolidColorBrush> brush;
-            if (SUCCEEDED(ui->active_draw_context_->d2d_context->CreateSolidColorBrush(*color, brush.put()))) {
-                ui->active_draw_context_->d2d_context->DrawLine(
-                    D2D1::Point2F(static_cast<float>(x1), static_cast<float>(y1)),
-                    D2D1::Point2F(static_cast<float>(x2), static_cast<float>(y2)),
-                    brush.get(),
-                    static_cast<float>(stroke_width));
-            }
-        }
-        return JS_UNDEFINED;
-    }
-
     void ReloadScript()
     {
         ClearSubscriptions();
@@ -467,7 +223,7 @@ private:
         InstallGlobals();
 
         script_path_ = DeveloperScriptPath();
-        std::optional<std::string> source = ReadTextFileUtf8(script_path_);
+        std::optional<std::string> source = imgviewer::v2::ReadTextFileUtf8(script_path_);
         if (!source.has_value()) {
             SetError("Could not read " + script_path_.string());
             return;
@@ -495,10 +251,10 @@ private:
         JSValue global = JS_GetGlobalObject(context);
 
         JSValue host = JS_NewObject(context);
-        SetFunction(host, "invalidate", HostInvalidate, 0);
-        SetFunction(host, "reload", HostReload, 0);
-        SetFunction(host, "close", HostClose, 0);
-        SetFunction(host, "log", HostLog, 1);
+        SetFunction(host, "invalidate", imgviewer::v2::HostInvalidate, 0);
+        SetFunction(host, "reload", imgviewer::v2::HostReload, 0);
+        SetFunction(host, "close", imgviewer::v2::HostClose, 0);
+        SetFunction(host, "log", imgviewer::v2::HostLog, 1);
         JS_SetPropertyStr(context, global, "host", host);
 
         JSValue signals = JS_NewObject(context);
@@ -525,63 +281,6 @@ private:
         return app;
     }
 
-    JSValue CreateCanvasObject()
-    {
-        JSContext* context = runtime_->Context();
-        JSValue canvas = JS_NewObject(context);
-        JS_SetPropertyStr(context, canvas, "clear", JS_NewCFunction(context, CanvasClear, "clear", 1));
-        JS_SetPropertyStr(context, canvas, "fillRect", JS_NewCFunction(context, CanvasFillRect, "fillRect", 5));
-        JS_SetPropertyStr(context, canvas, "strokeRect", JS_NewCFunction(context, CanvasStrokeRect, "strokeRect", 6));
-        JS_SetPropertyStr(context, canvas, "fillText", JS_NewCFunction(context, CanvasFillText, "fillText", 6));
-        JS_SetPropertyStr(context, canvas, "strokeLine", JS_NewCFunction(context, CanvasStrokeLine, "strokeLine", 6));
-        return canvas;
-    }
-
-    JSValue CreateRenderEnvironment(const UiDrawContext& context, UiRootState state)
-    {
-        JSContext* js_context = runtime_->Context();
-        JSValue env = JS_NewObject(js_context);
-        JS_SetPropertyStr(js_context, env, "width", JS_NewFloat64(js_context, context.viewport_size.width));
-        JS_SetPropertyStr(js_context, env, "height", JS_NewFloat64(js_context, context.viewport_size.height));
-        JS_SetPropertyStr(js_context, env, "dpiScale", JS_NewFloat64(js_context, context.dpi_scale));
-        JS_SetPropertyStr(js_context, env, "hovered", JS_NewBool(js_context, state.hovered != UiElementId::None));
-        JS_SetPropertyStr(js_context, env, "pressed", JS_NewBool(js_context, state.pressed != UiElementId::None));
-        JS_SetPropertyStr(js_context, env, "focused", JS_NewBool(js_context, state.focused != UiElementId::None));
-        return env;
-    }
-
-    JSValue CreatePointerEvent(const UiPointerEvent& event)
-    {
-        JSContext* context = runtime_->Context();
-        JSValue value = JS_NewObject(context);
-        JS_SetPropertyStr(context, value, "type", JS_NewString(context, PointerTypeName(event.type)));
-        JS_SetPropertyStr(context, value, "x", JS_NewFloat64(context, event.point.x));
-        JS_SetPropertyStr(context, value, "y", JS_NewFloat64(context, event.point.y));
-        JS_SetPropertyStr(context, value, "button", JS_NewString(context, PointerButtonName(event.button)));
-        JS_SetPropertyStr(context, value, "wheelDelta", JS_NewInt32(context, event.wheel_delta));
-        AddModifiers(value, event.modifiers);
-        return value;
-    }
-
-    JSValue CreateKeyEvent(const UiKeyEvent& event)
-    {
-        JSContext* context = runtime_->Context();
-        JSValue value = JS_NewObject(context);
-        JS_SetPropertyStr(context, value, "type", JS_NewString(context, KeyTypeName(event.type)));
-        JS_SetPropertyStr(context, value, "virtualKey", JS_NewInt32(context, static_cast<int32_t>(event.virtual_key)));
-        JS_SetPropertyStr(context, value, "repeat", JS_NewBool(context, event.repeat));
-        AddModifiers(value, event.modifiers);
-        return value;
-    }
-
-    void AddModifiers(JSValue object, UiModifiers modifiers)
-    {
-        JSContext* context = runtime_->Context();
-        JS_SetPropertyStr(context, object, "ctrl", JS_NewBool(context, modifiers.ctrl));
-        JS_SetPropertyStr(context, object, "shift", JS_NewBool(context, modifiers.shift));
-        JS_SetPropertyStr(context, object, "alt", JS_NewBool(context, modifiers.alt));
-    }
-
     UiEventResult DispatchPointerToScript(const UiPointerEvent& event)
     {
         JSContext* context = runtime_->Context();
@@ -593,7 +292,7 @@ private:
             return {};
         }
 
-        JSValue js_event = CreatePointerEvent(event);
+        JSValue js_event = imgviewer::v2::CreatePointerEvent(context, event);
         JSValue args[] = {js_event};
         JSValue result = JS_Call(context, handler, app, 1, args);
         JS_FreeValue(context, js_event);
@@ -613,7 +312,7 @@ private:
             return {};
         }
 
-        JSValue js_event = CreateKeyEvent(event);
+        JSValue js_event = imgviewer::v2::CreateKeyEvent(context, event);
         JSValue args[] = {js_event};
         JSValue result = JS_Call(context, handler, app, 1, args);
         JS_FreeValue(context, js_event);
@@ -740,29 +439,7 @@ private:
 
     void RenderError(const UiDrawContext& context) const
     {
-        const UiDraw draw(context);
-        draw.Clear(ui_theme::color::kWindowBackground);
-        draw.DrawBodyText(
-            L"Developer TypeScript UI failed",
-            D2D1::RectF(24.0f, 24.0f, context.viewport_size.width - 24.0f, 52.0f),
-            ui_theme::color::kBodyText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        const std::wstring script = L"Script: " + script_path_.wstring();
-        draw.DrawBodyText(
-            script,
-            D2D1::RectF(24.0f, 60.0f, context.viewport_size.width - 24.0f, 84.0f),
-            ui_theme::color::kMutedText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        draw.DrawBodyText(
-            WideFromUtf8(error_text_),
-            D2D1::RectF(24.0f, 96.0f, context.viewport_size.width - 24.0f, context.viewport_size.height - 56.0f),
-            ui_theme::color::kBodyText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        draw.DrawBodyText(
-            L"Press F5 to reload. Press Esc to close.",
-            D2D1::RectF(24.0f, context.viewport_size.height - 44.0f, context.viewport_size.width - 24.0f, context.viewport_size.height - 16.0f),
-            ui_theme::color::kMutedText,
-            D2D1_DRAW_TEXT_OPTIONS_CLIP);
+        imgviewer::v2::RenderScriptError(context, L"Developer TypeScript UI failed", script_path_, error_text_);
     }
 
     void SetError(std::string text)
@@ -920,5 +597,3 @@ HRESULT RunImgViewerDeveloperWindowApplication()
     return E_NOTIMPL;
 #endif
 }
-
-#endif // !defined(VER2)

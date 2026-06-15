@@ -1,3 +1,5 @@
+#if !defined(VER2)
+
 #include "imgviewer.settings.hpp"
 
 #include <array>
@@ -735,3 +737,5 @@ HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context)
     context->interaction.SetModal(ImgViewerModalOwner::Settings);
     return S_OK;
 }
+
+#endif // !defined(VER2)

@@ -17,6 +17,8 @@ add_subdirectory(third_parties/quickjs EXCLUDE_FROM_ALL)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
     "Semicolon-separated build configurations that show the Developer window.")
+set(IMGVIEWER_DEVELOPER_SOURCE src/v2/imgviewer.developer.cc)
+set(IMGVIEWER_SETTINGS_SOURCE src/v2/imgviewer.settings.cc)
 
 add_executable(imgviewer
     src/experimental/ui.bind.cc
@@ -25,7 +27,7 @@ add_executable(imgviewer
     src/imgviewer.about.cc
     src/imgviewer.action.cc
     src/imgviewer.config.cc
-    src/imgviewer.developer.cc
+    ${IMGVIEWER_DEVELOPER_SOURCE}
     src/imgviewer.edit.cc
     src/imgviewer.host.app_messages.cc
     src/imgviewer.host.chrome.cc
@@ -38,7 +40,8 @@ add_executable(imgviewer
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
-    src/imgviewer.settings.cc
+    ${IMGVIEWER_SETTINGS_SOURCE}
+    src/v2/imgviewer.script_ui.cc
     src/imgviewer.strings.cc
     src/imgviewer.ui.color_picker_toolstrip.cc
     src/imgviewer.ui.edit_toolbar.cc
@@ -114,6 +117,7 @@ target_compile_definitions(imgviewer PRIVATE
     UNICODE
     WIN32_LEAN_AND_MEAN
     _UNICODE
+    VER2
 )
 
 foreach(developer_window_config IN LISTS IMGVIEWER_DEVELOPER_WINDOW_CONFIGS)
