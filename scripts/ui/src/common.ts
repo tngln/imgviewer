@@ -47,10 +47,16 @@ export function drawButton(
   label: string,
   state: { hover: boolean; active: boolean },
   colors: ButtonColors,
+  icon?: VectorIcon,
 ): void {
   const fill = state.active ? colors.activeFill : state.hover ? colors.hoverFill : colors.fill;
   const stroke = state.hover ? colors.hoverStroke : colors.stroke;
   canvas.fillRect(rect.x, rect.y, rect.width, rect.height, fill);
   canvas.strokeRect(rect.x, rect.y, rect.width, rect.height, stroke, 1);
-  drawText(canvas, label, rect.x + 12, rect.y + 8, rect.width - 24, colors.text, rect.height - 8);
+  if (icon) {
+    const iconSize = Math.max(10, Math.min(rect.width, rect.height) - 14);
+    canvas.drawIcon(icon, rect.x + (rect.width - iconSize) / 2, rect.y + (rect.height - iconSize) / 2, iconSize, iconSize, colors.text, 1.4);
+  } else {
+    drawText(canvas, label, rect.x + 12, rect.y + 8, rect.width - 24, colors.text, rect.height - 8);
+  }
 }

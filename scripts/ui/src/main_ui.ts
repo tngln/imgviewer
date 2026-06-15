@@ -1,6 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
 import { clamp, contains, drawButton, drawText, type Rect } from "./common";
+import { svgIcon } from "./vector_icon";
 
 type Hit = Rect & { id: string; action?: string; actionArg?: number; enabled?: boolean; kind?: string };
 
@@ -33,6 +34,33 @@ const mainActions = [
   "toggleColorPicker",
 ];
 
+const actionIcons: Record<string, VectorIcon> = {
+  previousImage: svgIcon({ id: "previousImage", viewBox: [0, 0, 24, 24], paths: ["M14 6 L8 12 L14 18", "M18 6 L12 12 L18 18"] }),
+  nextImage: svgIcon({ id: "nextImage", viewBox: [0, 0, 24, 24], paths: ["M10 6 L16 12 L10 18", "M6 6 L12 12 L6 18"] }),
+  captureRegion: svgIcon({
+    id: "captureRegion",
+    viewBox: [0, 0, 24, 24],
+    paths: ["M6 6 L18 6 L18 18 L6 18 Z", "M3 9 L3 5 M3 5 L7 5 M21 9 L21 5 M21 5 L17 5 M3 15 L3 19 M3 19 L7 19 M21 15 L21 19 M21 19 L17 19"],
+  }),
+  zoomIn: svgIcon({ id: "zoomIn", viewBox: [0, 0, 24, 24], circles: [[10, 10, 5]], paths: ["M10 7 L10 13 M7 10 L13 10 M14 14 L20 20"] }),
+  zoomOut: svgIcon({ id: "zoomOut", viewBox: [0, 0, 24, 24], circles: [[10, 10, 5]], paths: ["M7 10 L13 10 M14 14 L20 20"] }),
+  fitWindow: svgIcon({
+    id: "fitWindow",
+    viewBox: [0, 0, 24, 24],
+    paths: ["M4 4 L20 4 L20 20 L4 20 Z", "M8 6 L6 6 L6 8 M16 6 L18 6 L18 8 M8 18 L6 18 L6 16 M16 18 L18 18 L18 16 M6 6 L10 10 M18 6 L14 10 M6 18 L10 14 M18 18 L14 14"],
+  }),
+  actualSize: svgIcon({
+    id: "actualSize",
+    viewBox: [0, 0, 24, 24],
+    paths: ["M5 5 L19 5 L19 19 L5 19 Z", "M9.6667 5 L9.6667 19 M14.3333 5 L14.3333 19 M5 9.6667 L19 9.6667 M5 14.3333 L19 14.3333 M9.6667 9.6667 L14.3333 9.6667 L14.3333 14.3333 L9.6667 14.3333 Z"],
+  }),
+  rotateClockwise: svgIcon({ id: "rotateClockwise", viewBox: [0, 0, 24, 24], paths: ["M17 8 L20 8 L20 5", "M19 8 C17.8 5.6 15.2 4 12.2 4 C8.2 4 5 7.2 5 11.2 C5 15.2 8.2 18.4 12.2 18.4 C15.1 18.4 17.6 16.7 18.8 14.2"] }),
+  flipHorizontal: svgIcon({ id: "flipHorizontal", viewBox: [0, 0, 24, 24], paths: ["M4 5 L10 12 L4 19 L4 5", "M20 5 L14 12 L20 19 L20 5", "M12 3.5 L12 20.5"] }),
+  flipVertical: svgIcon({ id: "flipVertical", viewBox: [0, 0, 24, 24], paths: ["M5 4 L12 10 L19 4 L5 4", "M5 20 L12 14 L19 20 L5 20", "M3.5 12 L20.5 12"] }),
+  resetView: svgIcon({ id: "resetView", viewBox: [0, 0, 24, 24], paths: ["M7 7 C8.4 5.7 10.1 5 12 5 C15.9 5 19 8.1 19 12 C19 15.9 15.9 19 12 19 C8.8 19 6.1 16.9 5.3 14", "M7 7 L7 3 M7 7 L3 7"] }),
+  toggleColorPicker: svgIcon({ id: "toggleColorPicker", viewBox: [0, 0, 24, 24], paths: ["M15.2 3.8 C16.4 2.6 18.3 2.6 19.5 3.8 C20.7 5 20.7 6.9 19.5 8.1 L18 9.6 L13.7 5.3 L15.2 3.8 Z", "M13 6 L17.3 10.3 L8 19.6 L4.7 20.7 L5.8 17.4 L15.1 8.1", "M11.4 9.8 L13.5 11.9"] }),
+};
+
 const editActions: Array<[string, string]> = [
   ["select", "editSelect"],
   ["pixelSelect", "editPixelSelect"],
@@ -41,6 +69,23 @@ const editActions: Array<[string, string]> = [
   ["text", "editText"],
   ["crop", "editCrop"],
 ];
+const editCommandActions: Array<[string, string]> = [
+  ["Save", "saveImageAs"],
+  ["Close", "toggleEditMode"],
+];
+
+const editIcons: Record<string, VectorIcon> = {
+  editSelect: svgIcon({ id: "editSelect", viewBox: [0, 0, 24, 24], paths: ["M6 4 L17 15 L12 16 L10 21 L6 4 Z"] }),
+  editPixelSelect: actionIcons.captureRegion,
+  editPen: svgIcon({ id: "editPen", viewBox: [0, 0, 24, 24], paths: ["M15.5 4.5 L19.5 8.5 L8 20 L4 20 L4 16 L15.5 4.5 Z", "M13.5 6.5 L17.5 10.5"] }),
+  editShape: svgIcon({ id: "editShape", viewBox: [0, 0, 24, 24], rects: [[4, 6, 8, 8]], circles: [[16.5, 15.5, 3.5]] }),
+  editText: svgIcon({ id: "editText", viewBox: [0, 0, 24, 24], paths: ["M5 6 L19 6 M12 6 L12 19 M9 19 L15 19"] }),
+  editCrop: svgIcon({ id: "editCrop", viewBox: [0, 0, 24, 24], paths: ["M7 3 L7 17 L21 17", "M3 7 L17 7 L17 21"] }),
+  editUndo: svgIcon({ id: "editUndo", viewBox: [0, 0, 24, 24], paths: ["M8 8 L4 12 L8 16", "M5 12 L15 12 C18 12 20 14 20 17"] }),
+  editRedo: svgIcon({ id: "editRedo", viewBox: [0, 0, 24, 24], paths: ["M16 8 L20 12 L16 16", "M19 12 L9 12 C6 12 4 14 4 17"] }),
+  saveImageAs: svgIcon({ id: "saveImageAs", viewBox: [0, 0, 24, 24], paths: ["M5 4 L17 4 L20 7 L20 20 L5 20 Z", "M8 4 L8 10 L16 10 L16 4", "M8 20 L8 14 L17 14 L17 20"] }),
+  toggleEditMode: svgIcon({ id: "toggleEditMode", viewBox: [0, 0, 24, 24], paths: ["M6 6 L18 18 M18 6 L6 18"] }),
+};
 
 const penWidths = [2, 4, 8, 12];
 const palette = [
@@ -93,7 +138,7 @@ function hitAt(x: number, y: number): Hit | undefined {
   return undefined;
 }
 
-function button(canvas: CanvasApi, hit: Hit, label: string, active = false): void {
+function button(canvas: CanvasApi, hit: Hit, label: string, active = false, icon?: VectorIcon): void {
   const disabled = hit.enabled === false;
   drawButton(
     canvas,
@@ -108,6 +153,7 @@ function button(canvas: CanvasApi, hit: Hit, label: string, active = false): voi
       hoverStroke: colors.accent,
       text: disabled ? colors.disabled : colors.text,
     },
+    icon,
   );
 }
 
@@ -195,7 +241,7 @@ function renderToolbar(canvas: CanvasApi, env: RenderEnvironment, state: MainOve
   for (const action of mainActions) {
     const hit: Hit = { id: `main:${action}`, x, y: rect.y + size.pad, width: size.button, height: size.button, action, enabled: enabled(state, action) };
     addHit(hit);
-    button(canvas, hit, shortLabel(actionLabel(state, action)), action === "toggleColorPicker" && state.colorPickerActive);
+    button(canvas, hit, shortLabel(actionLabel(state, action)), action === "toggleColorPicker" && state.colorPickerActive, actionIcons[action]);
     x += size.button + size.gap;
   }
   return rect;
@@ -225,7 +271,12 @@ function renderEditToolbar(canvas: CanvasApi, state: MainOverlayState, anchor: R
   }
   const buttonSize = 32;
   const gap = 5;
-  const width = editActions.length * buttonSize + 2 * buttonSize + gap * (editActions.length + 1) + 16;
+  const width =
+    editActions.length * buttonSize +
+    2 * buttonSize +
+    editCommandActions.length * 56 +
+    gap * (editActions.length + editCommandActions.length + 1) +
+    16;
   const rect = { x: anchor.x + (anchor.width - width) / 2, y: anchor.y - 48, width, height: 40 };
   canvas.fillRect(rect.x, rect.y, rect.width, rect.height, "#EFFFFFFF");
   canvas.strokeRect(rect.x, rect.y, rect.width, rect.height, colors.stroke, 1);
@@ -233,14 +284,20 @@ function renderEditToolbar(canvas: CanvasApi, state: MainOverlayState, anchor: R
   for (const [tool, action] of editActions) {
     const hit: Hit = { id: `edit:${action}`, x, y: rect.y + 4, width: buttonSize, height: buttonSize, action, enabled: enabled(state, action) };
     addHit(hit);
-    button(canvas, hit, toolLabel(tool), state.editToolbar.tool === tool);
+    button(canvas, hit, toolLabel(tool), state.editToolbar.tool === tool, editIcons[action]);
     x += buttonSize + gap;
   }
   for (const action of ["editUndo", "editRedo"]) {
     const hit: Hit = { id: `edit:${action}`, x, y: rect.y + 4, width: buttonSize, height: buttonSize, action, enabled: enabled(state, action) };
     addHit(hit);
-    button(canvas, hit, action === "editUndo" ? "Undo" : "Redo");
+    button(canvas, hit, action === "editUndo" ? "Undo" : "Redo", false, editIcons[action]);
     x += buttonSize + gap;
+  }
+  for (const [label, action] of editCommandActions) {
+    const hit: Hit = { id: `edit:${action}`, x, y: rect.y + 4, width: 56, height: buttonSize, action, enabled: enabled(state, action) };
+    addHit(hit);
+    button(canvas, hit, label, false, editIcons[action]);
+    x += 56 + gap;
   }
   return rect;
 }

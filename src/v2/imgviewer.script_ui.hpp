@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <quickjs.h>
 
@@ -11,6 +12,12 @@
 #include "ui.events.hpp"
 
 namespace imgviewer::v2 {
+
+struct ScriptVectorIcon final {
+    std::string id;
+    D2D1_RECT_F view_box = {};
+    std::vector<icons::PathCommand> commands;
+};
 
 class ScriptUiHost {
 public:
@@ -39,6 +46,7 @@ JSValue CreatePointerEvent(JSContext* context, const UiPointerEvent& event);
 JSValue CreateKeyEvent(JSContext* context, const UiKeyEvent& event);
 JSValue CreateTextEvent(JSContext* context, wchar_t ch);
 JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event);
+bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* icon);
 std::optional<D2D1_POINT_2F> ImeCaretPointProperty(JSContext* context, JSValueConst object);
 
 void RenderScriptError(

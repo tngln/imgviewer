@@ -188,8 +188,10 @@ add_executable(imgviewer_tests
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.button_behavior.cc
+    src/ui.draw.cc
     src/ui.element.cc
     src/ui.layout.cc
+    src/v2/imgviewer.script_ui.cc
 )
 
 target_include_directories(imgviewer_tests PRIVATE

@@ -1,6 +1,11 @@
 #include "v2/imgviewer.script_ui.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <utility>
 #include <vector>
 
 #include <d2d1helper.h>
@@ -163,6 +168,171 @@ const UiDrawContext* ActiveDrawContext(JSContext* context)
     return host != nullptr ? host->ActiveDrawContext() : nullptr;
 }
 
+class D2DTransformGuard final {
+public:
+    D2DTransformGuard(ID2D1DeviceContext* target, D2D1_MATRIX_3X2_F transform) : target_(target)
+    {
+        if (target_ == nullptr) {
+            return;
+        }
+        target_->GetTransform(&old_transform_);
+        target_->SetTransform(transform * old_transform_);
+    }
+
+    D2DTransformGuard(const D2DTransformGuard&) = delete;
+    D2DTransformGuard& operator=(const D2DTransformGuard&) = delete;
+
+    ~D2DTransformGuard()
+    {
+        if (target_ != nullptr) {
+            target_->SetTransform(old_transform_);
+        }
+    }
+
+private:
+    ID2D1DeviceContext* target_ = nullptr;
+    D2D1_MATRIX_3X2_F old_transform_ = D2D1::Matrix3x2F::Identity();
+};
+
+bool ReadArrayLength(JSContext* context, JSValueConst value, uint32_t* length)
+{
+    JSValue length_value = JS_GetPropertyStr(context, value, "length");
+    const bool ok = JS_ToUint32(context, length, length_value) == 0;
+    JS_FreeValue(context, length_value);
+    return ok;
+}
+
+bool ReadArrayNumber(JSContext* context, JSValueConst value, uint32_t index, float* number)
+{
+    JSValue item = JS_GetPropertyUint32(context, value, index);
+    double parsed = 0.0;
+    const bool ok = JS_ToFloat64(context, &parsed, item) == 0;
+    JS_FreeValue(context, item);
+    if (!ok) {
+        return false;
+    }
+    *number = static_cast<float>(parsed);
+    return true;
+}
+
+bool ReadPoint(JSContext* context, JSValueConst value, uint32_t index, D2D1_POINT_2F* point)
+{
+    return ReadArrayNumber(context, value, index, &point->x) &&
+        ReadArrayNumber(context, value, index + 1, &point->y);
+}
+
+bool ReadVectorIconCommand(JSContext* context, JSValueConst value, icons::PathCommand* command)
+{
+    uint32_t length = 0;
+    if (JS_IsArray(value) != 1 || !ReadArrayLength(context, value, &length) || length == 0) {
+        return false;
+    }
+
+    JSValue verb_value = JS_GetPropertyUint32(context, value, 0);
+    const std::string verb = Utf8FromValue(context, verb_value);
+    JS_FreeValue(context, verb_value);
+
+    *command = {};
+    if (verb == "M" && length >= 3) {
+        command->verb = icons::PathVerb::MoveTo;
+        return ReadPoint(context, value, 1, &command->points[0]);
+    }
+    if (verb == "L" && length >= 3) {
+        command->verb = icons::PathVerb::LineTo;
+        return ReadPoint(context, value, 1, &command->points[0]);
+    }
+    if (verb == "C" && length >= 7) {
+        command->verb = icons::PathVerb::CubicTo;
+        return ReadPoint(context, value, 1, &command->points[0]) &&
+            ReadPoint(context, value, 3, &command->points[1]) &&
+            ReadPoint(context, value, 5, &command->points[2]);
+    }
+    if (verb == "Z") {
+        command->verb = icons::PathVerb::Close;
+        return true;
+    }
+    return false;
+}
+
+uint64_t HashFloat(uint64_t hash, float value)
+{
+    const auto* bytes = reinterpret_cast<const unsigned char*>(&value);
+    for (size_t index = 0; index < sizeof(value); ++index) {
+        hash ^= bytes[index];
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+uint64_t HashIcon(const ScriptVectorIcon& icon)
+{
+    uint64_t hash = 1469598103934665603ull;
+    hash = HashFloat(hash, icon.view_box.left);
+    hash = HashFloat(hash, icon.view_box.top);
+    hash = HashFloat(hash, icon.view_box.right);
+    hash = HashFloat(hash, icon.view_box.bottom);
+    for (const icons::PathCommand& command : icon.commands) {
+        hash ^= static_cast<uint64_t>(command.verb);
+        hash *= 1099511628211ull;
+        for (const D2D1_POINT_2F& point : command.points) {
+            hash = HashFloat(hash, point.x);
+            hash = HashFloat(hash, point.y);
+        }
+    }
+    return hash;
+}
+
+std::string IconCacheKey(const ScriptVectorIcon& icon)
+{
+    std::ostringstream stream;
+    if (!icon.id.empty()) {
+        stream << "id:" << icon.id << ":";
+    } else {
+        stream << "hash:";
+    }
+    stream << std::hex << HashIcon(icon);
+    return stream.str();
+}
+
+struct CachedIconGeometry final {
+    std::string key;
+    wil::com_ptr<ID2D1PathGeometry> geometry;
+};
+
+ID2D1PathGeometry* CachedGeometryForIcon(ID2D1Factory1* factory, const ScriptVectorIcon& icon)
+{
+    constexpr size_t kMaxCachedIcons = 64;
+    static ID2D1Factory1* cached_factory = nullptr;
+    static std::vector<CachedIconGeometry> cache;
+
+    if (factory == nullptr || icon.commands.empty()) {
+        return nullptr;
+    }
+    if (factory != cached_factory) {
+        cache.clear();
+        cached_factory = factory;
+    }
+
+    const std::string key = IconCacheKey(icon);
+    const auto found = std::find_if(cache.begin(), cache.end(), [&](const CachedIconGeometry& item) {
+        return item.key == key;
+    });
+    if (found != cache.end()) {
+        return found->geometry.get();
+    }
+
+    CachedIconGeometry item;
+    item.key = key;
+    if (FAILED(CreatePathGeometryFromIcon(factory, icon.commands.data(), icon.commands.size(), item.geometry.put()))) {
+        return nullptr;
+    }
+    if (cache.size() >= kMaxCachedIcons) {
+        cache.erase(cache.begin());
+    }
+    cache.push_back(std::move(item));
+    return cache.back().geometry.get();
+}
+
 JSValue CanvasClear(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     const UiDrawContext* draw_context = ActiveDrawContext(context);
@@ -271,6 +441,57 @@ JSValue CanvasStrokeLine(JSContext* context, JSValueConst, int argc, JSValueCons
     return JS_UNDEFINED;
 }
 
+JSValue CanvasDrawIcon(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    const UiDrawContext* draw_context = ActiveDrawContext(context);
+    if (draw_context == nullptr || draw_context->d2d_context == nullptr || draw_context->d2d_factory == nullptr ||
+        argc < 6) {
+        return JS_UNDEFINED;
+    }
+
+    ScriptVectorIcon icon;
+    if (!ReadVectorIcon(context, argv[0], &icon)) {
+        return JS_UNDEFINED;
+    }
+
+    double x = 0.0, y = 0.0, width = 0.0, height = 0.0, stroke_width = 1.0;
+    JS_ToFloat64(context, &x, argv[1]);
+    JS_ToFloat64(context, &y, argv[2]);
+    JS_ToFloat64(context, &width, argv[3]);
+    JS_ToFloat64(context, &height, argv[4]);
+    if (argc > 6) {
+        JS_ToFloat64(context, &stroke_width, argv[6]);
+    }
+
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[5]));
+    const float box_width = static_cast<float>(width);
+    const float box_height = static_cast<float>(height);
+    const float icon_width = icon.view_box.right - icon.view_box.left;
+    const float icon_height = icon.view_box.bottom - icon.view_box.top;
+    if (!color.has_value() || box_width <= 0.0f || box_height <= 0.0f || icon_width <= 0.0f || icon_height <= 0.0f) {
+        return JS_UNDEFINED;
+    }
+
+    ID2D1PathGeometry* geometry = CachedGeometryForIcon(draw_context->d2d_factory, icon);
+    if (geometry == nullptr) {
+        return JS_UNDEFINED;
+    }
+
+    const float scale = (std::min)(box_width / icon_width, box_height / icon_height);
+    if (scale <= 0.0f) {
+        return JS_UNDEFINED;
+    }
+    const float left = static_cast<float>(x) + (box_width - icon_width * scale) * 0.5f;
+    const float top = static_cast<float>(y) + (box_height - icon_height * scale) * 0.5f;
+    const D2DTransformGuard transform_guard(
+        draw_context->d2d_context,
+        D2D1::Matrix3x2F::Translation(-icon.view_box.left, -icon.view_box.top) *
+        D2D1::Matrix3x2F::Scale(scale, scale) *
+        D2D1::Matrix3x2F::Translation(left, top));
+    UiDraw(*draw_context).DrawGeometry(geometry, *color, static_cast<float>(stroke_width) / scale);
+    return JS_UNDEFINED;
+}
+
 } // namespace
 
 JSValue CreateCanvasObject(JSContext* context)
@@ -281,6 +502,7 @@ JSValue CreateCanvasObject(JSContext* context)
     JS_SetPropertyStr(context, canvas, "strokeRect", JS_NewCFunction(context, CanvasStrokeRect, "strokeRect", 6));
     JS_SetPropertyStr(context, canvas, "fillText", JS_NewCFunction(context, CanvasFillText, "fillText", 6));
     JS_SetPropertyStr(context, canvas, "strokeLine", JS_NewCFunction(context, CanvasStrokeLine, "strokeLine", 6));
+    JS_SetPropertyStr(context, canvas, "drawIcon", JS_NewCFunction(context, CanvasDrawIcon, "drawIcon", 7));
     return canvas;
 }
 
@@ -351,6 +573,67 @@ JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event)
         break;
     }
     return value;
+}
+
+bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* icon)
+{
+    if (context == nullptr || icon == nullptr || !JS_IsObject(value)) {
+        return false;
+    }
+
+    ScriptVectorIcon parsed;
+
+    JSValue id_value = JS_GetPropertyStr(context, value, "id");
+    if (!JS_IsUndefined(id_value) && !JS_IsNull(id_value)) {
+        parsed.id = Utf8FromValue(context, id_value);
+    }
+    JS_FreeValue(context, id_value);
+
+    JSValue view_box = JS_GetPropertyStr(context, value, "viewBox");
+    uint32_t view_box_length = 0;
+    float view_x = 0.0f;
+    float view_y = 0.0f;
+    float view_width = 0.0f;
+    float view_height = 0.0f;
+    const bool valid_view_box =
+        JS_IsArray(view_box) == 1 &&
+        ReadArrayLength(context, view_box, &view_box_length) &&
+        view_box_length == 4 &&
+        ReadArrayNumber(context, view_box, 0, &view_x) &&
+        ReadArrayNumber(context, view_box, 1, &view_y) &&
+        ReadArrayNumber(context, view_box, 2, &view_width) &&
+        ReadArrayNumber(context, view_box, 3, &view_height) &&
+        view_width > 0.0f &&
+        view_height > 0.0f;
+    JS_FreeValue(context, view_box);
+    if (!valid_view_box) {
+        return false;
+    }
+    parsed.view_box = D2D1::RectF(view_x, view_y, view_x + view_width, view_y + view_height);
+
+    JSValue commands = JS_GetPropertyStr(context, value, "commands");
+    uint32_t command_count = 0;
+    if (JS_IsArray(commands) != 1 || !ReadArrayLength(context, commands, &command_count) || command_count == 0) {
+        JS_FreeValue(context, commands);
+        return false;
+    }
+
+    parsed.commands.reserve(command_count);
+    for (uint32_t index = 0; index < command_count; ++index) {
+        JSValue command_value = JS_GetPropertyUint32(context, commands, index);
+        icons::PathCommand command = {};
+        const bool ok = ReadVectorIconCommand(context, command_value, &command);
+        JS_FreeValue(context, command_value);
+        if (!ok) {
+            JS_FreeValue(context, commands);
+            return false;
+        }
+        parsed.commands.push_back(command);
+    }
+    JS_FreeValue(context, commands);
+
+    *icon = std::move(parsed);
+    return true;
 }
 
 std::optional<D2D1_POINT_2F> ImeCaretPointProperty(JSContext* context, JSValueConst object)

@@ -1,29 +1,42 @@
-export type PointerEventType = "move" | "down" | "up" | "leave" | "wheel";
-export type KeyEventType = "down" | "up";
+type PointerEventType = "move" | "down" | "up" | "leave" | "wheel";
+type KeyEventType = "down" | "up";
 
-export interface CanvasApi {
+type VectorPathCommand =
+  | ["M", number, number]
+  | ["L", number, number]
+  | ["C", number, number, number, number, number, number]
+  | ["Z"];
+
+interface VectorIcon {
+  id?: string;
+  viewBox: [number, number, number, number];
+  commands: VectorPathCommand[];
+}
+
+interface CanvasApi {
   clear(color: string): void;
   fillRect(x: number, y: number, width: number, height: number, color: string): void;
   strokeRect(x: number, y: number, width: number, height: number, color: string, strokeWidth?: number): void;
   fillText(text: string, x: number, y: number, width: number, height: number, color: string): void;
   strokeLine(x1: number, y1: number, x2: number, y2: number, color: string, strokeWidth?: number): void;
+  drawIcon(icon: VectorIcon, x: number, y: number, width: number, height: number, color: string, strokeWidth?: number): void;
 }
 
-export interface HostApi {
+interface HostApi {
   invalidate(): void;
   reload(): void;
   close(): void;
   log(text: string): void;
 }
 
-export interface SignalsApi {
+interface SignalsApi {
   get(name: string): number | undefined;
   set(name: string, value: number): boolean;
   subscribe(name: string, callback: (value: number) => void): number;
   unsubscribe(id: number): boolean;
 }
 
-export interface RenderEnvironment {
+interface RenderEnvironment {
   width: number;
   height: number;
   dpiScale: number;
@@ -32,7 +45,7 @@ export interface RenderEnvironment {
   focused: boolean;
 }
 
-export interface DeveloperPointerEvent {
+interface DeveloperPointerEvent {
   type: PointerEventType;
   x: number;
   y: number;
@@ -43,7 +56,7 @@ export interface DeveloperPointerEvent {
   alt: boolean;
 }
 
-export interface DeveloperKeyEvent {
+interface DeveloperKeyEvent {
   type: KeyEventType;
   virtualKey: number;
   ctrl: boolean;
@@ -52,20 +65,20 @@ export interface DeveloperKeyEvent {
   repeat: boolean;
 }
 
-export interface DeveloperEventResult {
+interface DeveloperEventResult {
   handled?: boolean;
   capture?: boolean;
   invalidate?: boolean;
   imeCaret?: ImeCaretPoint;
 }
 
-export interface DeveloperUiApp {
+interface DeveloperUiApp {
   render(canvas: CanvasApi, env: RenderEnvironment): void;
   pointer(event: DeveloperPointerEvent): DeveloperEventResult | void;
   key(event: DeveloperKeyEvent): DeveloperEventResult | void;
 }
 
-export type SettingKey =
+type SettingKey =
   | "language"
   | "initialImageViewMode"
   | "rememberWindowSize"
@@ -77,12 +90,12 @@ export type SettingKey =
   | "toolbarScalePercent"
   | "edgeClickNavigationZonePercent";
 
-export interface SettingsActionRow {
+interface SettingsActionRow {
   name: string;
   shortcut: string;
 }
 
-export interface SettingsApi {
+interface SettingsApi {
   get(name: SettingKey): number | boolean | undefined;
   set(name: SettingKey, value: number | boolean): boolean;
   save(): void;
@@ -90,45 +103,45 @@ export interface SettingsApi {
   actionRows(filter: string): SettingsActionRow[];
 }
 
-export interface SettingsTextEvent {
+interface SettingsTextEvent {
   text: string;
 }
 
-export type NativeInputEvent =
+type NativeInputEvent =
   | { kind: "text"; text: string }
   | { kind: "imeStart" }
   | { kind: "imeComposition"; text: string }
   | { kind: "imeEnd" };
 
-export interface ImeCaretPoint {
+interface ImeCaretPoint {
   x: number;
   y: number;
 }
 
-export interface InputEventResult extends DeveloperEventResult {
+interface InputEventResult extends DeveloperEventResult {
   imeCaret?: ImeCaretPoint;
 }
 
-export type MainActionName = string;
+type MainActionName = string;
 
-export interface OverlayHostApi {
+interface OverlayHostApi {
   action(name: MainActionName, actionArg?: number): MainEventResult | false;
   openMenu(): MainEventResult;
   invalidate(): void;
 }
 
-export interface MainOverlayRows {
+interface MainOverlayRows {
   label: string;
   value: string;
 }
 
-export interface MainOverlayColorSample {
+interface MainOverlayColorSample {
   red: number;
   green: number;
   blue: number;
 }
 
-export interface MainOverlayState {
+interface MainOverlayState {
   title: string;
   topMost: boolean;
   maximized: boolean;
@@ -167,22 +180,22 @@ export interface MainOverlayState {
   toast: { visible: boolean; text: string };
 }
 
-export type MainPointerEvent = DeveloperPointerEvent;
-export type MainKeyEvent = DeveloperKeyEvent;
-export type MainEventResult = InputEventResult & { action?: MainActionName; actionArg?: number };
+type MainPointerEvent = DeveloperPointerEvent;
+type MainKeyEvent = DeveloperKeyEvent;
+type MainEventResult = InputEventResult & { action?: MainActionName; actionArg?: number };
 
-export interface MainUiApp {
+interface MainUiApp {
   render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void;
   pointer(event: MainPointerEvent): MainEventResult | void;
   key?(event: MainKeyEvent): MainEventResult | void;
   input?(event: NativeInputEvent): MainEventResult | void;
 }
 
-export type SettingsPointerEvent = DeveloperPointerEvent;
-export type SettingsKeyEvent = DeveloperKeyEvent;
-export type SettingsEventResult = InputEventResult;
+type SettingsPointerEvent = DeveloperPointerEvent;
+type SettingsKeyEvent = DeveloperKeyEvent;
+type SettingsEventResult = InputEventResult;
 
-export interface SettingsUiApp {
+interface SettingsUiApp {
   render(canvas: CanvasApi, env: RenderEnvironment): void;
   pointer(event: SettingsPointerEvent): SettingsEventResult | void;
   key(event: SettingsKeyEvent): SettingsEventResult | void;
@@ -190,13 +203,11 @@ export interface SettingsUiApp {
   text(event: SettingsTextEvent): SettingsEventResult | void;
 }
 
-declare global {
-  const host: HostApi;
-  const overlay: OverlayHostApi;
-  const signals: SignalsApi;
-  const settings: SettingsApi;
+declare const host: HostApi;
+declare const overlay: OverlayHostApi;
+declare const signals: SignalsApi;
+declare const settings: SettingsApi;
 
-  var imgviewerDeveloperUi: DeveloperUiApp;
-  var imgviewerSettingsUi: SettingsUiApp;
-  var imgviewerMainUi: MainUiApp;
-}
+declare var imgviewerDeveloperUi: DeveloperUiApp;
+declare var imgviewerSettingsUi: SettingsUiApp;
+declare var imgviewerMainUi: MainUiApp;

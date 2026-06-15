@@ -22,6 +22,7 @@
 #include "ui.button_behavior.hpp"
 #include "ui.element.hpp"
 #include "ui.layout.hpp"
+#include "v2/imgviewer.script_ui.hpp"
 
 namespace {
 
@@ -522,6 +523,50 @@ void TestCanvasColorParser()
     CHECK(!script::ParseCanvasColor("#12345").has_value());
 }
 
+void TestScriptVectorIconReader()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+
+    const script::QuickJsEvalResult result = runtime.EvalScript(
+        "globalThis.goodIcon = {"
+        "  id: 'test-icon',"
+        "  viewBox: [0, 0, 24, 24],"
+        "  commands: [['M', 1, 2], ['L', 3, 4], ['C', 5, 6, 7, 8, 9, 10], ['Z']]"
+        "};"
+        "globalThis.badIcon = { viewBox: [0, 0, 24, 24], commands: [['A', 1, 2, 3, 4, 5, 6, 7]] };"
+        "globalThis.noViewBox = { commands: [['M', 1, 2]] };"
+        "'ready';",
+        "vector-icon-test.js");
+    CHECK(result.ok);
+
+    JSContext* context = runtime.Context();
+    JSValue global = JS_GetGlobalObject(context);
+    JSValue good_value = JS_GetPropertyStr(context, global, "goodIcon");
+    imgviewer::v2::ScriptVectorIcon good_icon;
+    CHECK(imgviewer::v2::ReadVectorIcon(context, good_value, &good_icon));
+    CHECK(good_icon.id == "test-icon");
+    CHECK(good_icon.commands.size() == 4);
+    CHECK(good_icon.commands[0].verb == icons::PathVerb::MoveTo);
+    CHECK(good_icon.commands[1].verb == icons::PathVerb::LineTo);
+    CHECK(good_icon.commands[2].verb == icons::PathVerb::CubicTo);
+    CHECK(good_icon.commands[3].verb == icons::PathVerb::Close);
+    CHECK(NearF(good_icon.view_box.right, 24.0f));
+    CHECK(NearF(good_icon.view_box.bottom, 24.0f));
+    JS_FreeValue(context, good_value);
+
+    JSValue bad_value = JS_GetPropertyStr(context, global, "badIcon");
+    imgviewer::v2::ScriptVectorIcon bad_icon;
+    CHECK(!imgviewer::v2::ReadVectorIcon(context, bad_value, &bad_icon));
+    JS_FreeValue(context, bad_value);
+
+    JSValue no_view_box_value = JS_GetPropertyStr(context, global, "noViewBox");
+    imgviewer::v2::ScriptVectorIcon no_view_box_icon;
+    CHECK(!imgviewer::v2::ReadVectorIcon(context, no_view_box_value, &no_view_box_icon));
+    JS_FreeValue(context, no_view_box_value);
+    JS_FreeValue(context, global);
+}
+
 void TestDeveloperScriptBundlePath()
 {
     const std::filesystem::path script_path = CurrentExeDirectory() / L"scripts" / L"developer_ui.js";
@@ -544,6 +589,7 @@ int main()
     TestQuickJsNativeFunctionRegistration();
     TestQuickJsSignalApiSmoke();
     TestCanvasColorParser();
+    TestScriptVectorIconReader();
     TestDeveloperScriptBundlePath();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
