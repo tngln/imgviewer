@@ -36,9 +36,9 @@ void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
 HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWICBitmapSource* source);
 
-std::unique_ptr<ImgViewerUi> CreateMainUi(ImgViewerUi** main_ui)
+std::unique_ptr<ImgViewerUi> CreateMainUi(imgviewer::v2::ScriptEngine& engine, ImgViewerUi** main_ui)
 {
-    auto ui = std::make_unique<ImgViewerUi>();
+    auto ui = std::make_unique<ImgViewerUi>(engine);
     if (main_ui != nullptr) {
         *main_ui = ui.get();
     }
@@ -68,8 +68,8 @@ void FinishImgViewerImageLoad(HWND hwnd, ImgViewerContext* context, const std::w
 }
 
 ImgViewerContext::ImgViewerContext() :
-    ui(CreateMainUi(&main_ui)),
-    script_engine(std::make_unique<imgviewer::v2::ScriptEngine>())
+    script_engine(std::make_unique<imgviewer::v2::ScriptEngine>()),
+    ui(CreateMainUi(*script_engine, &main_ui))
 {
 }
 
@@ -90,7 +90,7 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
     }
 
     ClosePopupIfOpen(&context->popup);
-    context->ui.ResetRoot(CreateMainUi(&context->main_ui));
+    context->ui.ResetRoot(CreateMainUi(*context->script_engine, &context->main_ui));
     context->info_panel_key_valid = false;
     context->main_ui->SetTitleText(title_text.empty() ? kImgViewerWindowTitle : title_text.c_str());
     context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);

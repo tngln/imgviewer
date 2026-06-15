@@ -1,14 +1,11 @@
 #include "imgviewer.settings.hpp"
 
-#include <algorithm>
 #include <cwctype>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include <d2d1helper.h>
 #include <quickjs.h>

@@ -19,6 +19,7 @@ set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
     "Semicolon-separated build configurations that show the Developer window.")
 set(IMGVIEWER_DEVELOPER_SOURCE src/v2/imgviewer.developer.cc)
 set(IMGVIEWER_SETTINGS_SOURCE src/v2/imgviewer.settings.cc)
+set(IMGVIEWER_UI_SOURCE src/v2/imgviewer.ui.cc)
 
 add_executable(imgviewer
     src/experimental/ui.bind.cc
@@ -44,6 +45,7 @@ add_executable(imgviewer
     src/v2/imgviewer.script_engine.cc
     src/v2/imgviewer.script_ui.cc
     src/imgviewer.strings.cc
+    ${IMGVIEWER_UI_SOURCE}
     src/imgviewer.ui.color_picker_toolstrip.cc
     src/imgviewer.ui.edit_toolbar.cc
     src/imgviewer.ui.floating_toolbar.cc
@@ -59,7 +61,6 @@ add_executable(imgviewer
     src/image.sequence.cc
     src/image.stb_decoder.cc
     src/imgviewer.viewer.cc
-    src/imgviewer.ui.cc
     src/imgviewer.ui.titlebar.cc
     src/imgviewer.ui.toolbar.cc
     src/main.cc

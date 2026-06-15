@@ -109,6 +109,75 @@ export interface InputEventResult extends DeveloperEventResult {
   imeCaret?: ImeCaretPoint;
 }
 
+export type MainActionName = string;
+
+export interface OverlayHostApi {
+  action(name: MainActionName, actionArg?: number): MainEventResult | false;
+  openMenu(): MainEventResult;
+  invalidate(): void;
+}
+
+export interface MainOverlayRows {
+  label: string;
+  value: string;
+}
+
+export interface MainOverlayColorSample {
+  red: number;
+  green: number;
+  blue: number;
+}
+
+export interface MainOverlayState {
+  title: string;
+  topMost: boolean;
+  maximized: boolean;
+  editMode: boolean;
+  toolbarScalePercent: number;
+  colorPickerActive: boolean;
+  actionEnabled: Record<MainActionName, boolean>;
+  actionLabels: Record<MainActionName, string>;
+  editToolbar: { visible: boolean; tool: string; dirty: boolean; canUndo: boolean; canRedo: boolean };
+  colorPickerToolstrip: { visible: boolean; hasSample: boolean; hexText: string };
+  penToolstrip: { visible: boolean; color: string; width: number };
+  shapeToolstrip: { visible: boolean; kind: string; color: string };
+  textToolstrip: { visible: boolean; fontFamily: string; fontSize: number; textColor: string; backgroundColor: string; hasBackground: boolean };
+  selectionToolstrip: { visible: boolean };
+  animation: { available: boolean; playing: boolean; loop: boolean; currentFrame: number; totalFrames: number };
+  infoPanel: {
+    visible: boolean;
+    hasAnalysis: boolean;
+    analysisUnavailable: boolean;
+    name: string;
+    path: string;
+    dimensions: string;
+    type: string;
+    fileSize: string;
+    modifiedTime: string;
+    colorRows: MainOverlayRows[];
+    exifRows: MainOverlayRows[];
+    analysis: {
+      sampledPixels: number;
+      downsampled: boolean;
+      average: MainOverlayColorSample;
+      darkest: MainOverlayColorSample;
+      brightest: MainOverlayColorSample;
+    };
+  };
+  toast: { visible: boolean; text: string };
+}
+
+export type MainPointerEvent = DeveloperPointerEvent;
+export type MainKeyEvent = DeveloperKeyEvent;
+export type MainEventResult = InputEventResult & { action?: MainActionName; actionArg?: number };
+
+export interface MainUiApp {
+  render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void;
+  pointer(event: MainPointerEvent): MainEventResult | void;
+  key?(event: MainKeyEvent): MainEventResult | void;
+  input?(event: NativeInputEvent): MainEventResult | void;
+}
+
 export type SettingsPointerEvent = DeveloperPointerEvent;
 export type SettingsKeyEvent = DeveloperKeyEvent;
 export type SettingsEventResult = InputEventResult;
@@ -123,9 +192,11 @@ export interface SettingsUiApp {
 
 declare global {
   const host: HostApi;
+  const overlay: OverlayHostApi;
   const signals: SignalsApi;
   const settings: SettingsApi;
 
   var imgviewerDeveloperUi: DeveloperUiApp;
   var imgviewerSettingsUi: SettingsUiApp;
+  var imgviewerMainUi: MainUiApp;
 }

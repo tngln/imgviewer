@@ -1,3 +1,5 @@
+#if !defined(VER2)
+
 #include "imgviewer.ui.hpp"
 
 #include <cmath>
@@ -464,3 +466,5 @@ void ImgViewerUi::SetSelectionToolstripState(
 const std::wstring &ImgViewerUi::SelectedTextFontFamily() const {
   return text_toolstrip_.SelectedFontFamily();
 }
+
+#endif // !defined(VER2)

@@ -40,10 +40,10 @@ struct ImgViewerContext final {
 
     GraphicsDevice graphics_device;
     ImgViewerRenderer renderer;
+    std::unique_ptr<imgviewer::v2::ScriptEngine> script_engine;
     ImgViewerUi* main_ui = nullptr;
     UiController ui;
     PopupHost popup;
-    std::unique_ptr<imgviewer::v2::ScriptEngine> script_engine;
     ImgViewerController viewer;
     ImgViewerEditController edit;
     ImgViewerInteractionState interaction;
