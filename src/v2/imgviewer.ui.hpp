@@ -9,12 +9,8 @@
 #include <quickjs.h>
 
 #include "imgviewer.action.hpp"
-#include "imgviewer.ui.animation_toolbar.hpp"
-#include "imgviewer.ui.color_picker_toolstrip.hpp"
-#include "imgviewer.ui.edit_toolbar.hpp"
-#include "imgviewer.ui.info_panel.hpp"
-#include "imgviewer.ui.text_toolstrip.hpp"
-#include "imgviewer.ui.toolstrip.hpp"
+#include "imgviewer.ui.state.hpp"
+#include "imgviewer.viewer.hpp"
 #include "ui.events.hpp"
 #include "ui.root.hpp"
 #include "v2/imgviewer.script_ui.hpp"

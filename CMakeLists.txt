@@ -22,8 +22,6 @@ set(IMGVIEWER_SETTINGS_SOURCE src/v2/imgviewer.settings.cc)
 set(IMGVIEWER_UI_SOURCE src/v2/imgviewer.ui.cc)
 
 add_executable(imgviewer
-    src/experimental/ui.bind.cc
-    src/experimental/ui.decl.cc
     src/imgviewer.cc
     src/imgviewer.about.cc
     src/imgviewer.action.cc
@@ -46,13 +44,6 @@ add_executable(imgviewer
     src/v2/imgviewer.script_ui.cc
     src/imgviewer.strings.cc
     ${IMGVIEWER_UI_SOURCE}
-    src/imgviewer.ui.color_picker_toolstrip.cc
-    src/imgviewer.ui.edit_toolbar.cc
-    src/imgviewer.ui.floating_toolbar.cc
-    src/imgviewer.ui.info_panel.cc
-    src/imgviewer.ui.text_toolstrip.cc
-    src/imgviewer.ui.toolstrip.cc
-    src/imgviewer.ui.animation_toolbar.cc
     src/image.analysis.cc
     src/image.animation_decoder.cc
     src/image.decoder.cc
@@ -61,35 +52,24 @@ add_executable(imgviewer
     src/image.sequence.cc
     src/image.stb_decoder.cc
     src/imgviewer.viewer.cc
-    src/imgviewer.ui.titlebar.cc
-    src/imgviewer.ui.toolbar.cc
     src/main.cc
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.a11y.cc
-    src/ui.button.cc
-    src/ui.button_behavior.cc
     src/ui.host_accessibility.cc
     src/ui.host_effects.cc
     src/ui.host_ime.cc
     src/ui.host_input.cc
     src/ui.host_popup.cc
-    src/ui.label.cc
     src/ui.draw.cc
     src/ui.element.cc
     src/ui.events.cc
     src/ui.graphics_device.cc
-    src/ui.layout.cc
-    src/ui.panel.cc
     src/ui.popup.cc
     src/ui.renderer.cc
-    src/ui.selection.cc
-    src/ui.slider.cc
     src/ui.surface.cc
-    src/ui.table.cc
     src/ui.text.cc
     src/ui.text_edit_state.cc
-    src/ui.textbox.cc
     src/ui.toast.cc
     src/ui.tooltip.cc
     src/ui.window.cc
@@ -186,10 +166,8 @@ add_executable(imgviewer_tests
     src/imgviewer.strings.cc
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
-    src/ui.button_behavior.cc
     src/ui.draw.cc
     src/ui.element.cc
-    src/ui.layout.cc
     src/v2/imgviewer.script_ui.cc
 )
 

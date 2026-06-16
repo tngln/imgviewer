@@ -234,6 +234,14 @@ interface PopupUiApp {
   key(event: DeveloperKeyEvent, state: PopupState): PopupEventResult | void;
 }
 
+type AboutKeyEvent = DeveloperKeyEvent;
+type AboutEventResult = InputEventResult & { action?: string };
+
+interface AboutUiApp {
+  render(canvas: CanvasApi, env: RenderEnvironment): void;
+  key?(event: AboutKeyEvent): AboutEventResult | void;
+}
+
 type SettingsPointerEvent = DeveloperPointerEvent;
 type SettingsKeyEvent = DeveloperKeyEvent;
 type SettingsEventResult = InputEventResult;
@@ -255,3 +263,4 @@ declare var imgviewerDeveloperUi: DeveloperUiApp;
 declare var imgviewerSettingsUi: SettingsUiApp;
 declare var imgviewerMainUi: MainUiApp;
 declare var imgviewerPopupUi: PopupUiApp;
+declare var imgviewerAboutUi: AboutUiApp;

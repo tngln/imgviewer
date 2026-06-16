@@ -32,6 +32,8 @@ constexpr int kSettingsInitialHeight = 1300;
 constexpr int kSettingsMinClientWidth = 400;
 constexpr int kSettingsMinClientHeight = 620;
 constexpr char kSettingsScriptRelativePath[] = "scripts/settings_ui.js";
+constexpr char kEnglishLanguageName[] = "en-US";
+constexpr char kZhCnLanguageName[] = "zh-CN";
 
 std::filesystem::path SettingsScriptPath()
 {
@@ -193,7 +195,7 @@ private:
         const std::string name = imgviewer::v2::Utf8FromValue(context, argv[0]);
         const ImgViewerConfig& config = ui->draft_;
         if (name == "language") {
-            return JS_NewInt32(context, config.language == ImgViewerLanguage::SimplifiedChinese ? 1 : 0);
+            return JS_NewInt32(context, config.language == kZhCnLanguageName ? 1 : 0);
         }
         if (name == "initialImageViewMode") {
             return JS_NewInt32(context, config.initial_image_view_mode == InitialImageViewMode::ActualSize ? 1 : 0);
@@ -239,7 +241,7 @@ private:
             if (JS_ToInt32(context, &value, argv[1]) < 0) {
                 return JS_EXCEPTION;
             }
-            const ImgViewerLanguage next = value == 1 ? ImgViewerLanguage::SimplifiedChinese : ImgViewerLanguage::English;
+            const std::string next = value == 1 ? kZhCnLanguageName : kEnglishLanguageName;
             changed = config.language != next;
             config.language = next;
         } else if (name == "initialImageViewMode") {
@@ -668,21 +670,16 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
         ImgViewerConfig draft = context->ui->Draft();
         CaptureCurrentWindowSize(context->owner, &draft);
         const bool frame_changed = context->app->config.borderless_window != draft.borderless_window;
-        const bool language_changed = context->app->config.language != draft.language;
         context->app->config = draft;
-        SetImgViewerLanguage(context->app->config.language);
         context->app->current_window_opacity_percent = context->app->config.window_opacity_percent;
         ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
         SetImgViewerToolbarScale(context->owner, context->app, context->app->config.toolbar_scale_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         context->app->renderer.SetCheckerboardBackground(context->app->config.checkerboard_background);
         SaveImgViewerConfig(context->app->config);
-        if (language_changed) {
-            ResetImgViewerUi(context->owner, context->app);
-        }
         if (frame_changed) {
             ApplyImgViewerWindowFrame(context->owner, context->app, true);
-        } else if (!language_changed) {
+        } else {
             InvalidateRect(context->owner, nullptr, FALSE);
         }
     }

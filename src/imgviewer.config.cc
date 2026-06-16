@@ -23,7 +23,7 @@ constexpr int kMinimumEdgeClickNavigationZonePercent = 5;
 constexpr int kMaximumEdgeClickNavigationZonePercent = 40;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.jsonc";
 constexpr std::string_view kEnglishLanguageName = "en-US";
-constexpr std::string_view kSimplifiedChineseLanguageName = "zh-CN";
+constexpr std::string_view kZhCnLanguageName = "zh-CN";
 
 std::filesystem::path ConfigFilePath()
 {
@@ -59,24 +59,24 @@ int ReadClampedInt(const nlohmann::json& object, const char* key, int fallback, 
     return (std::max)(minimum, value->get<int>());
 }
 
-ImgViewerLanguage ReadLanguage(const nlohmann::json& root)
+std::string ReadLanguage(const nlohmann::json& root)
 {
     const auto value = root.find("language");
     if (value == root.end() || !value->is_string()) {
-        return ImgViewerLanguage::English;
+        return std::string(kEnglishLanguageName);
     }
 
     const std::string language = value->get<std::string>();
-    if (language == kSimplifiedChineseLanguageName) {
-        return ImgViewerLanguage::SimplifiedChinese;
+    if (language == kZhCnLanguageName) {
+        return std::string(kZhCnLanguageName);
     }
-    return ImgViewerLanguage::English;
+    return std::string(kEnglishLanguageName);
 }
 
-std::string_view LanguageConfigName(ImgViewerLanguage language)
+std::string_view LanguageConfigName(const std::string& language)
 {
-    return language == ImgViewerLanguage::SimplifiedChinese ?
-        kSimplifiedChineseLanguageName :
+    return language == kZhCnLanguageName ?
+        kZhCnLanguageName :
         kEnglishLanguageName;
 }
 

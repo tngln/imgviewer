@@ -2,8 +2,9 @@
 
 #include <windows.h>
 
+#include <string>
+
 #include "imgviewer.keybindings.hpp"
-#include "imgviewer.strings.hpp"
 
 struct WindowSizeConfig final {
     int width = 960;
@@ -16,7 +17,7 @@ enum class InitialImageViewMode {
 };
 
 struct ImgViewerConfig final {
-    ImgViewerLanguage language = ImgViewerLanguage::English;
+    std::string language = "en-US";
     InitialImageViewMode initial_image_view_mode = InitialImageViewMode::FitWindow;
     bool remember_window_size = true;
     bool pixelated_sampling = false;

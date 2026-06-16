@@ -1,10 +1,5 @@
 #pragma once
 
-enum class ImgViewerLanguage {
-    English,
-    SimplifiedChinese,
-};
-
 enum class ImgViewerStringId {
     Empty,
     AppName,
@@ -186,9 +181,6 @@ enum class ImgViewerStringId {
     MosaicSelectedPixels,
     ColorValue,
     AnimationFrame,
-    Language,
-    EnglishLanguage,
-    SimplifiedChineseLanguage,
     WindowSize,
     RememberWindowSize,
     RememberLastSize,
@@ -214,8 +206,6 @@ enum class ImgViewerStringId {
     Reset,
     Save,
     Cancel,
-    TableCellEditor,
-    TableCellDropdown,
     ImageDetails,
     ColorAndHdr,
     Exif,
@@ -291,9 +281,6 @@ enum class ImgViewerStringId {
     AllFilesFilter,
     PngImageFilter,
     DeveloperControlLab,
-    SampleCheckbox,
-    SampleSlider,
-    EditableTable,
     DeveloperState,
     Value,
     Tool,
@@ -306,8 +293,4 @@ enum class ImgViewerStringId {
     History,
 };
 
-ImgViewerLanguage CurrentImgViewerLanguage();
-void SetImgViewerLanguage(ImgViewerLanguage language);
 const wchar_t* ImgViewerString(ImgViewerStringId id);
-const wchar_t* ImgViewerString(ImgViewerStringId id, ImgViewerLanguage language);
-const wchar_t* ImgViewerStringZh(ImgViewerStringId id);

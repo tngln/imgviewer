@@ -19,9 +19,7 @@
 #include "imgviewer.keybindings.hpp"
 #include "script.canvas_color.hpp"
 #include "script.quickjs_runtime.hpp"
-#include "ui.button_behavior.hpp"
 #include "ui.element.hpp"
-#include "ui.layout.hpp"
 #include "v2/imgviewer.script_ui.hpp"
 
 namespace {
@@ -241,39 +239,6 @@ void TestModalStack()
 }
 
 // ---------------------------------------------------------------------------
-// ui.layout
-// ---------------------------------------------------------------------------
-
-void TestLayout()
-{
-    using namespace ui_layout;
-
-    const auto vertical = PlaceVerticalStack(D2D1::RectF(0, 0, 100, 100), {20.0f, 30.0f}, 10.0f);
-    CHECK(vertical.size() == 2);
-    CHECK(NearF(vertical[0].top, 0.0f) && NearF(vertical[0].bottom, 20.0f));
-    CHECK(NearF(vertical[0].left, 0.0f) && NearF(vertical[0].right, 100.0f));
-    CHECK(NearF(vertical[1].top, 30.0f) && NearF(vertical[1].bottom, 60.0f));
-
-    const auto horizontal = PlaceHorizontalStack(D2D1::RectF(0, 0, 100, 50), {10.0f, 40.0f}, 5.0f);
-    CHECK(horizontal.size() == 2);
-    CHECK(NearF(horizontal[0].left, 0.0f) && NearF(horizontal[0].right, 10.0f));
-    CHECK(NearF(horizontal[1].left, 15.0f) && NearF(horizontal[1].right, 55.0f));
-
-    const auto row = PlaceBottomRightRow(D2D1::RectF(0, 0, 100, 100), {20.0f, 30.0f}, 10.0f, 5.0f, 5.0f, 5.0f);
-    CHECK(row.size() == 2);
-    // Rightmost item hugs container.right - right_padding.
-    CHECK(NearF(row[1].right, 95.0f));
-    CHECK(NearF(row[1].left, 65.0f));
-    CHECK(NearF(row[0].right, 60.0f));
-    CHECK(NearF(row[0].left, 40.0f));
-    CHECK(NearF(row[0].bottom, 95.0f) && NearF(row[0].top, 85.0f));
-
-    const D2D1_RECT_F below = Below(D2D1::RectF(10, 10, 60, 30), 5.0f, 40.0f, 20.0f);
-    CHECK(NearF(below.top, 35.0f) && NearF(below.bottom, 55.0f));
-    CHECK(NearF(below.left, 10.0f) && NearF(below.right, 50.0f));
-}
-
-// ---------------------------------------------------------------------------
 // edit_geometry
 // ---------------------------------------------------------------------------
 
@@ -386,50 +351,6 @@ void TestSignal()
     CHECK(value.Set(2));   // the inner subscriber added during the first notify now fires
     CHECK(outer == 2);
     CHECK(inner == 2);
-}
-
-// Step 1: a control with an on-click callback fires it and suppresses the
-// UiAction; without a callback it still returns the action (coexistence).
-void TestButtonClickCallback()
-{
-    const UiAction action{42};
-
-    // With callback: invokes it, suppresses action.
-    UiElement with_callback(UiMetadata(UiElementRole::Button, action, L"with"));
-    int clicks = 0;
-    with_callback.SetOnClick([&]() { ++clicks; });
-
-    const UiPointerEvent up{
-        .type = UiEventType::PointerUp,
-        .button = UiPointerButton::Left,
-        .target = with_callback.Id(),
-        .captured = with_callback.Id(),
-    };
-    const UiEventResult result = ToolButtonPointerEvent(with_callback, up);
-    CHECK(clicks == 1);
-    CHECK(result.handled);
-    CHECK(result.action == kUiActionNone);
-    CHECK(result.capture == UiCaptureRequest::Release);
-
-    // Without callback: still returns the action.
-    UiElement without_callback(UiMetadata(UiElementRole::Button, action, L"without"));
-    const UiPointerEvent up2{
-        .type = UiEventType::PointerUp,
-        .button = UiPointerButton::Left,
-        .target = without_callback.Id(),
-        .captured = without_callback.Id(),
-    };
-    const UiEventResult result2 = ToolButtonPointerEvent(without_callback, up2);
-    CHECK(result2.handled);
-    CHECK(result2.action == action);
-
-    // Keyboard activation routes through the callback too.
-    int key_clicks = 0;
-    with_callback.SetOnClick([&]() { ++key_clicks; });
-    const UiKeyEvent key{.type = UiEventType::KeyDown, .virtual_key = VK_RETURN};
-    const UiEventResult key_result = ToolButtonKeyEvent(with_callback, key);
-    CHECK(key_clicks == 1);
-    CHECK(key_result.action == kUiActionNone);
 }
 
 // ---------------------------------------------------------------------------
@@ -579,12 +500,10 @@ int main()
 {
     TestPointerRouter();
     TestModalStack();
-    TestLayout();
     TestEditGeometry();
     TestKeybindings();
     TestSignal();
     TestSignalReentrancy();
-    TestButtonClickCallback();
     TestQuickJsRuntime();
     TestQuickJsNativeFunctionRegistration();
     TestQuickJsSignalApiSmoke();

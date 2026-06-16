@@ -574,7 +574,6 @@ HRESULT RunImgViewerDeveloperWindowApplication()
 
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
-    SetImgViewerLanguage(context.config.language);
     RETURN_IF_FAILED(context.graphics_device.Initialize());
 
     RETURN_IF_FAILED(OpenImgViewerDeveloperWindow(nullptr, &context));

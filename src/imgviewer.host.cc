@@ -478,7 +478,6 @@ HRESULT RunImgViewerApplicationAsHresult()
 
     ImgViewerContext context;
     RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
-    SetImgViewerLanguage(context.config.language);
     context.current_window_opacity_percent = context.config.window_opacity_percent;
     context.current_toolbar_scale_percent = context.config.toolbar_scale_percent;
     RETURN_IF_FAILED(ResetImgViewerUi(nullptr, &context));

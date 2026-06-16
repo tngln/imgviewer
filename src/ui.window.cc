@@ -15,7 +15,6 @@
 #include "ui.host_ime.hpp"
 #include "ui.host_input.hpp"
 #include "ui.host_popup.hpp"
-#include "ui.textbox.hpp"
 
 namespace {
 
@@ -511,16 +510,7 @@ UiModifiers UiWindowHost::CurrentModifiers() const
 
 void UiWindowHost::SyncCaretTimer()
 {
-    if (!IsFocusedTextElement()) {
-        KillTimer(window_.Hwnd(), options_.caret_timer_id);
-        return;
-    }
-    UiElement* root = ui_.Root() != nullptr ? ui_.Root()->Root() : nullptr;
-    UiElement* element = root != nullptr ? root->FindById(ui_.FocusedElement()) : nullptr;
-    if (auto* text_box = dynamic_cast<TextBox*>(element)) {
-        text_box->SetCaretVisible(true);
-    }
-    SetTimer(window_.Hwnd(), options_.caret_timer_id, GetCaretBlinkTime() == INFINITE ? 530 : GetCaretBlinkTime(), nullptr);
+    KillTimer(window_.Hwnd(), options_.caret_timer_id);
 }
 
 void UiWindowHost::PositionIme()
@@ -532,21 +522,11 @@ void UiWindowHost::PositionIme()
         SetImeCompositionWindowClientPoint(window_.Hwnd(), UiPointToPhysicalClient(window_.Hwnd(), *ime_caret_point_));
         return;
     }
-    if (IsFocusedTextElement()) {
-        SetImeCompositionWindowClientPoint(window_.Hwnd(), UiPointToPhysicalClient(window_.Hwnd(), CaretPoint()));
-    }
 }
 
 D2D1_POINT_2F UiWindowHost::CaretPoint() const
 {
-    const UiElementMetadata* metadata = ui_.ElementMetadata(ui_.FocusedElement());
-    if (metadata == nullptr || metadata->role != UiElementRole::Edit) {
-        return {};
-    }
-    const UiElement* root = ui_.Root() != nullptr ? ui_.Root()->Root() : nullptr;
-    const UiElement* element = root != nullptr ? root->FindById(ui_.FocusedElement()) : nullptr;
-    const auto* text_box = dynamic_cast<const TextBox*>(element);
-    return text_box != nullptr ? text_box->CaretPoint() : D2D1_POINT_2F{};
+    return {};
 }
 
 bool UiWindowHost::IsFocusedTextElement() const
