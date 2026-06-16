@@ -11,7 +11,7 @@
 #include "ui.draw.hpp"
 #include "ui.events.hpp"
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 
 struct ScriptVectorIcon final {
     std::string id;
@@ -57,4 +57,4 @@ void RenderScriptError(
     const std::filesystem::path& script_path,
     std::string_view error_text);
 
-} // namespace imgviewer::v2
+} // namespace imgviewer

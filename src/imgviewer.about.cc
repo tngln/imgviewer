@@ -10,8 +10,8 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.window.hpp"
-#include "v2/imgviewer.script_engine.hpp"
-#include "v2/imgviewer.script_window_root.hpp"
+#include "imgviewer.script_engine.hpp"
+#include "imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -22,9 +22,9 @@ constexpr int kAboutMinClientWidth = 240;
 constexpr int kAboutMinClientHeight = 210;
 constexpr char kAboutScriptRelativePath[] = "scripts/about_ui.js";
 
-class AboutScriptUi final : public imgviewer::v2::ScriptWindowRootBase {
+class AboutScriptUi final : public imgviewer::ScriptWindowRootBase {
 public:
-    explicit AboutScriptUi(imgviewer::v2::ScriptEngine& engine)
+    explicit AboutScriptUi(imgviewer::ScriptEngine& engine)
         : ScriptWindowRootBase(engine, kAboutScriptRelativePath, "imgviewerAboutUi", L"About TypeScript UI failed")
     {
         ReloadScript();

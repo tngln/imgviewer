@@ -10,10 +10,10 @@
 
 #include "imgviewer.action.hpp"
 #include "script.view.hpp"
-#include "v2/imgviewer.script_engine.hpp"
-#include "v2/imgviewer.script_ui.hpp"
+#include "imgviewer.script_engine.hpp"
+#include "imgviewer.script_ui.hpp"
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 
 class ScriptWindowRootBase : public ScriptUiHost, public ScriptView {
 public:
@@ -72,4 +72,4 @@ private:
     const UiDrawContext* active_draw_context_ = nullptr;
 };
 
-} // namespace imgviewer::v2
+} // namespace imgviewer

@@ -17,7 +17,7 @@
 #include "win32.window.hpp"
 
 class UiWindowHost;
-namespace imgviewer::v2 { class ScriptEngine; }
+namespace imgviewer { class ScriptEngine; }
 
 class UiWindowDelegate {
 public:
@@ -42,7 +42,7 @@ struct UiWindowOptions final {
     UINT action_message = 0;
     bool enable_popup = true;
     bool enable_ime = true;
-    imgviewer::v2::ScriptEngine* script_engine = nullptr;
+    imgviewer::ScriptEngine* script_engine = nullptr;
 };
 
 class UiWindowHost final : public win32::NativeWindowDelegate {

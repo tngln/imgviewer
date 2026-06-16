@@ -11,7 +11,7 @@
 #include <wil/result_macros.h>
 
 #include "imgviewer.ui.action.hpp"
-#include "v2/imgviewer.script_engine.hpp"
+#include "imgviewer.script_engine.hpp"
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
@@ -76,7 +76,7 @@ UiInputEvent OffsetPopupEvent(UiInputEvent event)
 
 void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
 {
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::v2::Utf8FromWide(value).c_str()));
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::Utf8FromWide(value).c_str()));
 }
 
 void SetString(JSContext* context, JSValue object, const char* name, const char* value)
@@ -157,7 +157,7 @@ UiAction ActionProperty(JSContext* context, JSValueConst object)
     JS_FreeValue(context, action_value);
 
     JSValue value = JS_GetPropertyStr(context, object, "action");
-    const std::string name = imgviewer::v2::Utf8FromValue(context, value);
+    const std::string name = imgviewer::Utf8FromValue(context, value);
     JS_FreeValue(context, value);
     if (name.empty()) {
         return kUiActionNone;
@@ -167,7 +167,7 @@ UiAction ActionProperty(JSContext* context, JSValueConst object)
 
 } // namespace
 
-HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::v2::ScriptEngine* script_engine)
+HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::ScriptEngine* script_engine)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, owner);
     RETURN_HR_IF(E_INVALIDARG, action_message == 0);
@@ -314,16 +314,16 @@ HRESULT PopupHost::LoadScript()
 
     JSContext* context = script_context_->Context();
     JSValue global = JS_GetGlobalObject(context);
-    JS_SetPropertyStr(context, global, "host", imgviewer::v2::CreateHostObject(context));
+    JS_SetPropertyStr(context, global, "host", imgviewer::CreateHostObject(context));
     JS_FreeValue(context, global);
 
-    script_path_ = imgviewer::v2::ScriptPath(kPopupScriptRelativePath);
-    std::optional<std::string> source = imgviewer::v2::ReadTextFileUtf8(script_path_);
+    script_path_ = imgviewer::ScriptPath(kPopupScriptRelativePath);
+    std::optional<std::string> source = imgviewer::ReadTextFileUtf8(script_path_);
     if (!source.has_value()) {
         error_text_ = "Could not read " + script_path_.string();
         return E_FAIL;
     }
-    const imgviewer::v2::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
+    const imgviewer::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
     if (!eval.ok) {
         error_text_ = script_engine_->TakeExceptionTextUtf8();
         return E_FAIL;
@@ -394,8 +394,8 @@ void PopupHost::RenderScriptContent(const UiDrawContext& draw_context)
         JS_FreeValue(context, app);
         return;
     }
-    JSValue canvas = imgviewer::v2::CreateCanvasObject(context);
-    JSValue env = imgviewer::v2::CreateRenderEnvironment(context, draw_context);
+    JSValue canvas = imgviewer::CreateCanvasObject(context);
+    JSValue env = imgviewer::CreateRenderEnvironment(context, draw_context);
     JSValue state = CreateStateObject();
     JSValue args[] = {canvas, env, state};
     active_draw_context_ = &draw_context;
@@ -436,8 +436,8 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
         return event_result;
     }
     JSValue js_event = pointer_event
-        ? imgviewer::v2::CreatePointerEvent(context, event.pointer)
-        : imgviewer::v2::CreateKeyEvent(context, event.key);
+        ? imgviewer::CreatePointerEvent(context, event.pointer)
+        : imgviewer::CreateKeyEvent(context, event.key);
     JSValue state = CreateStateObject();
     JSValue args[] = {js_event, state};
     JSValue result = JS_Call(context, handler, app, 2, args);

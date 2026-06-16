@@ -16,10 +16,10 @@
 #include "ui.events.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.menu.hpp"
-#include "v2/imgviewer.script_engine.hpp"
-#include "v2/imgviewer.script_ui.hpp"
+#include "imgviewer.script_engine.hpp"
+#include "imgviewer.script_ui.hpp"
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 class ScriptEngine;
 }
 
@@ -28,9 +28,9 @@ struct PopupDropdownOption final {
     UiAction action = kUiActionNone;
 };
 
-class PopupHost final : public imgviewer::v2::ScriptUiHost {
+class PopupHost final : public imgviewer::ScriptUiHost {
 public:
-    HRESULT Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::v2::ScriptEngine* script_engine);
+    HRESULT Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::ScriptEngine* script_engine);
     void SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextFormat* icon_text_format);
 
     bool IsOpen() const;
@@ -92,8 +92,8 @@ private:
     std::function<void()> dropdown_closed_;
     float dropdown_width_ = 1.0f;
     GraphicsDevice* graphics_ = nullptr;
-    imgviewer::v2::ScriptEngine* script_engine_ = nullptr;
-    std::unique_ptr<imgviewer::v2::ScriptContext> script_context_;
+    imgviewer::ScriptEngine* script_engine_ = nullptr;
+    std::unique_ptr<imgviewer::ScriptContext> script_context_;
     const UiDrawContext* active_draw_context_ = nullptr;
     std::filesystem::path script_path_;
     std::string error_text_;

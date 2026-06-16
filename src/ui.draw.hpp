@@ -7,7 +7,7 @@
 #include <dwrite.h>
 #include <wil/com.h>
 
-#include "icons.inc"
+#include "ui.vector_icon.hpp"
 
 struct UiDrawContext final {
     ID2D1DeviceContext* d2d_context = nullptr;

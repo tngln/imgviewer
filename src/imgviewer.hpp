@@ -28,7 +28,7 @@ constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 class ImgViewerUi;
 class UiWindowDelegate;
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 class ScriptEngine;
 }
 
@@ -38,7 +38,7 @@ struct ImgViewerContext final {
 
     GraphicsDevice graphics_device;
     ImgViewerRenderer renderer;
-    std::unique_ptr<imgviewer::v2::ScriptEngine> script_engine;
+    std::unique_ptr<imgviewer::ScriptEngine> script_engine;
     std::unique_ptr<ScriptView> ui;
     ImgViewerUi* main_ui = nullptr;
     PopupHost popup;

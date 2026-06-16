@@ -12,11 +12,14 @@
 #include "math.hpp"
 #include "imgviewer.edit_geometry.hpp"
 #include "ui.draw.hpp"
-#include "ui.theme.hpp"
 
 namespace {
 
 constexpr float kCheckerboardCellSize = 8.0f;
+constexpr D2D1_COLOR_F kWindowBackground = {0xf7 / 255.0f, 0xf9 / 255.0f, 0xfc / 255.0f, 1.0f};
+constexpr D2D1_COLOR_F kCheckerboardLight = {0xf1 / 255.0f, 0xf4 / 255.0f, 0xf8 / 255.0f, 1.0f};
+constexpr D2D1_COLOR_F kCheckerboardDark = {0xcf / 255.0f, 0xd8 / 255.0f, 0xe6 / 255.0f, 1.0f};
+constexpr D2D1_COLOR_F kAccent = {0x2f / 255.0f, 0x6f / 255.0f, 0xed / 255.0f, 1.0f};
 
 HRESULT CreateStrokeBrushAndStyle(
     const UiSurfaceDrawContext& context,
@@ -103,8 +106,8 @@ HRESULT DrawCheckerboard(ID2D1DeviceContext* context, D2D1_SIZE_F size, float ce
 
     wil::com_ptr<ID2D1SolidColorBrush> light_brush;
     wil::com_ptr<ID2D1SolidColorBrush> dark_brush;
-    RETURN_IF_FAILED(context->CreateSolidColorBrush(ui_theme::color::kCheckerboardLight, light_brush.put()));
-    RETURN_IF_FAILED(context->CreateSolidColorBrush(ui_theme::color::kCheckerboardDark, dark_brush.put()));
+    RETURN_IF_FAILED(context->CreateSolidColorBrush(kCheckerboardLight, light_brush.put()));
+    RETURN_IF_FAILED(context->CreateSolidColorBrush(kCheckerboardDark, dark_brush.put()));
 
     for (float y = 0.0f; y < size.height; y += cell_size) {
         const int row = static_cast<int>(y / cell_size);
@@ -316,7 +319,7 @@ HRESULT DrawEditTextObject(
     }
 
     RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(
-        editing ? ui_theme::color::kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.7f),
+        editing ? kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.7f),
         brush.put()));
     d2d_context->DrawRectangle(rect, brush.get(), 1.0f / (std::max)(0.01f, image_scale));
     brush.reset();
@@ -346,7 +349,7 @@ HRESULT DrawEditTextObject(
         layout.put()));
 
     if (editing && edit_state != nullptr && edit_state->HasSelection()) {
-        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(ui_theme::color::kAccent.r, ui_theme::color::kAccent.g, ui_theme::color::kAccent.b, 0.32f), brush.put()));
+        RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(kAccent.r, kAccent.g, kAccent.b, 0.32f), brush.put()));
         for (const DWRITE_HIT_TEST_METRICS& metric : edit_state->SelectionMetrics(layout.get(), D2D1::Point2F(text_rect.left, text_rect.top))) {
             d2d_context->FillRectangle(
                 D2D1::RectF(metric.left, metric.top, metric.left + metric.width, metric.top + metric.height),
@@ -403,7 +406,7 @@ HRESULT DrawCropOverlay(
     const auto draw_edge = [&](ImgViewerCropEdge edge, D2D1_POINT_2F a, D2D1_POINT_2F b) -> HRESULT {
         const bool active = edit.active_crop_edge == edge || (edit.dragging_crop_edge && edit.active_crop_edge == edge);
         RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(
-            active ? ui_theme::color::kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.95f),
+            active ? kAccent : D2D1::ColorF(D2D1::ColorF::White, 0.95f),
             brush.put()));
         d2d_context->DrawLine(a, b, brush.get(), active ? stroke_width * 1.35f : stroke_width);
         brush.reset();
@@ -586,15 +589,9 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, cons
 
             const UiDraw draw(context.draw);
             auto* d2d_context = context.draw.d2d_context;
-            wil::com_ptr<ID2D1PathGeometry> icon_geometry;
-            RETURN_IF_FAILED(CreatePathGeometryFromIcon(
-                context.d2d_factory,
-                icons::kImageIcon.commands,
-                icons::kImageIcon.command_count,
-                icon_geometry.put()));
 
             // Known issue: Windows HDR composition can present this SDR theme color differently on FP16 surfaces.
-            draw.Clear(ui_theme::color::kWindowBackground);
+            draw.Clear(kWindowBackground);
             const float width = context.draw.viewport_size.width;
             const float height = context.draw.viewport_size.height;
             d2d_context->SetTransform(context.root_transform);
@@ -640,27 +637,6 @@ HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, cons
                 return S_OK;
             }
 
-            const float icon_size = (std::max)(
-                ui_theme::metrics::kIconPlaceholderMinimumSize * state->dpi_scale,
-                (std::min)(
-                    ui_theme::metrics::kIconPlaceholderSize * state->dpi_scale,
-                    (std::min)(width, height) - ui_theme::metrics::kIconPlaceholderPadding * state->dpi_scale));
-            const float icon_width = icons::kImageIcon.view_box.right - icons::kImageIcon.view_box.left;
-            const float icon_height = icons::kImageIcon.view_box.bottom - icons::kImageIcon.view_box.top;
-            const float icon_viewport = (std::max)(icon_width, icon_height);
-            const float scale = icon_size / icon_viewport;
-            const float left = (width - icon_size) * 0.5f;
-            const float top = (height - icon_size) * 0.5f;
-            const D2D1_MATRIX_3X2_F transform =
-                D2D1::Matrix3x2F::Translation(-icons::kImageIcon.view_box.left, -icons::kImageIcon.view_box.top) *
-                D2D1::Matrix3x2F::Scale(scale, scale) *
-                D2D1::Matrix3x2F::Translation(left, top) *
-                context.root_transform;
-            d2d_context->SetTransform(transform);
-            draw.DrawGeometry(
-                icon_geometry.get(),
-                ui_theme::color::kAccent,
-                ui_theme::metrics::kPathIconStrokeWidth / scale);
             return S_OK;
         },
         &state);
@@ -808,7 +784,7 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
 
             D2D1_RECT_F selected_rect = {};
             if (SelectedObjectRect(context.draw.dwrite_factory, state->edit, &selected_rect)) {
-                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(ui_theme::color::kAccent, brush.put()));
+                RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(kAccent, brush.put()));
                 d2d_context->DrawRectangle(
                     selected_rect,
                     brush.get(),

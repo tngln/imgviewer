@@ -1,4 +1,4 @@
-#include "v2/imgviewer.ui.hpp"
+#include "imgviewer.ui.hpp"
 
 #include <algorithm>
 #include <array>
@@ -15,8 +15,8 @@
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
 #include "ui.popup.hpp"
-#include "v2/imgviewer.script_engine.hpp"
-#include "v2/imgviewer.script_ui.hpp"
+#include "imgviewer.script_engine.hpp"
+#include "imgviewer.script_ui.hpp"
 
 namespace {
 
@@ -36,7 +36,7 @@ void SetFunction(JSContext* context, JSValue object, const char* name, JSCFuncti
 
 void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
 {
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::v2::Utf8FromWide(value).c_str()));
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::Utf8FromWide(value).c_str()));
 }
 
 void SetString(JSContext* context, JSValue object, const char* name, const char* value)
@@ -157,7 +157,7 @@ ImgViewerAction ActionProperty(JSContext* context, JSValueConst object)
         return ImgViewerAction::None;
     }
     JSValue value = JS_GetPropertyStr(context, object, "action");
-    const std::string name = imgviewer::v2::Utf8FromValue(context, value);
+    const std::string name = imgviewer::Utf8FromValue(context, value);
     JS_FreeValue(context, value);
     return ImgViewerActionFromName(name.c_str());
 }
@@ -183,7 +183,7 @@ JSValue OverlayAction(JSContext* context, JSValueConst, int argc, JSValueConst* 
     if (ScriptUi(context) == nullptr || argc < 1) {
         return JS_FALSE;
     }
-    const ImgViewerAction action = ImgViewerActionFromName(imgviewer::v2::Utf8FromValue(context, argv[0]).c_str());
+    const ImgViewerAction action = ImgViewerActionFromName(imgviewer::Utf8FromValue(context, argv[0]).c_str());
     if (action == ImgViewerAction::None) {
         return JS_FALSE;
     }
@@ -209,7 +209,7 @@ JSValue OverlayOpenMenu(JSContext* context, JSValueConst, int, JSValueConst*)
 
 } // namespace
 
-ImgViewerUi::ImgViewerUi(imgviewer::v2::ScriptEngine& engine) :
+ImgViewerUi::ImgViewerUi(imgviewer::ScriptEngine& engine) :
     ScriptWindowRootBase(engine, kMainScriptRelativePath, "imgviewerMainUi", L"Main TypeScript UI failed")
 {
     ReloadScript();
@@ -238,8 +238,8 @@ void ImgViewerUi::Render(const UiDrawContext& context)
         return;
     }
 
-    JSValue canvas = imgviewer::v2::CreateCanvasObject(js_context);
-    JSValue env = imgviewer::v2::CreateRenderEnvironment(js_context, context);
+    JSValue canvas = imgviewer::CreateCanvasObject(js_context);
+    JSValue env = imgviewer::CreateRenderEnvironment(js_context, context);
     JSValue snapshot = CreateStateObject();
     JSValue args[] = {canvas, env, snapshot};
     SetActiveDrawContext(&context);
@@ -457,7 +457,7 @@ void ImgViewerUi::InstallCustomGlobals(JSValue global)
     JSValue overlay = JS_NewObject(context);
     SetFunction(overlay, "action", OverlayAction, 1);
     SetFunction(overlay, "openMenu", OverlayOpenMenu, 0);
-    SetFunction(overlay, "invalidate", imgviewer::v2::HostInvalidate, 0);
+    SetFunction(overlay, "invalidate", imgviewer::HostInvalidate, 0);
     JS_SetPropertyStr(context, global, "overlay", overlay);
 }
 
@@ -567,7 +567,7 @@ UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)
         JS_FreeValue(context, app);
         return {};
     }
-    JSValue js_event = imgviewer::v2::CreatePointerEvent(context, event);
+    JSValue js_event = imgviewer::CreatePointerEvent(context, event);
     JSValue result = JS_Call(context, handler, app, 1, &js_event);
     JS_FreeValue(context, js_event);
     JS_FreeValue(context, handler);
@@ -585,7 +585,7 @@ UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event)
         JS_FreeValue(context, app);
         return {};
     }
-    JSValue js_event = imgviewer::v2::CreateKeyEvent(context, event);
+    JSValue js_event = imgviewer::CreateKeyEvent(context, event);
     JSValue result = JS_Call(context, handler, app, 1, &js_event);
     JS_FreeValue(context, js_event);
     JS_FreeValue(context, handler);
@@ -603,7 +603,7 @@ UiEventResult ImgViewerUi::DispatchInputToScript(const UiInputEvent& event)
         JS_FreeValue(context, app);
         return {};
     }
-    JSValue js_event = imgviewer::v2::CreateInputEvent(context, event);
+    JSValue js_event = imgviewer::CreateInputEvent(context, event);
     JSValue result = JS_Call(context, handler, app, 1, &js_event);
     JS_FreeValue(context, js_event);
     JS_FreeValue(context, handler);
@@ -629,7 +629,7 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
     const bool invalidate = BoolProperty(result, "invalidate", false);
     ImgViewerAction action = ActionProperty(context, result);
     int32_t action_arg = Int32Property(context, result, "actionArg", 0);
-    event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(context, result);
+    event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(context, result);
     JS_FreeValue(context, result);
 
     if (pending_action_ != ImgViewerAction::None) {

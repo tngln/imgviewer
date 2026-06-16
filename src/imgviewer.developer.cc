@@ -16,9 +16,9 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.window.hpp"
-#include "v2/imgviewer.script_engine.hpp"
-#include "v2/imgviewer.script_ui.hpp"
-#include "v2/imgviewer.script_window_root.hpp"
+#include "imgviewer.script_engine.hpp"
+#include "imgviewer.script_ui.hpp"
+#include "imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -37,9 +37,9 @@ DeveloperScriptUi* ScriptUi(JSContext* context)
     return static_cast<DeveloperScriptUi*>(JS_GetContextOpaque(context));
 }
 
-class DeveloperScriptUi final : public imgviewer::v2::ScriptWindowRootBase {
+class DeveloperScriptUi final : public imgviewer::ScriptWindowRootBase {
 public:
-    explicit DeveloperScriptUi(imgviewer::v2::ScriptEngine& engine)
+    explicit DeveloperScriptUi(imgviewer::ScriptEngine& engine)
         : ScriptWindowRootBase(engine, kDeveloperScriptRelativePath, "imgviewerDeveloperUi", L"Developer TypeScript UI failed"),
           counter_signal_(0)
     {
@@ -63,7 +63,7 @@ private:
     static JSValue SignalsGet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     {
         DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || argc < 1 || imgviewer::v2::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
+        if (ui == nullptr || argc < 1 || imgviewer::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
             return JS_UNDEFINED;
         }
         return JS_NewInt32(context, ui->counter_signal_.Get());
@@ -72,7 +72,7 @@ private:
     static JSValue SignalsSet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     {
         DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || argc < 2 || imgviewer::v2::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
+        if (ui == nullptr || argc < 2 || imgviewer::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName) {
             return JS_FALSE;
         }
         int32_t value = 0;
@@ -85,7 +85,7 @@ private:
     static JSValue SignalsSubscribe(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     {
         DeveloperScriptUi* ui = ScriptUi(context);
-        if (ui == nullptr || argc < 2 || imgviewer::v2::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName ||
+        if (ui == nullptr || argc < 2 || imgviewer::Utf8FromValue(context, argv[0]) != kDeveloperCounterSignalName ||
             !JS_IsFunction(context, argv[1])) {
             return JS_NewInt32(context, 0);
         }

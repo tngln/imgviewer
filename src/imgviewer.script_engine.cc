@@ -1,10 +1,10 @@
-#include "v2/imgviewer.script_engine.hpp"
+#include "imgviewer.script_engine.hpp"
 
 #include <utility>
 
 #include <quickjs.h>
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 namespace {
 
 std::string ToStringUtf8(JSContext* context, JSValueConst value)
@@ -166,4 +166,4 @@ void ScriptContext::CaptureException()
     engine_.CaptureException(context_);
 }
 
-} // namespace imgviewer::v2
+} // namespace imgviewer

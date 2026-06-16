@@ -17,16 +17,13 @@ add_subdirectory(third_parties/quickjs EXCLUDE_FROM_ALL)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
     "Semicolon-separated build configurations that show the Developer window.")
-set(IMGVIEWER_DEVELOPER_SOURCE src/v2/imgviewer.developer.cc)
-set(IMGVIEWER_SETTINGS_SOURCE src/v2/imgviewer.settings.cc)
-set(IMGVIEWER_UI_SOURCE src/v2/imgviewer.ui.cc)
 
 add_executable(imgviewer
     src/imgviewer.cc
     src/imgviewer.about.cc
     src/imgviewer.action.cc
     src/imgviewer.config.cc
-    ${IMGVIEWER_DEVELOPER_SOURCE}
+    src/imgviewer.developer.cc
     src/imgviewer.edit.cc
     src/imgviewer.host.app_messages.cc
     src/imgviewer.host.chrome.cc
@@ -39,12 +36,12 @@ add_executable(imgviewer
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
-    ${IMGVIEWER_SETTINGS_SOURCE}
-    src/v2/imgviewer.script_engine.cc
-    src/v2/imgviewer.script_ui.cc
-    src/v2/imgviewer.script_window_root.cc
+    src/imgviewer.settings.cc
+    src/imgviewer.script_engine.cc
+    src/imgviewer.script_ui.cc
+    src/imgviewer.script_window_root.cc
     src/imgviewer.strings.cc
-    ${IMGVIEWER_UI_SOURCE}
+    src/imgviewer.ui.cc
     src/image.analysis.cc
     src/image.animation_decoder.cc
     src/image.decoder.cc
@@ -68,7 +65,6 @@ add_executable(imgviewer
     src/ui.surface.cc
     src/ui.text.cc
     src/ui.text_edit_state.cc
-    src/ui.toast.cc
     src/ui.window.cc
     src/util.format.cc
     src/experimental/util.signal.cc
@@ -94,7 +90,6 @@ target_compile_definitions(imgviewer PRIVATE
     UNICODE
     WIN32_LEAN_AND_MEAN
     _UNICODE
-    VER2
 )
 
 foreach(developer_window_config IN LISTS IMGVIEWER_DEVELOPER_WINDOW_CONFIGS)
@@ -163,9 +158,9 @@ add_executable(imgviewer_tests
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.draw.cc
-    src/v2/imgviewer.script_engine.cc
-    src/v2/imgviewer.script_ui.cc
-    src/v2/imgviewer.script_window_root.cc
+    src/imgviewer.script_engine.cc
+    src/imgviewer.script_ui.cc
+    src/imgviewer.script_window_root.cc
 )
 
 target_include_directories(imgviewer_tests PRIVATE

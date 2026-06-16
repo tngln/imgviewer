@@ -1,10 +1,10 @@
-#include "v2/imgviewer.script_window_root.hpp"
+#include "imgviewer.script_window_root.hpp"
 
 #include <utility>
 
 #include <d2d1helper.h>
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 
 ScriptWindowRootBase::ScriptWindowRootBase(
     ScriptEngine& engine,
@@ -338,4 +338,4 @@ UiEventResult ScriptWindowRootBase::DispatchInputToScript(const UiInputEvent& ev
     return FinishEventDispatch(result);
 }
 
-} // namespace imgviewer::v2
+} // namespace imgviewer

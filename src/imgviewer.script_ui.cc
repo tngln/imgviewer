@@ -1,4 +1,4 @@
-#include "v2/imgviewer.script_ui.hpp"
+#include "imgviewer.script_ui.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -13,13 +13,15 @@
 #include <wil/com.h>
 
 #include "script.canvas_color.hpp"
-#include "ui.theme.hpp"
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 
 namespace {
 
 constexpr DWORD kDefaultAccentColor = 0xff2f6fed;
+constexpr D2D1_COLOR_F kScriptErrorBackground = {0xf7 / 255.0f, 0xf9 / 255.0f, 0xfc / 255.0f, 1.0f};
+constexpr D2D1_COLOR_F kScriptErrorText = {0x17 / 255.0f, 0x20 / 255.0f, 0x33 / 255.0f, 1.0f};
+constexpr D2D1_COLOR_F kScriptErrorMutedText = {0x69 / 255.0f, 0x73 / 255.0f, 0x86 / 255.0f, 1.0f};
 constexpr wchar_t kPersonalizeRegistryPath[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 constexpr wchar_t kAppsUseLightThemeRegistryName[] = L"AppsUseLightTheme";
 
@@ -816,28 +818,28 @@ void RenderScriptError(
     std::string_view error_text)
 {
     const UiDraw draw(context);
-    draw.Clear(ui_theme::color::kWindowBackground);
+    draw.Clear(kScriptErrorBackground);
     draw.DrawBodyText(
         std::wstring(title),
         D2D1::RectF(24.0f, 24.0f, context.viewport_size.width - 24.0f, 52.0f),
-        ui_theme::color::kBodyText,
+        kScriptErrorText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     const std::wstring script = L"Script: " + script_path.wstring();
     draw.DrawBodyText(
         script,
         D2D1::RectF(24.0f, 60.0f, context.viewport_size.width - 24.0f, 84.0f),
-        ui_theme::color::kMutedText,
+        kScriptErrorMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     draw.DrawBodyText(
         WideFromUtf8(error_text),
         D2D1::RectF(24.0f, 96.0f, context.viewport_size.width - 24.0f, context.viewport_size.height - 56.0f),
-        ui_theme::color::kBodyText,
+        kScriptErrorText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     draw.DrawBodyText(
         L"Press F5 to reload. Press Esc to close.",
         D2D1::RectF(24.0f, context.viewport_size.height - 44.0f, context.viewport_size.width - 24.0f, context.viewport_size.height - 16.0f),
-        ui_theme::color::kMutedText,
+        kScriptErrorMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
 }
 
-} // namespace imgviewer::v2
+} // namespace imgviewer

@@ -17,9 +17,9 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.window.hpp"
-#include "v2/imgviewer.script_engine.hpp"
-#include "v2/imgviewer.script_ui.hpp"
-#include "v2/imgviewer.script_window_root.hpp"
+#include "imgviewer.script_engine.hpp"
+#include "imgviewer.script_ui.hpp"
+#include "imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -54,9 +54,9 @@ SettingsScriptUi* ScriptUi(JSContext* context)
     return static_cast<SettingsScriptUi*>(JS_GetContextOpaque(context));
 }
 
-class SettingsScriptUi final : public imgviewer::v2::ScriptWindowRootBase {
+class SettingsScriptUi final : public imgviewer::ScriptWindowRootBase {
 public:
-    SettingsScriptUi(imgviewer::v2::ScriptEngine& engine, ImgViewerConfig config) :
+    SettingsScriptUi(imgviewer::ScriptEngine& engine, ImgViewerConfig config) :
         ScriptWindowRootBase(engine, kSettingsScriptRelativePath, "imgviewerSettingsUi", L"Settings TypeScript UI failed"),
         draft_(std::move(config))
     {
@@ -90,7 +90,7 @@ private:
         if (ui == nullptr || argc < 1) {
             return JS_UNDEFINED;
         }
-        const std::string name = imgviewer::v2::Utf8FromValue(context, argv[0]);
+        const std::string name = imgviewer::Utf8FromValue(context, argv[0]);
         const ImgViewerConfig& config = ui->draft_;
         if (name == "language") {
             return JS_NewInt32(context, config.language == kZhCnLanguageName ? 1 : 0);
@@ -131,7 +131,7 @@ private:
         if (ui == nullptr || argc < 2) {
             return JS_FALSE;
         }
-        const std::string name = imgviewer::v2::Utf8FromValue(context, argv[0]);
+        const std::string name = imgviewer::Utf8FromValue(context, argv[0]);
         ImgViewerConfig& config = ui->draft_;
         bool changed = false;
         if (name == "language") {
@@ -219,7 +219,7 @@ private:
             return JS_NewArray(context);
         }
         const std::wstring filter = argc > 0
-            ? imgviewer::v2::WideFromUtf8(imgviewer::v2::Utf8FromValue(context, argv[0]))
+            ? imgviewer::WideFromUtf8(imgviewer::Utf8FromValue(context, argv[0]))
             : std::wstring();
         return ui->CreateActionRows(filter);
     }
@@ -273,8 +273,8 @@ private:
             }
 
             JSValue row = JS_NewObject(context);
-            JS_SetPropertyStr(context, row, "name", JS_NewString(context, imgviewer::v2::Utf8FromWide(name).c_str()));
-            JS_SetPropertyStr(context, row, "shortcut", JS_NewString(context, imgviewer::v2::Utf8FromWide(shortcut).c_str()));
+            JS_SetPropertyStr(context, row, "name", JS_NewString(context, imgviewer::Utf8FromWide(name).c_str()));
+            JS_SetPropertyStr(context, row, "shortcut", JS_NewString(context, imgviewer::Utf8FromWide(shortcut).c_str()));
             JS_SetPropertyUint32(context, rows, index++, row);
         }
         return rows;
@@ -295,7 +295,7 @@ private:
         const bool handled = BoolProperty(result, "handled", false);
         const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
         const bool invalidate = BoolProperty(result, "invalidate", false);
-        event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(Context(), result);
+        event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(Context(), result);
         JS_FreeValue(Context(), result);
 
         const bool wants_reload = reload_requested_;

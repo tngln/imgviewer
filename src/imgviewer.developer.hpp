@@ -1,11 +1,5 @@
 #pragma once
 
-#if defined(VER2)
-
-#include "v2/imgviewer.developer.hpp"
-
-#else
-
 #include <windows.h>
 
 struct ImgViewerContext;
@@ -13,5 +7,3 @@ struct ImgViewerContext;
 HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context);
 void CleanupImgViewerDeveloperWindow(ImgViewerContext* context, void* developer_context);
 HRESULT RunImgViewerDeveloperWindowApplication();
-
-#endif

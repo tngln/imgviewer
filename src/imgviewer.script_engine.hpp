@@ -10,7 +10,7 @@
 struct JSContext;
 struct JSRuntime;
 
-namespace imgviewer::v2 {
+namespace imgviewer {
 
 struct ScriptEvalResult final {
     bool ok = false;
@@ -61,4 +61,4 @@ private:
     JSContext* context_ = nullptr;
 };
 
-} // namespace imgviewer::v2
+} // namespace imgviewer

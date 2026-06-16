@@ -1,16 +1,8 @@
 #pragma once
 
-#if defined(VER2)
-
-#include "v2/imgviewer.settings.hpp"
-
-#else
-
 #include <windows.h>
 
 struct ImgViewerContext;
 
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);
-
-#endif
 
