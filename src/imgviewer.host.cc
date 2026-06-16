@@ -297,13 +297,6 @@ ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditControll
     return ImgViewerPointerCaptureOwner::EditStroke;
 }
 
-float DistanceSquared(D2D1_POINT_2F left, D2D1_POINT_2F right)
-{
-    const float dx = left.x - right.x;
-    const float dy = left.y - right.y;
-    return dx * dx + dy * dy;
-}
-
 void ClearPendingEdgeClick(HWND hwnd, ImgViewerContext* context)
 {
     if (context == nullptr) {
@@ -353,7 +346,7 @@ bool CancelPendingEdgeClickIfDragged(HWND hwnd, ImgViewerContext* context, D2D1_
         return false;
     }
 
-    if (DistanceSquared(context->pending_edge_click_point, point) >
+    if (math::DistanceSquared(context->pending_edge_click_point, point) >
         kEdgeClickDragCancelDistance * kEdgeClickDragCancelDistance) {
         ClearPendingEdgeClick(hwnd, context);
     }

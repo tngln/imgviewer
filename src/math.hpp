@@ -93,4 +93,11 @@ inline bool NearlyEqual(D2D1_COLOR_F left, D2D1_COLOR_F right)
         std::abs(left.a - right.a) < kTolerance;
 }
 
+inline float DistanceSquared(D2D1_POINT_2F left, D2D1_POINT_2F right)
+{
+    const float dx = left.x - right.x;
+    const float dy = left.y - right.y;
+    return dx * dx + dy * dy;
+}
+
 } // namespace math
