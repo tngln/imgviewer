@@ -1,9 +1,7 @@
 #include "imgviewer.host.internal.hpp"
 
 #include "imgviewer.messages.hpp"
-#include "ui.host_accessibility.hpp"
 #include "ui.host_popup.hpp"
-#include "ui.tooltip.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
@@ -24,12 +22,7 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
                 kImgViewerUiActionMessage,
                 &context->graphics_device,
                 context->script_engine.get())) ||
-            FAILED(context->viewer.Initialize()) ||
-            FAILED(ResetUiAccessibilityProvider(
-                hwnd,
-                kImgViewerUiActionMessage,
-                &context->ui,
-                std::addressof(context->accessibility_provider)))) {
+            FAILED(context->viewer.Initialize())) {
             return win32::WindowMessageResult::Handled(-1);
         }
         context->popup.SetTextFormats(context->renderer.BodyTextFormat(), context->renderer.IconTextFormat());
@@ -74,7 +67,6 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             if (FAILED(RenderImgViewer(context))) {
                 return win32::WindowMessageResult::Handled(-1);
             }
-            UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
             if (context->interactive_size_move_active) {
                 ShowWindowSizeToast(hwnd, context);
             }
@@ -105,7 +97,6 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             if (FAILED(RenderImgViewer(context))) {
                 return win32::WindowMessageResult::Handled(-1);
             }
-            UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
         }
         return win32::WindowMessageResult::Handled();
     }
@@ -120,7 +111,7 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             ClosePopup(context);
             if (context != nullptr) {
                 ResetImgViewerTransientInput(hwnd, context);
-                ApplyMerged(hwnd, context, context->ui.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}));
+                ApplyMerged(hwnd, context, context->ui != nullptr ? context->ui->OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = hwnd}) : UiEventResult{});
             }
         }
         return win32::WindowMessageResult::Unhandled();

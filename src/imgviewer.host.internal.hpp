@@ -24,7 +24,6 @@ struct ImgViewerHostEffects final {
     ImgViewerPointerCaptureOwner begin_pointer_capture = ImgViewerPointerCaptureOwner::None;
     ImgViewerPointerCaptureOwner end_pointer_capture = ImgViewerPointerCaptureOwner::None;
     UiAction action = kUiActionNone;
-    UiElementId effect_target = UiElementId::None;
     bool sync_popup_modal = false;
     bool sync_ime = false;
 
@@ -37,7 +36,6 @@ struct ImgViewerHostEffects final {
             begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             end_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             action != kUiActionNone ||
-            effect_target != UiElementId::None ||
             sync_popup_modal ||
             sync_ime;
     }

@@ -77,8 +77,8 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             return win32::WindowMessageResult::Handled();
         }
 
-        const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
+        const UiEventResult ui_result = context != nullptr && context->ui != nullptr
+            ? context->ui->OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
             ApplyMerged(hwnd, context, ui_result);
@@ -182,8 +182,8 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
         if (DispatchToPopup(hwnd, context, UiInputEvent::Key(key, hwnd))) {
             return win32::WindowMessageResult::Handled();
         }
-        const UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent::Key(key, hwnd))
+        const UiEventResult ui_result = context != nullptr && context->ui != nullptr
+            ? context->ui->OnInputEvent(UiInputEvent::Key(key, hwnd))
             : UiEventResult{};
         if (ui_result.handled) {
             ApplyMerged(hwnd, context, ui_result);

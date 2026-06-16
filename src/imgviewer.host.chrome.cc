@@ -2,7 +2,6 @@
 
 #include "imgviewer.ui.hpp"
 #include "math.hpp"
-#include "ui.tooltip.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
@@ -61,7 +60,7 @@ LRESULT HitTestFrame(HWND hwnd, LPARAM lparam)
         static_cast<float>(client_point.x) / coordinates.scale(),
         static_cast<float>(client_point.y) / coordinates.scale());
     ImgViewerContext* context = GetImgViewerContext(hwnd);
-    if (context != nullptr && context->ui.IsPointInCaptionDragArea(render_point)) {
+    if (context != nullptr && context->ui != nullptr && context->ui->IsPointInCaptionDragArea(render_point)) {
         return HTCAPTION;
     }
 
@@ -117,7 +116,7 @@ win32::WindowMessageResult HandleImgViewerChromeMessage(HWND hwnd, UINT message,
         ImgViewerContext* context = GetImgViewerContext(hwnd);
         if (context != nullptr &&
             context->config.borderless_window &&
-            context->ui.CapturedElement() == UiElementId::None &&
+            !context->interaction.HasPointerCapture() &&
             !IsCursorInsideWindow(hwnd)) {
             context->renderer.SetUiOverlayVisible(false);
         }
@@ -174,7 +173,6 @@ HRESULT ApplyImgViewerWindowFrame(HWND hwnd, ImgViewerContext* context, bool hid
         SWP_FRAMECHANGED | SWP_NOREDRAW | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE));
     RETURN_IF_FAILED(context->renderer.Resize());
     SyncWindowState(hwnd, context);
-    UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
     RETURN_IF_FAILED(context->renderer.SetUiOverlayVisible(true));
     InvalidateRect(hwnd, nullptr, FALSE);
 

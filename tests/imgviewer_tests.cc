@@ -19,7 +19,6 @@
 #include "imgviewer.keybindings.hpp"
 #include "script.canvas_color.hpp"
 #include "script.quickjs_runtime.hpp"
-#include "ui.element.hpp"
 #include "v2/imgviewer.script_ui.hpp"
 
 namespace {

@@ -12,7 +12,8 @@
 #include "ui.draw.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.surface.hpp"
-#include "ui.hpp"
+
+class ScriptView;
 
 struct UiSurfaceDrawContext final {
     UiDrawContext draw = {};
@@ -30,7 +31,7 @@ public:
     HRESULT Resize();
     HRESULT RegisterSurface(const UiSurfaceDescriptor& descriptor, UiSurfaceId* id);
     HRESULT DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, void* user_data);
-    HRESULT RenderUiOverlay(UiSurfaceId id, UiController& ui);
+    HRESULT RenderUiOverlay(UiSurfaceId id, ScriptView& ui);
     HRESULT SetSurfaceVisible(UiSurfaceId id, bool visible);
     HRESULT SetSurfaceFormat(UiSurfaceId id, DXGI_FORMAT format);
     HRESULT Commit();

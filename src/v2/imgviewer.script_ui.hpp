@@ -41,7 +41,7 @@ JSValue HostClose(JSContext* context, JSValueConst this_value, int argc, JSValue
 JSValue HostLog(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 
 JSValue CreateCanvasObject(JSContext* context);
-JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context, UiRootState state);
+JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context);
 JSValue CreatePointerEvent(JSContext* context, const UiPointerEvent& event);
 JSValue CreateKeyEvent(JSContext* context, const UiKeyEvent& event);
 JSValue CreateTextEvent(JSContext* context, wchar_t ch);

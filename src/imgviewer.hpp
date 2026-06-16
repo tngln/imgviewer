@@ -4,7 +4,6 @@
 
 #include <imm.h>
 #include <ole2.h>
-#include <UIAutomationCore.h>
 
 #include <array>
 #include <memory>
@@ -21,7 +20,6 @@
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
-#include "ui.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.popup.hpp"
 
@@ -41,8 +39,8 @@ struct ImgViewerContext final {
     GraphicsDevice graphics_device;
     ImgViewerRenderer renderer;
     std::unique_ptr<imgviewer::v2::ScriptEngine> script_engine;
+    std::unique_ptr<ScriptView> ui;
     ImgViewerUi* main_ui = nullptr;
-    UiController ui;
     PopupHost popup;
     ImgViewerController viewer;
     ImgViewerEditController edit;
@@ -57,8 +55,6 @@ struct ImgViewerContext final {
     std::array<ImgViewerAction, 256> pressed_key_actions = {};
     HIMC main_window_ime_context = nullptr;
     bool main_window_ime_enabled = true;
-    wil::com_ptr<IRawElementProviderSimple> accessibility_provider;
-    wil::unique_hwnd tooltip;
     HWND settings_window = nullptr;
     UiWindowDelegate* settings_context = nullptr;
     UiWindowDelegate* about_context = nullptr;

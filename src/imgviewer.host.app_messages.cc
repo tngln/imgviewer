@@ -2,7 +2,6 @@
 
 #include "imgviewer.messages.hpp"
 #include "imgviewer.ui.hpp"
-#include "ui.host_accessibility.hpp"
 #include "ui.host_effects.hpp"
 #include "ui.window.hpp"
 
@@ -43,7 +42,6 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
         const UiPostedActionMessage posted = DecodeUiPostedActionMessage(wparam, lparam);
         ImgViewerHostEffects effects;
         effects.action = posted.action;
-        effects.effect_target = posted.effect_target;
         ApplyHostEffects(hwnd, context, effects);
         return win32::WindowMessageResult::Handled();
     }
@@ -103,19 +101,6 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
         }
         DragFinish(drop);
         return win32::WindowMessageResult::Handled();
-    }
-
-    case WM_GETOBJECT: {
-        ImgViewerContext* context = GetImgViewerContext(hwnd);
-        if (context != nullptr) {
-            return HandleUiAccessibilityGetObjectMessage(
-                hwnd,
-                wparam,
-                lparam,
-                context->accessibility_provider.get());
-        }
-
-        return win32::WindowMessageResult::Unhandled();
     }
 
     default:

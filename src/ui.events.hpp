@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-#include "ui.element.hpp"
+#include "ui.action.hpp"
 
 class PopupHost;
 
@@ -52,8 +52,6 @@ struct UiPointerEvent final {
     UiPointerButton button = UiPointerButton::None;
     int wheel_delta = 0;
     UiModifiers modifiers;
-    UiElementId target = UiElementId::None;
-    UiElementId captured = UiElementId::None;
     PopupHost* popup_host = nullptr;
 };
 
@@ -62,7 +60,6 @@ struct UiKeyEvent final {
     UINT virtual_key = 0;
     UiModifiers modifiers;
     bool repeat = false;
-    UiElementId focused = UiElementId::None;
     PopupHost* popup_host = nullptr;
 };
 
@@ -70,7 +67,6 @@ struct UiInputEvent final {
     UiEventType type = UiEventType::PointerMove;
     UiPointerEvent pointer;
     UiKeyEvent key;
-    UiElementId focused = UiElementId::None;
     wchar_t character = L'\0';
     std::wstring text;
     D2D1_POINT_2F point = {};
@@ -110,21 +106,12 @@ enum class UiCaptureRequest {
     Release,
 };
 
-enum class UiFocusRequest {
-    None,
-    FocusTarget,
-    ClearFocus,
-};
-
 struct UiEventResult final {
     bool handled = false;
     UiCaptureRequest capture = UiCaptureRequest::None;
-    UiFocusRequest focus = UiFocusRequest::None;
-    UiElementId focus_target = UiElementId::None;
     UiAction action = kUiActionNone;
     bool wants_ime_position = false;
     std::optional<D2D1_POINT_2F> ime_caret_point;
     bool value_changed = false;
     bool close_popup = false;
-    UiElementId effect_target = UiElementId::None;
 };

@@ -50,7 +50,7 @@ void UiToast::Render(const UiDrawContext& draw_context) const
         return;
     }
 
-    const ui_text::TextMetrics text_metrics = ui_text::MeasureText(
+    const ui_text::TextMetrics text_metrics = ui_text::GetTextMetrics(
         draw_context.dwrite_factory,
         draw_context.body_text_format,
         display_text.c_str(),

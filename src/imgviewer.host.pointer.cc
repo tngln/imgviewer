@@ -30,7 +30,9 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 return win32::WindowMessageResult::Handled();
             }
             if (CanUiReceivePointer(context->interaction)) {
-                UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
+                UiEventResult ui_result = context->ui != nullptr
+                    ? context->ui->OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
+                    : UiEventResult{};
                 ApplyMerged(hwnd, context, ui_result);
                 if (ui_result.handled) {
                     return win32::WindowMessageResult::Handled();
@@ -77,8 +79,8 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
             return win32::WindowMessageResult::Handled();
         }
-        UiEventResult ui_result = context != nullptr
-            ? context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
+        UiEventResult ui_result = context != nullptr && context->ui != nullptr
+            ? context->ui->OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
@@ -175,7 +177,9 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
                 return win32::WindowMessageResult::Handled();
             }
-            ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
+            ui_result = context->ui != nullptr
+                ? context->ui->OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
+                : UiEventResult{};
             ApplyMerged(hwnd, context, ui_result);
         }
         return (ui_result.handled || viewer_result.handled)
@@ -189,7 +193,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         ApplyMerged(
             hwnd,
             context,
-            context != nullptr ? context->ui.OnInputEvent(UiInputEvent{
+            context != nullptr && context->ui != nullptr ? context->ui->OnInputEvent(UiInputEvent{
                 .type = pointer.type,
                 .pointer = pointer,
                 .hwnd = hwnd,
@@ -197,7 +201,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             }) : UiEventResult{});
         if (context != nullptr &&
             context->config.borderless_window &&
-            context->ui.CapturedElement() == UiElementId::None &&
+            !context->interaction.HasPointerCapture() &&
             !IsCursorInsideWindow(hwnd)) {
             context->renderer.SetUiOverlayVisible(false);
         }
@@ -232,7 +236,9 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             if (DispatchToPopup(hwnd, context, UiInputEvent::Pointer(pointer, hwnd))) {
                 return win32::WindowMessageResult::Handled();
             }
-            const UiEventResult ui_result = context->ui.OnInputEvent(UiInputEvent::Pointer(pointer, hwnd));
+            const UiEventResult ui_result = context->ui != nullptr
+                ? context->ui->OnInputEvent(UiInputEvent::Pointer(pointer, hwnd))
+                : UiEventResult{};
             if (ui_result.handled) {
                 ApplyMerged(hwnd, context, ui_result);
                 return win32::WindowMessageResult::Handled();

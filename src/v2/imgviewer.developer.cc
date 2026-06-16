@@ -1,11 +1,8 @@
 #include "imgviewer.developer.hpp"
 
 #include <algorithm>
-#include <filesystem>
 #include <memory>
-#include <optional>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include <d2d1helper.h>
@@ -18,10 +15,10 @@
 #include "imgviewer.messages.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "ui.element.hpp"
 #include "ui.window.hpp"
 #include "v2/imgviewer.script_engine.hpp"
 #include "v2/imgviewer.script_ui.hpp"
+#include "v2/imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -33,11 +30,6 @@ constexpr int kDeveloperMinClientHeight = 260;
 constexpr char kDeveloperScriptRelativePath[] = "scripts/developer_ui.js";
 constexpr char kDeveloperCounterSignalName[] = "developer.counter";
 
-std::filesystem::path DeveloperScriptPath()
-{
-    return imgviewer::v2::ScriptPath(kDeveloperScriptRelativePath);
-}
-
 class DeveloperScriptUi;
 
 DeveloperScriptUi* ScriptUi(JSContext* context)
@@ -45,12 +37,10 @@ DeveloperScriptUi* ScriptUi(JSContext* context)
     return static_cast<DeveloperScriptUi*>(JS_GetContextOpaque(context));
 }
 
-class DeveloperScriptUi final : public imgviewer::v2::ScriptUiHost, public UiRoot {
+class DeveloperScriptUi final : public imgviewer::v2::ScriptWindowRootBase {
 public:
     explicit DeveloperScriptUi(imgviewer::v2::ScriptEngine& engine)
-        : engine_(engine),
-          root_(std::make_unique<UiElement>(
-              UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Developer), false, true))),
+        : ScriptWindowRootBase(engine, kDeveloperScriptRelativePath, "imgviewerDeveloperUi", L"Developer TypeScript UI failed"),
           counter_signal_(0)
     {
         ReloadScript();
@@ -61,87 +51,7 @@ public:
         ClearSubscriptions();
     }
 
-    UiElement* Root() override { return root_.get(); }
-    const UiElement* Root() const override { return root_.get(); }
-    const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::Developer); }
-    const UiDrawContext* ActiveDrawContext() const override { return active_draw_context_; }
-    void RequestInvalidate() override { invalidate_requested_ = true; }
-    void RequestReload() override { reload_requested_ = true; }
-    void RequestClose() override { close_requested_ = true; }
-
-    D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F available_size) override
-    {
-        return available_size;
-    }
-
-    void Arrange(D2D1_RECT_F final_rect) override
-    {
-        root_->Arrange(final_rect);
-        rect_ = final_rect;
-    }
-
-    void Render(const UiDrawContext& context, UiRootState state) override
-    {
-        const UiDraw draw(context);
-        if (!ready_) {
-            RenderError(context);
-            return;
-        }
-
-        JSContext* js_context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue render = JS_GetPropertyStr(js_context, app, "render");
-        if (!JS_IsFunction(js_context, render)) {
-            JS_FreeValue(js_context, render);
-            JS_FreeValue(js_context, app);
-            SetError("imgviewerDeveloperUi.render is not a function");
-            RenderError(context);
-            return;
-        }
-
-        JSValue canvas = imgviewer::v2::CreateCanvasObject(js_context);
-        JSValue env = imgviewer::v2::CreateRenderEnvironment(js_context, context, state);
-        JSValue args[] = {canvas, env};
-        active_draw_context_ = &context;
-        JSValue result = JS_Call(js_context, render, app, 2, args);
-        active_draw_context_ = nullptr;
-        JS_FreeValue(js_context, env);
-        JS_FreeValue(js_context, canvas);
-        JS_FreeValue(js_context, render);
-        JS_FreeValue(js_context, app);
-
-        if (JS_IsException(result)) {
-            JS_FreeValue(js_context, result);
-            script_context_->CaptureException();
-            SetError(engine_.TakeExceptionTextUtf8());
-            RenderError(context);
-            return;
-        }
-        JS_FreeValue(js_context, result);
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override
-    {
-        if (!ready_) {
-            return UiEventResult{.handled = true};
-        }
-        return DispatchPointerToScript(event);
-    }
-
-    UiEventResult OnKeyEvent(const UiKeyEvent& event) override
-    {
-        if (event.type == UiEventType::KeyDown && event.virtual_key == VK_ESCAPE) {
-            return UiEventResult{.handled = true, .action = ImgViewerAction::CloseDeveloper};
-        }
-        if (event.type == UiEventType::KeyDown && event.virtual_key == VK_F5) {
-            ReloadScript();
-            return UiEventResult{.handled = true};
-        }
-        if (!ready_) {
-            return {};
-        }
-        return DispatchKeyToScript(event);
-    }
+    const wchar_t* AccessibilityName() const override { return ImgViewerString(ImgViewerStringId::Developer); }
 
 private:
     struct SignalSubscription final {
@@ -204,190 +114,30 @@ private:
         return JS_NewBool(context, ui->Unsubscribe(js_id));
     }
 
-    void ReloadScript()
+    void BeforeReload() override
     {
         ClearSubscriptions();
-        script_context_.reset();
-        script_context_ = engine_.CreateContext();
-        ready_ = false;
-        error_text_.clear();
-        reload_requested_ = false;
-        close_requested_ = false;
-        invalidate_requested_ = true;
-
-        if (script_context_ == nullptr) {
-            SetError(engine_.TakeExceptionTextUtf8());
-            return;
-        }
-
-        JS_SetContextOpaque(script_context_->Context(), this);
-        InstallGlobals();
-
-        script_path_ = DeveloperScriptPath();
-        std::optional<std::string> source = imgviewer::v2::ReadTextFileUtf8(script_path_);
-        if (!source.has_value()) {
-            SetError("Could not read " + script_path_.string());
-            return;
-        }
-
-        const imgviewer::v2::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
-        if (!eval.ok) {
-            SetError(engine_.TakeExceptionTextUtf8());
-            return;
-        }
-
-        JSValue app = AppObject();
-        if (!JS_IsObject(app)) {
-            JS_FreeValue(script_context_->Context(), app);
-            SetError("globalThis.imgviewerDeveloperUi was not defined");
-            return;
-        }
-        JS_FreeValue(script_context_->Context(), app);
-        ready_ = true;
     }
 
-    void InstallGlobals()
+    void InstallCustomGlobals(JSValue global) override
     {
-        JSContext* context = script_context_->Context();
-        JSValue global = JS_GetGlobalObject(context);
-
-        JSValue host = JS_NewObject(context);
-        SetFunction(host, "invalidate", imgviewer::v2::HostInvalidate, 0);
-        SetFunction(host, "reload", imgviewer::v2::HostReload, 0);
-        SetFunction(host, "close", imgviewer::v2::HostClose, 0);
-        SetFunction(host, "log", imgviewer::v2::HostLog, 1);
-        JS_SetPropertyStr(context, global, "host", host);
-
+        JSContext* context = Context();
         JSValue signals = JS_NewObject(context);
         SetFunction(signals, "get", SignalsGet, 1);
         SetFunction(signals, "set", SignalsSet, 2);
         SetFunction(signals, "subscribe", SignalsSubscribe, 2);
         SetFunction(signals, "unsubscribe", SignalsUnsubscribe, 1);
         JS_SetPropertyStr(context, global, "signals", signals);
-
-        JS_FreeValue(context, global);
     }
 
-    void SetFunction(JSValue object, const char* name, JSCFunction* function, int length)
+    UiAction CloseAction() const override
     {
-        JS_SetPropertyStr(script_context_->Context(), object, name, JS_NewCFunction(script_context_->Context(), function, name, length));
-    }
-
-    JSValue AppObject() const
-    {
-        JSContext* context = script_context_->Context();
-        JSValue global = JS_GetGlobalObject(context);
-        JSValue app = JS_GetPropertyStr(context, global, "imgviewerDeveloperUi");
-        JS_FreeValue(context, global);
-        return app;
-    }
-
-    UiEventResult DispatchPointerToScript(const UiPointerEvent& event)
-    {
-        JSContext* context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue handler = JS_GetPropertyStr(context, app, "pointer");
-        if (!JS_IsFunction(context, handler)) {
-            JS_FreeValue(context, handler);
-            JS_FreeValue(context, app);
-            return {};
-        }
-
-        JSValue js_event = imgviewer::v2::CreatePointerEvent(context, event);
-        JSValue args[] = {js_event};
-        JSValue result = JS_Call(context, handler, app, 1, args);
-        JS_FreeValue(context, js_event);
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
-        return FinishEventDispatch(result);
-    }
-
-    UiEventResult DispatchKeyToScript(const UiKeyEvent& event)
-    {
-        JSContext* context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue handler = JS_GetPropertyStr(context, app, "key");
-        if (!JS_IsFunction(context, handler)) {
-            JS_FreeValue(context, handler);
-            JS_FreeValue(context, app);
-            return {};
-        }
-
-        JSValue js_event = imgviewer::v2::CreateKeyEvent(context, event);
-        JSValue args[] = {js_event};
-        JSValue result = JS_Call(context, handler, app, 1, args);
-        JS_FreeValue(context, js_event);
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
-        return FinishEventDispatch(result);
-    }
-
-    UiEventResult FinishEventDispatch(JSValue result)
-    {
-        UiEventResult event_result{};
-        if (JS_IsException(result)) {
-            JS_FreeValue(script_context_->Context(), result);
-            script_context_->CaptureException();
-            SetError(engine_.TakeExceptionTextUtf8());
-            event_result.handled = true;
-            return event_result;
-        }
-
-        const bool handled = BoolProperty(result, "handled", false);
-        const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
-        const bool invalidate = BoolProperty(result, "invalidate", false);
-        event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(script_context_->Context(), result);
-        JS_FreeValue(script_context_->Context(), result);
-
-        if (reload_requested_) {
-            ReloadScript();
-        }
-        event_result.handled = handled || capture.has_value() || invalidate || close_requested_ || reload_requested_;
-        if (capture.has_value()) {
-            event_result.capture = *capture ? UiCaptureRequest::Capture : UiCaptureRequest::Release;
-        }
-        if (close_requested_) {
-            close_requested_ = false;
-            event_result.action = ImgViewerAction::CloseDeveloper;
-        }
-        if (invalidate || invalidate_requested_) {
-            invalidate_requested_ = false;
-            event_result.value_changed = true;
-        }
-        return event_result;
-    }
-
-    bool BoolProperty(JSValueConst object, const char* name, bool fallback)
-    {
-        if (!JS_IsObject(object)) {
-            return fallback;
-        }
-        JSContext* context = script_context_->Context();
-        JSValue value = JS_GetPropertyStr(context, object, name);
-        const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
-        JS_FreeValue(context, value);
-        return result;
-    }
-
-    std::optional<bool> OptionalBoolProperty(JSValueConst object, const char* name)
-    {
-        if (!JS_IsObject(object)) {
-            return std::nullopt;
-        }
-        JSContext* context = script_context_->Context();
-        JSValue value = JS_GetPropertyStr(context, object, name);
-        if (JS_IsUndefined(value)) {
-            JS_FreeValue(context, value);
-            return std::nullopt;
-        }
-        const bool result = JS_ToBool(context, value) != 0;
-        JS_FreeValue(context, value);
-        return result;
+        return ImgViewerAction::CloseDeveloper;
     }
 
     void NotifySignalSubscription(int js_id, int value)
     {
-        if (script_context_ == nullptr || script_context_->Context() == nullptr) {
+        if (script_context_ == nullptr || Context() == nullptr) {
             return;
         }
         auto it = std::find_if(subscriptions_.begin(), subscriptions_.end(), [js_id](const SignalSubscription& item) {
@@ -397,7 +147,7 @@ private:
             return;
         }
 
-        JSContext* context = script_context_->Context();
+        JSContext* context = Context();
         JSValue arg = JS_NewInt32(context, value);
         JSValue result = JS_Call(context, it->callback, JS_UNDEFINED, 1, &arg);
         JS_FreeValue(context, arg);
@@ -421,49 +171,27 @@ private:
             return false;
         }
         counter_signal_.Unsubscribe(it->native_id);
-        JS_FreeValue(script_context_->Context(), it->callback);
+        JS_FreeValue(Context(), it->callback);
         subscriptions_.erase(it);
         return true;
     }
 
     void ClearSubscriptions()
     {
-        if (script_context_ == nullptr || script_context_->Context() == nullptr) {
+        if (script_context_ == nullptr || Context() == nullptr) {
             subscriptions_.clear();
             return;
         }
         for (const SignalSubscription& subscription : subscriptions_) {
             counter_signal_.Unsubscribe(subscription.native_id);
-            JS_FreeValue(script_context_->Context(), subscription.callback);
+            JS_FreeValue(Context(), subscription.callback);
         }
         subscriptions_.clear();
     }
 
-    void RenderError(const UiDrawContext& context) const
-    {
-        imgviewer::v2::RenderScriptError(context, L"Developer TypeScript UI failed", script_path_, error_text_);
-    }
-
-    void SetError(std::string text)
-    {
-        ready_ = false;
-        error_text_ = text.empty() ? "Unknown JavaScript error" : std::move(text);
-    }
-
-    std::unique_ptr<UiElement> root_;
-    imgviewer::v2::ScriptEngine& engine_;
-    std::unique_ptr<imgviewer::v2::ScriptContext> script_context_;
     util::Signal<int> counter_signal_;
     std::vector<SignalSubscription> subscriptions_;
-    const UiDrawContext* active_draw_context_ = nullptr;
-    std::filesystem::path script_path_;
-    D2D1_RECT_F rect_ = {};
-    std::string error_text_;
     int next_subscription_id_ = 1;
-    bool ready_ = false;
-    bool invalidate_requested_ = false;
-    bool reload_requested_ = false;
-    bool close_requested_ = false;
 };
 
 struct DeveloperWindowContext final : public UiWindowDelegate {

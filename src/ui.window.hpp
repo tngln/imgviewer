@@ -9,10 +9,9 @@
 #include <dxgi1_2.h>
 #include <imm.h>
 #include <ole2.h>
-#include <UIAutomationCore.h>
 #include <wil/com.h>
 
-#include "ui.hpp"
+#include "script.view.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.popup.hpp"
 #include "win32.window.hpp"
@@ -44,7 +43,6 @@ struct UiWindowOptions final {
     UINT_PTR caret_timer_id = 1;
     float body_font_size = 8.5f;
     float icon_font_size = 10.0f;
-    bool enable_accessibility = true;
     bool enable_popup = true;
     bool enable_ime = true;
     imgviewer::v2::ScriptEngine* script_engine = nullptr;
@@ -59,15 +57,14 @@ public:
 
     HRESULT Create(
         UiWindowOptions options,
-        std::unique_ptr<UiRoot> root,
+        std::unique_ptr<ScriptView> root,
         UiWindowDelegate* delegate,
         GraphicsDevice* graphics);
-    void ResetRoot(std::unique_ptr<UiRoot> root);
+    void ResetRoot(std::unique_ptr<ScriptView> root);
     void Invalidate();
     void Close();
     HWND Hwnd() const;
     win32::NativeWindow& Window();
-    UiController& Ui();
     PopupHost& Popup();
     IDWriteFactory* DWriteFactory() const;
     IDWriteTextFormat* BodyTextFormat() const;
@@ -89,7 +86,6 @@ private:
     void SyncCaretTimer();
     void PositionIme();
     D2D1_POINT_2F CaretPoint() const;
-    bool IsFocusedTextElement() const;
     std::wstring ImeCompositionString(LPARAM lparam) const;
     UiEventResult DispatchInputEvent(const UiInputEvent& event);
 
@@ -97,7 +93,7 @@ private:
     UiWindowDelegate* delegate_ = nullptr;
     GraphicsDevice* graphics_ = nullptr;
     win32::NativeWindow window_;
-    UiController ui_{nullptr};
+    std::unique_ptr<ScriptView> root_;
     PopupHost popup_;
     wil::com_ptr<ID2D1DeviceContext> d2d_context_;
     wil::com_ptr<IDCompositionDevice> dcomp_device_;
@@ -107,7 +103,6 @@ private:
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
     wil::com_ptr<IDWriteTextFormat> body_text_format_;
     wil::com_ptr<IDWriteTextFormat> icon_text_format_;
-    wil::com_ptr<IRawElementProviderSimple> accessibility_provider_;
     std::optional<D2D1_POINT_2F> ime_caret_point_;
     UINT surface_width_ = 0;
     UINT surface_height_ = 0;

@@ -6,15 +6,15 @@
 
 namespace {
 
-constexpr float kMeasureMaxWidth = 10000.0f;
-constexpr float kMeasureMaxHeight = 1000.0f;
+constexpr float kTextMetricsMaxWidth = 10000.0f;
+constexpr float kTextMetricsMaxHeight = 1000.0f;
 constexpr wchar_t kEllipsis[] = L"...";
 
 } // namespace
 
 namespace ui_text {
 
-TextMetrics MeasureText(
+TextMetrics GetTextMetrics(
     IDWriteFactory* factory,
     IDWriteTextFormat* text_format,
     const wchar_t* text,
@@ -29,8 +29,8 @@ TextMetrics MeasureText(
             text,
             text_length,
             text_format,
-            kMeasureMaxWidth,
-            kMeasureMaxHeight,
+            kTextMetricsMaxWidth,
+            kTextMetricsMaxHeight,
             layout.put()))) {
         return {};
     }
@@ -57,13 +57,13 @@ std::wstring TruncateText(
         return {};
     }
 
-    const TextMetrics full_metrics = MeasureText(factory, text_format, text, text_length);
+    const TextMetrics full_metrics = GetTextMetrics(factory, text_format, text, text_length);
     if (full_metrics.width <= max_width) {
         return std::wstring(text, text + text_length);
     }
 
     constexpr UINT32 ellipsis_length = static_cast<UINT32>(sizeof(kEllipsis) / sizeof(kEllipsis[0]) - 1);
-    const TextMetrics ellipsis_metrics = MeasureText(factory, text_format, kEllipsis, ellipsis_length);
+    const TextMetrics ellipsis_metrics = GetTextMetrics(factory, text_format, kEllipsis, ellipsis_length);
     if (ellipsis_metrics.width > max_width) {
         return {};
     }
@@ -77,7 +77,7 @@ std::wstring TruncateText(
         candidate += kEllipsis;
 
         const TextMetrics candidate_metrics =
-            MeasureText(factory, text_format, candidate.c_str(), static_cast<UINT32>(candidate.size()));
+            GetTextMetrics(factory, text_format, candidate.c_str(), static_cast<UINT32>(candidate.size()));
         if (candidate_metrics.width <= max_width) {
             best = mid;
             low = mid + 1;

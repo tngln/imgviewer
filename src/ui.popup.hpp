@@ -41,7 +41,6 @@ public:
         float width,
         std::vector<PopupDropdownOption> options,
         size_t selected_index,
-        UiElementId owner_id,
         std::function<void(size_t)> selection_changed,
         std::function<void()> closed);
     UiEventResult OnInputEvent(const UiInputEvent& event);
@@ -63,7 +62,7 @@ private:
 
     HRESULT LoadScript();
     HRESULT OpenScriptPopup(D2D1_POINT_2F origin);
-    D2D1_SIZE_F MeasureScriptContent();
+    D2D1_SIZE_F QueryScriptContentSize();
     void RenderScriptContent(const UiDrawContext& context);
     UiEventResult DispatchScriptInput(const UiInputEvent& event);
     void ApplyScriptResultSideEffects(UiEventResult* result, int selected_index);
@@ -89,7 +88,6 @@ private:
     std::vector<MenuItem> menu_items_;
     std::vector<PopupDropdownOption> dropdown_options_;
     size_t dropdown_selected_index_ = 0;
-    UiElementId dropdown_owner_id_ = UiElementId::None;
     std::function<void(size_t)> dropdown_selection_changed_;
     std::function<void()> dropdown_closed_;
     float dropdown_width_ = 1.0f;

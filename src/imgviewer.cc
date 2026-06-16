@@ -14,7 +14,6 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.hpp"
 #include "ui.host_popup.hpp"
-#include "ui.tooltip.hpp"
 #include "util.format.hpp"
 #include "v2/imgviewer.script_engine.hpp"
 #include "win32.clipboard.hpp"
@@ -36,7 +35,7 @@ void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
 HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWICBitmapSource* source);
 
-std::unique_ptr<ImgViewerUi> CreateMainUi(imgviewer::v2::ScriptEngine& engine, ImgViewerUi** main_ui)
+std::unique_ptr<ScriptView> CreateMainUi(imgviewer::v2::ScriptEngine& engine, ImgViewerUi** main_ui)
 {
     auto ui = std::make_unique<ImgViewerUi>(engine);
     if (main_ui != nullptr) {
@@ -90,7 +89,7 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
     }
 
     ClosePopupIfOpen(&context->popup);
-    context->ui.ResetRoot(CreateMainUi(*context->script_engine, &context->main_ui));
+    context->ui = CreateMainUi(*context->script_engine, &context->main_ui);
     context->info_panel_key_valid = false;
     context->main_ui->SetTitleText(title_text.empty() ? kImgViewerWindowTitle : title_text.c_str());
     context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);
@@ -99,10 +98,6 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
         SyncWindowState(hwnd, context);
         InvalidateRect(hwnd, nullptr, FALSE);
 
-        context->tooltip.reset();
-        HWND tooltip = nullptr;
-        RETURN_IF_FAILED(InitializeUiTooltips(hwnd, &tooltip, context->ui));
-        context->tooltip.reset(tooltip);
     }
     return S_OK;
 }
@@ -175,7 +170,9 @@ HRESULT RenderImgViewer(ImgViewerContext* context)
         .has_sample = context->color_picker_has_sample,
         .hex_text = context->color_picker_hex_text,
     });
-    RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->edit, context->ui));
+    if (context->ui != nullptr) {
+        RETURN_IF_FAILED(context->renderer.Render(context->viewer, context->edit, *context->ui));
+    }
     return S_OK;
 }
 
@@ -522,9 +519,6 @@ void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent)
 
     context->current_toolbar_scale_percent = clamped;
     context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);
-    if (hwnd != nullptr) {
-        UpdateUiTooltipRects(hwnd, context->tooltip.get(), context->ui);
-    }
     InvalidateRect(hwnd, nullptr, FALSE);
 }
 
@@ -806,7 +800,7 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Text, L"Edit text.");
         break;
     case ImgViewerAction::EditTextFontChanged:
-        if (context != nullptr && context->ui.Root() != nullptr) {
+        if (context != nullptr) {
             SetTextFontFamily(hwnd, context, context->main_ui->SelectedTextFontFamily());
         }
         break;

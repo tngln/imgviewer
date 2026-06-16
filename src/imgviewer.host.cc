@@ -14,7 +14,6 @@
 #include "ui.host_effects.hpp"
 #include "ui.host_ime.hpp"
 #include "ui.host_popup.hpp"
-#include "ui.tooltip.hpp"
 #include "win32.window.hpp"
 #include "win32.util.hpp"
 
@@ -119,7 +118,7 @@ ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAc
         return effects;
     }
 
-    if (context->ui.Root() != nullptr && context->ui.Root()->HandleUiAction(action, &context->popup)) {
+    if (context->ui != nullptr && context->ui->HandleUiAction(action, &context->popup)) {
         effects.sync_popup_modal = true;
         effects.sync_ime = true;
         return effects;
@@ -144,9 +143,6 @@ void ImgViewerHostEffects::Merge(UiEventResult result, bool request_popup_modal_
     }
     if (result.action != kUiActionNone) {
         action = result.action;
-    }
-    if (result.effect_target != UiElementId::None) {
-        effect_target = result.effect_target;
     }
     sync_popup_modal = sync_popup_modal || request_popup_modal_sync;
     sync_ime = true;
@@ -188,9 +184,8 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
         ApplyUiCaptureRequest(hwnd, UiCaptureRequest::Release);
     }
 
-    const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(hwnd, &context->ui, effects.effect_target);
     // Full-repaint doctrine: dispatched events repaint the layer (refactor.md 3.4).
-    RequestWindowRender(hwnd, !invalidated_for_effect);
+    RequestWindowRender(hwnd);
 
     const ImgViewerHostEffects action_effects = DispatchUiAction(hwnd, context, effects.action);
     if (effects.sync_popup_modal) {
@@ -286,8 +281,6 @@ void SyncKeyboardOwner(ImgViewerContext* context)
         context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::Popup);
     } else if (context->edit.IsEditingText()) {
         context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::EditText);
-    } else if (context->ui.FocusedElement() != UiElementId::None) {
-        context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::UiFocus);
     } else {
         context->interaction.SetKeyboardOwner(ImgViewerKeyboardOwner::ViewerShortcut);
     }
@@ -503,12 +496,6 @@ HRESULT RunImgViewerApplicationAsHresult()
     RETURN_IF_FAILED(ApplyImgViewerWindowFrame(window.Hwnd(), &context, false));
 
     window.Show(SW_SHOWDEFAULT);
-    HWND tooltip = context.tooltip.get();
-    RETURN_IF_FAILED(InitializeUiTooltips(window.Hwnd(), &tooltip, context.ui));
-    if (context.tooltip.get() != tooltip) {
-        context.tooltip.reset(tooltip);
-    }
-
     if (argc > 1) {
         LoadImgViewerImageFile(window.Hwnd(), &context, argv[1]);
     }

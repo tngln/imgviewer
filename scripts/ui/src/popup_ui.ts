@@ -246,7 +246,7 @@ function pointer(event: DeveloperPointerEvent, state: PopupState): PopupEventRes
     }
     if (event.type === "up" || event.type === "down") {
       const option = state.options[index];
-      return { handled: true, close: true, selectedIndex: index, action: option.action, actionValue: option.actionValue, actionArg: option.actionArg, effectTarget: state.ownerId };
+      return { handled: true, close: true, selectedIndex: index, action: option.action, actionValue: option.actionValue, actionArg: option.actionArg };
     }
     return { handled: true };
   }
@@ -298,7 +298,6 @@ function key(event: DeveloperKeyEvent, state: PopupState): PopupEventResult | vo
       action: option?.action,
       actionValue: option?.actionValue,
       actionArg: option?.actionArg,
-      effectTarget: state.ownerId,
       invalidate: true,
     };
   }

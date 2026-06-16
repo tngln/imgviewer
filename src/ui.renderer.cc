@@ -6,6 +6,7 @@
 #include <wil/result_macros.h>
 
 #include "math.hpp"
+#include "script.view.hpp"
 #include "ui.draw.hpp"
 
 HRESULT UiRenderer::Initialize(HWND hwnd, GraphicsDevice* graphics)
@@ -99,11 +100,11 @@ HRESULT UiRenderer::DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, 
     return S_OK;
 }
 
-HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
+HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, ScriptView& ui)
 {
     const float dpi_scale = math::CoordinateSpace::FromWindow(hwnd_).scale();
     struct UiOverlayState {
-        UiController* ui;
+        ScriptView* ui;
         float dpi_scale;
     } state{&ui, dpi_scale};
 
@@ -111,9 +112,9 @@ HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
         id,
         [](const UiSurfaceDrawContext& context, void* user_data) -> HRESULT {
             const auto* state = static_cast<const UiOverlayState*>(user_data);
-            UiController* ui_controller = state->ui;
+            ScriptView* ui_view = state->ui;
             const float dpi_scale = state->dpi_scale;
-            RETURN_HR_IF_NULL(E_INVALIDARG, ui_controller);
+            RETURN_HR_IF_NULL(E_INVALIDARG, ui_view);
 
             const auto& root = reinterpret_cast<const D2D1::Matrix3x2F&>(context.root_transform);
             D2D1::Matrix3x2F ui_transform = D2D1::Matrix3x2F::Scale(dpi_scale, dpi_scale) * root;
@@ -133,7 +134,7 @@ HRESULT UiRenderer::RenderUiOverlay(UiSurfaceId id, UiController& ui)
             const UiDraw draw(ui_draw);
             draw.Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
             context.draw.d2d_context->SetTransform(&ui_transform);
-            ui_controller->Render(ui_draw);
+            ui_view->Render(ui_draw);
             return S_OK;
         },
         &state);

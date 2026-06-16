@@ -210,41 +210,24 @@ JSValue OverlayOpenMenu(JSContext* context, JSValueConst, int, JSValueConst*)
 } // namespace
 
 ImgViewerUi::ImgViewerUi(imgviewer::v2::ScriptEngine& engine) :
-    root_(std::make_unique<UiElement>(UiRootMetadata(UiElementRole::Pane, kUiActionNone, L"ImgViewer"))),
-    engine_(engine)
+    ScriptWindowRootBase(engine, kMainScriptRelativePath, "imgviewerMainUi", L"Main TypeScript UI failed")
 {
     ReloadScript();
 }
 
 ImgViewerUi::~ImgViewerUi() = default;
 
-UiElement* ImgViewerUi::Root() { return root_.get(); }
-const UiElement* ImgViewerUi::Root() const { return root_.get(); }
-const wchar_t* ImgViewerUi::AccessibilityRootName() const { return L"ImgViewer"; }
-const UiDrawContext* ImgViewerUi::ActiveDrawContext() const { return active_draw_context_; }
-void ImgViewerUi::RequestInvalidate() { invalidate_requested_ = true; }
-void ImgViewerUi::RequestReload() { reload_requested_ = true; }
-void ImgViewerUi::RequestClose() { close_requested_ = true; }
+const wchar_t* ImgViewerUi::AccessibilityName() const { return L"ImgViewer"; }
 
-D2D1_SIZE_F ImgViewerUi::Measure(const UiDrawContext&, D2D1_SIZE_F available_size)
+void ImgViewerUi::Render(const UiDrawContext& context)
 {
-    return available_size;
-}
-
-void ImgViewerUi::Arrange(D2D1_RECT_F final_rect)
-{
-    rect_ = final_rect;
-    root_->Arrange(final_rect);
-}
-
-void ImgViewerUi::Render(const UiDrawContext& context, UiRootState state)
-{
+    rect_ = D2D1::RectF(0.0f, 0.0f, context.viewport_size.width, context.viewport_size.height);
     if (!ready_) {
         RenderError(context);
         return;
     }
 
-    JSContext* js_context = script_context_->Context();
+    JSContext* js_context = Context();
     JSValue app = AppObject();
     JSValue render = JS_GetPropertyStr(js_context, app, "render");
     if (!JS_IsFunction(js_context, render)) {
@@ -256,12 +239,12 @@ void ImgViewerUi::Render(const UiDrawContext& context, UiRootState state)
     }
 
     JSValue canvas = imgviewer::v2::CreateCanvasObject(js_context);
-    JSValue env = imgviewer::v2::CreateRenderEnvironment(js_context, context, state);
+    JSValue env = imgviewer::v2::CreateRenderEnvironment(js_context, context);
     JSValue snapshot = CreateStateObject();
     JSValue args[] = {canvas, env, snapshot};
-    active_draw_context_ = &context;
+    SetActiveDrawContext(&context);
     JSValue result = JS_Call(js_context, render, app, 3, args);
-    active_draw_context_ = nullptr;
+    SetActiveDrawContext(nullptr);
     JS_FreeValue(js_context, snapshot);
     JS_FreeValue(js_context, env);
     JS_FreeValue(js_context, canvas);
@@ -310,7 +293,7 @@ UiEventResult ImgViewerUi::OnInputEvent(const UiInputEvent& event)
     case UiEventType::ImeEndComposition:
         return ready_ ? DispatchInputToScript(event) : UiEventResult{};
     default:
-        return {};
+        return ScriptView::OnInputEvent(event);
     }
 }
 
@@ -366,11 +349,6 @@ bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
     menu_items.insert(menu_items.begin() + 6, MenuItem{ImgViewerString(ImgViewerStringId::Developer), UiActionFromImgViewerAction(ImgViewerAction::OpenDeveloper), false, false, ActionEnabled(ImgViewerAction::OpenDeveloper)});
 #endif
     return SUCCEEDED(popup_host->OpenMenu(kMainMenuOrigin, std::move(menu_items)));
-}
-
-UiElementId ImgViewerUi::HitTest(D2D1_POINT_2F point) const
-{
-    return IsOverlayPoint(point) ? root_->Id() : UiElementId::None;
 }
 
 bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
@@ -468,81 +446,24 @@ const std::wstring& ImgViewerUi::SelectedTextFontFamily() const
     return selected_text_font_family_;
 }
 
-void ImgViewerUi::ReloadScript()
+void ImgViewerUi::BeforeReload()
 {
-    script_context_.reset();
-    script_context_ = engine_.CreateContext();
-    ready_ = false;
-    error_text_.clear();
     pending_action_ = ImgViewerAction::None;
-    close_requested_ = false;
-    reload_requested_ = false;
-    invalidate_requested_ = true;
-
-    if (script_context_ == nullptr) {
-        SetError(engine_.TakeExceptionTextUtf8());
-        return;
-    }
-
-    JS_SetContextOpaque(script_context_->Context(), this);
-    InstallGlobals();
-
-    script_path_ = imgviewer::v2::ScriptPath(kMainScriptRelativePath);
-    std::optional<std::string> source = imgviewer::v2::ReadTextFileUtf8(script_path_);
-    if (!source.has_value()) {
-        SetError("Could not read " + script_path_.string());
-        return;
-    }
-
-    const imgviewer::v2::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
-    if (!eval.ok) {
-        SetError(engine_.TakeExceptionTextUtf8());
-        return;
-    }
-
-    JSValue app = AppObject();
-    if (!JS_IsObject(app)) {
-        JS_FreeValue(script_context_->Context(), app);
-        SetError("globalThis.imgviewerMainUi was not defined");
-        return;
-    }
-    JS_FreeValue(script_context_->Context(), app);
-    ready_ = true;
 }
 
-void ImgViewerUi::InstallGlobals()
+void ImgViewerUi::InstallCustomGlobals(JSValue global)
 {
-    JSContext* context = script_context_->Context();
-    JSValue global = JS_GetGlobalObject(context);
-
-    JSValue host = JS_NewObject(context);
-    SetFunction(context, host, "invalidate", imgviewer::v2::HostInvalidate, 0);
-    SetFunction(context, host, "reload", imgviewer::v2::HostReload, 0);
-    SetFunction(context, host, "close", imgviewer::v2::HostClose, 0);
-    SetFunction(context, host, "log", imgviewer::v2::HostLog, 1);
-    JS_SetPropertyStr(context, global, "host", host);
-
+    JSContext* context = Context();
     JSValue overlay = JS_NewObject(context);
-    SetFunction(context, overlay, "action", OverlayAction, 1);
-    SetFunction(context, overlay, "openMenu", OverlayOpenMenu, 0);
-    SetFunction(context, overlay, "invalidate", imgviewer::v2::HostInvalidate, 0);
+    SetFunction(overlay, "action", OverlayAction, 1);
+    SetFunction(overlay, "openMenu", OverlayOpenMenu, 0);
+    SetFunction(overlay, "invalidate", imgviewer::v2::HostInvalidate, 0);
     JS_SetPropertyStr(context, global, "overlay", overlay);
-
-    JS_FreeValue(context, global);
-}
-
-JSValue ImgViewerUi::AppObject() const
-{
-    JSContext* context = script_context_->Context();
-    JSValue global = JS_GetGlobalObject(context);
-    JSValue app = JS_GetPropertyStr(context, global, "imgviewerMainUi");
-    JS_FreeValue(context, global);
-    return app;
 }
 
 JSValue ImgViewerUi::CreateStateObject() const
 {
-    JSContext* context = script_context_->Context();
+    JSContext* context = Context();
     JSValue state = JS_NewObject(context);
     SetString(context, state, "title", title_text_);
     SetBool(context, state, "topMost", top_most_);
@@ -638,7 +559,7 @@ JSValue ImgViewerUi::CreateStateObject() const
 
 UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)
 {
-    JSContext* context = script_context_->Context();
+    JSContext* context = Context();
     JSValue app = AppObject();
     JSValue handler = JS_GetPropertyStr(context, app, "pointer");
     if (!JS_IsFunction(context, handler)) {
@@ -656,7 +577,7 @@ UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)
 
 UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event)
 {
-    JSContext* context = script_context_->Context();
+    JSContext* context = Context();
     JSValue app = AppObject();
     JSValue handler = JS_GetPropertyStr(context, app, "key");
     if (!JS_IsFunction(context, handler)) {
@@ -674,7 +595,7 @@ UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event)
 
 UiEventResult ImgViewerUi::DispatchInputToScript(const UiInputEvent& event)
 {
-    JSContext* context = script_context_->Context();
+    JSContext* context = Context();
     JSValue app = AppObject();
     JSValue handler = JS_GetPropertyStr(context, app, "input");
     if (!JS_IsFunction(context, handler)) {
@@ -693,7 +614,7 @@ UiEventResult ImgViewerUi::DispatchInputToScript(const UiInputEvent& event)
 UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
 {
     UiEventResult event_result{};
-    JSContext* context = script_context_->Context();
+    JSContext* context = Context();
     if (JS_IsException(result)) {
         JS_FreeValue(context, result);
         script_context_->CaptureException();
@@ -703,9 +624,9 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
         return event_result;
     }
 
-    const bool handled = BoolProperty(context, result, "handled", false);
-    const std::optional<bool> capture = OptionalBoolProperty(context, result, "capture");
-    const bool invalidate = BoolProperty(context, result, "invalidate", false);
+    const bool handled = BoolProperty(result, "handled", false);
+    const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
+    const bool invalidate = BoolProperty(result, "invalidate", false);
     ImgViewerAction action = ActionProperty(context, result);
     int32_t action_arg = Int32Property(context, result, "actionArg", 0);
     event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(context, result);
@@ -728,9 +649,6 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
     event_result.handled = handled || capture.has_value() || action != ImgViewerAction::None || wants_close;
     if (capture.has_value()) {
         event_result.capture = *capture ? UiCaptureRequest::Capture : UiCaptureRequest::Release;
-        if (*capture) {
-            event_result.focus_target = root_->Id();
-        }
     }
     if (wants_close) {
         action = ImgViewerAction::Close;
@@ -775,15 +693,4 @@ bool ImgViewerUi::IsOverlayPoint(D2D1_POINT_2F point) const
     const float scale = static_cast<float>(toolbar_scale_percent_) / 125.0f;
     const float toolbar_height = 48.0f * scale;
     return point.y >= rect_.bottom - toolbar_height - 18.0f;
-}
-
-void ImgViewerUi::RenderError(const UiDrawContext& context) const
-{
-    imgviewer::v2::RenderScriptError(context, L"Main TypeScript UI failed", script_path_, error_text_);
-}
-
-void ImgViewerUi::SetError(std::string text)
-{
-    ready_ = false;
-    error_text_ = text.empty() ? "Unknown JavaScript error" : std::move(text);
 }

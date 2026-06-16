@@ -10,7 +10,6 @@
 #include <wil/result_macros.h>
 
 #include "math.hpp"
-#include "ui.host_accessibility.hpp"
 #include "ui.host_effects.hpp"
 #include "ui.host_ime.hpp"
 #include "ui.host_input.hpp"
@@ -34,7 +33,7 @@ D2D1_SIZE_F ClientRenderSize(HWND hwnd)
 
 HRESULT UiWindowHost::Create(
     UiWindowOptions options,
-    std::unique_ptr<UiRoot> root,
+    std::unique_ptr<ScriptView> root,
     UiWindowDelegate* delegate,
     GraphicsDevice* graphics)
 {
@@ -46,23 +45,16 @@ HRESULT UiWindowHost::Create(
     options_ = options;
     delegate_ = delegate;
     graphics_ = graphics;
-    ui_.ResetRoot(std::move(root));
+    root_ = std::move(root);
     return window_.Create(options_.native, this);
 }
 
-void UiWindowHost::ResetRoot(std::unique_ptr<UiRoot> root)
+void UiWindowHost::ResetRoot(std::unique_ptr<ScriptView> root)
 {
     if (options_.enable_popup) {
         ClosePopupIfOpen(&popup_);
     }
-    ui_.ResetRoot(std::move(root));
-    if (accessibility_provider_ != nullptr && window_.Hwnd() != nullptr && options_.enable_accessibility) {
-        ResetUiAccessibilityProvider(
-            window_.Hwnd(),
-            options_.action_message,
-            &ui_,
-            std::addressof(accessibility_provider_));
-    }
+    root_ = std::move(root);
     Invalidate();
 }
 
@@ -84,11 +76,6 @@ HWND UiWindowHost::Hwnd() const
 win32::NativeWindow& UiWindowHost::Window()
 {
     return window_;
-}
-
-UiController& UiWindowHost::Ui()
-{
-    return ui_;
 }
 
 PopupHost& UiWindowHost::Popup()
@@ -119,7 +106,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
 {
     if (message == options_.action_message) {
         const UiPostedActionMessage posted = DecodeUiPostedActionMessage(wparam, lparam);
-        ApplyUiEffectAndInvalidate(window_.Hwnd(), &ui_, posted.effect_target);
         ExecuteAction(posted.action);
         return win32::WindowMessageResult::Handled();
     }
@@ -133,12 +119,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
                     options_.action_message,
                     graphics_,
                     options_.script_engine))) ||
-            (options_.enable_accessibility &&
-                FAILED(ResetUiAccessibilityProvider(
-                    window_.Hwnd(),
-                    options_.action_message,
-                    &ui_,
-                    std::addressof(accessibility_provider_)))) ||
             FAILED(delegate_->OnCreate(*this))) {
             return win32::WindowMessageResult::Handled(-1);
         }
@@ -201,7 +181,7 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
     }
     case WM_MOUSELEAVE: {
         UiPointerEvent pointer{.type = UiEventType::PointerLeave, .modifiers = CurrentModifiers()};
-        HandleUiResult(ui_.OnInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd())));
+        HandleUiResult(root_ != nullptr ? root_->OnInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd())) : UiEventResult{});
         return win32::WindowMessageResult::Handled();
     }
     case WM_LBUTTONDOWN:
@@ -246,35 +226,35 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
     case WM_CHAR: {
-        UiEventResult result = ui_.OnInputEvent(UiInputEvent{
+        UiEventResult result = root_ != nullptr ? root_->OnInputEvent(UiInputEvent{
             .type = UiEventType::TextChar,
             .character = static_cast<wchar_t>(wparam),
             .hwnd = window_.Hwnd(),
-        });
+        }) : UiEventResult{};
         HandleUiResult(result);
         PositionIme();
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
     case WM_IME_STARTCOMPOSITION:
         if (options_.enable_ime) {
-            HandleUiResult(ui_.OnInputEvent(UiInputEvent{.type = UiEventType::ImeStartComposition, .hwnd = window_.Hwnd()}));
+            HandleUiResult(root_ != nullptr ? root_->OnInputEvent(UiInputEvent{.type = UiEventType::ImeStartComposition, .hwnd = window_.Hwnd()}) : UiEventResult{});
             PositionIme();
             return win32::WindowMessageResult::Handled();
         }
         break;
     case WM_IME_COMPOSITION:
         if (options_.enable_ime) {
-            HandleUiResult(ui_.OnInputEvent(UiInputEvent{
+            HandleUiResult(root_ != nullptr ? root_->OnInputEvent(UiInputEvent{
                 .type = UiEventType::ImeComposition,
                 .text = ImeCompositionString(lparam),
                 .hwnd = window_.Hwnd(),
-            }));
+            }) : UiEventResult{});
             PositionIme();
         }
         break;
     case WM_IME_ENDCOMPOSITION:
         if (options_.enable_ime) {
-            HandleUiResult(ui_.OnInputEvent(UiInputEvent{.type = UiEventType::ImeEndComposition, .hwnd = window_.Hwnd()}));
+            HandleUiResult(root_ != nullptr ? root_->OnInputEvent(UiInputEvent{.type = UiEventType::ImeEndComposition, .hwnd = window_.Hwnd()}) : UiEventResult{});
             return win32::WindowMessageResult::Handled();
         }
         break;
@@ -287,24 +267,24 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             ScreenToClient(window_.Hwnd(), &point);
             client_point = PhysicalClientPointToUi(window_.Hwnd(), point);
         }
-        UiEventResult result = ui_.OnInputEvent(UiInputEvent{
+        UiEventResult result = root_ != nullptr ? root_->OnInputEvent(UiInputEvent{
             .type = UiEventType::ContextMenu,
             .point = client_point,
             .screen_point = POINT{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)},
             .hwnd = window_.Hwnd(),
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
-        });
+        }) : UiEventResult{};
         HandleUiResult(result);
         SyncCaretTimer();
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
     case WM_TIMER:
         if (wparam == options_.caret_timer_id) {
-            UiEventResult result = ui_.OnInputEvent(UiInputEvent{
+            UiEventResult result = root_ != nullptr ? root_->OnInputEvent(UiInputEvent{
                 .type = UiEventType::Timer,
                 .timer_id = static_cast<UINT_PTR>(wparam),
                 .hwnd = window_.Hwnd(),
-            });
+            }) : UiEventResult{};
             HandleUiResult(result);
             return win32::WindowMessageResult::Handled();
         }
@@ -317,23 +297,13 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
                     HandleUiResult(result);
                 }
             }
-            HandleUiResult(ui_.OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = window_.Hwnd()}));
+            HandleUiResult(root_ != nullptr ? root_->OnInputEvent(UiInputEvent{.type = UiEventType::OwnerDeactivated, .hwnd = window_.Hwnd()}) : UiEventResult{});
             Invalidate();
         }
         break;
     case WM_ACTIVATEAPP:
         if (wparam == FALSE && options_.enable_popup) {
             ClosePopupIfOpen(&popup_);
-        }
-        break;
-    case WM_GETOBJECT:
-        if (win32::WindowMessageResult result = HandleUiAccessibilityGetObjectMessage(
-                window_.Hwnd(),
-                wparam,
-                lparam,
-                accessibility_provider_.get());
-            result.handled) {
-            return result;
         }
         break;
     case WM_CLOSE:
@@ -455,7 +425,9 @@ void UiWindowHost::Render()
             d2d_context->SetTransform(
                 D2D1::Matrix3x2F::Scale(state->dpi_scale, state->dpi_scale) *
                 D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x), static_cast<float>(offset.y)));
-            host->ui_.Render(draw_context);
+            if (host->root_ != nullptr) {
+                host->root_->Render(draw_context);
+            }
             return S_OK;
         },
         &state))) {
@@ -469,9 +441,8 @@ void UiWindowHost::HandleUiResult(UiEventResult result)
         ime_caret_point_ = result.ime_caret_point;
     }
     ApplyUiCaptureRequest(window_.Hwnd(), result.capture);
-    const bool invalidated_for_effect = ApplyUiEffectAndInvalidate(window_.Hwnd(), &ui_, result.effect_target);
     // Full-repaint doctrine: any dispatched event repaints the layer (refactor.md 3.4).
-    RequestWindowRender(window_.Hwnd(), !invalidated_for_effect);
+    RequestWindowRender(window_.Hwnd());
     if (result.value_changed) {
         delegate_->OnUiValueChanged(*this, result);
     }
@@ -498,7 +469,7 @@ UiEventResult UiWindowHost::DispatchInputEvent(const UiInputEvent& event)
             return result;
         }
     }
-    result = ui_.OnInputEvent(event);
+    result = root_ != nullptr ? root_->OnInputEvent(event) : UiEventResult{};
     HandleUiResult(result);
     return result;
 }
@@ -527,12 +498,6 @@ void UiWindowHost::PositionIme()
 D2D1_POINT_2F UiWindowHost::CaretPoint() const
 {
     return {};
-}
-
-bool UiWindowHost::IsFocusedTextElement() const
-{
-    const UiElementMetadata* metadata = ui_.ElementMetadata(ui_.FocusedElement());
-    return metadata != nullptr && metadata->role == UiElementRole::Edit;
 }
 
 std::wstring UiWindowHost::ImeCompositionString(LPARAM lparam) const

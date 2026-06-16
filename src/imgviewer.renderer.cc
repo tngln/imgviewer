@@ -484,7 +484,7 @@ HRESULT ImgViewerRenderer::Resize()
     return ui_renderer_.Resize();
 }
 
-HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, UiController& ui)
+HRESULT ImgViewerRenderer::Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, ScriptView& ui)
 {
     const ImgViewerSnapshot image = viewer.Snapshot();
     const ImgViewerEditSnapshot edit_snapshot = edit.Snapshot();

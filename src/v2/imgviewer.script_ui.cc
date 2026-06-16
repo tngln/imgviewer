@@ -506,15 +506,12 @@ JSValue CreateCanvasObject(JSContext* context)
     return canvas;
 }
 
-JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context, UiRootState state)
+JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context)
 {
     JSValue env = JS_NewObject(context);
     JS_SetPropertyStr(context, env, "width", JS_NewFloat64(context, draw_context.viewport_size.width));
     JS_SetPropertyStr(context, env, "height", JS_NewFloat64(context, draw_context.viewport_size.height));
     JS_SetPropertyStr(context, env, "dpiScale", JS_NewFloat64(context, draw_context.dpi_scale));
-    JS_SetPropertyStr(context, env, "hovered", JS_NewBool(context, state.hovered != UiElementId::None));
-    JS_SetPropertyStr(context, env, "pressed", JS_NewBool(context, state.pressed != UiElementId::None));
-    JS_SetPropertyStr(context, env, "focused", JS_NewBool(context, state.focused != UiElementId::None));
     return env;
 }
 

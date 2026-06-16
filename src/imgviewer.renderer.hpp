@@ -8,6 +8,7 @@
 
 #include "imgviewer.viewer.hpp"
 #include "imgviewer.edit.hpp"
+#include "script.view.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.renderer.hpp"
 
@@ -15,7 +16,7 @@ class ImgViewerRenderer final {
 public:
     HRESULT Initialize(HWND hwnd, GraphicsDevice* graphics);
     HRESULT Resize();
-    HRESULT Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, UiController& ui);
+    HRESULT Render(const ImgViewerController& viewer, const ImgViewerEditController& edit, ScriptView& ui);
     HRESULT SetUiOverlayVisible(bool visible);
     void SetCheckerboardBackground(bool enabled);
     D2D1_SIZE_U ViewportPixelSize() const;

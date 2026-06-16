@@ -42,6 +42,7 @@ add_executable(imgviewer
     ${IMGVIEWER_SETTINGS_SOURCE}
     src/v2/imgviewer.script_engine.cc
     src/v2/imgviewer.script_ui.cc
+    src/v2/imgviewer.script_window_root.cc
     src/imgviewer.strings.cc
     ${IMGVIEWER_UI_SOURCE}
     src/image.analysis.cc
@@ -55,14 +56,11 @@ add_executable(imgviewer
     src/main.cc
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
-    src/ui.a11y.cc
-    src/ui.host_accessibility.cc
     src/ui.host_effects.cc
     src/ui.host_ime.cc
     src/ui.host_input.cc
     src/ui.host_popup.cc
     src/ui.draw.cc
-    src/ui.element.cc
     src/ui.events.cc
     src/ui.graphics_device.cc
     src/ui.popup.cc
@@ -71,9 +69,7 @@ add_executable(imgviewer
     src/ui.text.cc
     src/ui.text_edit_state.cc
     src/ui.toast.cc
-    src/ui.tooltip.cc
     src/ui.window.cc
-    src/ui.cc
     src/util.format.cc
     src/experimental/util.signal.cc
     src/win32.clipboard.cc
@@ -144,7 +140,6 @@ target_link_libraries(imgviewer PRIVATE
     ole32
     shell32
     shlwapi
-    uiautomationcore
     user32
     windowscodecs
     gdi32
@@ -167,8 +162,9 @@ add_executable(imgviewer_tests
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.draw.cc
-    src/ui.element.cc
+    src/v2/imgviewer.script_engine.cc
     src/v2/imgviewer.script_ui.cc
+    src/v2/imgviewer.script_window_root.cc
 )
 
 target_include_directories(imgviewer_tests PRIVATE

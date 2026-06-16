@@ -2,8 +2,6 @@
 
 #include <d2d1helper.h>
 
-#include "ui.element.hpp"
-
 namespace ui_theme::detail {
 
 constexpr float ColorChannel(unsigned int value, unsigned int shift)
@@ -100,22 +98,5 @@ constexpr float kCaptionIconLeft = 6.0f;
 constexpr float kCaptionIconTop = 5.0f;
 
 } // namespace offset
-
-inline D2D1_COLOR_F WidgetFillColor(UiElementState state)
-{
-    if (!state.enabled) {
-        return ui_theme::color::kButtonDisabled;
-    }
-    if (state.danger && (state.hovered || state.pressed)) {
-        return state.pressed ? ui_theme::color::kDangerPressed : ui_theme::color::kDangerHovered;
-    }
-    if (state.pressed) {
-        return ui_theme::color::kButtonPressed;
-    }
-    if (state.hovered || state.active || state.expanded) {
-        return ui_theme::color::kButtonHovered;
-    }
-    return ui_theme::color::kButtonDefault;
-}
 
 } // namespace ui_theme

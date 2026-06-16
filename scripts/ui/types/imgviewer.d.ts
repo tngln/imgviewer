@@ -40,9 +40,6 @@ interface RenderEnvironment {
   width: number;
   height: number;
   dpiScale: number;
-  hovered: boolean;
-  pressed: boolean;
-  focused: boolean;
 }
 
 interface DeveloperPointerEvent {
@@ -211,7 +208,7 @@ interface PopupDropdownOption extends PopupActionPayload {
 
 type PopupState =
   | { kind: "menu"; items: PopupMenuItem[] }
-  | { kind: "dropdown"; width: number; selectedIndex: number; ownerId: number; options: PopupDropdownOption[] }
+  | { kind: "dropdown"; width: number; selectedIndex: number; options: PopupDropdownOption[] }
   | { kind: "none" };
 
 interface PopupMeasureResult {
@@ -223,7 +220,6 @@ interface PopupEventResult extends PopupActionPayload {
   handled?: boolean;
   invalidate?: boolean;
   close?: boolean;
-  effectTarget?: number;
   selectedIndex?: number;
 }
 

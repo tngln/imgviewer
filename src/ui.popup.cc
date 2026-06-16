@@ -229,7 +229,6 @@ HRESULT PopupHost::OpenDropdown(
     float width,
     std::vector<PopupDropdownOption> options,
     size_t selected_index,
-    UiElementId owner_id,
     std::function<void(size_t)> selection_changed,
     std::function<void()> closed)
 {
@@ -238,7 +237,6 @@ HRESULT PopupHost::OpenDropdown(
     dropdown_width_ = (std::max)(1.0f, width);
     dropdown_options_ = std::move(options);
     dropdown_selected_index_ = dropdown_options_.empty() ? 0 : (std::min)(selected_index, dropdown_options_.size() - 1);
-    dropdown_owner_id_ = owner_id;
     dropdown_selection_changed_ = std::move(selection_changed);
     dropdown_closed_ = std::move(closed);
     return OpenScriptPopup(origin);
@@ -352,11 +350,11 @@ HRESULT PopupHost::OpenScriptPopup(D2D1_POINT_2F origin)
         content_kind_ = ContentKind::None;
         return E_FAIL;
     }
-    const D2D1_SIZE_F size = MeasureScriptContent();
+    const D2D1_SIZE_F size = QueryScriptContentSize();
     return OpenNativePopup(origin, size);
 }
 
-D2D1_SIZE_F PopupHost::MeasureScriptContent()
+D2D1_SIZE_F PopupHost::QueryScriptContentSize()
 {
     if (script_context_ == nullptr) {
         return D2D1::SizeF(1.0f, 1.0f);
@@ -402,7 +400,7 @@ void PopupHost::RenderScriptContent(const UiDrawContext& draw_context)
         return;
     }
     JSValue canvas = imgviewer::v2::CreateCanvasObject(context);
-    JSValue env = imgviewer::v2::CreateRenderEnvironment(context, draw_context, UiRootState{});
+    JSValue env = imgviewer::v2::CreateRenderEnvironment(context, draw_context);
     JSValue state = CreateStateObject();
     JSValue args[] = {canvas, env, state};
     active_draw_context_ = &draw_context;
@@ -465,8 +463,6 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
     event_result.close_popup = BoolProperty(context, result, "close", false) || close_requested_;
     event_result.value_changed = BoolProperty(context, result, "invalidate", false) || invalidate_requested_;
     event_result.action = ActionProperty(context, result);
-    const int32_t effect_target = Int32Property(context, result, "effectTarget", 0);
-    event_result.effect_target = effect_target > 0 ? UiElementId(effect_target) : UiElementId::None;
     const int selected_index = Int32Property(context, result, "selectedIndex", -1);
     JS_FreeValue(context, result);
 
@@ -493,9 +489,6 @@ void PopupHost::ApplyScriptResultSideEffects(UiEventResult* result, int selected
     if (result->action == kUiActionNone) {
         result->action = dropdown_options_[index].action;
     }
-    if (result->effect_target == UiElementId::None) {
-        result->effect_target = dropdown_owner_id_;
-    }
 }
 
 JSValue PopupHost::AppObject() const
@@ -518,7 +511,6 @@ JSValue PopupHost::CreateStateObject() const
         SetString(context, state, "kind", "dropdown");
         SetFloat(context, state, "width", dropdown_width_);
         SetInt(context, state, "selectedIndex", static_cast<int>(dropdown_selected_index_));
-        SetInt(context, state, "ownerId", UiElementIdValue(dropdown_owner_id_));
         JS_SetPropertyStr(context, state, "options", CreateDropdownOptionsArray(context));
     } else {
         SetString(context, state, "kind", "none");
@@ -612,7 +604,7 @@ HRESULT PopupHost::ResizeNativePopupToContent(bool* resized)
     *resized = false;
     RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
 
-    const D2D1_SIZE_F size = PopupWindowSize(MeasureScriptContent());
+    const D2D1_SIZE_F size = PopupWindowSize(QueryScriptContentSize());
     const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
     const int width = (std::max)(1, static_cast<int>(std::ceil(size.width * dpi_scale)));
     const int height = (std::max)(1, static_cast<int>(std::ceil(size.height * dpi_scale)));
@@ -759,16 +751,13 @@ void PopupHost::HandlePopupResult(UiEventResult result)
     }
 
     const UiAction action = result.action;
-    const UiElementId effect_target = result.effect_target;
     const bool close_popup = result.close_popup;
     if (close_popup) {
         Close();
     }
 
     if (action != kUiActionNone) {
-        SendMessageW(owner_, action_message_, static_cast<WPARAM>(UiActionValue(action)), static_cast<LPARAM>(UiElementIdValue(effect_target)));
-    } else if (effect_target != UiElementId::None) {
-        SendMessageW(owner_, action_message_, 0, static_cast<LPARAM>(UiElementIdValue(effect_target)));
+        SendMessageW(owner_, action_message_, static_cast<WPARAM>(UiActionValue(action)), 0);
     }
 }
 

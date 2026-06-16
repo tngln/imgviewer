@@ -1,11 +1,8 @@
 #include "imgviewer.settings.hpp"
 
 #include <cwctype>
-#include <filesystem>
 #include <memory>
-#include <optional>
 #include <string>
-#include <string_view>
 
 #include <d2d1helper.h>
 #include <quickjs.h>
@@ -19,10 +16,10 @@
 #include "imgviewer.messages.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
-#include "ui.element.hpp"
 #include "ui.window.hpp"
 #include "v2/imgviewer.script_engine.hpp"
 #include "v2/imgviewer.script_ui.hpp"
+#include "v2/imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
 
 namespace {
@@ -34,11 +31,6 @@ constexpr int kSettingsMinClientHeight = 620;
 constexpr char kSettingsScriptRelativePath[] = "scripts/settings_ui.js";
 constexpr char kEnglishLanguageName[] = "en-US";
 constexpr char kZhCnLanguageName[] = "zh-CN";
-
-std::filesystem::path SettingsScriptPath()
-{
-    return imgviewer::v2::ScriptPath(kSettingsScriptRelativePath);
-}
 
 std::wstring ShortcutsForAction(const ActionBindings& bindings, ImgViewerAction action)
 {
@@ -62,12 +54,10 @@ SettingsScriptUi* ScriptUi(JSContext* context)
     return static_cast<SettingsScriptUi*>(JS_GetContextOpaque(context));
 }
 
-class SettingsScriptUi final : public imgviewer::v2::ScriptUiHost, public UiRoot {
+class SettingsScriptUi final : public imgviewer::v2::ScriptWindowRootBase {
 public:
     SettingsScriptUi(imgviewer::v2::ScriptEngine& engine, ImgViewerConfig config) :
-        engine_(engine),
-        root_(std::make_unique<UiElement>(
-            UiRootMetadata(UiElementRole::Pane, ImgViewerString(ImgViewerStringId::Settings), false, true))),
+        ScriptWindowRootBase(engine, kSettingsScriptRelativePath, "imgviewerSettingsUi", L"Settings TypeScript UI failed"),
         draft_(std::move(config))
     {
         ReloadScript();
@@ -91,99 +81,7 @@ public:
         value_changed_requested_ = true;
     }
 
-    UiElement* Root() override { return root_.get(); }
-    const UiElement* Root() const override { return root_.get(); }
-    const wchar_t* AccessibilityRootName() const override { return ImgViewerString(ImgViewerStringId::Settings); }
-    const UiDrawContext* ActiveDrawContext() const override { return active_draw_context_; }
-    void RequestInvalidate() override { invalidate_requested_ = true; }
-    void RequestReload() override { reload_requested_ = true; }
-    void RequestClose() override { close_requested_ = true; }
-
-    D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F available_size) override { return available_size; }
-
-    void Arrange(D2D1_RECT_F final_rect) override
-    {
-        root_->Arrange(final_rect);
-        rect_ = final_rect;
-    }
-
-    void Render(const UiDrawContext& context, UiRootState state) override
-    {
-        if (!ready_) {
-            RenderError(context);
-            return;
-        }
-
-        JSContext* js_context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue render = JS_GetPropertyStr(js_context, app, "render");
-        if (!JS_IsFunction(js_context, render)) {
-            JS_FreeValue(js_context, render);
-            JS_FreeValue(js_context, app);
-            SetError("imgviewerSettingsUi.render is not a function");
-            RenderError(context);
-            return;
-        }
-
-        JSValue canvas = imgviewer::v2::CreateCanvasObject(js_context);
-        JSValue env = imgviewer::v2::CreateRenderEnvironment(js_context, context, state);
-        JSValue args[] = {canvas, env};
-        active_draw_context_ = &context;
-        JSValue result = JS_Call(js_context, render, app, 2, args);
-        active_draw_context_ = nullptr;
-        JS_FreeValue(js_context, env);
-        JS_FreeValue(js_context, canvas);
-        JS_FreeValue(js_context, render);
-        JS_FreeValue(js_context, app);
-
-        if (JS_IsException(result)) {
-            JS_FreeValue(js_context, result);
-            script_context_->CaptureException();
-            SetError(engine_.TakeExceptionTextUtf8());
-            RenderError(context);
-            return;
-        }
-        JS_FreeValue(js_context, result);
-    }
-
-    UiEventResult OnPointerEvent(const UiPointerEvent& event) override
-    {
-        if (!ready_) {
-            return UiEventResult{.handled = true};
-        }
-        return DispatchPointerToScript(event);
-    }
-
-    UiEventResult OnKeyEvent(const UiKeyEvent& event) override
-    {
-        if (event.type == UiEventType::KeyDown && event.virtual_key == VK_ESCAPE) {
-            return UiEventResult{.handled = true, .action = ImgViewerAction::CloseSettings};
-        }
-        if (event.type == UiEventType::KeyDown && event.virtual_key == VK_F5) {
-            ReloadScript();
-            return UiEventResult{.handled = true, .value_changed = true};
-        }
-        if (!ready_) {
-            return {};
-        }
-        return DispatchKeyToScript(event);
-    }
-
-    UiEventResult OnInputEvent(const UiInputEvent& event) override
-    {
-        if (!ready_) {
-            return {};
-        }
-        switch (event.type) {
-        case UiEventType::TextChar:
-        case UiEventType::ImeStartComposition:
-        case UiEventType::ImeComposition:
-        case UiEventType::ImeEndComposition:
-            return DispatchInputToScript(event);
-        default:
-            return {};
-        }
-    }
+    const wchar_t* AccessibilityName() const override { return ImgViewerString(ImgViewerStringId::Settings); }
 
 private:
     static JSValue SettingsGet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
@@ -333,61 +231,15 @@ private:
         return changed;
     }
 
-    void ReloadScript()
+    void BeforeReload() override
     {
-        script_context_.reset();
-        script_context_ = engine_.CreateContext();
-        ready_ = false;
-        error_text_.clear();
-        close_requested_ = false;
         save_requested_ = false;
-        reload_requested_ = false;
-        invalidate_requested_ = true;
         value_changed_requested_ = false;
-
-        if (script_context_ == nullptr) {
-            SetError(engine_.TakeExceptionTextUtf8());
-            return;
-        }
-
-        JS_SetContextOpaque(script_context_->Context(), this);
-        InstallGlobals();
-
-        script_path_ = SettingsScriptPath();
-        std::optional<std::string> source = imgviewer::v2::ReadTextFileUtf8(script_path_);
-        if (!source.has_value()) {
-            SetError("Could not read " + script_path_.string());
-            return;
-        }
-
-        const imgviewer::v2::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
-        if (!eval.ok) {
-            SetError(engine_.TakeExceptionTextUtf8());
-            return;
-        }
-
-        JSValue app = AppObject();
-        if (!JS_IsObject(app)) {
-            JS_FreeValue(script_context_->Context(), app);
-            SetError("globalThis.imgviewerSettingsUi was not defined");
-            return;
-        }
-        JS_FreeValue(script_context_->Context(), app);
-        ready_ = true;
     }
 
-    void InstallGlobals()
+    void InstallCustomGlobals(JSValue global) override
     {
-        JSContext* context = script_context_->Context();
-        JSValue global = JS_GetGlobalObject(context);
-
-        JSValue host = JS_NewObject(context);
-        SetFunction(host, "invalidate", imgviewer::v2::HostInvalidate, 0);
-        SetFunction(host, "reload", imgviewer::v2::HostReload, 0);
-        SetFunction(host, "close", imgviewer::v2::HostClose, 0);
-        SetFunction(host, "log", imgviewer::v2::HostLog, 1);
-        JS_SetPropertyStr(context, global, "host", host);
-
+        JSContext* context = Context();
         JSValue settings = JS_NewObject(context);
         SetFunction(settings, "get", SettingsGet, 1);
         SetFunction(settings, "set", SettingsSet, 2);
@@ -395,22 +247,6 @@ private:
         SetFunction(settings, "resetKeyBindings", SettingsResetKeyBindings, 0);
         SetFunction(settings, "actionRows", SettingsActionRows, 1);
         JS_SetPropertyStr(context, global, "settings", settings);
-
-        JS_FreeValue(context, global);
-    }
-
-    void SetFunction(JSValue object, const char* name, JSCFunction* function, int length)
-    {
-        JS_SetPropertyStr(script_context_->Context(), object, name, JS_NewCFunction(script_context_->Context(), function, name, length));
-    }
-
-    JSValue AppObject() const
-    {
-        JSContext* context = script_context_->Context();
-        JSValue global = JS_GetGlobalObject(context);
-        JSValue app = JS_GetPropertyStr(context, global, "imgviewerSettingsUi");
-        JS_FreeValue(context, global);
-        return app;
     }
 
     JSValue CreateActionRows(std::wstring filter)
@@ -419,7 +255,7 @@ private:
             ch = static_cast<wchar_t>(towlower(ch));
         }
 
-        JSContext* context = script_context_->Context();
+        JSContext* context = Context();
         JSValue rows = JS_NewArray(context);
         uint32_t index = 0;
         for (const ImgViewerActionInfo& action : ImgViewerActions()) {
@@ -444,77 +280,11 @@ private:
         return rows;
     }
 
-    UiEventResult DispatchPointerToScript(const UiPointerEvent& event)
-    {
-        JSContext* context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue handler = JS_GetPropertyStr(context, app, "pointer");
-        if (!JS_IsFunction(context, handler)) {
-            JS_FreeValue(context, handler);
-            JS_FreeValue(context, app);
-            return {};
-        }
-        JSValue js_event = imgviewer::v2::CreatePointerEvent(context, event);
-        JSValue result = JS_Call(context, handler, app, 1, &js_event);
-        JS_FreeValue(context, js_event);
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
-        return FinishEventDispatch(result);
-    }
-
-    UiEventResult DispatchKeyToScript(const UiKeyEvent& event)
-    {
-        JSContext* context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue handler = JS_GetPropertyStr(context, app, "key");
-        if (!JS_IsFunction(context, handler)) {
-            JS_FreeValue(context, handler);
-            JS_FreeValue(context, app);
-            return {};
-        }
-        JSValue js_event = imgviewer::v2::CreateKeyEvent(context, event);
-        JSValue result = JS_Call(context, handler, app, 1, &js_event);
-        JS_FreeValue(context, js_event);
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
-        return FinishEventDispatch(result);
-    }
-
-    UiEventResult DispatchInputToScript(const UiInputEvent& event)
-    {
-        JSContext* context = script_context_->Context();
-        JSValue app = AppObject();
-        JSValue handler = JS_GetPropertyStr(context, app, "input");
-        bool use_native_input_event = true;
-        if (!JS_IsFunction(context, handler)) {
-            JS_FreeValue(context, handler);
-            if (event.type != UiEventType::TextChar) {
-                JS_FreeValue(context, app);
-                return {};
-            }
-            handler = JS_GetPropertyStr(context, app, "text");
-            if (!JS_IsFunction(context, handler)) {
-                JS_FreeValue(context, handler);
-                JS_FreeValue(context, app);
-                return {};
-            }
-            use_native_input_event = false;
-        }
-        JSValue js_event = use_native_input_event
-            ? imgviewer::v2::CreateInputEvent(context, event)
-            : imgviewer::v2::CreateTextEvent(context, event.character);
-        JSValue result = JS_Call(context, handler, app, 1, &js_event);
-        JS_FreeValue(context, js_event);
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
-        return FinishEventDispatch(result);
-    }
-
-    UiEventResult FinishEventDispatch(JSValue result)
+    UiEventResult FinishEventDispatch(JSValue result) override
     {
         UiEventResult event_result{};
         if (JS_IsException(result)) {
-            JS_FreeValue(script_context_->Context(), result);
+            JS_FreeValue(Context(), result);
             script_context_->CaptureException();
             SetError(engine_.TakeExceptionTextUtf8());
             event_result.handled = true;
@@ -525,8 +295,8 @@ private:
         const bool handled = BoolProperty(result, "handled", false);
         const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
         const bool invalidate = BoolProperty(result, "invalidate", false);
-        event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(script_context_->Context(), result);
-        JS_FreeValue(script_context_->Context(), result);
+        event_result.ime_caret_point = imgviewer::v2::ImeCaretPointProperty(Context(), result);
+        JS_FreeValue(Context(), result);
 
         const bool wants_reload = reload_requested_;
         const bool wants_close = close_requested_;
@@ -553,61 +323,21 @@ private:
             event_result.action = ImgViewerAction::CloseSettings;
         }
         event_result.value_changed = wants_invalidate || wants_value_changed;
+        if (engine_.PumpJobs() < 0) {
+            SetError(engine_.TakeExceptionTextUtf8());
+            event_result.handled = true;
+            event_result.value_changed = true;
+        }
         return event_result;
     }
 
-    bool BoolProperty(JSValueConst object, const char* name, bool fallback)
+    UiAction CloseAction() const override
     {
-        if (!JS_IsObject(object)) {
-            return fallback;
-        }
-        JSContext* context = script_context_->Context();
-        JSValue value = JS_GetPropertyStr(context, object, name);
-        const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
-        JS_FreeValue(context, value);
-        return result;
+        return ImgViewerAction::CloseSettings;
     }
 
-    std::optional<bool> OptionalBoolProperty(JSValueConst object, const char* name)
-    {
-        if (!JS_IsObject(object)) {
-            return std::nullopt;
-        }
-        JSContext* context = script_context_->Context();
-        JSValue value = JS_GetPropertyStr(context, object, name);
-        if (JS_IsUndefined(value)) {
-            JS_FreeValue(context, value);
-            return std::nullopt;
-        }
-        const bool result = JS_ToBool(context, value) != 0;
-        JS_FreeValue(context, value);
-        return result;
-    }
-
-    void RenderError(const UiDrawContext& context) const
-    {
-        imgviewer::v2::RenderScriptError(context, L"Settings TypeScript UI failed", script_path_, error_text_);
-    }
-
-    void SetError(std::string text)
-    {
-        ready_ = false;
-        error_text_ = text.empty() ? "Unknown JavaScript error" : std::move(text);
-    }
-
-    std::unique_ptr<UiElement> root_;
-    imgviewer::v2::ScriptEngine& engine_;
-    std::unique_ptr<imgviewer::v2::ScriptContext> script_context_;
     ImgViewerConfig draft_;
-    const UiDrawContext* active_draw_context_ = nullptr;
-    std::filesystem::path script_path_;
-    D2D1_RECT_F rect_ = {};
-    std::string error_text_;
-    bool ready_ = false;
-    bool close_requested_ = false;
     bool save_requested_ = false;
-    bool reload_requested_ = false;
-    bool invalidate_requested_ = false;
     bool value_changed_requested_ = false;
 };
 

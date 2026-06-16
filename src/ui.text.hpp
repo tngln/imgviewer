@@ -11,7 +11,7 @@ struct TextMetrics final {
     float height = 0.0f;
 };
 
-TextMetrics MeasureText(
+TextMetrics GetTextMetrics(
     IDWriteFactory* factory,
     IDWriteTextFormat* text_format,
     const wchar_t* text,
