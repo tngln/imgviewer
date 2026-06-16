@@ -24,8 +24,6 @@ constexpr float kDropdownTextLeft = 7.0f;
 constexpr float kDropdownTextTop = 4.0f;
 constexpr float kDropdownTextRight = 19.0f;
 constexpr float kDropdownChevronRight = 15.0f;
-constexpr float kDropdownOptionTextLeft = 7.0f;
-constexpr float kDropdownOptionTextTop = 3.5f;
 
 UiEventResult ChoicePointerEvent(UiElement& element, const UiPointerEvent& event)
 {
@@ -70,162 +68,6 @@ UiEventResult ChoiceKeyEvent(UiElement& element, const UiKeyEvent& event)
 }
 
 } // namespace
-
-class DropdownPopupContent final : public UiPopupContent {
-public:
-    explicit DropdownPopupContent(Dropdown* dropdown) : dropdown_(dropdown) {}
-
-    D2D1_SIZE_F Measure(const UiDrawContext&, D2D1_SIZE_F) const override
-    {
-        return PopupSize();
-    }
-
-    D2D1_SIZE_F PopupSize() const
-    {
-        if (dropdown_ == nullptr) {
-            return D2D1::SizeF(1.0f, 1.0f);
-        }
-        const D2D1_RECT_F rect = dropdown_->Rect();
-        const float width = (std::max)(1.0f, rect.right - rect.left);
-        const float height = (std::max)(1.0f, kDropdownItemHeight * static_cast<float>(dropdown_->options_.size()));
-        return D2D1::SizeF(width, height);
-    }
-
-    void Render(const UiDrawContext& context) const override
-    {
-        if (dropdown_ == nullptr) {
-            return;
-        }
-
-        const UiDraw draw(context);
-        const D2D1_SIZE_F size = PopupSize();
-        const D2D1_RECT_F bounds = D2D1::RectF(0.0f, 0.0f, size.width, size.height);
-        draw.FillRect(bounds, ui_theme::color::kButtonDefault);
-
-        for (size_t index = 0; index < dropdown_->options_.size(); ++index) {
-            const D2D1_RECT_F option_rect = OptionRect(index);
-            draw.FillRect(
-                option_rect,
-                index == dropdown_->hovered_index_ || index == dropdown_->selected_index_
-                    ? ui_theme::color::kButtonHovered
-                    : ui_theme::color::kButtonDefault);
-            draw.DrawBodyText(
-                dropdown_->options_[index].text,
-                D2D1::RectF(option_rect.left + kDropdownOptionTextLeft, option_rect.top + kDropdownOptionTextTop, option_rect.right - ui_theme::metrics::kSmallGap, option_rect.bottom),
-                ui_theme::color::kBodyText,
-                D2D1_DRAW_TEXT_OPTIONS_CLIP);
-        }
-        draw.DrawRect(bounds, ui_theme::color::kBorder);
-    }
-
-    UiEventResult OnInputEvent(const UiInputEvent& event) override
-    {
-        if (dropdown_ == nullptr) {
-            return {};
-        }
-        switch (event.type) {
-        case UiEventType::PointerMove:
-            return OnPointerMove(event.point);
-        case UiEventType::PointerDown:
-            return SelectOptionAt(event.point);
-        case UiEventType::PointerUp:
-            return SelectOptionAt(event.point);
-        case UiEventType::KeyDown:
-            return OnKeyDown(event.key.virtual_key);
-        default:
-            return {};
-        }
-    }
-
-    void OnClosed() override
-    {
-        if (dropdown_ != nullptr) {
-            dropdown_->Collapse();
-        }
-    }
-
-private:
-    UiEventResult OnPointerMove(D2D1_POINT_2F point)
-    {
-        const size_t previous_hovered = dropdown_->hovered_index_;
-        dropdown_->hovered_index_ = OptionAt(point);
-        return UiEventResult{
-            .handled = true,
-        };
-    }
-
-    UiEventResult SelectOptionAt(D2D1_POINT_2F point)
-    {
-        const size_t option = OptionAt(point);
-        if (option >= dropdown_->options_.size()) {
-            return UiEventResult{.handled = true};
-        }
-
-        dropdown_->selected_index_ = option;
-        dropdown_->hovered_index_ = option;
-        if (dropdown_->selection_changed_handler_) {
-            dropdown_->selection_changed_handler_(option);
-        }
-        return UiEventResult{
-            .handled = true,
-            .action = dropdown_->options_[option].action,
-            .close_popup = true,
-            .effect_target = dropdown_->Id(),
-        };
-    }
-
-    UiEventResult OnKeyDown(UINT virtual_key)
-    {
-        if (virtual_key != VK_DOWN && virtual_key != VK_UP && virtual_key != VK_RETURN && virtual_key != VK_SPACE) {
-            return UiEventResult{.handled = true};
-        }
-        if (dropdown_->options_.empty()) {
-            return UiEventResult{.handled = true};
-        }
-        if (virtual_key == VK_DOWN || virtual_key == VK_UP) {
-            if (virtual_key == VK_DOWN) {
-                dropdown_->selected_index_ = (std::min)(dropdown_->selected_index_ + 1, dropdown_->options_.size() - 1);
-            } else {
-                dropdown_->selected_index_ = dropdown_->selected_index_ == 0 ? 0 : dropdown_->selected_index_ - 1;
-            }
-            dropdown_->hovered_index_ = dropdown_->selected_index_;
-            if (dropdown_->selection_changed_handler_) {
-                dropdown_->selection_changed_handler_(dropdown_->selected_index_);
-            }
-            return UiEventResult{
-                .handled = true,
-                .action = dropdown_->options_[dropdown_->selected_index_].action,
-                .effect_target = dropdown_->Id(),
-            };
-        }
-
-        return UiEventResult{
-            .handled = true,
-            .action = dropdown_->options_[dropdown_->selected_index_].action,
-            .close_popup = true,
-            .effect_target = dropdown_->Id(),
-        };
-    }
-
-    size_t OptionAt(D2D1_POINT_2F point) const
-    {
-        for (size_t index = 0; index < dropdown_->options_.size(); ++index) {
-            if (math::Contains(OptionRect(index), point)) {
-                return index;
-            }
-        }
-        return dropdown_->options_.size();
-    }
-
-    D2D1_RECT_F OptionRect(size_t index) const
-    {
-        const D2D1_SIZE_F size = PopupSize();
-        const float top = kDropdownItemHeight * static_cast<float>(index);
-        return D2D1::RectF(0.0f, top, size.width, top + kDropdownItemHeight);
-    }
-
-    Dropdown* dropdown_ = nullptr;
-};
 
 Checkbox::Checkbox(UiElementMetadata metadata, const wchar_t* text, bool checked) :
     UiElement(metadata),
@@ -441,7 +283,6 @@ UiEventResult Dropdown::OnPointerEvent(const UiPointerEvent& event)
     }
 
     if (event.type == UiEventType::PointerMove && expanded_ && event.target == Id()) {
-        const size_t previous_hovered = hovered_index_;
         hovered_index_ = OptionAt(event.point);
         return UiEventResult{
             .handled = true,
@@ -509,9 +350,30 @@ HRESULT Dropdown::OpenPopup(PopupHost* popup_host)
     RETURN_HR_IF_NULL(E_INVALIDARG, popup_host);
     expanded_ = true;
     hovered_index_ = selected_index_;
-    return popup_host->Open(
+    std::vector<PopupDropdownOption> options;
+    options.reserve(options_.size());
+    for (const DropdownOption& option : options_) {
+        options.push_back(PopupDropdownOption{
+            .text = option.text != nullptr ? option.text : L"",
+            .action = option.action,
+        });
+    }
+    return popup_host->OpenDropdown(
         D2D1::Point2F(Rect().left, Rect().bottom),
-        std::make_unique<DropdownPopupContent>(this));
+        (std::max)(1.0f, Rect().right - Rect().left),
+        std::move(options),
+        selected_index_,
+        Id(),
+        [this](size_t index) {
+            selected_index_ = index;
+            hovered_index_ = index;
+            if (selection_changed_handler_) {
+                selection_changed_handler_(index);
+            }
+        },
+        [this]() {
+            Collapse();
+        });
 }
 
 size_t Dropdown::OptionAt(D2D1_POINT_2F point) const

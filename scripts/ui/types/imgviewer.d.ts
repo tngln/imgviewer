@@ -191,6 +191,49 @@ interface MainUiApp {
   input?(event: NativeInputEvent): MainEventResult | void;
 }
 
+interface PopupActionPayload {
+  action?: string;
+  actionValue?: number;
+  actionArg?: number;
+}
+
+interface PopupMenuItem extends PopupActionPayload {
+  text: string;
+  separator: boolean;
+  checked: boolean;
+  enabled: boolean;
+  children: PopupMenuItem[];
+}
+
+interface PopupDropdownOption extends PopupActionPayload {
+  text: string;
+}
+
+type PopupState =
+  | { kind: "menu"; items: PopupMenuItem[] }
+  | { kind: "dropdown"; width: number; selectedIndex: number; ownerId: number; options: PopupDropdownOption[] }
+  | { kind: "none" };
+
+interface PopupMeasureResult {
+  width: number;
+  height: number;
+}
+
+interface PopupEventResult extends PopupActionPayload {
+  handled?: boolean;
+  invalidate?: boolean;
+  close?: boolean;
+  effectTarget?: number;
+  selectedIndex?: number;
+}
+
+interface PopupUiApp {
+  measure(state: PopupState): PopupMeasureResult;
+  render(canvas: CanvasApi, env: RenderEnvironment, state: PopupState): void;
+  pointer(event: DeveloperPointerEvent, state: PopupState): PopupEventResult | void;
+  key(event: DeveloperKeyEvent, state: PopupState): PopupEventResult | void;
+}
+
 type SettingsPointerEvent = DeveloperPointerEvent;
 type SettingsKeyEvent = DeveloperKeyEvent;
 type SettingsEventResult = InputEventResult;
@@ -211,3 +254,4 @@ declare const settings: SettingsApi;
 declare var imgviewerDeveloperUi: DeveloperUiApp;
 declare var imgviewerSettingsUi: SettingsUiApp;
 declare var imgviewerMainUi: MainUiApp;
+declare var imgviewerPopupUi: PopupUiApp;

@@ -132,7 +132,8 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
                 FAILED(popup_.Initialize(
                     window_.Hwnd(),
                     options_.action_message,
-                    graphics_))) ||
+                    graphics_,
+                    options_.script_engine))) ||
             (options_.enable_accessibility &&
                 FAILED(ResetUiAccessibilityProvider(
                     window_.Hwnd(),

@@ -71,6 +71,8 @@ bun build "%ROOT%scripts\ui\src\settings_ui.ts" --target=browser --format=iife -
 if errorlevel 1 exit /b %errorlevel%
 bun build "%ROOT%scripts\ui\src\main_ui.ts" --target=browser --format=iife --outdir "%ROOT%build\%CONFIG%\scripts" --entry-naming main_ui.js --sourcemap=external
 if errorlevel 1 exit /b %errorlevel%
+bun build "%ROOT%scripts\ui\src\popup_ui.ts" --target=browser --format=iife --outdir "%ROOT%build\%CONFIG%\scripts" --entry-naming popup_ui.js --sourcemap=external
+if errorlevel 1 exit /b %errorlevel%
 
 set "BUILD_LOG=%TEMP%\imgviewer-build-%RANDOM%-%RANDOM%.log"
 

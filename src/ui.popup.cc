@@ -2,22 +2,24 @@
 
 #include <algorithm>
 #include <cmath>
-#include <memory>
+#include <optional>
 #include <utility>
 
+#include <d2d1helper.h>
+#include <quickjs.h>
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
-#include "ui.draw.hpp"
+#include "imgviewer.ui.action.hpp"
+#include "v2/imgviewer.script_engine.hpp"
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
 namespace {
 
 constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
-constexpr float kMenuBodyFontSize = 12.0f;
-constexpr float kMenuIconFontSize = 10.0f;
 constexpr float kPopupContentInset = 1.0f;
+constexpr char kPopupScriptRelativePath[] = "scripts/popup_ui.js";
 
 PopupHost* GetPopupHost(HWND hwnd)
 {
@@ -72,88 +74,115 @@ UiInputEvent OffsetPopupEvent(UiInputEvent event)
     return event;
 }
 
-class MenuPopupContent final : public UiPopupContent {
-public:
-    MenuPopupContent(
-        std::vector<MenuItem> items,
-        const UiDrawContext& context,
-        IDWriteTextFormat* body_text_format,
-        IDWriteTextFormat* icon_text_format) :
-        body_text_format_(body_text_format),
-        icon_text_format_(icon_text_format)
-    {
-        menu_.Open(D2D1::Point2F(0.0f, 0.0f), std::move(items));
-        menu_.UpdatePreferredWidth(MenuTextContext(context));
-    }
+void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::v2::Utf8FromWide(value).c_str()));
+}
 
-    D2D1_SIZE_F Measure(const UiDrawContext& context, D2D1_SIZE_F) const override
-    {
-        return menu_.Measure(MenuTextContext(context), context.viewport_size);
-    }
+void SetString(JSContext* context, JSValue object, const char* name, const char* value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, value != nullptr ? value : ""));
+}
 
-    void Render(const UiDrawContext& context) const override
-    {
-        menu_.Render(MenuTextContext(context), UiRootState{});
-    }
+void SetBool(JSContext* context, JSValue object, const char* name, bool value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
+}
 
-    UiEventResult OnInputEvent(const UiInputEvent& event) override
-    {
-        UiEventResult result = menu_.OnInputEvent(event);
-        if (result.action != kUiActionNone || !menu_.IsOpen()) {
-            result.close_popup = true;
-        }
-        return result;
-    }
+void SetInt(JSContext* context, JSValue object, const char* name, int value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewInt32(context, value));
+}
 
-private:
-    UiDrawContext MenuTextContext(const UiDrawContext& context) const
-    {
-        UiDrawContext menu_context = context;
-        menu_context.body_text_format = body_text_format_;
-        menu_context.icon_text_format = icon_text_format_;
-        return menu_context;
-    }
+void SetFloat(JSContext* context, JSValue object, const char* name, float value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewFloat64(context, value));
+}
 
-    MenuOverlay menu_;
-    IDWriteTextFormat* body_text_format_ = nullptr;
-    IDWriteTextFormat* icon_text_format_ = nullptr;
-};
+bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
+    JS_FreeValue(context, value);
+    return result;
+}
+
+int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    if (JS_IsUndefined(value)) {
+        JS_FreeValue(context, value);
+        return fallback;
+    }
+    int32_t result = fallback;
+    JS_ToInt32(context, &result, value);
+    JS_FreeValue(context, value);
+    return result;
+}
+
+float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    if (JS_IsUndefined(value)) {
+        JS_FreeValue(context, value);
+        return fallback;
+    }
+    double result = fallback;
+    JS_ToFloat64(context, &result, value);
+    JS_FreeValue(context, value);
+    return static_cast<float>(result);
+}
+
+UiAction ActionProperty(JSContext* context, JSValueConst object)
+{
+    if (!JS_IsObject(object)) {
+        return kUiActionNone;
+    }
+    JSValue action_value = JS_GetPropertyStr(context, object, "actionValue");
+    if (!JS_IsUndefined(action_value)) {
+        int32_t value = 0;
+        JS_ToInt32(context, &value, action_value);
+        JS_FreeValue(context, action_value);
+        return UiAction(value, Int32Property(context, object, "actionArg", 0));
+    }
+    JS_FreeValue(context, action_value);
+
+    JSValue value = JS_GetPropertyStr(context, object, "action");
+    const std::string name = imgviewer::v2::Utf8FromValue(context, value);
+    JS_FreeValue(context, value);
+    if (name.empty()) {
+        return kUiActionNone;
+    }
+    return UiAction(static_cast<int>(ImgViewerActionFromName(name.c_str())), Int32Property(context, object, "actionArg", 0));
+}
 
 } // namespace
 
-HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics)
+HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::v2::ScriptEngine* script_engine)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, owner);
     RETURN_HR_IF(E_INVALIDARG, action_message == 0);
     RETURN_HR_IF_NULL(E_INVALIDARG, graphics);
+    RETURN_HR_IF_NULL(E_INVALIDARG, script_engine);
 
     owner_ = owner;
     action_message_ = action_message;
     graphics_ = graphics;
+    script_engine_ = script_engine;
     d2d_context_ = graphics_->D2DContext();
     dcomp_device_ = graphics_->DCompDevice();
     dwrite_factory_ = graphics_->DWriteFactory();
 
-    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
-        L"Segoe UI",
-        nullptr,
-        DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        kMenuBodyFontSize,
-        L"",
-        menu_body_text_format_.put()));
-    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
-        L"Segoe MDL2 Assets",
-        nullptr,
-        DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        kMenuIconFontSize,
-        L"",
-        menu_icon_text_format_.put()));
-    RETURN_IF_FAILED(menu_body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
-    RETURN_IF_FAILED(menu_icon_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    RETURN_IF_FAILED(LoadScript());
     return RegisterPopupWindowClass(reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(owner_, GWLP_HINSTANCE)));
 }
 
@@ -170,10 +199,15 @@ bool PopupHost::IsOpen() const
 
 void PopupHost::Close()
 {
-    if (content_ != nullptr) {
-        content_->OnClosed();
-        content_.reset();
+    if (dropdown_closed_) {
+        auto closed = std::move(dropdown_closed_);
+        dropdown_selection_changed_ = nullptr;
+        closed();
     }
+    dropdown_selection_changed_ = nullptr;
+    content_kind_ = ContentKind::None;
+    menu_items_.clear();
+    dropdown_options_.clear();
     native_open_ = false;
     ResetDCompPopupResources();
     if (popup_hwnd_ != nullptr) {
@@ -182,35 +216,32 @@ void PopupHost::Close()
     }
 }
 
-HRESULT PopupHost::Open(D2D1_POINT_2F origin, std::unique_ptr<UiPopupContent> content)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, content);
-    Close();
-
-    const UiDrawContext measure_context{
-        .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = body_text_format_,
-        .icon_text_format = icon_text_format_,
-    };
-    const D2D1_SIZE_F size = content->Measure(measure_context, D2D1::SizeF());
-    content_ = std::move(content);
-    return OpenNativePopup(origin, size);
-}
-
 HRESULT PopupHost::OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items)
 {
-    const UiDrawContext measure_context{
-        .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = MenuBodyTextFormat(),
-        .icon_text_format = MenuIconTextFormat(),
-    };
-    return Open(
-        origin,
-        std::make_unique<MenuPopupContent>(
-            std::move(items),
-            measure_context,
-            MenuBodyTextFormat(),
-            MenuIconTextFormat()));
+    Close();
+    content_kind_ = ContentKind::Menu;
+    menu_items_ = std::move(items);
+    return OpenScriptPopup(origin);
+}
+
+HRESULT PopupHost::OpenDropdown(
+    D2D1_POINT_2F origin,
+    float width,
+    std::vector<PopupDropdownOption> options,
+    size_t selected_index,
+    UiElementId owner_id,
+    std::function<void(size_t)> selection_changed,
+    std::function<void()> closed)
+{
+    Close();
+    content_kind_ = ContentKind::Dropdown;
+    dropdown_width_ = (std::max)(1.0f, width);
+    dropdown_options_ = std::move(options);
+    dropdown_selected_index_ = dropdown_options_.empty() ? 0 : (std::min)(selected_index, dropdown_options_.size() - 1);
+    dropdown_owner_id_ = owner_id;
+    dropdown_selection_changed_ = std::move(selection_changed);
+    dropdown_closed_ = std::move(closed);
+    return OpenScriptPopup(origin);
 }
 
 UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
@@ -227,22 +258,18 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
 
     if (event.type == UiEventType::PointerDown && event.hwnd == owner_) {
         Close();
-        return UiEventResult{};
+        return {};
     }
 
-    if (content_ != nullptr) {
-        UiEventResult result = content_->OnInputEvent(OffsetPopupEvent(event));
-        if (!result.close_popup && popup_hwnd_ != nullptr) {
-            bool resized = false;
-            ResizeNativePopupToContent(&resized);
-            if (!resized) {
-                RenderNativePopup();
-            }
+    UiEventResult result = DispatchScriptInput(OffsetPopupEvent(event));
+    if (!result.close_popup && popup_hwnd_ != nullptr) {
+        bool resized = false;
+        ResizeNativePopupToContent(&resized);
+        if (!resized) {
+            RenderNativePopup();
         }
-        return result;
     }
-
-    return {};
+    return result;
 }
 
 UiEventResult PopupHost::OnPointerEvent(const UiPointerEvent& event)
@@ -253,6 +280,284 @@ UiEventResult PopupHost::OnPointerEvent(const UiPointerEvent& event)
 UiEventResult PopupHost::OnKeyEvent(const UiKeyEvent& event)
 {
     return OnInputEvent(UiInputEvent::Key(event, nullptr));
+}
+
+const UiDrawContext* PopupHost::ActiveDrawContext() const
+{
+    return active_draw_context_;
+}
+
+void PopupHost::RequestInvalidate()
+{
+    invalidate_requested_ = true;
+}
+
+void PopupHost::RequestReload()
+{
+    LoadScript();
+    invalidate_requested_ = true;
+}
+
+void PopupHost::RequestClose()
+{
+    close_requested_ = true;
+}
+
+HRESULT PopupHost::LoadScript()
+{
+    RETURN_HR_IF_NULL(E_UNEXPECTED, script_engine_);
+    script_context_.reset();
+    script_context_ = script_engine_->CreateContext();
+    if (script_context_ == nullptr) {
+        error_text_ = script_engine_->TakeExceptionTextUtf8();
+        return E_FAIL;
+    }
+    JS_SetContextOpaque(script_context_->Context(), this);
+
+    JSContext* context = script_context_->Context();
+    JSValue global = JS_GetGlobalObject(context);
+    JSValue host = JS_NewObject(context);
+    JS_SetPropertyStr(context, host, "invalidate", JS_NewCFunction(context, imgviewer::v2::HostInvalidate, "invalidate", 0));
+    JS_SetPropertyStr(context, host, "reload", JS_NewCFunction(context, imgviewer::v2::HostReload, "reload", 0));
+    JS_SetPropertyStr(context, host, "close", JS_NewCFunction(context, imgviewer::v2::HostClose, "close", 0));
+    JS_SetPropertyStr(context, host, "log", JS_NewCFunction(context, imgviewer::v2::HostLog, "log", 1));
+    JS_SetPropertyStr(context, global, "host", host);
+    JS_FreeValue(context, global);
+
+    script_path_ = imgviewer::v2::ScriptPath(kPopupScriptRelativePath);
+    std::optional<std::string> source = imgviewer::v2::ReadTextFileUtf8(script_path_);
+    if (!source.has_value()) {
+        error_text_ = "Could not read " + script_path_.string();
+        return E_FAIL;
+    }
+    const imgviewer::v2::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
+    if (!eval.ok) {
+        error_text_ = script_engine_->TakeExceptionTextUtf8();
+        return E_FAIL;
+    }
+    JSValue app = AppObject();
+    if (!JS_IsObject(app)) {
+        JS_FreeValue(context, app);
+        error_text_ = "globalThis.imgviewerPopupUi was not defined";
+        return E_FAIL;
+    }
+    JS_FreeValue(context, app);
+    error_text_.clear();
+    return S_OK;
+}
+
+HRESULT PopupHost::OpenScriptPopup(D2D1_POINT_2F origin)
+{
+    if (script_context_ == nullptr && FAILED(LoadScript())) {
+        content_kind_ = ContentKind::None;
+        return E_FAIL;
+    }
+    const D2D1_SIZE_F size = MeasureScriptContent();
+    return OpenNativePopup(origin, size);
+}
+
+D2D1_SIZE_F PopupHost::MeasureScriptContent()
+{
+    if (script_context_ == nullptr) {
+        return D2D1::SizeF(1.0f, 1.0f);
+    }
+    JSContext* context = script_context_->Context();
+    JSValue app = AppObject();
+    JSValue measure = JS_GetPropertyStr(context, app, "measure");
+    if (!JS_IsFunction(context, measure)) {
+        JS_FreeValue(context, measure);
+        JS_FreeValue(context, app);
+        return D2D1::SizeF(1.0f, 1.0f);
+    }
+    JSValue state = CreateStateObject();
+    JSValue result = JS_Call(context, measure, app, 1, &state);
+    JS_FreeValue(context, state);
+    JS_FreeValue(context, measure);
+    JS_FreeValue(context, app);
+    if (JS_IsException(result)) {
+        JS_FreeValue(context, result);
+        script_context_->CaptureException();
+        error_text_ = script_engine_->TakeExceptionTextUtf8();
+        return D2D1::SizeF(1.0f, 1.0f);
+    }
+    const D2D1_SIZE_F size{
+        (std::max)(1.0f, FloatProperty(context, result, "width", 1.0f)),
+        (std::max)(1.0f, FloatProperty(context, result, "height", 1.0f)),
+    };
+    JS_FreeValue(context, result);
+    return size;
+}
+
+void PopupHost::RenderScriptContent(const UiDrawContext& draw_context)
+{
+    if (script_context_ == nullptr) {
+        return;
+    }
+    JSContext* context = script_context_->Context();
+    JSValue app = AppObject();
+    JSValue render = JS_GetPropertyStr(context, app, "render");
+    if (!JS_IsFunction(context, render)) {
+        JS_FreeValue(context, render);
+        JS_FreeValue(context, app);
+        return;
+    }
+    JSValue canvas = imgviewer::v2::CreateCanvasObject(context);
+    JSValue env = imgviewer::v2::CreateRenderEnvironment(context, draw_context, UiRootState{});
+    JSValue state = CreateStateObject();
+    JSValue args[] = {canvas, env, state};
+    active_draw_context_ = &draw_context;
+    JSValue result = JS_Call(context, render, app, 3, args);
+    active_draw_context_ = nullptr;
+    JS_FreeValue(context, state);
+    JS_FreeValue(context, env);
+    JS_FreeValue(context, canvas);
+    JS_FreeValue(context, render);
+    JS_FreeValue(context, app);
+    if (JS_IsException(result)) {
+        JS_FreeValue(context, result);
+        script_context_->CaptureException();
+        error_text_ = script_engine_->TakeExceptionTextUtf8();
+        return;
+    }
+    JS_FreeValue(context, result);
+    script_engine_->PumpJobs();
+}
+
+UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
+{
+    UiEventResult event_result{};
+    if (script_context_ == nullptr) {
+        return event_result;
+    }
+    JSContext* context = script_context_->Context();
+    JSValue app = AppObject();
+    const bool pointer_event = event.type == UiEventType::PointerMove ||
+        event.type == UiEventType::PointerDown ||
+        event.type == UiEventType::PointerUp ||
+        event.type == UiEventType::PointerLeave ||
+        event.type == UiEventType::PointerWheel;
+    JSValue handler = JS_GetPropertyStr(context, app, pointer_event ? "pointer" : "key");
+    if (!JS_IsFunction(context, handler)) {
+        JS_FreeValue(context, handler);
+        JS_FreeValue(context, app);
+        return event_result;
+    }
+    JSValue js_event = pointer_event
+        ? imgviewer::v2::CreatePointerEvent(context, event.pointer)
+        : imgviewer::v2::CreateKeyEvent(context, event.key);
+    JSValue state = CreateStateObject();
+    JSValue args[] = {js_event, state};
+    JSValue result = JS_Call(context, handler, app, 2, args);
+    JS_FreeValue(context, state);
+    JS_FreeValue(context, js_event);
+    JS_FreeValue(context, handler);
+    JS_FreeValue(context, app);
+    if (JS_IsException(result)) {
+        JS_FreeValue(context, result);
+        script_context_->CaptureException();
+        error_text_ = script_engine_->TakeExceptionTextUtf8();
+        event_result.handled = true;
+        event_result.close_popup = true;
+        return event_result;
+    }
+
+    event_result.handled = BoolProperty(context, result, "handled", false);
+    event_result.close_popup = BoolProperty(context, result, "close", false) || close_requested_;
+    event_result.value_changed = BoolProperty(context, result, "invalidate", false) || invalidate_requested_;
+    event_result.action = ActionProperty(context, result);
+    const int32_t effect_target = Int32Property(context, result, "effectTarget", 0);
+    event_result.effect_target = effect_target > 0 ? UiElementId(effect_target) : UiElementId::None;
+    const int selected_index = Int32Property(context, result, "selectedIndex", -1);
+    JS_FreeValue(context, result);
+
+    ApplyScriptResultSideEffects(&event_result, selected_index);
+    close_requested_ = false;
+    invalidate_requested_ = false;
+    script_engine_->PumpJobs();
+    return event_result;
+}
+
+void PopupHost::ApplyScriptResultSideEffects(UiEventResult* result, int selected_index)
+{
+    if (result == nullptr || content_kind_ != ContentKind::Dropdown || selected_index < 0) {
+        return;
+    }
+    const size_t index = static_cast<size_t>(selected_index);
+    if (index >= dropdown_options_.size()) {
+        return;
+    }
+    dropdown_selected_index_ = index;
+    if (dropdown_selection_changed_) {
+        dropdown_selection_changed_(index);
+    }
+    if (result->action == kUiActionNone) {
+        result->action = dropdown_options_[index].action;
+    }
+    if (result->effect_target == UiElementId::None) {
+        result->effect_target = dropdown_owner_id_;
+    }
+}
+
+JSValue PopupHost::AppObject() const
+{
+    JSContext* context = script_context_->Context();
+    JSValue global = JS_GetGlobalObject(context);
+    JSValue app = JS_GetPropertyStr(context, global, "imgviewerPopupUi");
+    JS_FreeValue(context, global);
+    return app;
+}
+
+JSValue PopupHost::CreateStateObject() const
+{
+    JSContext* context = script_context_->Context();
+    JSValue state = JS_NewObject(context);
+    if (content_kind_ == ContentKind::Menu) {
+        SetString(context, state, "kind", "menu");
+        JS_SetPropertyStr(context, state, "items", CreateMenuItemsArray(context, menu_items_));
+    } else if (content_kind_ == ContentKind::Dropdown) {
+        SetString(context, state, "kind", "dropdown");
+        SetFloat(context, state, "width", dropdown_width_);
+        SetInt(context, state, "selectedIndex", static_cast<int>(dropdown_selected_index_));
+        SetInt(context, state, "ownerId", UiElementIdValue(dropdown_owner_id_));
+        JS_SetPropertyStr(context, state, "options", CreateDropdownOptionsArray(context));
+    } else {
+        SetString(context, state, "kind", "none");
+    }
+    return state;
+}
+
+JSValue PopupHost::CreateMenuItemsArray(JSContext* context, const std::vector<MenuItem>& items) const
+{
+    JSValue array = JS_NewArray(context);
+    uint32_t index = 0;
+    for (const MenuItem& item : items) {
+        JSValue value = JS_NewObject(context);
+        SetString(context, value, "text", item.text != nullptr ? item.text : L"");
+        SetString(context, value, "action", item.action == kUiActionNone ? "" : ImgViewerActionName(ImgViewerActionFromUiAction(item.action)));
+        SetInt(context, value, "actionValue", item.action.value);
+        SetInt(context, value, "actionArg", item.action.arg);
+        SetBool(context, value, "separator", item.separator);
+        SetBool(context, value, "checked", item.checked);
+        SetBool(context, value, "enabled", item.enabled);
+        JS_SetPropertyStr(context, value, "children", CreateMenuItemsArray(context, item.children));
+        JS_SetPropertyUint32(context, array, index++, value);
+    }
+    return array;
+}
+
+JSValue PopupHost::CreateDropdownOptionsArray(JSContext* context) const
+{
+    JSValue array = JS_NewArray(context);
+    uint32_t index = 0;
+    for (const PopupDropdownOption& option : dropdown_options_) {
+        JSValue value = JS_NewObject(context);
+        SetString(context, value, "text", option.text);
+        SetString(context, value, "action", option.action == kUiActionNone ? "" : ImgViewerActionName(ImgViewerActionFromUiAction(option.action)));
+        SetInt(context, value, "actionValue", option.action.value);
+        SetInt(context, value, "actionArg", option.action.arg);
+        JS_SetPropertyUint32(context, array, index++, value);
+    }
+    return array;
 }
 
 HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
@@ -284,8 +589,8 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
         WS_POPUP,
         screen_origin.x,
         screen_origin.y,
-        width,
-        height,
+        (std::max)(1, width),
+        (std::max)(1, height),
         owner_,
         nullptr,
         reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(owner_, GWLP_HINSTANCE)),
@@ -293,9 +598,7 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
     RETURN_LAST_ERROR_IF_NULL(popup_hwnd_);
 
     RETURN_IF_FAILED(EnsureDCompResources());
-    RETURN_IF_FAILED(EnsureDCompSurface(
-        static_cast<UINT>((std::max)(1, width)),
-        static_cast<UINT>((std::max)(1, height))));
+    RETURN_IF_FAILED(EnsureDCompSurface(static_cast<UINT>((std::max)(1, width)), static_cast<UINT>((std::max)(1, height))));
 
     native_open_ = true;
     RenderNativePopup();
@@ -308,14 +611,8 @@ HRESULT PopupHost::ResizeNativePopupToContent(bool* resized)
     RETURN_HR_IF_NULL(E_POINTER, resized);
     *resized = false;
     RETURN_HR_IF_NULL(E_UNEXPECTED, popup_hwnd_);
-    RETURN_HR_IF_NULL(E_UNEXPECTED, content_);
 
-    const UiDrawContext measure_context{
-        .dwrite_factory = dwrite_factory_.get(),
-        .body_text_format = body_text_format_,
-        .icon_text_format = icon_text_format_,
-    };
-    const D2D1_SIZE_F size = PopupWindowSize(content_->Measure(measure_context, D2D1::SizeF()));
+    const D2D1_SIZE_F size = PopupWindowSize(MeasureScriptContent());
     const float dpi_scale = static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f;
     const int width = (std::max)(1, static_cast<int>(std::ceil(size.width * dpi_scale)));
     const int height = (std::max)(1, static_cast<int>(std::ceil(size.height * dpi_scale)));
@@ -339,14 +636,7 @@ HRESULT PopupHost::ResizeNativePopupToContent(bool* resized)
 
     RETURN_IF_FAILED(EnsureDCompSurface(static_cast<UINT>(width), static_cast<UINT>(height)));
     RETURN_IF_FAILED(RenderDCompPopup(static_cast<UINT>(width), static_cast<UINT>(height)));
-    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(
-        popup_hwnd_,
-        HWND_TOPMOST,
-        origin.x,
-        origin.y,
-        width,
-        height,
-        SWP_NOACTIVATE));
+    RETURN_IF_WIN32_BOOL_FALSE(SetWindowPos(popup_hwnd_, HWND_TOPMOST, origin.x, origin.y, width, height, SWP_NOACTIVATE));
     *resized = true;
     return S_OK;
 }
@@ -375,12 +665,7 @@ HRESULT PopupHost::EnsureDCompSurface(UINT width, UINT height)
     }
 
     dcomp_surface_.reset();
-    RETURN_IF_FAILED(dcomp_device_->CreateSurface(
-        width,
-        height,
-        DXGI_FORMAT_B8G8R8A8_UNORM,
-        DXGI_ALPHA_MODE_PREMULTIPLIED,
-        dcomp_surface_.put()));
+    RETURN_IF_FAILED(dcomp_device_->CreateSurface(width, height, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_ALPHA_MODE_PREMULTIPLIED, dcomp_surface_.put()));
     RETURN_IF_FAILED(dcomp_visual_->SetContent(dcomp_surface_.get()));
     RETURN_IF_FAILED(dcomp_visual_->SetOffsetX(0.0f));
     RETURN_IF_FAILED(dcomp_visual_->SetOffsetY(0.0f));
@@ -430,12 +715,7 @@ HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
         UINT width;
         UINT height;
         float dpi_scale;
-    } state{
-        this,
-        width,
-        height,
-        static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f,
-    };
+    } state{this, width, height, static_cast<float>(GetDpiForWindow(popup_hwnd_)) / 96.0f};
     RETURN_IF_FAILED(graphics_->DrawCompositionSurface(
         dcomp_surface_.get(),
         width,
@@ -454,20 +734,14 @@ HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
                 .dwrite_factory = host->dwrite_factory_.get(),
                 .body_text_format = host->body_text_format_,
                 .icon_text_format = host->icon_text_format_,
-                .viewport_size = D2D1::SizeF(
-                    static_cast<float>(state->width) / state->dpi_scale,
-                    static_cast<float>(state->height) / state->dpi_scale),
+                .viewport_size = D2D1::SizeF(static_cast<float>(state->width) / state->dpi_scale, static_cast<float>(state->height) / state->dpi_scale),
                 .dpi_scale = state->dpi_scale,
             };
             d2d_context->SetTransform(
                 D2D1::Matrix3x2F::Scale(state->dpi_scale, state->dpi_scale) *
-                D2D1::Matrix3x2F::Translation(
-                    static_cast<float>(offset.x) + kPopupContentInset * state->dpi_scale,
-                    static_cast<float>(offset.y) + kPopupContentInset * state->dpi_scale));
+                D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x) + kPopupContentInset * state->dpi_scale, static_cast<float>(offset.y) + kPopupContentInset * state->dpi_scale));
             d2d_context->Clear(D2D1::ColorF(D2D1::ColorF::Black, 0.0f));
-            if (host->content_ != nullptr) {
-                host->content_->Render(draw_context);
-            }
+            host->RenderScriptContent(draw_context);
             return S_OK;
         },
         &state));
@@ -492,24 +766,10 @@ void PopupHost::HandlePopupResult(UiEventResult result)
     }
 
     if (action != kUiActionNone) {
-        SendMessageW(
-            owner_,
-            action_message_,
-            static_cast<WPARAM>(UiActionValue(action)),
-            static_cast<LPARAM>(UiElementIdValue(effect_target)));
+        SendMessageW(owner_, action_message_, static_cast<WPARAM>(UiActionValue(action)), static_cast<LPARAM>(UiElementIdValue(effect_target)));
     } else if (effect_target != UiElementId::None) {
         SendMessageW(owner_, action_message_, 0, static_cast<LPARAM>(UiElementIdValue(effect_target)));
     }
-}
-
-IDWriteTextFormat* PopupHost::MenuBodyTextFormat() const
-{
-    return menu_body_text_format_ != nullptr ? menu_body_text_format_.get() : body_text_format_;
-}
-
-IDWriteTextFormat* PopupHost::MenuIconTextFormat() const
-{
-    return menu_icon_text_format_ != nullptr ? menu_icon_text_format_.get() : icon_text_format_;
 }
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
@@ -537,33 +797,22 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         if (host == nullptr) {
             break;
         }
-        const float dpi_scale2 = static_cast<float>(GetDpiForWindow(hwnd)) / 96.0f;
-        const UiEventType type = message == WM_MOUSEMOVE
-            ? UiEventType::PointerMove
-            : message == WM_LBUTTONDOWN ? UiEventType::PointerDown : UiEventType::PointerUp;
+        const float dpi_scale = static_cast<float>(GetDpiForWindow(hwnd)) / 96.0f;
+        const UiEventType type = message == WM_MOUSEMOVE ? UiEventType::PointerMove : message == WM_LBUTTONDOWN ? UiEventType::PointerDown : UiEventType::PointerUp;
         UiPointerEvent pointer{
             .type = type,
-            .point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale2,
-                                   static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale2),
+            .point = D2D1::Point2F(static_cast<float>(GET_X_LPARAM(lparam)) / dpi_scale, static_cast<float>(GET_Y_LPARAM(lparam)) / dpi_scale),
             .button = message == WM_MOUSEMOVE ? UiPointerButton::None : UiPointerButton::Left,
             .popup_host = host,
         };
-        UiEventResult result = {};
-        if (host->content_ != nullptr) {
-            result = host->content_->OnInputEvent(OffsetPopupEvent(UiInputEvent::Pointer(pointer, hwnd)));
-        }
+        const UiEventResult result = host->DispatchScriptInput(OffsetPopupEvent(UiInputEvent::Pointer(pointer, hwnd)));
         host->HandlePopupResult(result);
         return 0;
     }
     case WM_KEYDOWN: {
         PopupHost* host = GetPopupHost(hwnd);
         if (host != nullptr) {
-            const UiKeyEvent key{
-                .type = UiEventType::KeyDown,
-                .virtual_key = static_cast<UINT>(wparam),
-                .modifiers = UiModifiers::Current(),
-                .popup_host = host,
-            };
+            const UiKeyEvent key{.type = UiEventType::KeyDown, .virtual_key = static_cast<UINT>(wparam), .modifiers = UiModifiers::Current(), .popup_host = host};
             const UiEventResult result = host->OnInputEvent(UiInputEvent::Key(key, hwnd));
             if (result.handled) {
                 return 0;

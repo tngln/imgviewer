@@ -22,7 +22,8 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             FAILED(context->popup.Initialize(
                 hwnd,
                 kImgViewerUiActionMessage,
-                &context->graphics_device)) ||
+                &context->graphics_device,
+                context->script_engine.get())) ||
             FAILED(context->viewer.Initialize()) ||
             FAILED(ResetUiAccessibilityProvider(
                 hwnd,

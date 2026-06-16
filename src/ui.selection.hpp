@@ -12,8 +12,6 @@ struct DropdownOption final {
     UiAction action = kUiActionNone;
 };
 
-class DropdownPopupContent;
-
 class Checkbox final : public UiElement {
 public:
     Checkbox(UiElementMetadata metadata, const wchar_t* text, bool checked);
@@ -67,8 +65,6 @@ public:
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
 
 private:
-    friend class DropdownPopupContent;
-
     HRESULT OpenPopup(PopupHost* popup_host);
     size_t OptionAt(D2D1_POINT_2F point) const;
     D2D1_RECT_F OptionRect(size_t index) const;

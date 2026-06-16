@@ -199,6 +199,7 @@ HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context)
             .action_message = kImgViewerUiActionMessage,
             .body_font_size = 9.0f,
             .icon_font_size = 11.0f,
+            .script_engine = context->script_engine.get(),
         },
         std::move(root),
         about_context,
