@@ -130,6 +130,7 @@ if(MSVC)
 endif()
 
 target_link_libraries(imgviewer PRIVATE
+    advapi32
     comctl32
     d2d1
     dcomp
@@ -198,7 +199,9 @@ if(MSVC)
 endif()
 
 target_link_libraries(imgviewer_tests PRIVATE
+    advapi32
     d2d1
+    dwmapi
     user32
     qjs
 )

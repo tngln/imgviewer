@@ -314,12 +314,7 @@ HRESULT PopupHost::LoadScript()
 
     JSContext* context = script_context_->Context();
     JSValue global = JS_GetGlobalObject(context);
-    JSValue host = JS_NewObject(context);
-    JS_SetPropertyStr(context, host, "invalidate", JS_NewCFunction(context, imgviewer::v2::HostInvalidate, "invalidate", 0));
-    JS_SetPropertyStr(context, host, "reload", JS_NewCFunction(context, imgviewer::v2::HostReload, "reload", 0));
-    JS_SetPropertyStr(context, host, "close", JS_NewCFunction(context, imgviewer::v2::HostClose, "close", 0));
-    JS_SetPropertyStr(context, host, "log", JS_NewCFunction(context, imgviewer::v2::HostLog, "log", 1));
-    JS_SetPropertyStr(context, global, "host", host);
+    JS_SetPropertyStr(context, global, "host", imgviewer::v2::CreateHostObject(context));
     JS_FreeValue(context, global);
 
     script_path_ = imgviewer::v2::ScriptPath(kPopupScriptRelativePath);

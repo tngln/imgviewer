@@ -40,9 +40,6 @@ public:
 struct UiWindowOptions final {
     win32::NativeWindowOptions native;
     UINT action_message = 0;
-    UINT_PTR caret_timer_id = 1;
-    float body_font_size = 8.5f;
-    float icon_font_size = 10.0f;
     bool enable_popup = true;
     bool enable_ime = true;
     imgviewer::v2::ScriptEngine* script_engine = nullptr;
@@ -67,8 +64,6 @@ public:
     win32::NativeWindow& Window();
     PopupHost& Popup();
     IDWriteFactory* DWriteFactory() const;
-    IDWriteTextFormat* BodyTextFormat() const;
-    IDWriteTextFormat* IconTextFormat() const;
 
 private:
     win32::WindowMessageResult OnWindowMessage(
@@ -83,7 +78,6 @@ private:
     void HandleUiResult(UiEventResult result);
     bool ExecuteAction(UiAction action);
     UiModifiers CurrentModifiers() const;
-    void SyncCaretTimer();
     void PositionIme();
     D2D1_POINT_2F CaretPoint() const;
     std::wstring ImeCompositionString(LPARAM lparam) const;

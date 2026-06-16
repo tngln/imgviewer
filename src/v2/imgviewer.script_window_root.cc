@@ -263,12 +263,7 @@ void ScriptWindowRootBase::InstallGlobals()
     JSContext* context = Context();
     JSValue global = JS_GetGlobalObject(context);
 
-    JSValue host = JS_NewObject(context);
-    SetFunction(host, "invalidate", HostInvalidate, 0);
-    SetFunction(host, "reload", HostReload, 0);
-    SetFunction(host, "close", HostClose, 0);
-    SetFunction(host, "log", HostLog, 1);
-    JS_SetPropertyStr(context, global, "host", host);
+    JS_SetPropertyStr(context, global, "host", CreateHostObject(context));
 
     InstallCustomGlobals(global);
     JS_FreeValue(context, global);

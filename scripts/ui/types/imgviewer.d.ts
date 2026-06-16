@@ -27,6 +27,19 @@ interface HostApi {
   reload(): void;
   close(): void;
   log(text: string): void;
+  systemPreferences: SystemPreferences;
+}
+
+interface SystemPreferences {
+  caretBlinkTime: number;
+  doubleClickTime: number;
+  accentColor: string;
+  accentColorOpaqueBlend: boolean;
+  prefersDarkTheme: boolean;
+  preferredLanguage: string;
+  preferredLanguages: string[];
+  highContrast: boolean;
+  clientAreaAnimationEnabled: boolean;
 }
 
 interface SignalsApi {

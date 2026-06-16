@@ -9,12 +9,122 @@
 #include <vector>
 
 #include <d2d1helper.h>
+#include <dwmapi.h>
 #include <wil/com.h>
 
 #include "script.canvas_color.hpp"
 #include "ui.theme.hpp"
 
 namespace imgviewer::v2 {
+
+namespace {
+
+constexpr DWORD kDefaultAccentColor = 0xff2f6fed;
+constexpr wchar_t kPersonalizeRegistryPath[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+constexpr wchar_t kAppsUseLightThemeRegistryName[] = L"AppsUseLightTheme";
+
+void SetString(JSContext* context, JSValue object, const char* name, const std::string& value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, value.c_str()));
+}
+
+void SetBool(JSContext* context, JSValue object, const char* name, bool value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
+}
+
+void SetInt(JSContext* context, JSValue object, const char* name, int32_t value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewInt32(context, value));
+}
+
+void SetUint(JSContext* context, JSValue object, const char* name, uint32_t value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewUint32(context, value));
+}
+
+std::string ArgbColorString(DWORD color)
+{
+    std::ostringstream output;
+    output << '#' << std::uppercase << std::hex << std::setfill('0') << std::setw(8) << color;
+    return output.str();
+}
+
+std::string UserDefaultLocaleName()
+{
+    wchar_t locale_name[LOCALE_NAME_MAX_LENGTH] = {};
+    if (GetUserDefaultLocaleName(locale_name, LOCALE_NAME_MAX_LENGTH) <= 0) {
+        return "en-US";
+    }
+    return Utf8FromWide(locale_name);
+}
+
+std::vector<std::string> UserPreferredLanguages()
+{
+    ULONG language_count = 0;
+    ULONG buffer_length = 0;
+    if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &language_count, nullptr, &buffer_length) || buffer_length == 0) {
+        return {};
+    }
+
+    std::vector<wchar_t> buffer(buffer_length);
+    if (!GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &language_count, buffer.data(), &buffer_length)) {
+        return {};
+    }
+
+    std::vector<std::string> languages;
+    const wchar_t* current = buffer.data();
+    while (*current != L'\0') {
+        languages.push_back(Utf8FromWide(current));
+        current += wcslen(current) + 1;
+    }
+    return languages;
+}
+
+bool PrefersDarkTheme()
+{
+    DWORD apps_use_light_theme = 1;
+    DWORD size = sizeof(apps_use_light_theme);
+    const LSTATUS status = RegGetValueW(
+        HKEY_CURRENT_USER,
+        kPersonalizeRegistryPath,
+        kAppsUseLightThemeRegistryName,
+        RRF_RT_REG_DWORD,
+        nullptr,
+        &apps_use_light_theme,
+        &size);
+    return status == ERROR_SUCCESS && apps_use_light_theme == 0;
+}
+
+bool HighContrastEnabled()
+{
+    HIGHCONTRASTW high_contrast{.cbSize = sizeof(high_contrast)};
+    if (!SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(high_contrast), &high_contrast, 0)) {
+        return false;
+    }
+    return (high_contrast.dwFlags & HCF_HIGHCONTRASTON) != 0;
+}
+
+bool ClientAreaAnimationEnabled()
+{
+    BOOL enabled = TRUE;
+    if (!SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &enabled, 0)) {
+        return true;
+    }
+    return enabled != FALSE;
+}
+
+JSValue StringArray(JSContext* context, const std::vector<std::string>& values)
+{
+    JSValue array = JS_NewArray(context);
+    uint32_t index = 0;
+    for (const std::string& value : values) {
+        JS_SetPropertyUint32(context, array, index++, JS_NewString(context, value.c_str()));
+    }
+    return array;
+}
+
+} // namespace
 
 std::wstring WideFromUtf8(std::string_view text)
 {
@@ -114,6 +224,47 @@ JSValue HostLog(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
         OutputDebugStringW(WideFromUtf8(Utf8FromValue(context, argv[0]) + "\n").c_str());
     }
     return JS_UNDEFINED;
+}
+
+JSValue CreateSystemPreferencesObject(JSContext* context)
+{
+    DWORD accent_color = kDefaultAccentColor;
+    BOOL accent_opaque_blend = FALSE;
+    if (FAILED(DwmGetColorizationColor(&accent_color, &accent_opaque_blend))) {
+        accent_color = kDefaultAccentColor;
+        accent_opaque_blend = FALSE;
+    }
+
+    std::vector<std::string> languages = UserPreferredLanguages();
+    if (languages.empty()) {
+        languages.push_back(UserDefaultLocaleName());
+    }
+    if (languages.front().empty()) {
+        languages.front() = "en-US";
+    }
+
+    JSValue preferences = JS_NewObject(context);
+    SetUint(context, preferences, "caretBlinkTime", GetCaretBlinkTime());
+    SetUint(context, preferences, "doubleClickTime", GetDoubleClickTime());
+    SetString(context, preferences, "accentColor", ArgbColorString(accent_color));
+    SetBool(context, preferences, "accentColorOpaqueBlend", accent_opaque_blend != FALSE);
+    SetBool(context, preferences, "prefersDarkTheme", PrefersDarkTheme());
+    SetString(context, preferences, "preferredLanguage", languages.front());
+    JS_SetPropertyStr(context, preferences, "preferredLanguages", StringArray(context, languages));
+    SetBool(context, preferences, "highContrast", HighContrastEnabled());
+    SetBool(context, preferences, "clientAreaAnimationEnabled", ClientAreaAnimationEnabled());
+    return preferences;
+}
+
+JSValue CreateHostObject(JSContext* context)
+{
+    JSValue host = JS_NewObject(context);
+    JS_SetPropertyStr(context, host, "invalidate", JS_NewCFunction(context, HostInvalidate, "invalidate", 0));
+    JS_SetPropertyStr(context, host, "reload", JS_NewCFunction(context, HostReload, "reload", 0));
+    JS_SetPropertyStr(context, host, "close", JS_NewCFunction(context, HostClose, "close", 0));
+    JS_SetPropertyStr(context, host, "log", JS_NewCFunction(context, HostLog, "log", 1));
+    JS_SetPropertyStr(context, host, "systemPreferences", CreateSystemPreferencesObject(context));
+    return host;
 }
 
 namespace {

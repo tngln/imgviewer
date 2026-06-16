@@ -23,6 +23,9 @@ using ui_host_input::PhysicalClientPointToUi;
 using ui_host_input::ScreenPointToUi;
 using ui_host_input::UiPointToPhysicalClient;
 
+constexpr float kUiWindowBodyFontSize = 8.5f;
+constexpr float kUiWindowIconFontSize = 10.0f;
+
 D2D1_SIZE_F ClientRenderSize(HWND hwnd)
 {
     const D2D1_SIZE_U size = ui_host_input::ClientPixelSize(hwnd);
@@ -86,16 +89,6 @@ PopupHost& UiWindowHost::Popup()
 IDWriteFactory* UiWindowHost::DWriteFactory() const
 {
     return dwrite_factory_.get();
-}
-
-IDWriteTextFormat* UiWindowHost::BodyTextFormat() const
-{
-    return body_text_format_.get();
-}
-
-IDWriteTextFormat* UiWindowHost::IconTextFormat() const
-{
-    return icon_text_format_.get();
 }
 
 win32::WindowMessageResult UiWindowHost::OnWindowMessage(
@@ -197,7 +190,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
         DispatchInputEvent(UiInputEvent::Pointer(pointer, window_.Hwnd()));
-        SyncCaretTimer();
         PositionIme();
         return win32::WindowMessageResult::Handled();
     }
@@ -221,7 +213,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         };
         UiEventResult result = DispatchInputEvent(UiInputEvent::Key(key, window_.Hwnd()));
-        SyncCaretTimer();
         PositionIme();
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
@@ -275,20 +266,8 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
             .popup_host = options_.enable_popup ? &popup_ : nullptr,
         }) : UiEventResult{};
         HandleUiResult(result);
-        SyncCaretTimer();
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
-    case WM_TIMER:
-        if (wparam == options_.caret_timer_id) {
-            UiEventResult result = root_ != nullptr ? root_->OnInputEvent(UiInputEvent{
-                .type = UiEventType::Timer,
-                .timer_id = static_cast<UINT_PTR>(wparam),
-                .hwnd = window_.Hwnd(),
-            }) : UiEventResult{};
-            HandleUiResult(result);
-            return win32::WindowMessageResult::Handled();
-        }
-        break;
     case WM_ACTIVATE:
         if (LOWORD(wparam) == WA_INACTIVE) {
             if (options_.enable_popup) {
@@ -313,7 +292,6 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         window_.Destroy();
         return win32::WindowMessageResult::Handled();
     case WM_DESTROY:
-        KillTimer(window_.Hwnd(), options_.caret_timer_id);
         if (options_.enable_popup) {
             ClosePopupIfOpen(&popup_);
         }
@@ -338,7 +316,7 @@ HRESULT UiWindowHost::InitializeRenderResources()
         DWRITE_FONT_WEIGHT_SEMI_BOLD,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        options_.body_font_size,
+        kUiWindowBodyFontSize,
         L"",
         body_text_format_.put()));
     RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
@@ -347,7 +325,7 @@ HRESULT UiWindowHost::InitializeRenderResources()
         DWRITE_FONT_WEIGHT_NORMAL,
         DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_STRETCH_NORMAL,
-        options_.icon_font_size,
+        kUiWindowIconFontSize,
         L"",
         icon_text_format_.put()));
     RETURN_IF_FAILED(body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
@@ -477,11 +455,6 @@ UiEventResult UiWindowHost::DispatchInputEvent(const UiInputEvent& event)
 UiModifiers UiWindowHost::CurrentModifiers() const
 {
     return UiModifiers::Current();
-}
-
-void UiWindowHost::SyncCaretTimer()
-{
-    KillTimer(window_.Hwnd(), options_.caret_timer_id);
 }
 
 void UiWindowHost::PositionIme()

@@ -39,6 +39,8 @@ JSValue HostInvalidate(JSContext* context, JSValueConst this_value, int argc, JS
 JSValue HostReload(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 JSValue HostClose(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 JSValue HostLog(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
+JSValue CreateSystemPreferencesObject(JSContext* context);
+JSValue CreateHostObject(JSContext* context);
 
 JSValue CreateCanvasObject(JSContext* context);
 JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context);
