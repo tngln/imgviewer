@@ -7,7 +7,6 @@
 #include <dwrite.h>
 #include <dxgi1_2.h>
 
-#include <functional>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -15,7 +14,6 @@
 
 #include "ui.events.hpp"
 #include "ui.graphics_device.hpp"
-#include "ui.menu.hpp"
 #include "imgviewer.script_engine.hpp"
 #include "imgviewer.script_ui.hpp"
 
@@ -23,10 +21,15 @@ namespace imgviewer {
 class ScriptEngine;
 }
 
-struct PopupDropdownOption final {
-    std::wstring text;
-    UiAction action = kUiActionNone;
+class PopupContent {
+public:
+    virtual ~PopupContent() = default;
+    virtual JSValue CreateState(JSContext* context) const = 0;
+    virtual void ApplyResult(JSContext* context, JSValueConst result, UiEventResult* event_result) = 0;
+    virtual void OnClose() {}
 };
+
+std::unique_ptr<PopupContent> MakeJsonPopupContent(std::string state_json);
 
 class PopupHost final : public imgviewer::ScriptUiHost {
 public:
@@ -35,14 +38,7 @@ public:
 
     bool IsOpen() const;
     void Close();
-    HRESULT OpenMenu(D2D1_POINT_2F origin, std::vector<MenuItem> items);
-    HRESULT OpenDropdown(
-        D2D1_POINT_2F origin,
-        float width,
-        std::vector<PopupDropdownOption> options,
-        size_t selected_index,
-        std::function<void(size_t)> selection_changed,
-        std::function<void()> closed);
+    HRESULT OpenPopup(D2D1_POINT_2F origin, std::unique_ptr<PopupContent> content);
     UiEventResult OnInputEvent(const UiInputEvent& event);
     UiEventResult OnPointerEvent(const UiPointerEvent& event);
     UiEventResult OnKeyEvent(const UiKeyEvent& event);
@@ -52,12 +48,6 @@ public:
     void RequestClose() override;
 
 private:
-    enum class ContentKind {
-        None,
-        Menu,
-        Dropdown,
-    };
-
     friend LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
     HRESULT LoadScript();
@@ -65,11 +55,8 @@ private:
     D2D1_SIZE_F QueryScriptContentSize();
     void RenderScriptContent(const UiDrawContext& context);
     UiEventResult DispatchScriptInput(const UiInputEvent& event);
-    void ApplyScriptResultSideEffects(UiEventResult* result, int selected_index);
     JSValue AppObject() const;
     JSValue CreateStateObject() const;
-    JSValue CreateMenuItemsArray(JSContext* context, const std::vector<MenuItem>& items) const;
-    JSValue CreateDropdownOptionsArray(JSContext* context) const;
     HRESULT OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size);
     HRESULT ResizeNativePopupToContent(bool* resized);
     HRESULT EnsureDCompResources();
@@ -84,13 +71,7 @@ private:
     UINT action_message_ = 0;
     HWND popup_hwnd_ = nullptr;
     bool native_open_ = false;
-    ContentKind content_kind_ = ContentKind::None;
-    std::vector<MenuItem> menu_items_;
-    std::vector<PopupDropdownOption> dropdown_options_;
-    size_t dropdown_selected_index_ = 0;
-    std::function<void(size_t)> dropdown_selection_changed_;
-    std::function<void()> dropdown_closed_;
-    float dropdown_width_ = 1.0f;
+    std::unique_ptr<PopupContent> content_;
     GraphicsDevice* graphics_ = nullptr;
     imgviewer::ScriptEngine* script_engine_ = nullptr;
     std::unique_ptr<imgviewer::ScriptContext> script_context_;

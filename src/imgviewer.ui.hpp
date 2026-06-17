@@ -32,7 +32,6 @@ public:
     UiEventResult OnInputEvent(const UiInputEvent& event) override;
     UiEventResult OnPointerEvent(const UiPointerEvent& event) override;
     UiEventResult OnKeyEvent(const UiKeyEvent& event) override;
-    bool HandleUiAction(UiAction action, PopupHost* popup_host) override;
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const override;
 
     void SetTitleText(const wchar_t* title);
@@ -41,6 +40,7 @@ public:
     void SetWindowState(bool top_most, bool maximized);
     void SetColorPickerActive(bool active);
     void SetToolbarScalePercent(int percent);
+    void SetEdgeClickNavigationState(bool enabled, int zone_percent);
     void SetActionEnabled(UiAction action, bool enabled);
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
     void SetAnimationState(ImgViewerAnimationState state);
@@ -79,8 +79,10 @@ private:
     ImgViewerUiSelectionToolstripState selection_toolstrip_state_;
     ImgViewerAction pending_action_ = ImgViewerAction::None;
     int toolbar_scale_percent_ = 125;
+    int edge_click_navigation_zone_percent_ = 10;
     bool top_most_ = false;
     bool maximized_ = false;
+    bool edge_click_navigation_ = false;
     bool color_picker_active_ = false;
     bool toast_visible_ = false;
 };

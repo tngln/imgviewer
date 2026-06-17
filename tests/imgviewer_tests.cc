@@ -186,7 +186,6 @@ void TestPointerRouter()
 
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::Ui) == ImgViewerPointerTarget::Ui);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::ColorPicker) == ImgViewerPointerTarget::ColorPicker);
-    CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::EdgeClickNavigation) == ImgViewerPointerTarget::EdgeClickNavigation);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::EditCrop) == ImgViewerPointerTarget::EditTool);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::ViewerPan) == ImgViewerPointerTarget::Viewer);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::None) == ImgViewerPointerTarget::None);

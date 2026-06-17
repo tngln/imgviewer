@@ -55,7 +55,6 @@
     X(ShowInFileExplorer, "showInFileExplorer", ImgViewerStringId::ShowInFileExplorer, true, true) \
     X(CopyColorPickerValue, "copyColorPickerValue", ImgViewerStringId::CopyColorPickerValue, false, false) \
     X(ToggleInfoPanel, "toggleInfoPanel", ImgViewerStringId::ToggleInfoPanel, true, false) \
-    X(OpenMenu, "openMenu", ImgViewerStringId::Menu, false, false) \
     X(OpenSettings, "openSettings", ImgViewerStringId::Settings, false, false) \
     X(CloseSettings, "closeSettings", ImgViewerStringId::CloseSettings, false, false) \
     X(SaveSettings, "saveSettings", ImgViewerStringId::SaveSettings, false, false) \

@@ -106,6 +106,9 @@ HRESULT ResetImgViewerUi(HWND hwnd, ImgViewerContext* context)
     context->info_panel_key_valid = false;
     context->main_ui->SetTitleText(title_text.empty() ? kImgViewerWindowTitle : title_text.c_str());
     context->main_ui->SetToolbarScalePercent(context->current_toolbar_scale_percent);
+    context->main_ui->SetEdgeClickNavigationState(
+        context->config.edge_click_navigation,
+        context->config.edge_click_navigation_zone_percent);
     SyncActionStates(context);
     if (hwnd != nullptr) {
         SyncWindowState(hwnd, context);
@@ -342,8 +345,6 @@ void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context)
 
     context->edit.CancelTransientTool();
     context->viewer.CancelTransientViewGesture();
-    context->pending_edge_click_action = ImgViewerAction::None;
-    context->pending_edge_click_point = {};
     context->interaction.ResetTransientInput();
     if (hwnd != nullptr && GetCapture() == hwnd) {
         ReleaseCapture();
@@ -709,7 +710,6 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
 
     switch (verb) {
     case ImgViewerAction::OpenImage:
-    case ImgViewerAction::OpenMenu:
         break;
     case ImgViewerAction::CaptureRegion:
         HandleImgViewerCaptureRegion(hwnd, context);

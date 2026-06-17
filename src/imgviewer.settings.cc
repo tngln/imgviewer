@@ -15,6 +15,7 @@
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.messages.hpp"
 #include "imgviewer.strings.hpp"
+#include "imgviewer.ui.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.window.hpp"
 #include "imgviewer.script_engine.hpp"
@@ -404,6 +405,9 @@ void SaveSettings(HWND hwnd, SettingsWindowContext* context)
         context->app->current_window_opacity_percent = context->app->config.window_opacity_percent;
         ApplyWindowOpacity(context->owner, context->app->current_window_opacity_percent);
         SetImgViewerToolbarScale(context->owner, context->app, context->app->config.toolbar_scale_percent);
+        context->app->main_ui->SetEdgeClickNavigationState(
+            context->app->config.edge_click_navigation,
+            context->app->config.edge_click_navigation_zone_percent);
         context->app->viewer.SetPixelatedSampling(context->app->config.pixelated_sampling);
         context->app->renderer.SetCheckerboardBackground(context->app->config.checkerboard_background);
         SaveImgViewerConfig(context->app->config);

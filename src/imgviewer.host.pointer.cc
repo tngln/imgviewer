@@ -39,10 +39,6 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
                 }
             }
 
-            if (CancelPendingEdgeClickIfDragged(hwnd, context, point)) {
-                return win32::WindowMessageResult::Handled();
-            }
-
             ImgViewerEventResult canvas_result = {};
             switch (ActivePointerTarget(context->interaction, context->edit.Active())) {
             case ImgViewerPointerTarget::ColorPicker:
@@ -84,16 +80,8 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
             : UiEventResult{};
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr && !ui_result.handled) {
-            const ImgViewerAction edge_click_action = EdgeClickActionAtPoint(context, point);
             const ImgViewerPointerTarget canvas_target = CanvasPointerTarget(context->interaction, context->edit.Active());
-            if (edge_click_action != ImgViewerAction::None) {
-                context->pending_edge_click_action = edge_click_action;
-                context->pending_edge_click_point = point;
-                ImgViewerHostEffects capture_effects;
-                capture_effects.begin_pointer_capture = ImgViewerPointerCaptureOwner::EdgeClickNavigation;
-                ApplyHostEffects(hwnd, context, capture_effects);
-                ui_result.handled = true;
-            } else if (canvas_target == ImgViewerPointerTarget::ColorPicker &&
+            if (canvas_target == ImgViewerPointerTarget::ColorPicker &&
                 UpdateImgViewerColorPickerSample(context, point)) {
                 ImgViewerHostEffects capture_effects;
                 capture_effects.begin_pointer_capture = ImgViewerPointerCaptureOwner::ColorPicker;
@@ -148,9 +136,7 @@ win32::WindowMessageResult HandleImgViewerPointerMessage(HWND hwnd, UINT message
         ImgViewerEventResult viewer_result = {};
         if (context != nullptr) {
             const ImgViewerPointerTarget captured_target = CapturedPointerTarget(context->interaction.PointerCapture());
-            if (CommitPendingEdgeClick(hwnd, context, point)) {
-                viewer_result = ImgViewerEventResult{.handled = true};
-            } else if (captured_target == ImgViewerPointerTarget::ColorPicker) {
+            if (captured_target == ImgViewerPointerTarget::ColorPicker) {
                 ImgViewerHostEffects capture_effects;
                 capture_effects.end_pointer_capture = ImgViewerPointerCaptureOwner::ColorPicker;
                 ApplyHostEffects(hwnd, context, capture_effects);

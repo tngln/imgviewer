@@ -136,7 +136,7 @@ type MainActionName = string;
 
 interface OverlayHostApi {
   action(name: MainActionName, actionArg?: number): MainEventResult | false;
-  openMenu(): MainEventResult;
+  popup(x: number, y: number, state: PopupState): MainEventResult;
   invalidate(): void;
 }
 
@@ -157,7 +157,10 @@ interface MainOverlayState {
   maximized: boolean;
   editMode: boolean;
   toolbarScalePercent: number;
+  edgeClickNavigation: boolean;
+  edgeClickNavigationZonePercent: number;
   colorPickerActive: boolean;
+  developerEnabled: boolean;
   actionEnabled: Record<MainActionName, boolean>;
   actionLabels: Record<MainActionName, string>;
   editToolbar: { visible: boolean; tool: string; dirty: boolean; canUndo: boolean; canRedo: boolean };
@@ -192,7 +195,11 @@ interface MainOverlayState {
 
 type MainPointerEvent = DeveloperPointerEvent;
 type MainKeyEvent = DeveloperKeyEvent;
-type MainEventResult = InputEventResult & { action?: MainActionName; actionArg?: number };
+type MainEventResult = InputEventResult & {
+  action?: MainActionName;
+  actionArg?: number;
+  popup?: { x: number; y: number; state: PopupState };
+};
 
 interface MainUiApp {
   render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void;

@@ -24,7 +24,6 @@ enum class ImgViewerPointerCaptureOwner {
     Ui,
     ViewerPan,
     ViewerRotate,
-    EdgeClickNavigation,
     EditStroke,
     EditCrop,
     EditPixelSelection,

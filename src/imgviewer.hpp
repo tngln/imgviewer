@@ -66,8 +66,6 @@ struct ImgViewerContext final {
     bool current_image_from_screenshot = false;
     bool info_panel_visible = false;
     bool interactive_size_move_active = false;
-    ImgViewerAction pending_edge_click_action = ImgViewerAction::None;
-    D2D1_POINT_2F pending_edge_click_point = {};
     DWORD animation_last_tick_ms = 0;
     int last_window_size_toast_width = 0;
     int last_window_size_toast_height = 0;

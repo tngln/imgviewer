@@ -27,9 +27,6 @@ ImgViewerPointerTarget CapturedPointerTarget(ImgViewerPointerCaptureOwner owner)
     if (owner == ImgViewerPointerCaptureOwner::ColorPicker) {
         return ImgViewerPointerTarget::ColorPicker;
     }
-    if (owner == ImgViewerPointerCaptureOwner::EdgeClickNavigation) {
-        return ImgViewerPointerTarget::EdgeClickNavigation;
-    }
     if (IsEditPointerCapture(owner)) {
         return ImgViewerPointerTarget::EditTool;
     }

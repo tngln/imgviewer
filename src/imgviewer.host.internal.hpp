@@ -8,7 +8,7 @@
 
 #include <windows.h>
 
-#include <string>
+#include <optional>
 
 ImgViewerContext* GetImgViewerContext(HWND hwnd);
 
@@ -24,6 +24,7 @@ struct ImgViewerHostEffects final {
     ImgViewerPointerCaptureOwner begin_pointer_capture = ImgViewerPointerCaptureOwner::None;
     ImgViewerPointerCaptureOwner end_pointer_capture = ImgViewerPointerCaptureOwner::None;
     UiAction action = kUiActionNone;
+    std::optional<UiPopupRequest> popup;
     bool sync_popup_modal = false;
     bool sync_ime = false;
 
@@ -36,6 +37,7 @@ struct ImgViewerHostEffects final {
             begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             end_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             action != kUiActionNone ||
+            popup.has_value() ||
             sync_popup_modal ||
             sync_ime;
     }
@@ -56,9 +58,6 @@ ImgViewerAction ActionForKeyboardMessage(const ImgViewerContext* context, WPARAM
 size_t KeyActionIndex(WPARAM wparam);
 void PositionMainWindowIme(HWND hwnd, ImgViewerContext* context);
 ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditController& edit);
-bool CancelPendingEdgeClickIfDragged(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point);
-bool CommitPendingEdgeClick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point);
-ImgViewerAction EdgeClickActionAtPoint(const ImgViewerContext* context, D2D1_POINT_2F point, bool require_no_capture = true);
 void ShowWindowSizeToast(HWND hwnd, ImgViewerContext* context);
 
 win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);

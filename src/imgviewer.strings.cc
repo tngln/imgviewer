@@ -53,7 +53,6 @@ struct LocalizedString final {
     X(PreviousAnimationFrame, L"Previous Animation Frame") \
     X(NextAnimationFrame, L"Next Animation Frame") \
     X(Menu, L"Menu") \
-    X(OpenMenu, L"Menu") \
     X(Settings, L"Settings") \
     X(CloseSettings, L"Close Settings") \
     X(SaveSettings, L"Save Settings") \
@@ -72,7 +71,6 @@ struct LocalizedString final {
     X(Minimize, L"Minimize") \
     X(MaximizeOrRestore, L"Maximize or Restore") \
     X(Close, L"Close") \
-    X(OpenMenuTooltip, L"Open menu") \
     X(KeepWindowOnTop, L"Keep window on top") \
     X(PreviousImageTooltip, L"Previous image") \
     X(NextImageTooltip, L"Next image") \

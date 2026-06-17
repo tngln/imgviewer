@@ -10,7 +10,6 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.viewer.hpp"
-#include "math.hpp"
 #include "ui.host_effects.hpp"
 #include "ui.host_ime.hpp"
 #include "ui.host_popup.hpp"
@@ -20,19 +19,14 @@
 #include <windows.h>
 #include <windowsx.h>
 
-#include <algorithm>
 #include <commctrl.h>
 #include <cwchar>
-#include <cmath>
 #include <shellapi.h>
-#include <string>
-#include <vector>
+#include <utility>
 
 #include <wil/com.h>
 #include <wil/resource.h>
 #include <wil/result_macros.h>
-
-constexpr float kEdgeClickDragCancelDistance = 6.0f;
 
 bool IsDeveloperCommandLineArgument(const wchar_t* arg)
 {
@@ -118,12 +112,6 @@ ImgViewerHostEffects DispatchUiAction(HWND hwnd, ImgViewerContext* context, UiAc
         return effects;
     }
 
-    if (context->ui != nullptr && context->ui->HandleUiAction(action, &context->popup)) {
-        effects.sync_popup_modal = true;
-        effects.sync_ime = true;
-        return effects;
-    }
-
     if (static_cast<ImgViewerAction>(action.value) == ImgViewerAction::OpenImage) {
         HandleImgViewerOpenImageCommand(hwnd, context);
         return effects;
@@ -143,6 +131,9 @@ void ImgViewerHostEffects::Merge(UiEventResult result, bool request_popup_modal_
     }
     if (result.action != kUiActionNone) {
         action = result.action;
+    }
+    if (result.popup.has_value()) {
+        popup = std::move(result.popup);
     }
     sync_popup_modal = sync_popup_modal || request_popup_modal_sync;
     sync_ime = true;
@@ -167,6 +158,13 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
     } else if (effects.capture == UiCaptureRequest::Release) {
         context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::Ui);
         ApplyUiCaptureRequest(hwnd, effects.capture);
+    }
+
+    if (effects.popup.has_value()) {
+        const UiPopupRequest& popup = effects.popup.value();
+        if (SUCCEEDED(context->popup.OpenPopup(popup.origin, MakeJsonPopupContent(popup.state_json)))) {
+            effects.sync_popup_modal = true;
+        }
     }
 
     if (effects.begin_pointer_capture != ImgViewerPointerCaptureOwner::None) {
@@ -295,78 +293,6 @@ ImgViewerPointerCaptureOwner EditPointerCaptureOwner(const ImgViewerEditControll
         return ImgViewerPointerCaptureOwner::EditPixelSelection;
     }
     return ImgViewerPointerCaptureOwner::EditStroke;
-}
-
-void ClearPendingEdgeClick(HWND hwnd, ImgViewerContext* context)
-{
-    if (context == nullptr) {
-        return;
-    }
-
-    context->pending_edge_click_action = ImgViewerAction::None;
-    context->pending_edge_click_point = {};
-    context->interaction.EndPointerCapture(ImgViewerPointerCaptureOwner::EdgeClickNavigation);
-    if (hwnd != nullptr && GetCapture() == hwnd) {
-        ReleaseCapture();
-    }
-}
-
-ImgViewerAction EdgeClickActionAtPoint(const ImgViewerContext* context, D2D1_POINT_2F point, bool require_no_capture)
-{
-    if (context == nullptr ||
-        !context->config.edge_click_navigation ||
-        context->interaction.HasModal() ||
-        (require_no_capture && context->interaction.HasPointerCapture()) ||
-        context->interaction.CanvasOwner() != ImgViewerCanvasOwner::Viewer) {
-        return ImgViewerAction::None;
-    }
-
-    const D2D1_SIZE_U viewport_size = context->renderer.ViewportPixelSize();
-    if (viewport_size.width == 0 || viewport_size.height == 0) {
-        return ImgViewerAction::None;
-    }
-
-    const int zone_percent = ClampEdgeClickNavigationZonePercent(context->config.edge_click_navigation_zone_percent);
-    const float zone_width = (std::max)(1.0f, static_cast<float>(viewport_size.width) * static_cast<float>(zone_percent) / 100.0f);
-    if (point.x >= 0.0f && point.x < zone_width) {
-        return ImgViewerAction::PreviousImage;
-    }
-    if (point.x >= static_cast<float>(viewport_size.width) - zone_width &&
-        point.x < static_cast<float>(viewport_size.width)) {
-        return ImgViewerAction::NextImage;
-    }
-
-    return ImgViewerAction::None;
-}
-
-bool CancelPendingEdgeClickIfDragged(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point)
-{
-    if (context == nullptr ||
-        context->interaction.PointerCapture() != ImgViewerPointerCaptureOwner::EdgeClickNavigation) {
-        return false;
-    }
-
-    if (math::DistanceSquared(context->pending_edge_click_point, point) >
-        kEdgeClickDragCancelDistance * kEdgeClickDragCancelDistance) {
-        ClearPendingEdgeClick(hwnd, context);
-    }
-    return true;
-}
-
-bool CommitPendingEdgeClick(HWND hwnd, ImgViewerContext* context, D2D1_POINT_2F point)
-{
-    if (context == nullptr ||
-        context->interaction.PointerCapture() != ImgViewerPointerCaptureOwner::EdgeClickNavigation) {
-        return false;
-    }
-
-    const ImgViewerAction action = context->pending_edge_click_action;
-    const bool still_in_same_zone = action != ImgViewerAction::None && EdgeClickActionAtPoint(context, point, false) == action;
-    ClearPendingEdgeClick(hwnd, context);
-    if (still_in_same_zone) {
-        ExecuteImgViewerAction(hwnd, context, UiAction(action));
-    }
-    return true;
 }
 
 void ShowWindowSizeToast(HWND hwnd, ImgViewerContext* context)

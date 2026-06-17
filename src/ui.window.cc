@@ -421,6 +421,12 @@ void UiWindowHost::HandleUiResult(UiEventResult result)
     ApplyUiCaptureRequest(window_.Hwnd(), result.capture);
     // Full-repaint doctrine: any dispatched event repaints the layer (refactor.md 3.4).
     RequestWindowRender(window_.Hwnd());
+    if (result.popup.has_value() && options_.enable_popup) {
+        const UiPopupRequest& popup = result.popup.value();
+        if (SUCCEEDED(popup_.OpenPopup(popup.origin, MakeJsonPopupContent(popup.state_json)))) {
+            result.value_changed = true;
+        }
+    }
     if (result.value_changed) {
         delegate_->OnUiValueChanged(*this, result);
     }

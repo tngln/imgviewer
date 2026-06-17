@@ -5,6 +5,8 @@ import { svgIcon } from "./vector_icon";
 
 type Hit = Rect & { id: string; action?: string; actionArg?: number; enabled?: boolean; kind?: string };
 
+const edgeClickDragCancelDistance = 6;
+
 const colors = {
   title: "#EFFFFFFF",
   panel: "#F4FFFFFF",
@@ -114,6 +116,7 @@ let lastEnv: RenderEnvironment | undefined;
 let hits: Hit[] = [];
 let hoverId = "";
 let pressedId = "";
+let edgePress: { id: string; action: string; x: number; y: number } | undefined;
 let toolbar = { x: 0, y: 0, ready: false, dragging: false, dx: 0, dy: 0 };
 let infoScroll = 0;
 
@@ -123,6 +126,76 @@ function actionLabel(state: MainOverlayState, action: string): string {
 
 function enabled(state: MainOverlayState, action: string): boolean {
   return state.actionEnabled[action] !== false;
+}
+
+function menuItem(state: MainOverlayState, action: string, checked = false, text?: string, forceEnabled?: boolean): PopupMenuItem {
+  return {
+    text: text || actionLabel(state, action),
+    action,
+    separator: false,
+    checked,
+    enabled: forceEnabled !== undefined ? forceEnabled : enabled(state, action),
+    children: [],
+  };
+}
+
+function menuSeparator(): PopupMenuItem {
+  return { text: "", separator: true, checked: false, enabled: false, children: [] };
+}
+
+function menuParent(text: string, checked: boolean, enabled: boolean, children: PopupMenuItem[]): PopupMenuItem {
+  return { text, separator: false, checked, enabled, children };
+}
+
+function mainMenuState(state: MainOverlayState): PopupState {
+  const editEnabled = state.editToolbar.visible;
+  const items: PopupMenuItem[] = [
+    menuItem(state, "openImage"),
+    menuItem(state, "captureRegion"),
+    menuItem(state, "saveImageAs"),
+    menuItem(state, "showInFileExplorer"),
+    menuSeparator(),
+    menuItem(state, "openSettings"),
+  ];
+  if (state.developerEnabled) {
+    items.push(menuItem(state, "openDeveloper"));
+  }
+  items.push(
+    menuItem(state, "openAbout"),
+    menuSeparator(),
+    menuItem(state, "toggleInfoPanel", state.infoPanel.visible),
+    menuItem(state, "toggleAnimationLoop", state.animation.loop),
+    menuItem(state, "toggleAnimationPlayback", false, state.animation.playing ? "Pause Animation" : "Play Animation"),
+    menuItem(state, "previousAnimationFrame"),
+    menuItem(state, "nextAnimationFrame"),
+    menuSeparator(),
+    menuItem(state, "zoomIn"),
+    menuItem(state, "zoomOut"),
+    menuItem(state, "fitWindow"),
+    menuItem(state, "actualSize"),
+    menuItem(state, "resetView"),
+    menuItem(state, "toggleColorPicker", state.colorPickerActive),
+    menuSeparator(),
+    menuParent(actionLabel(state, "toggleEditMode"), state.editToolbar.visible, enabled(state, "toggleEditMode"), [
+      menuItem(state, "toggleEditMode", state.editToolbar.visible),
+      menuSeparator(),
+      menuParent("Tool", false, editEnabled, [
+        menuItem(state, "editSelect", state.editToolbar.tool === "select", undefined, editEnabled && enabled(state, "editSelect")),
+        menuItem(state, "editPixelSelect", state.editToolbar.tool === "pixelSelect", undefined, editEnabled && enabled(state, "editPixelSelect")),
+        menuItem(state, "editPen", state.editToolbar.tool === "pen", undefined, editEnabled && enabled(state, "editPen")),
+        menuItem(state, "editShape", state.editToolbar.tool === "shape", undefined, editEnabled && enabled(state, "editShape")),
+        menuItem(state, "editText", state.editToolbar.tool === "text", undefined, editEnabled && enabled(state, "editText")),
+        menuItem(state, "editCrop", state.editToolbar.tool === "crop", undefined, editEnabled && enabled(state, "editCrop")),
+      ]),
+    ]),
+    menuSeparator(),
+    menuItem(state, "rotateClockwise"),
+    menuItem(state, "flipHorizontal"),
+    menuItem(state, "flipVertical"),
+    menuSeparator(),
+    menuItem(state, "close"),
+  );
+  return { kind: "menu", items };
 }
 
 function addHit(hit: Hit): void {
@@ -155,6 +228,19 @@ function button(canvas: CanvasApi, hit: Hit, label: string, active = false, icon
     },
     icon,
   );
+}
+
+function renderEdgeClickHits(env: RenderEnvironment, state: MainOverlayState): void {
+  if (!state.edgeClickNavigation) return;
+
+  const zonePercent = clamp(state.edgeClickNavigationZonePercent || 10, 5, 40);
+  const zoneWidth = Math.max(1, (env.width * zonePercent) / 100);
+  if (enabled(state, "previousImage")) {
+    addHit({ id: "edge:previousImage", x: 0, y: 0, width: zoneWidth, height: env.height, kind: "edge", action: "previousImage", enabled: true });
+  }
+  if (enabled(state, "nextImage")) {
+    addHit({ id: "edge:nextImage", x: env.width - zoneWidth, y: 0, width: zoneWidth, height: env.height, kind: "edge", action: "nextImage", enabled: true });
+  }
 }
 
 function packFloat(value: number): number {
@@ -443,6 +529,7 @@ function render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlaySta
   lastState = state;
   lastEnv = env;
   hits = [];
+  renderEdgeClickHits(env, state);
   renderTitlebar(canvas, env, state);
   const mainToolbar = renderToolbar(canvas, env, state);
   const editAnchor = renderEditToolbar(canvas, state, mainToolbar);
@@ -461,16 +548,28 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
       toolbar.y = event.y - toolbar.dy;
       return { handled: true, invalidate: true };
     }
-    const nextHover = hit?.id || "";
+    if (edgePress) {
+      const cancelDistance = edgeClickDragCancelDistance / Math.max(1, lastEnv.dpiScale || 1);
+      const dx = event.x - edgePress.x;
+      const dy = event.y - edgePress.y;
+      if (dx * dx + dy * dy > cancelDistance * cancelDistance) {
+        edgePress = undefined;
+        return { handled: true, capture: false };
+      }
+      return { handled: true };
+    }
+    const hoverHit = hit?.kind === "edge" ? undefined : hit;
+    const nextHover = hoverHit?.id || "";
     if (nextHover !== hoverId) {
       hoverId = nextHover;
       return { handled: false, invalidate: true };
     }
-    return hit ? { handled: hit.kind !== "panel" } : undefined;
+    return hoverHit ? { handled: hoverHit.kind !== "panel" } : undefined;
   }
   if (event.type === "leave") {
     hoverId = "";
     pressedId = "";
+    edgePress = undefined;
     toolbar.dragging = false;
     return { handled: false, capture: false, invalidate: true };
   }
@@ -479,6 +578,11 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
     return { handled: true, invalidate: true };
   }
   if (event.type === "down" && event.button === "left" && hit) {
+    if (hit.kind === "edge" && hit.action && hit.enabled !== false) {
+      edgePress = { id: hit.id, action: hit.action, x: event.x, y: event.y };
+      pressedId = "";
+      return { handled: true, capture: true };
+    }
     pressedId = hit.id;
     if (hit.kind === "drag") {
       toolbar.dragging = true;
@@ -489,6 +593,15 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
     return { handled: true, invalidate: true };
   }
   if (event.type === "up" && event.button === "left") {
+    if (edgePress) {
+      const pressed = edgePress;
+      edgePress = undefined;
+      if (hit && hit.id === pressed.id && hit.action === pressed.action && hit.enabled !== false) {
+        const result = overlay.action(pressed.action);
+        return result ? { ...result, handled: true, capture: false } : { handled: true, capture: false };
+      }
+      return { handled: true, capture: false };
+    }
     const pressed = pressedId;
     pressedId = "";
     if (toolbar.dragging) {
@@ -496,7 +609,7 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
       return { handled: true, capture: false, invalidate: true };
     }
     if (hit && pressed === hit.id && hit.enabled !== false) {
-      if (hit.action === "openMenu") return overlay.openMenu();
+      if (hit.action === "openMenu" && lastState) return overlay.popup(3, 42, mainMenuState(lastState));
       if (hit.action) return overlay.action(hit.action, hit.actionArg) || { handled: true };
     }
     return pressed ? { handled: true, invalidate: true } : undefined;

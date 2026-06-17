@@ -106,6 +106,11 @@ enum class UiCaptureRequest {
     Release,
 };
 
+struct UiPopupRequest final {
+    D2D1_POINT_2F origin = {};
+    std::string state_json;
+};
+
 struct UiEventResult final {
     bool handled = false;
     UiCaptureRequest capture = UiCaptureRequest::None;
@@ -114,4 +119,5 @@ struct UiEventResult final {
     std::optional<D2D1_POINT_2F> ime_caret_point;
     bool value_changed = false;
     bool close_popup = false;
+    std::optional<UiPopupRequest> popup;
 };

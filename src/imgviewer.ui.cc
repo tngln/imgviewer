@@ -14,14 +14,12 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
-#include "ui.popup.hpp"
 #include "imgviewer.script_engine.hpp"
 #include "imgviewer.script_ui.hpp"
 
 namespace {
 
 constexpr char kMainScriptRelativePath[] = "scripts/main_ui.js";
-constexpr D2D1_POINT_2F kMainMenuOrigin{3.0f, 42.0f};
 constexpr float kTitleBarHeight = 42.0f;
 
 ImgViewerUi* ScriptUi(JSContext* context)
@@ -125,32 +123,6 @@ JSValue ColorSample(JSContext* context, ImageColorSample sample)
     return value;
 }
 
-std::optional<bool> OptionalBoolProperty(JSContext* context, JSValueConst object, const char* name)
-{
-    if (!JS_IsObject(object)) {
-        return std::nullopt;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return std::nullopt;
-    }
-    const bool result = JS_ToBool(context, value) != 0;
-    JS_FreeValue(context, value);
-    return result;
-}
-
-bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
-    JS_FreeValue(context, value);
-    return result;
-}
-
 ImgViewerAction ActionProperty(JSContext* context, JSValueConst object)
 {
     if (!JS_IsObject(object)) {
@@ -178,6 +150,65 @@ int32_t Int32Property(JSContext* context, JSValueConst object, const char* name,
     return result;
 }
 
+float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    if (JS_IsUndefined(value)) {
+        JS_FreeValue(context, value);
+        return fallback;
+    }
+    double result = fallback;
+    JS_ToFloat64(context, &result, value);
+    JS_FreeValue(context, value);
+    return static_cast<float>(result);
+}
+
+std::optional<std::string> JsonStringify(JSContext* context, JSValueConst value)
+{
+    JSValue json = JS_JSONStringify(context, value, JS_UNDEFINED, JS_UNDEFINED);
+    if (JS_IsException(json)) {
+        JS_FreeValue(context, json);
+        return std::nullopt;
+    }
+    std::string text = imgviewer::Utf8FromValue(context, json);
+    JS_FreeValue(context, json);
+    return text;
+}
+
+std::optional<UiPopupRequest> PopupRequestProperty(JSContext* context, JSValueConst object, bool* failed)
+{
+    if (!JS_IsObject(object)) {
+        return std::nullopt;
+    }
+
+    JSValue popup = JS_GetPropertyStr(context, object, "popup");
+    if (JS_IsUndefined(popup) || JS_IsNull(popup)) {
+        JS_FreeValue(context, popup);
+        return std::nullopt;
+    }
+
+    JSValue state = JS_GetPropertyStr(context, popup, "state");
+    std::optional<std::string> state_json = JsonStringify(context, state);
+    JS_FreeValue(context, state);
+    if (!state_json.has_value()) {
+        JS_FreeValue(context, popup);
+        if (failed != nullptr) {
+            *failed = true;
+        }
+        return std::nullopt;
+    }
+
+    UiPopupRequest request{
+        .origin = D2D1::Point2F(FloatProperty(context, popup, "x", 0.0f), FloatProperty(context, popup, "y", 0.0f)),
+        .state_json = std::move(state_json.value()),
+    };
+    JS_FreeValue(context, popup);
+    return request;
+}
+
 JSValue OverlayAction(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     if (ScriptUi(context) == nullptr || argc < 1) {
@@ -197,13 +228,24 @@ JSValue OverlayAction(JSContext* context, JSValueConst, int argc, JSValueConst* 
     return result;
 }
 
-JSValue OverlayOpenMenu(JSContext* context, JSValueConst, int, JSValueConst*)
+JSValue OverlayPopup(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
-    if (ImgViewerUi* ui = ScriptUi(context)) {
-        ui->RequestInvalidate();
+    if (ScriptUi(context) == nullptr || argc < 3) {
+        return JS_FALSE;
     }
+
+    double x = 0.0;
+    double y = 0.0;
+    JS_ToFloat64(context, &x, argv[0]);
+    JS_ToFloat64(context, &y, argv[1]);
+
     JSValue result = JS_NewObject(context);
-    SetString(context, result, "action", ImgViewerActionName(ImgViewerAction::OpenMenu));
+    SetBool(context, result, "handled", true);
+    JSValue popup = JS_NewObject(context);
+    SetFloat(context, popup, "x", static_cast<float>(x));
+    SetFloat(context, popup, "y", static_cast<float>(y));
+    JS_SetPropertyStr(context, popup, "state", JS_DupValue(context, argv[2]));
+    JS_SetPropertyStr(context, result, "popup", popup);
     return result;
 }
 
@@ -297,60 +339,6 @@ UiEventResult ImgViewerUi::OnInputEvent(const UiInputEvent& event)
     }
 }
 
-bool ImgViewerUi::HandleUiAction(UiAction action, PopupHost* popup_host)
-{
-    if (ImgViewerActionFromUiAction(action) != ImgViewerAction::OpenMenu || popup_host == nullptr) {
-        return false;
-    }
-
-    const bool edit_enabled = edit_toolbar_state_.visible;
-    std::vector<MenuItem> menu_items{
-        {ImgViewerString(ImgViewerStringId::OpenImage), UiActionFromImgViewerAction(ImgViewerAction::OpenImage), false, false, ActionEnabled(ImgViewerAction::OpenImage)},
-        {ImgViewerString(ImgViewerStringId::CaptureRegion), UiActionFromImgViewerAction(ImgViewerAction::CaptureRegion), false, false, ActionEnabled(ImgViewerAction::CaptureRegion)},
-        {ImgViewerString(ImgViewerStringId::SaveAs), UiActionFromImgViewerAction(ImgViewerAction::SaveImageAs), false, false, ActionEnabled(ImgViewerAction::SaveImageAs)},
-        {ImgViewerString(ImgViewerStringId::ShowInFileExplorer), UiActionFromImgViewerAction(ImgViewerAction::ShowInFileExplorer), false, false, ActionEnabled(ImgViewerAction::ShowInFileExplorer)},
-        {L"", kUiActionNone, true},
-        {ImgViewerString(ImgViewerStringId::Settings), UiActionFromImgViewerAction(ImgViewerAction::OpenSettings), false, false, ActionEnabled(ImgViewerAction::OpenSettings)},
-        {ImgViewerString(ImgViewerStringId::About), UiActionFromImgViewerAction(ImgViewerAction::OpenAbout), false, false, ActionEnabled(ImgViewerAction::OpenAbout)},
-        {L"", kUiActionNone, true},
-        {ImgViewerString(ImgViewerStringId::InfoPanel), UiActionFromImgViewerAction(ImgViewerAction::ToggleInfoPanel), false, info_panel_state_.visible, ActionEnabled(ImgViewerAction::ToggleInfoPanel)},
-        {ImgViewerString(ImgViewerStringId::LoopAnimation), UiActionFromImgViewerAction(ImgViewerAction::ToggleAnimationLoop), false, animation_state_.loop, ActionEnabled(ImgViewerAction::ToggleAnimationLoop)},
-        {ImgViewerString(animation_state_.playing ? ImgViewerStringId::PauseAnimation : ImgViewerStringId::PlayAnimation), UiActionFromImgViewerAction(ImgViewerAction::ToggleAnimationPlayback), false, false, ActionEnabled(ImgViewerAction::ToggleAnimationPlayback)},
-        {ImgViewerString(ImgViewerStringId::PreviousAnimationFrame), UiActionFromImgViewerAction(ImgViewerAction::PreviousAnimationFrame), false, false, ActionEnabled(ImgViewerAction::PreviousAnimationFrame)},
-        {ImgViewerString(ImgViewerStringId::NextAnimationFrame), UiActionFromImgViewerAction(ImgViewerAction::NextAnimationFrame), false, false, ActionEnabled(ImgViewerAction::NextAnimationFrame)},
-        {L"", kUiActionNone, true},
-        {ImgViewerString(ImgViewerStringId::ZoomIn), UiActionFromImgViewerAction(ImgViewerAction::ZoomIn), false, false, ActionEnabled(ImgViewerAction::ZoomIn)},
-        {ImgViewerString(ImgViewerStringId::ZoomOut), UiActionFromImgViewerAction(ImgViewerAction::ZoomOut), false, false, ActionEnabled(ImgViewerAction::ZoomOut)},
-        {ImgViewerString(ImgViewerStringId::FitWindow), UiActionFromImgViewerAction(ImgViewerAction::FitWindow), false, false, ActionEnabled(ImgViewerAction::FitWindow)},
-        {ImgViewerString(ImgViewerStringId::ActualSize), UiActionFromImgViewerAction(ImgViewerAction::ActualSize), false, false, ActionEnabled(ImgViewerAction::ActualSize)},
-        {ImgViewerString(ImgViewerStringId::ResetView), UiActionFromImgViewerAction(ImgViewerAction::ResetView), false, false, ActionEnabled(ImgViewerAction::ResetView)},
-        {ImgViewerString(ImgViewerStringId::ColorPicker), UiActionFromImgViewerAction(ImgViewerAction::ToggleColorPicker), false, color_picker_active_, ActionEnabled(ImgViewerAction::ToggleColorPicker)},
-        {L"", kUiActionNone, true},
-        {ImgViewerString(ImgViewerStringId::EditMode), kUiActionNone, false, edit_toolbar_state_.visible, ActionEnabled(ImgViewerAction::ToggleEditMode),
-            std::vector<MenuItem>{
-                {ImgViewerString(ImgViewerStringId::ToggleEditMode), UiActionFromImgViewerAction(ImgViewerAction::ToggleEditMode), false, edit_toolbar_state_.visible, ActionEnabled(ImgViewerAction::ToggleEditMode)},
-                {L"", kUiActionNone, true},
-                {ImgViewerString(ImgViewerStringId::Tool), kUiActionNone, false, false, edit_enabled,
-                    std::vector<MenuItem>{
-                        {ImgViewerString(ImgViewerStringId::EditSelect), UiActionFromImgViewerAction(ImgViewerAction::EditSelect), false, edit_toolbar_state_.tool == ImgViewerEditTool::Select, edit_enabled && ActionEnabled(ImgViewerAction::EditSelect)},
-                        {ImgViewerString(ImgViewerStringId::PixelSelect), UiActionFromImgViewerAction(ImgViewerAction::EditPixelSelect), false, edit_toolbar_state_.tool == ImgViewerEditTool::PixelSelect, edit_enabled && ActionEnabled(ImgViewerAction::EditPixelSelect)},
-                        {ImgViewerString(ImgViewerStringId::EditPen), UiActionFromImgViewerAction(ImgViewerAction::EditPen), false, edit_toolbar_state_.tool == ImgViewerEditTool::Pen, edit_enabled && ActionEnabled(ImgViewerAction::EditPen)},
-                        {ImgViewerString(ImgViewerStringId::EditShape), UiActionFromImgViewerAction(ImgViewerAction::EditShape), false, edit_toolbar_state_.tool == ImgViewerEditTool::Shape, edit_enabled && ActionEnabled(ImgViewerAction::EditShape)},
-                        {ImgViewerString(ImgViewerStringId::EditText), UiActionFromImgViewerAction(ImgViewerAction::EditText), false, edit_toolbar_state_.tool == ImgViewerEditTool::Text, edit_enabled && ActionEnabled(ImgViewerAction::EditText)},
-                        {ImgViewerString(ImgViewerStringId::EditCrop), UiActionFromImgViewerAction(ImgViewerAction::EditCrop), false, edit_toolbar_state_.tool == ImgViewerEditTool::Crop, edit_enabled && ActionEnabled(ImgViewerAction::EditCrop)}}}}},
-        {L"", kUiActionNone, true},
-        {ImgViewerString(ImgViewerStringId::RotateClockwise), UiActionFromImgViewerAction(ImgViewerAction::RotateClockwise), false, false, ActionEnabled(ImgViewerAction::RotateClockwise)},
-        {ImgViewerString(ImgViewerStringId::FlipHorizontal), UiActionFromImgViewerAction(ImgViewerAction::FlipHorizontal), false, false, ActionEnabled(ImgViewerAction::FlipHorizontal)},
-        {ImgViewerString(ImgViewerStringId::FlipVertical), UiActionFromImgViewerAction(ImgViewerAction::FlipVertical), false, false, ActionEnabled(ImgViewerAction::FlipVertical)},
-        {L"", kUiActionNone, true},
-        {ImgViewerString(ImgViewerStringId::Close), UiActionFromImgViewerAction(ImgViewerAction::Close), false, false, ActionEnabled(ImgViewerAction::Close)},
-    };
-#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
-    menu_items.insert(menu_items.begin() + 6, MenuItem{ImgViewerString(ImgViewerStringId::Developer), UiActionFromImgViewerAction(ImgViewerAction::OpenDeveloper), false, false, ActionEnabled(ImgViewerAction::OpenDeveloper)});
-#endif
-    return SUCCEEDED(popup_host->OpenMenu(kMainMenuOrigin, std::move(menu_items)));
-}
-
 bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
     return point.y >= rect_.top && point.y <= rect_.top + kTitleBarHeight &&
@@ -390,6 +378,12 @@ void ImgViewerUi::SetColorPickerActive(bool active)
 void ImgViewerUi::SetToolbarScalePercent(int percent)
 {
     toolbar_scale_percent_ = ClampToolbarScalePercent(percent);
+}
+
+void ImgViewerUi::SetEdgeClickNavigationState(bool enabled, int zone_percent)
+{
+    edge_click_navigation_ = enabled;
+    edge_click_navigation_zone_percent_ = ClampEdgeClickNavigationZonePercent(zone_percent);
 }
 
 void ImgViewerUi::SetActionEnabled(UiAction action, bool enabled)
@@ -456,7 +450,7 @@ void ImgViewerUi::InstallCustomGlobals(JSValue global)
     JSContext* context = Context();
     JSValue overlay = JS_NewObject(context);
     SetFunction(overlay, "action", OverlayAction, 1);
-    SetFunction(overlay, "openMenu", OverlayOpenMenu, 0);
+    SetFunction(overlay, "popup", OverlayPopup, 3);
     SetFunction(overlay, "invalidate", imgviewer::HostInvalidate, 0);
     JS_SetPropertyStr(context, global, "overlay", overlay);
 }
@@ -470,7 +464,14 @@ JSValue ImgViewerUi::CreateStateObject() const
     SetBool(context, state, "maximized", maximized_);
     SetBool(context, state, "editMode", edit_toolbar_state_.visible);
     SetInt(context, state, "toolbarScalePercent", toolbar_scale_percent_);
+    SetBool(context, state, "edgeClickNavigation", edge_click_navigation_);
+    SetInt(context, state, "edgeClickNavigationZonePercent", edge_click_navigation_zone_percent_);
     SetBool(context, state, "colorPickerActive", color_picker_active_);
+#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
+    SetBool(context, state, "developerEnabled", true);
+#else
+    SetBool(context, state, "developerEnabled", false);
+#endif
 
     JSValue actions = JS_NewObject(context);
     JSValue labels = JS_NewObject(context);
@@ -630,6 +631,16 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
     ImgViewerAction action = ActionProperty(context, result);
     int32_t action_arg = Int32Property(context, result, "actionArg", 0);
     event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(context, result);
+    bool popup_failed = false;
+    event_result.popup = PopupRequestProperty(context, result, &popup_failed);
+    if (popup_failed) {
+        JS_FreeValue(context, result);
+        script_context_->CaptureException();
+        SetError(engine_.TakeExceptionTextUtf8());
+        event_result.handled = true;
+        event_result.value_changed = true;
+        return event_result;
+    }
     JS_FreeValue(context, result);
 
     if (pending_action_ != ImgViewerAction::None) {
@@ -646,7 +657,7 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
         ReloadScript();
     }
 
-    event_result.handled = handled || capture.has_value() || action != ImgViewerAction::None || wants_close;
+    event_result.handled = handled || capture.has_value() || action != ImgViewerAction::None || wants_close || event_result.popup.has_value();
     if (capture.has_value()) {
         event_result.capture = *capture ? UiCaptureRequest::Capture : UiCaptureRequest::Release;
     }
