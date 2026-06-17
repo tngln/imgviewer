@@ -10,7 +10,6 @@
 
 #include "imgviewer.about.hpp"
 #include "imgviewer.messages.hpp"
-#include "imgviewer.palette.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.hpp"
 #include "ui.host_popup.hpp"
@@ -25,6 +24,20 @@ namespace {
 
 constexpr UINT kToastDurationMs = 2000;
 constexpr UINT kAnimationTickMs = 16;
+
+D2D1_COLOR_F UnpackActionColor(int32_t arg)
+{
+    return D2D1::ColorF(
+        static_cast<float>((arg >> 24) & 0xFF) / 255.0f,
+        static_cast<float>((arg >> 16) & 0xFF) / 255.0f,
+        static_cast<float>((arg >> 8) & 0xFF) / 255.0f,
+        static_cast<float>(arg & 0xFF) / 255.0f);
+}
+
+constexpr float UnpackActionFloat(int32_t arg)
+{
+    return static_cast<float>(arg) / 100.0f;
+}
 
 bool NavigateImageFile(HWND hwnd, ImgViewerContext* context, int direction);
 bool HasCurrentImageFilePath(const ImgViewerContext* context);
@@ -785,10 +798,10 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Pen, L"Edit pen.");
         break;
     case ImgViewerAction::EditSetPenColor:
-        SetPenColor(hwnd, context, UnpackColor(action.arg));
+        SetPenColor(hwnd, context, UnpackActionColor(action.arg));
         break;
     case ImgViewerAction::EditSetPenWidth:
-        SetPenWidth(hwnd, context, UnpackFloat(action.arg));
+        SetPenWidth(hwnd, context, UnpackActionFloat(action.arg));
         break;
     case ImgViewerAction::EditShape:
         SetImgViewerEditTool(hwnd, context, ImgViewerEditTool::Shape, L"Edit shape.");
@@ -805,14 +818,14 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
         }
         break;
     case ImgViewerAction::EditSetTextFontSize:
-        SetTextFontSize(hwnd, context, UnpackFloat(action.arg));
+        SetTextFontSize(hwnd, context, UnpackActionFloat(action.arg));
         break;
     case ImgViewerAction::EditSetTextColor:
-        SetTextColor(hwnd, context, UnpackColor(action.arg));
+        SetTextColor(hwnd, context, UnpackActionColor(action.arg));
         break;
     case ImgViewerAction::EditSetTextBackground: {
         const bool has_bg = (action.arg & 1) != 0;
-        const D2D1_COLOR_F bg_color = has_bg ? UnpackColor(action.arg >> 8) : D2D1::ColorF(D2D1::ColorF::Yellow, 0.0f);
+        const D2D1_COLOR_F bg_color = has_bg ? UnpackActionColor(action.arg >> 8) : D2D1_COLOR_F{};
         SetTextBackground(hwnd, context, bg_color, has_bg);
         break;
     }
