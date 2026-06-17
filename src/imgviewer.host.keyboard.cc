@@ -20,6 +20,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             .virtual_key = static_cast<UINT>(wparam),
             .modifiers = UiModifiers::Current(),
             .repeat = (lparam & 0x40000000) != 0,
+            .system = message == WM_SYSKEYDOWN,
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (DispatchToPopup(hwnd, context, UiInputEvent::Key(key, hwnd))) {
@@ -177,6 +178,7 @@ win32::WindowMessageResult HandleImgViewerKeyboardMessage(HWND hwnd, UINT messag
             .type = UiEventType::KeyUp,
             .virtual_key = static_cast<UINT>(wparam),
             .modifiers = UiModifiers::Current(),
+            .system = message == WM_SYSKEYUP,
             .popup_host = context != nullptr ? &context->popup : nullptr,
         };
         if (DispatchToPopup(hwnd, context, UiInputEvent::Key(key, hwnd))) {

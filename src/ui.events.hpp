@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "ui.action.hpp"
 
@@ -25,6 +26,12 @@ enum class UiEventType {
     ImeEndComposition,
     ContextMenu,
     Timer,
+    FilesDropped,
+    WindowMoved,
+    WindowResized,
+    DpiChanged,
+    WindowClose,
+    WindowDestroyed,
     Cancel,
     OwnerDeactivated,
     FocusGained,
@@ -60,6 +67,7 @@ struct UiKeyEvent final {
     UINT virtual_key = 0;
     UiModifiers modifiers;
     bool repeat = false;
+    bool system = false;
     PopupHost* popup_host = nullptr;
 };
 
@@ -69,9 +77,13 @@ struct UiInputEvent final {
     UiKeyEvent key;
     wchar_t character = L'\0';
     std::wstring text;
+    std::vector<std::wstring> file_paths;
     D2D1_POINT_2F point = {};
     POINT screen_point = {};
     UINT_PTR timer_id = 0;
+    UINT dpi = 0;
+    D2D1_SIZE_U pixel_size = {};
+    D2D1_SIZE_F ui_size = {};
     HWND hwnd = nullptr;
     PopupHost* popup_host = nullptr;
 

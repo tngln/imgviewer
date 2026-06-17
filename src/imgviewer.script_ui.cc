@@ -126,6 +126,16 @@ JSValue StringArray(JSContext* context, const std::vector<std::string>& values)
     return array;
 }
 
+JSValue WideStringArray(JSContext* context, const std::vector<std::wstring>& values)
+{
+    JSValue array = JS_NewArray(context);
+    uint32_t index = 0;
+    for (const std::wstring& value : values) {
+        JS_SetPropertyUint32(context, array, index++, JS_NewString(context, Utf8FromWide(value).c_str()));
+    }
+    return array;
+}
+
 } // namespace
 
 std::wstring WideFromUtf8(std::string_view text)
@@ -306,6 +316,55 @@ const char* PointerButtonName(UiPointerButton button)
 const char* KeyTypeName(UiEventType type)
 {
     return type == UiEventType::KeyUp ? "up" : "down";
+}
+
+const char* InputKindName(UiEventType type)
+{
+    switch (type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        return "pointer";
+    case UiEventType::KeyDown:
+    case UiEventType::KeyUp:
+        return "key";
+    case UiEventType::TextChar:
+        return "text";
+    case UiEventType::ImeStartComposition:
+        return "imeStart";
+    case UiEventType::ImeComposition:
+        return "imeComposition";
+    case UiEventType::ImeEndComposition:
+        return "imeEnd";
+    case UiEventType::ContextMenu:
+        return "contextMenu";
+    case UiEventType::Timer:
+        return "timer";
+    case UiEventType::FilesDropped:
+        return "filesDropped";
+    case UiEventType::WindowMoved:
+        return "windowMoved";
+    case UiEventType::WindowResized:
+        return "windowResized";
+    case UiEventType::DpiChanged:
+        return "dpiChanged";
+    case UiEventType::WindowClose:
+        return "windowClose";
+    case UiEventType::WindowDestroyed:
+        return "windowDestroyed";
+    case UiEventType::Cancel:
+        return "cancel";
+    case UiEventType::OwnerDeactivated:
+        return "ownerDeactivated";
+    case UiEventType::FocusGained:
+        return "focusGained";
+    case UiEventType::FocusLost:
+        return "focusLost";
+    default:
+        return "unknown";
+    }
 }
 
 void AddModifiers(JSContext* context, JSValue object, UiModifiers modifiers)
@@ -686,6 +745,7 @@ JSValue CreateKeyEvent(JSContext* context, const UiKeyEvent& event)
     JS_SetPropertyStr(context, value, "type", JS_NewString(context, KeyTypeName(event.type)));
     JS_SetPropertyStr(context, value, "virtualKey", JS_NewInt32(context, static_cast<int32_t>(event.virtual_key)));
     JS_SetPropertyStr(context, value, "repeat", JS_NewBool(context, event.repeat));
+    JS_SetPropertyStr(context, value, "system", JS_NewBool(context, event.system));
     AddModifiers(context, value, event.modifiers);
     return value;
 }
@@ -701,25 +761,63 @@ JSValue CreateTextEvent(JSContext* context, wchar_t ch)
 JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event)
 {
     JSValue value = JS_NewObject(context);
+    SetString(context, value, "kind", InputKindName(event.type));
     switch (event.type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        JS_SetPropertyStr(context, value, "type", JS_NewString(context, PointerTypeName(event.type)));
+        JS_SetPropertyStr(context, value, "x", JS_NewFloat64(context, event.pointer.point.x));
+        JS_SetPropertyStr(context, value, "y", JS_NewFloat64(context, event.pointer.point.y));
+        JS_SetPropertyStr(context, value, "button", JS_NewString(context, PointerButtonName(event.pointer.button)));
+        JS_SetPropertyStr(context, value, "wheelDelta", JS_NewInt32(context, event.pointer.wheel_delta));
+        AddModifiers(context, value, event.pointer.modifiers);
+        break;
+    case UiEventType::KeyDown:
+    case UiEventType::KeyUp:
+        JS_SetPropertyStr(context, value, "type", JS_NewString(context, KeyTypeName(event.type)));
+        JS_SetPropertyStr(context, value, "virtualKey", JS_NewInt32(context, static_cast<int32_t>(event.key.virtual_key)));
+        JS_SetPropertyStr(context, value, "repeat", JS_NewBool(context, event.key.repeat));
+        JS_SetPropertyStr(context, value, "system", JS_NewBool(context, event.key.system));
+        AddModifiers(context, value, event.key.modifiers);
+        break;
     case UiEventType::TextChar: {
         const std::wstring text(1, event.character);
-        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "text"));
         JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(text).c_str()));
         break;
     }
     case UiEventType::ImeStartComposition:
-        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "imeStart"));
         break;
     case UiEventType::ImeComposition:
-        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "imeComposition"));
         JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(event.text).c_str()));
         break;
     case UiEventType::ImeEndComposition:
-        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "imeEnd"));
+        break;
+    case UiEventType::ContextMenu:
+        JS_SetPropertyStr(context, value, "x", JS_NewFloat64(context, event.point.x));
+        JS_SetPropertyStr(context, value, "y", JS_NewFloat64(context, event.point.y));
+        JS_SetPropertyStr(context, value, "screenX", JS_NewInt32(context, event.screen_point.x));
+        JS_SetPropertyStr(context, value, "screenY", JS_NewInt32(context, event.screen_point.y));
+        break;
+    case UiEventType::Timer:
+        JS_SetPropertyStr(context, value, "timerId", JS_NewUint32(context, static_cast<uint32_t>(event.timer_id)));
+        break;
+    case UiEventType::FilesDropped:
+        JS_SetPropertyStr(context, value, "files", WideStringArray(context, event.file_paths));
+        break;
+    case UiEventType::WindowResized:
+    case UiEventType::DpiChanged:
+        JS_SetPropertyStr(context, value, "pixelWidth", JS_NewUint32(context, event.pixel_size.width));
+        JS_SetPropertyStr(context, value, "pixelHeight", JS_NewUint32(context, event.pixel_size.height));
+        JS_SetPropertyStr(context, value, "width", JS_NewFloat64(context, event.ui_size.width));
+        JS_SetPropertyStr(context, value, "height", JS_NewFloat64(context, event.ui_size.height));
+        if (event.dpi != 0) {
+            JS_SetPropertyStr(context, value, "dpi", JS_NewUint32(context, event.dpi));
+        }
         break;
     default:
-        JS_SetPropertyStr(context, value, "kind", JS_NewString(context, "unknown"));
         break;
     }
     return value;
