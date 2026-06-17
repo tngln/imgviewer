@@ -151,6 +151,17 @@ interface MainOverlayColorSample {
   blue: number;
 }
 
+interface MainRenderRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface MainRenderResult {
+  captionDragRects?: MainRenderRect[];
+}
+
 interface MainOverlayState {
   title: string;
   topMost: boolean;
@@ -202,7 +213,7 @@ type MainEventResult = InputEventResult & {
 };
 
 interface MainUiApp {
-  render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void;
+  render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderResult | void;
   pointer(event: MainPointerEvent): MainEventResult | void;
   key?(event: MainKeyEvent): MainEventResult | void;
   input?(event: NativeInputEvent): MainEventResult | void;

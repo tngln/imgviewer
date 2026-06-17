@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <d2d1_1.h>
 #include <quickjs.h>
@@ -65,6 +66,7 @@ private:
     bool IsOverlayPoint(D2D1_POINT_2F point) const;
 
     D2D1_RECT_F rect_ = {};
+    std::vector<D2D1_RECT_F> caption_drag_rects_;
     std::unordered_map<int, bool> action_enabled_;
     std::wstring title_text_;
     std::wstring toast_text_;

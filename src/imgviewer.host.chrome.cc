@@ -85,6 +85,49 @@ LRESULT CalculateClientArea(HWND hwnd, WPARAM wparam, LPARAM lparam)
     return 0;
 }
 
+void UpdateSystemMenuState(HWND hwnd, HMENU menu)
+{
+    if (menu == nullptr) {
+        return;
+    }
+
+    const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(hwnd, GWL_STYLE));
+    const bool maximized = IsZoomed(hwnd) != FALSE;
+    const bool minimized = IsIconic(hwnd) != FALSE;
+    const bool can_minimize = (style & WS_MINIMIZEBOX) != 0;
+    const bool can_maximize = (style & WS_MAXIMIZEBOX) != 0;
+    const bool can_size = (style & WS_THICKFRAME) != 0 && !maximized && !minimized;
+
+    EnableMenuItem(menu, SC_RESTORE, MF_BYCOMMAND | ((maximized || minimized) ? MF_ENABLED : MF_GRAYED));
+    EnableMenuItem(menu, SC_MOVE, MF_BYCOMMAND | (maximized ? MF_GRAYED : MF_ENABLED));
+    EnableMenuItem(menu, SC_SIZE, MF_BYCOMMAND | (can_size ? MF_ENABLED : MF_GRAYED));
+    EnableMenuItem(menu, SC_MINIMIZE, MF_BYCOMMAND | (can_minimize && !minimized ? MF_ENABLED : MF_GRAYED));
+    EnableMenuItem(menu, SC_MAXIMIZE, MF_BYCOMMAND | (can_maximize && !maximized ? MF_ENABLED : MF_GRAYED));
+}
+
+win32::WindowMessageResult ShowCaptionSystemMenu(HWND hwnd, LPARAM lparam)
+{
+    HMENU menu = GetSystemMenu(hwnd, FALSE);
+    if (menu == nullptr) {
+        return win32::WindowMessageResult::Handled();
+    }
+
+    UpdateSystemMenuState(hwnd, menu);
+    SetForegroundWindow(hwnd);
+    const UINT command = TrackPopupMenu(
+        menu,
+        TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
+        GET_X_LPARAM(lparam),
+        GET_Y_LPARAM(lparam),
+        0,
+        hwnd,
+        nullptr);
+    if (command != 0) {
+        PostMessageW(hwnd, WM_SYSCOMMAND, command, 0);
+    }
+    return win32::WindowMessageResult::Handled();
+}
+
 } // namespace
 
 win32::WindowMessageResult HandleImgViewerChromeMessage(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
@@ -100,6 +143,12 @@ win32::WindowMessageResult HandleImgViewerChromeMessage(HWND hwnd, UINT message,
         if (wparam == HTCAPTION) {
             ExecuteImgViewerAction(hwnd, GetImgViewerContext(hwnd), UiAction(ImgViewerAction::ToggleMaximize));
             return win32::WindowMessageResult::Handled();
+        }
+        return win32::WindowMessageResult::Unhandled();
+
+    case WM_NCRBUTTONUP:
+        if (wparam == HTCAPTION) {
+            return ShowCaptionSystemMenu(hwnd, lparam);
         }
         return win32::WindowMessageResult::Unhandled();
 

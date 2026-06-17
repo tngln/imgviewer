@@ -20,7 +20,6 @@
 namespace {
 
 constexpr char kMainScriptRelativePath[] = "scripts/main_ui.js";
-constexpr float kTitleBarHeight = 42.0f;
 
 ImgViewerUi* ScriptUi(JSContext* context)
 {
@@ -209,6 +208,47 @@ std::optional<UiPopupRequest> PopupRequestProperty(JSContext* context, JSValueCo
     return request;
 }
 
+std::vector<D2D1_RECT_F> CaptionDragRectsProperty(JSContext* context, JSValueConst object)
+{
+    std::vector<D2D1_RECT_F> rects;
+    if (!JS_IsObject(object)) {
+        return rects;
+    }
+
+    JSValue array = JS_GetPropertyStr(context, object, "captionDragRects");
+    if (!JS_IsArray(array)) {
+        JS_FreeValue(context, array);
+        return rects;
+    }
+
+    JSValue length_value = JS_GetPropertyStr(context, array, "length");
+    uint32_t length = 0;
+    if (JS_ToUint32(context, &length, length_value) != 0) {
+        JS_FreeValue(context, length_value);
+        JS_FreeValue(context, array);
+        return {};
+    }
+    JS_FreeValue(context, length_value);
+
+    rects.reserve(length);
+    for (uint32_t index = 0; index < length; ++index) {
+        JSValue item = JS_GetPropertyUint32(context, array, index);
+        if (JS_IsObject(item)) {
+            const float x = FloatProperty(context, item, "x", 0.0f);
+            const float y = FloatProperty(context, item, "y", 0.0f);
+            const float width = FloatProperty(context, item, "width", 0.0f);
+            const float height = FloatProperty(context, item, "height", 0.0f);
+            if (width > 0.0f && height > 0.0f) {
+                rects.push_back(D2D1::RectF(x, y, x + width, y + height));
+            }
+        }
+        JS_FreeValue(context, item);
+    }
+
+    JS_FreeValue(context, array);
+    return rects;
+}
+
 JSValue OverlayAction(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     if (ScriptUi(context) == nullptr || argc < 1) {
@@ -265,6 +305,7 @@ void ImgViewerUi::Render(const UiDrawContext& context)
 {
     rect_ = D2D1::RectF(0.0f, 0.0f, context.viewport_size.width, context.viewport_size.height);
     if (!ready_) {
+        caption_drag_rects_.clear();
         RenderError(context);
         return;
     }
@@ -275,6 +316,7 @@ void ImgViewerUi::Render(const UiDrawContext& context)
     if (!JS_IsFunction(js_context, render)) {
         JS_FreeValue(js_context, render);
         JS_FreeValue(js_context, app);
+        caption_drag_rects_.clear();
         SetError("imgviewerMainUi.render is not a function");
         RenderError(context);
         return;
@@ -295,11 +337,13 @@ void ImgViewerUi::Render(const UiDrawContext& context)
 
     if (JS_IsException(result)) {
         JS_FreeValue(js_context, result);
+        caption_drag_rects_.clear();
         script_context_->CaptureException();
         SetError(engine_.TakeExceptionTextUtf8());
         RenderError(context);
         return;
     }
+    caption_drag_rects_ = CaptionDragRectsProperty(js_context, result);
     JS_FreeValue(js_context, result);
     if (engine_.PumpJobs() < 0) {
         SetError(engine_.TakeExceptionTextUtf8());
@@ -341,8 +385,10 @@ UiEventResult ImgViewerUi::OnInputEvent(const UiInputEvent& event)
 
 bool ImgViewerUi::IsPointInCaptionDragArea(D2D1_POINT_2F point) const
 {
-    return point.y >= rect_.top && point.y <= rect_.top + kTitleBarHeight &&
-        point.x >= rect_.left + 56.0f && point.x <= rect_.right - 150.0f;
+    return std::any_of(caption_drag_rects_.begin(), caption_drag_rects_.end(), [&](D2D1_RECT_F rect) {
+        return point.x >= rect.left && point.x <= rect.right &&
+            point.y >= rect.top && point.y <= rect.bottom;
+    });
 }
 
 void ImgViewerUi::SetTitleText(const wchar_t* title)
@@ -443,6 +489,7 @@ const std::wstring& ImgViewerUi::SelectedTextFontFamily() const
 void ImgViewerUi::BeforeReload()
 {
     pending_action_ = ImgViewerAction::None;
+    caption_drag_rects_.clear();
 }
 
 void ImgViewerUi::InstallCustomGlobals(JSValue global)
@@ -692,10 +739,10 @@ bool ImgViewerUi::ActionEnabled(ImgViewerAction action) const
 
 bool ImgViewerUi::IsOverlayPoint(D2D1_POINT_2F point) const
 {
-    if (point.y >= rect_.top && point.y <= rect_.top + kTitleBarHeight) {
+    if (IsPointInCaptionDragArea(point)) {
         return true;
     }
-    if (info_panel_state_.visible && point.x >= rect_.right - 340.0f && point.y >= rect_.top + kTitleBarHeight) {
+    if (info_panel_state_.visible && point.x >= rect_.right - 340.0f) {
         return true;
     }
     if (toast_visible_ && point.y >= rect_.top + 54.0f && point.y <= rect_.top + 96.0f) {

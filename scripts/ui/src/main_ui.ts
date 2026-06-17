@@ -264,7 +264,7 @@ function backgroundArg(color: string, hasBackground: boolean): number {
   return hasBackground ? ((packColor(color) << 8) | 1) | 0 : 0;
 }
 
-function renderTitlebar(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void {
+function renderTitlebar(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderRect[] {
   canvas.fillRect(0, 0, env.width, 42, colors.title);
   canvas.strokeLine(0, 41.5, env.width, 41.5, colors.stroke, 1);
 
@@ -286,6 +286,7 @@ function renderTitlebar(canvas: CanvasApi, env: RenderEnvironment, state: MainOv
   button(canvas, min, "Min");
   button(canvas, max, state.maximized ? "Rest" : "Max");
   button(canvas, close, "X");
+  return [{ x: 56, y: 0, width: Math.max(0, env.width - 206), height: 42 }];
 }
 
 function toolbarSize(state: MainOverlayState): { button: number; gap: number; pad: number; handle: number; width: number; height: number } {
@@ -525,18 +526,19 @@ function renderToast(canvas: CanvasApi, env: RenderEnvironment, state: MainOverl
   drawText(canvas, state.toast.text, rect.x + 16, rect.y + 10, rect.width - 32, colors.text, 20);
 }
 
-function render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void {
+function render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderResult {
   lastState = state;
   lastEnv = env;
   hits = [];
   renderEdgeClickHits(env, state);
-  renderTitlebar(canvas, env, state);
+  const captionDragRects = renderTitlebar(canvas, env, state);
   const mainToolbar = renderToolbar(canvas, env, state);
   const editAnchor = renderEditToolbar(canvas, state, mainToolbar);
   renderToolstrip(canvas, state, editAnchor);
   renderAnimation(canvas, env, state, mainToolbar);
   renderInfoPanel(canvas, env, state);
   renderToast(canvas, env, state);
+  return { captionDragRects };
 }
 
 function pointer(event: MainPointerEvent): MainEventResult | void {
