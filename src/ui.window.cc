@@ -1,7 +1,5 @@
 #include "ui.window.hpp"
 
-#include <algorithm>
-#include <cmath>
 #include <memory>
 
 #include <d2d1helper.h>
@@ -9,6 +7,7 @@
 #include <wil/com.h>
 #include <wil/result_macros.h>
 
+#include "ui.common_window.hpp"
 #include "math.hpp"
 #include "ui.host_effects.hpp"
 #include "ui.host_ime.hpp"
@@ -18,19 +17,12 @@
 namespace {
 
 using ui_host_input::ClientPixelSize;
-using ui_host_input::DpiScale;
 using ui_host_input::PhysicalClientPointToUi;
 using ui_host_input::ScreenPointToUi;
 using ui_host_input::UiPointToPhysicalClient;
 
 constexpr float kUiWindowBodyFontSize = 8.5f;
 constexpr float kUiWindowIconFontSize = 10.0f;
-
-D2D1_SIZE_F ClientRenderSize(HWND hwnd)
-{
-    const D2D1_SIZE_U size = ui_host_input::ClientPixelSize(hwnd);
-    return D2D1::SizeF(static_cast<float>(size.width), static_cast<float>(size.height));
-}
 
 } // namespace
 
@@ -334,82 +326,45 @@ HRESULT UiWindowHost::InitializeRenderResources()
     return S_OK;
 }
 
-HRESULT UiWindowHost::EnsureDCompSurface()
-{
-    RETURN_HR_IF_NULL(E_UNEXPECTED, graphics_);
-    RETURN_HR_IF_NULL(E_UNEXPECTED, dcomp_device_);
-    if (dcomp_target_ == nullptr || dcomp_visual_ == nullptr) {
-        RETURN_IF_FAILED(graphics_->CreateCompositionTarget(window_.Hwnd(), dcomp_target_.put(), dcomp_visual_.put()));
-    }
-
-    const D2D1_SIZE_U size = ClientPixelSize(window_.Hwnd());
-    if (dcomp_surface_ != nullptr && surface_width_ == size.width && surface_height_ == size.height) {
-        return S_OK;
-    }
-
-    dcomp_surface_.reset();
-    RETURN_IF_FAILED(dcomp_device_->CreateSurface(
-        size.width,
-        size.height,
-        DXGI_FORMAT_B8G8R8A8_UNORM,
-        DXGI_ALPHA_MODE_PREMULTIPLIED,
-        dcomp_surface_.put()));
-    RETURN_IF_FAILED(dcomp_visual_->SetContent(dcomp_surface_.get()));
-    RETURN_IF_FAILED(dcomp_visual_->SetOffsetX(0.0f));
-    RETURN_IF_FAILED(dcomp_visual_->SetOffsetY(0.0f));
-    surface_width_ = size.width;
-    surface_height_ = size.height;
-    RETURN_IF_FAILED(dcomp_device_->Commit());
-    return S_OK;
-}
-
 void UiWindowHost::Render()
 {
-    if (FAILED(EnsureDCompSurface())) {
-        return;
-    }
-    const math::CoordinateSpace coordinates = math::CoordinateSpace::FromWindow(window_.Hwnd());
-    const float dpi_scale = coordinates.scale();
     const D2D1_SIZE_U client_pixel = ClientPixelSize(window_.Hwnd());
+    const float dpi_scale = math::CoordinateSpace::FromWindow(window_.Hwnd()).scale();
 
     struct RenderState final {
         UiWindowHost* host;
         D2D1_SIZE_U client_pixel;
         float dpi_scale;
     } state{this, client_pixel, dpi_scale};
-    if (SUCCEEDED(graphics_->DrawCompositionSurface(
-        dcomp_surface_.get(),
+    if (FAILED(ui_common_window::RenderUiCompositionSurface(
+        graphics_,
+        window_.Hwnd(),
+        dcomp_target_,
+        dcomp_visual_,
+        dcomp_surface_,
         client_pixel.width,
         client_pixel.height,
-        DXGI_FORMAT_B8G8R8A8_UNORM,
-        DXGI_ALPHA_MODE_PREMULTIPLIED,
-        [](ID2D1DeviceContext* d2d_context, POINT offset, void* user_data) -> HRESULT {
+        &surface_width_,
+        &surface_height_,
+        dwrite_factory_.get(),
+        body_text_format_.get(),
+        icon_text_format_.get(),
+        D2D1::SizeF(static_cast<float>(client_pixel.width) / dpi_scale, static_cast<float>(client_pixel.height) / dpi_scale),
+        dpi_scale,
+        D2D1::Point2F(0.0f, 0.0f),
+        D2D1::ColorF(D2D1::ColorF::Black, 0.0f),
+        [](const UiDrawContext& draw_context, void* user_data) -> HRESULT {
             const auto* state = static_cast<const RenderState*>(user_data);
             RETURN_HR_IF_NULL(E_INVALIDARG, state);
             UiWindowHost* host = state->host;
             RETURN_HR_IF_NULL(E_INVALIDARG, host);
-
-            const UiDrawContext draw_context{
-                .d2d_context = d2d_context,
-                .d2d_factory = host->graphics_->D2DFactory(),
-                .dwrite_factory = host->dwrite_factory_.get(),
-                .body_text_format = host->body_text_format_.get(),
-                .icon_text_format = host->icon_text_format_.get(),
-                .viewport_size = D2D1::SizeF(
-                    static_cast<float>(state->client_pixel.width) / state->dpi_scale,
-                    static_cast<float>(state->client_pixel.height) / state->dpi_scale),
-                .dpi_scale = state->dpi_scale,
-            };
-            d2d_context->SetTransform(
-                D2D1::Matrix3x2F::Scale(state->dpi_scale, state->dpi_scale) *
-                D2D1::Matrix3x2F::Translation(static_cast<float>(offset.x), static_cast<float>(offset.y)));
             if (host->root_ != nullptr) {
                 host->root_->Render(draw_context);
             }
             return S_OK;
         },
         &state))) {
-        dcomp_device_->Commit();
+        return;
     }
 }
 

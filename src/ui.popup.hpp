@@ -55,8 +55,6 @@ private:
     JSValue CreateStateObject() const;
     HRESULT OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size);
     HRESULT ResizeNativePopupToContent(bool* resized);
-    HRESULT EnsureDCompResources();
-    HRESULT EnsureDCompSurface(UINT width, UINT height);
     void ResetDCompPopupResources();
     void RenderNativePopup();
     HRESULT RenderDCompPopup();

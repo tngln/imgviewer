@@ -56,6 +56,7 @@ add_executable(imgviewer
     src/ui.events.cc
     src/ui.graphics_device.cc
     src/ui.popup.cc
+    src/ui.common_window.cc
     src/ui.renderer.cc
     src/ui.surface.cc
     src/ui.text.cc
