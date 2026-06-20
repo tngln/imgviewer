@@ -12,6 +12,7 @@
 #include <dwmapi.h>
 #include <wil/com.h>
 
+#include "imgviewer.action.hpp"
 #include "script.canvas_color.hpp"
 
 namespace imgviewer {
@@ -24,26 +25,6 @@ constexpr D2D1_COLOR_F kScriptErrorText = {0x17 / 255.0f, 0x20 / 255.0f, 0x33 / 
 constexpr D2D1_COLOR_F kScriptErrorMutedText = {0x69 / 255.0f, 0x73 / 255.0f, 0x86 / 255.0f, 1.0f};
 constexpr wchar_t kPersonalizeRegistryPath[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 constexpr wchar_t kAppsUseLightThemeRegistryName[] = L"AppsUseLightTheme";
-
-void SetString(JSContext* context, JSValue object, const char* name, const std::string& value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, value.c_str()));
-}
-
-void SetBool(JSContext* context, JSValue object, const char* name, bool value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
-}
-
-void SetInt(JSContext* context, JSValue object, const char* name, int32_t value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewInt32(context, value));
-}
-
-void SetUint(JSContext* context, JSValue object, const char* name, uint32_t value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewUint32(context, value));
-}
 
 std::string ArgbColorString(DWORD color)
 {
@@ -137,6 +118,128 @@ JSValue WideStringArray(JSContext* context, const std::vector<std::wstring>& val
 }
 
 } // namespace
+
+void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, Utf8FromWide(value).c_str()));
+}
+
+void SetString(JSContext* context, JSValue object, const char* name, std::string_view value)
+{
+    const std::string text(value);
+    JS_SetPropertyStr(context, object, name, JS_NewString(context, text.c_str()));
+}
+
+void SetString(JSContext* context, JSValue object, const char* name, const char* value)
+{
+    SetString(context, object, name, std::string_view(value != nullptr ? value : ""));
+}
+
+void SetBool(JSContext* context, JSValue object, const char* name, bool value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
+}
+
+void SetInt(JSContext* context, JSValue object, const char* name, int32_t value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewInt32(context, value));
+}
+
+void SetUint(JSContext* context, JSValue object, const char* name, uint32_t value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewUint32(context, value));
+}
+
+void SetFloat(JSContext* context, JSValue object, const char* name, float value)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewFloat64(context, value));
+}
+
+void SetFunction(JSContext* context, JSValue object, const char* name, JSCFunction* function, int length)
+{
+    JS_SetPropertyStr(context, object, name, JS_NewCFunction(context, function, name, length));
+}
+
+bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
+    JS_FreeValue(context, value);
+    return result;
+}
+
+std::optional<bool> OptionalBoolProperty(JSContext* context, JSValueConst object, const char* name)
+{
+    if (!JS_IsObject(object)) {
+        return std::nullopt;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    if (JS_IsUndefined(value)) {
+        JS_FreeValue(context, value);
+        return std::nullopt;
+    }
+    const bool result = JS_ToBool(context, value) != 0;
+    JS_FreeValue(context, value);
+    return result;
+}
+
+int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    if (JS_IsUndefined(value)) {
+        JS_FreeValue(context, value);
+        return fallback;
+    }
+    int32_t result = fallback;
+    JS_ToInt32(context, &result, value);
+    JS_FreeValue(context, value);
+    return result;
+}
+
+float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback)
+{
+    if (!JS_IsObject(object)) {
+        return fallback;
+    }
+    JSValue value = JS_GetPropertyStr(context, object, name);
+    if (JS_IsUndefined(value)) {
+        JS_FreeValue(context, value);
+        return fallback;
+    }
+    double result = fallback;
+    JS_ToFloat64(context, &result, value);
+    JS_FreeValue(context, value);
+    return static_cast<float>(result);
+}
+
+UiAction ActionProperty(JSContext* context, JSValueConst object)
+{
+    if (!JS_IsObject(object)) {
+        return kUiActionNone;
+    }
+    JSValue action_value = JS_GetPropertyStr(context, object, "actionValue");
+    if (!JS_IsUndefined(action_value)) {
+        int32_t value = 0;
+        JS_ToInt32(context, &value, action_value);
+        JS_FreeValue(context, action_value);
+        return UiAction(value, Int32Property(context, object, "actionArg", 0));
+    }
+    JS_FreeValue(context, action_value);
+
+    JSValue value = JS_GetPropertyStr(context, object, "action");
+    const std::string name = Utf8FromValue(context, value);
+    JS_FreeValue(context, value);
+    if (name.empty()) {
+        return kUiActionNone;
+    }
+    return UiAction(static_cast<int>(ImgViewerActionFromName(name.c_str())), Int32Property(context, object, "actionArg", 0));
+}
 
 std::wstring WideFromUtf8(std::string_view text)
 {

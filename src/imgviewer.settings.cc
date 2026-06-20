@@ -241,11 +241,11 @@ private:
     {
         JSContext* context = Context();
         JSValue settings = JS_NewObject(context);
-        SetFunction(settings, "get", SettingsGet, 1);
-        SetFunction(settings, "set", SettingsSet, 2);
-        SetFunction(settings, "save", SettingsSave, 0);
-        SetFunction(settings, "resetKeyBindings", SettingsResetKeyBindings, 0);
-        SetFunction(settings, "actionRows", SettingsActionRows, 1);
+        imgviewer::SetFunction(context, settings, "get", SettingsGet, 1);
+        imgviewer::SetFunction(context, settings, "set", SettingsSet, 2);
+        imgviewer::SetFunction(context, settings, "save", SettingsSave, 0);
+        imgviewer::SetFunction(context, settings, "resetKeyBindings", SettingsResetKeyBindings, 0);
+        imgviewer::SetFunction(context, settings, "actionRows", SettingsActionRows, 1);
         JS_SetPropertyStr(context, global, "settings", settings);
     }
 
@@ -292,9 +292,9 @@ private:
             return event_result;
         }
 
-        const bool handled = BoolProperty(result, "handled", false);
-        const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
-        const bool invalidate = BoolProperty(result, "invalidate", false);
+        const bool handled = imgviewer::BoolProperty(Context(), result, "handled", false);
+        const std::optional<bool> capture = imgviewer::OptionalBoolProperty(Context(), result, "capture");
+        const bool invalidate = imgviewer::BoolProperty(Context(), result, "invalidate", false);
         event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(Context(), result);
         JS_FreeValue(Context(), result);
 

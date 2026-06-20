@@ -20,39 +20,19 @@ namespace {
 
 constexpr char kMainScriptRelativePath[] = "scripts/main_ui.js";
 
+using imgviewer::ActionProperty;
+using imgviewer::BoolProperty;
+using imgviewer::FloatProperty;
+using imgviewer::OptionalBoolProperty;
+using imgviewer::SetBool;
+using imgviewer::SetFloat;
+using imgviewer::SetFunction;
+using imgviewer::SetInt;
+using imgviewer::SetString;
+
 ImgViewerUi* ScriptUi(JSContext* context)
 {
     return static_cast<ImgViewerUi*>(JS_GetContextOpaque(context));
-}
-
-void SetFunction(JSContext* context, JSValue object, const char* name, JSCFunction* function, int length)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewCFunction(context, function, name, length));
-}
-
-void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::Utf8FromWide(value).c_str()));
-}
-
-void SetString(JSContext* context, JSValue object, const char* name, const char* value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, value != nullptr ? value : ""));
-}
-
-void SetBool(JSContext* context, JSValue object, const char* name, bool value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
-}
-
-void SetInt(JSContext* context, JSValue object, const char* name, int value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewInt32(context, value));
-}
-
-void SetFloat(JSContext* context, JSValue object, const char* name, float value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewFloat64(context, value));
 }
 
 std::string ColorHex(D2D1_COLOR_F color)
@@ -119,49 +99,6 @@ JSValue ColorSample(JSContext* context, ImageColorSample sample)
     SetInt(context, value, "green", sample.green);
     SetInt(context, value, "blue", sample.blue);
     return value;
-}
-
-ImgViewerAction ActionProperty(JSContext* context, JSValueConst object)
-{
-    if (!JS_IsObject(object)) {
-        return ImgViewerAction::None;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, "action");
-    const std::string name = imgviewer::Utf8FromValue(context, value);
-    JS_FreeValue(context, value);
-    return ImgViewerActionFromName(name.c_str());
-}
-
-int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return fallback;
-    }
-    int32_t result = fallback;
-    JS_ToInt32(context, &result, value);
-    JS_FreeValue(context, value);
-    return result;
-}
-
-float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return fallback;
-    }
-    double result = fallback;
-    JS_ToFloat64(context, &result, value);
-    JS_FreeValue(context, value);
-    return static_cast<float>(result);
 }
 
 std::optional<std::string> JsonStringify(JSContext* context, JSValueConst value)
@@ -495,9 +432,9 @@ void ImgViewerUi::InstallCustomGlobals(JSValue global)
 {
     JSContext* context = Context();
     JSValue overlay = JS_NewObject(context);
-    SetFunction(overlay, "action", OverlayAction, 1);
-    SetFunction(overlay, "popup", OverlayPopup, 3);
-    SetFunction(overlay, "invalidate", imgviewer::HostInvalidate, 0);
+    SetFunction(context, overlay, "action", OverlayAction, 1);
+    SetFunction(context, overlay, "popup", OverlayPopup, 3);
+    SetFunction(context, overlay, "invalidate", imgviewer::HostInvalidate, 0);
     JS_SetPropertyStr(context, global, "overlay", overlay);
 }
 
@@ -666,11 +603,10 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
         return event_result;
     }
 
-    const bool handled = BoolProperty(result, "handled", false);
-    const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
-    const bool invalidate = BoolProperty(result, "invalidate", false);
-    ImgViewerAction action = ActionProperty(context, result);
-    int32_t action_arg = Int32Property(context, result, "actionArg", 0);
+    const bool handled = BoolProperty(context, result, "handled", false);
+    const std::optional<bool> capture = OptionalBoolProperty(context, result, "capture");
+    const bool invalidate = BoolProperty(context, result, "invalidate", false);
+    UiAction action = ActionProperty(context, result);
     event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(context, result);
     bool popup_failed = false;
     event_result.popup = PopupRequestProperty(context, result, &popup_failed);
@@ -685,7 +621,7 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
     JS_FreeValue(context, result);
 
     if (pending_action_ != ImgViewerAction::None) {
-        action = pending_action_;
+        action = UiAction(static_cast<int>(pending_action_), action.arg);
         pending_action_ = ImgViewerAction::None;
     }
     const bool wants_reload = reload_requested_;
@@ -703,10 +639,10 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
         event_result.capture = *capture ? UiCaptureRequest::Capture : UiCaptureRequest::Release;
     }
     if (wants_close) {
-        action = ImgViewerAction::Close;
+        action = UiAction(static_cast<int>(ImgViewerAction::Close), action.arg);
     }
-    if (action != ImgViewerAction::None) {
-        event_result.action = UiAction(static_cast<int>(action), action_arg);
+    if (action != kUiActionNone) {
+        event_result.action = action;
     }
     event_result.value_changed = wants_invalidate;
     if (engine_.PumpJobs() < 0) {

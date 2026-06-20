@@ -20,6 +20,12 @@ constexpr wchar_t kPopupWindowClassName[] = L"UiPopupWindow";
 constexpr float kPopupContentInset = 1.0f;
 constexpr char kPopupScriptRelativePath[] = "scripts/popup_ui.js";
 
+using imgviewer::ActionProperty;
+using imgviewer::BoolProperty;
+using imgviewer::FloatProperty;
+using imgviewer::SetBool;
+using imgviewer::SetString;
+
 D2D1_SIZE_F PopupWindowSize(D2D1_SIZE_F content_size)
 {
     return D2D1::SizeF(
@@ -44,87 +50,6 @@ UiInputEvent OffsetPopupEvent(UiInputEvent event)
         event.pointer.point = event.point;
     }
     return event;
-}
-
-void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, imgviewer::Utf8FromWide(value).c_str()));
-}
-
-void SetString(JSContext* context, JSValue object, const char* name, const char* value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, value != nullptr ? value : ""));
-}
-
-void SetBool(JSContext* context, JSValue object, const char* name, bool value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
-}
-
-bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
-    JS_FreeValue(context, value);
-    return result;
-}
-
-int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return fallback;
-    }
-    int32_t result = fallback;
-    JS_ToInt32(context, &result, value);
-    JS_FreeValue(context, value);
-    return result;
-}
-
-float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return fallback;
-    }
-    double result = fallback;
-    JS_ToFloat64(context, &result, value);
-    JS_FreeValue(context, value);
-    return static_cast<float>(result);
-}
-
-UiAction ActionProperty(JSContext* context, JSValueConst object)
-{
-    if (!JS_IsObject(object)) {
-        return kUiActionNone;
-    }
-    JSValue action_value = JS_GetPropertyStr(context, object, "actionValue");
-    if (!JS_IsUndefined(action_value)) {
-        int32_t value = 0;
-        JS_ToInt32(context, &value, action_value);
-        JS_FreeValue(context, action_value);
-        return UiAction(value, Int32Property(context, object, "actionArg", 0));
-    }
-    JS_FreeValue(context, action_value);
-
-    JSValue value = JS_GetPropertyStr(context, object, "action");
-    const std::string name = imgviewer::Utf8FromValue(context, value);
-    JS_FreeValue(context, value);
-    if (name.empty()) {
-        return kUiActionNone;
-    }
-    return UiAction(static_cast<int>(ImgViewerActionFromName(name.c_str())), Int32Property(context, object, "actionArg", 0));
 }
 
 class JsonPopupContent final : public PopupContent {

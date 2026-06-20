@@ -169,9 +169,9 @@ UiEventResult ScriptWindowRootBase::FinishEventDispatch(JSValue result)
         return event_result;
     }
 
-    const bool handled = BoolProperty(result, "handled", false);
-    const std::optional<bool> capture = OptionalBoolProperty(result, "capture");
-    const bool invalidate = BoolProperty(result, "invalidate", false);
+    const bool handled = imgviewer::BoolProperty(context, result, "handled", false);
+    const std::optional<bool> capture = imgviewer::OptionalBoolProperty(context, result, "capture");
+    const bool invalidate = imgviewer::BoolProperty(context, result, "invalidate", false);
     event_result.ime_caret_point = ImeCaretPointProperty(context, result);
     JS_FreeValue(context, result);
 
@@ -214,37 +214,6 @@ JSValue ScriptWindowRootBase::AppObject() const
     JSValue app = JS_GetPropertyStr(context, global, app_global_name_);
     JS_FreeValue(context, global);
     return app;
-}
-
-void ScriptWindowRootBase::SetFunction(JSValue object, const char* name, JSCFunction* function, int length)
-{
-    JS_SetPropertyStr(Context(), object, name, JS_NewCFunction(Context(), function, name, length));
-}
-
-bool ScriptWindowRootBase::BoolProperty(JSValueConst object, const char* name, bool fallback) const
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(Context(), object, name);
-    const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(Context(), value) != 0;
-    JS_FreeValue(Context(), value);
-    return result;
-}
-
-std::optional<bool> ScriptWindowRootBase::OptionalBoolProperty(JSValueConst object, const char* name) const
-{
-    if (!JS_IsObject(object)) {
-        return std::nullopt;
-    }
-    JSValue value = JS_GetPropertyStr(Context(), object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(Context(), value);
-        return std::nullopt;
-    }
-    const bool result = JS_ToBool(Context(), value) != 0;
-    JS_FreeValue(Context(), value);
-    return result;
 }
 
 void ScriptWindowRootBase::SetError(std::string text)

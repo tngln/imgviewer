@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -8,6 +9,7 @@
 
 #include <quickjs.h>
 
+#include "ui.action.hpp"
 #include "ui.draw.hpp"
 #include "ui.events.hpp"
 
@@ -39,6 +41,19 @@ JSValue HostInvalidate(JSContext* context, JSValueConst this_value, int argc, JS
 JSValue HostReload(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 JSValue HostClose(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 JSValue HostLog(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
+void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value);
+void SetString(JSContext* context, JSValue object, const char* name, std::string_view value);
+void SetString(JSContext* context, JSValue object, const char* name, const char* value);
+void SetBool(JSContext* context, JSValue object, const char* name, bool value);
+void SetInt(JSContext* context, JSValue object, const char* name, int32_t value);
+void SetUint(JSContext* context, JSValue object, const char* name, uint32_t value);
+void SetFloat(JSContext* context, JSValue object, const char* name, float value);
+void SetFunction(JSContext* context, JSValue object, const char* name, JSCFunction* function, int length);
+bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback);
+std::optional<bool> OptionalBoolProperty(JSContext* context, JSValueConst object, const char* name);
+int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback);
+float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback);
+UiAction ActionProperty(JSContext* context, JSValueConst object);
 JSValue CreateSystemPreferencesObject(JSContext* context);
 JSValue CreateHostObject(JSContext* context);
 

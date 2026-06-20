@@ -44,9 +44,6 @@ protected:
 
     JSContext* Context() const;
     JSValue AppObject() const;
-    void SetFunction(JSValue object, const char* name, JSCFunction* function, int length);
-    bool BoolProperty(JSValueConst object, const char* name, bool fallback) const;
-    std::optional<bool> OptionalBoolProperty(JSValueConst object, const char* name) const;
     void SetError(std::string text);
     void SetActiveDrawContext(const UiDrawContext* context);
     void RenderError(const UiDrawContext& context) const;
