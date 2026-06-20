@@ -514,11 +514,6 @@ JSValue ImgViewerUi::CreateStateObject() const
     SetBool(context, state, "edgeClickNavigation", edge_click_navigation_);
     SetInt(context, state, "edgeClickNavigationZonePercent", edge_click_navigation_zone_percent_);
     SetBool(context, state, "colorPickerActive", color_picker_active_);
-#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
-    SetBool(context, state, "developerEnabled", true);
-#else
-    SetBool(context, state, "developerEnabled", false);
-#endif
 
     JSValue actions = JS_NewObject(context);
     JSValue labels = JS_NewObject(context);

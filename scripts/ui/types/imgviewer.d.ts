@@ -55,7 +55,7 @@ interface RenderEnvironment {
   dpiScale: number;
 }
 
-interface DeveloperPointerEvent {
+interface UiPointerEvent {
   type: PointerEventType;
   x: number;
   y: number;
@@ -66,7 +66,7 @@ interface DeveloperPointerEvent {
   alt: boolean;
 }
 
-interface DeveloperKeyEvent {
+interface UiKeyEvent {
   type: KeyEventType;
   virtualKey: number;
   ctrl: boolean;
@@ -75,17 +75,11 @@ interface DeveloperKeyEvent {
   repeat: boolean;
 }
 
-interface DeveloperEventResult {
+interface UiEventResult {
   handled?: boolean;
   capture?: boolean;
   invalidate?: boolean;
   imeCaret?: ImeCaretPoint;
-}
-
-interface DeveloperUiApp {
-  render(canvas: CanvasApi, env: RenderEnvironment): void;
-  pointer(event: DeveloperPointerEvent): DeveloperEventResult | void;
-  key(event: DeveloperKeyEvent): DeveloperEventResult | void;
 }
 
 type SettingKey =
@@ -128,7 +122,7 @@ interface ImeCaretPoint {
   y: number;
 }
 
-interface InputEventResult extends DeveloperEventResult {
+interface InputEventResult extends UiEventResult {
   imeCaret?: ImeCaretPoint;
 }
 
@@ -171,7 +165,6 @@ interface MainOverlayState {
   edgeClickNavigation: boolean;
   edgeClickNavigationZonePercent: number;
   colorPickerActive: boolean;
-  developerEnabled: boolean;
   actionEnabled: Record<MainActionName, boolean>;
   actionLabels: Record<MainActionName, string>;
   editToolbar: { visible: boolean; tool: string; dirty: boolean; canUndo: boolean; canRedo: boolean };
@@ -204,8 +197,8 @@ interface MainOverlayState {
   toast: { visible: boolean; text: string };
 }
 
-type MainPointerEvent = DeveloperPointerEvent;
-type MainKeyEvent = DeveloperKeyEvent;
+type MainPointerEvent = UiPointerEvent;
+type MainKeyEvent = UiKeyEvent;
 type MainEventResult = InputEventResult & {
   action?: MainActionName;
   actionArg?: number;
@@ -257,11 +250,11 @@ interface PopupEventResult extends PopupActionPayload {
 interface PopupUiApp {
   measure(state: PopupState): PopupMeasureResult;
   render(canvas: CanvasApi, env: RenderEnvironment, state: PopupState): void;
-  pointer(event: DeveloperPointerEvent, state: PopupState): PopupEventResult | void;
-  key(event: DeveloperKeyEvent, state: PopupState): PopupEventResult | void;
+  pointer(event: UiPointerEvent, state: PopupState): PopupEventResult | void;
+  key(event: UiKeyEvent, state: PopupState): PopupEventResult | void;
 }
 
-type AboutKeyEvent = DeveloperKeyEvent;
+type AboutKeyEvent = UiKeyEvent;
 type AboutEventResult = InputEventResult & { action?: string };
 
 interface AboutUiApp {
@@ -269,8 +262,8 @@ interface AboutUiApp {
   key?(event: AboutKeyEvent): AboutEventResult | void;
 }
 
-type SettingsPointerEvent = DeveloperPointerEvent;
-type SettingsKeyEvent = DeveloperKeyEvent;
+type SettingsPointerEvent = UiPointerEvent;
+type SettingsKeyEvent = UiKeyEvent;
 type SettingsEventResult = InputEventResult;
 
 interface SettingsUiApp {
@@ -286,7 +279,6 @@ declare const overlay: OverlayHostApi;
 declare const signals: SignalsApi;
 declare const settings: SettingsApi;
 
-declare var imgviewerDeveloperUi: DeveloperUiApp;
 declare var imgviewerSettingsUi: SettingsUiApp;
 declare var imgviewerMainUi: MainUiApp;
 declare var imgviewerPopupUi: PopupUiApp;

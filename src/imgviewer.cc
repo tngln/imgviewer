@@ -725,11 +725,6 @@ void ExecuteImgViewerAction(HWND hwnd, ImgViewerContext* context, UiAction actio
     case ImgViewerAction::OpenSettings:
         OpenImgViewerSettingsWindow(hwnd, context);
         break;
-#if defined(IMGVIEWER_ENABLE_DEVELOPER_WINDOW)
-    case ImgViewerAction::OpenDeveloper:
-        OpenImgViewerDeveloperWindow(hwnd, context);
-        break;
-#endif
     case ImgViewerAction::OpenAbout:
         OpenImgViewerAboutWindow(hwnd, context);
         break;

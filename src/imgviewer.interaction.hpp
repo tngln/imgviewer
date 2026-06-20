@@ -36,7 +36,6 @@ enum class ImgViewerModalOwner {
     ScreenCapture,
     Settings,
     About,
-    Developer,
 };
 
 class ImgViewerInteractionState final {

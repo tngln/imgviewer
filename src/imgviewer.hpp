@@ -58,7 +58,6 @@ struct ImgViewerContext final {
     HWND settings_window = nullptr;
     UiWindowDelegate* settings_context = nullptr;
     UiWindowDelegate* about_context = nullptr;
-    UiWindowDelegate* developer_context = nullptr;
     bool color_picker_active = false;
     bool color_picker_has_sample = false;
     std::wstring color_picker_hex_text;
@@ -106,5 +105,4 @@ void HandleImgViewerSaveImageAsCommand(HWND hwnd, ImgViewerContext* context);
 void HandleImgViewerPasteClipboard(HWND hwnd, ImgViewerContext* context);
 HRESULT OpenImgViewerSettingsWindow(HWND owner, ImgViewerContext* context);
 HRESULT OpenImgViewerAboutWindow(HWND owner, ImgViewerContext* context);
-HRESULT OpenImgViewerDeveloperWindow(HWND owner, ImgViewerContext* context);
 void CleanupImgViewerOwnedWindow(ImgViewerContext* context, UiWindowDelegate* window);

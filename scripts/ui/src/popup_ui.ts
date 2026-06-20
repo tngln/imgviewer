@@ -210,7 +210,7 @@ function render(canvas: CanvasApi, _env: RenderEnvironment, state: PopupState): 
   else if (state.kind === "dropdown") renderDropdown(canvas, state);
 }
 
-function pointer(event: DeveloperPointerEvent, state: PopupState): PopupEventResult | void {
+function pointer(event: UiPointerEvent, state: PopupState): PopupEventResult | void {
   resetFor(state);
   if (state.kind === "menu") {
     const layout = layoutMenu(state.items);
@@ -252,7 +252,7 @@ function pointer(event: DeveloperPointerEvent, state: PopupState): PopupEventRes
   }
 }
 
-function key(event: DeveloperKeyEvent, state: PopupState): PopupEventResult | void {
+function key(event: UiKeyEvent, state: PopupState): PopupEventResult | void {
   resetFor(state);
   if (event.type !== "down") return;
   if (state.kind === "menu") {

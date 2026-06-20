@@ -15,15 +15,11 @@ set(QJS_BUILD_WERROR OFF CACHE BOOL "Do not build QuickJS-NG with warnings as er
 add_subdirectory(third_parties/quickjs EXCLUDE_FROM_ALL)
 
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-set(IMGVIEWER_DEVELOPER_WINDOW_CONFIGS "Debug" CACHE STRING
-    "Semicolon-separated build configurations that show the Developer window.")
-
 add_executable(imgviewer
     src/imgviewer.cc
     src/imgviewer.about.cc
     src/imgviewer.action.cc
     src/imgviewer.config.cc
-    src/imgviewer.developer.cc
     src/imgviewer.edit.cc
     src/imgviewer.host.app_messages.cc
     src/imgviewer.host.chrome.cc
@@ -91,14 +87,6 @@ target_compile_definitions(imgviewer PRIVATE
     WIN32_LEAN_AND_MEAN
     _UNICODE
 )
-
-foreach(developer_window_config IN LISTS IMGVIEWER_DEVELOPER_WINDOW_CONFIGS)
-    if(NOT developer_window_config STREQUAL "")
-        target_compile_definitions(imgviewer PRIVATE
-            $<$<CONFIG:${developer_window_config}>:IMGVIEWER_ENABLE_DEVELOPER_WINDOW>
-        )
-    endif()
-endforeach()
 
 set_target_properties(imgviewer PROPERTIES
     CXX_STANDARD_REQUIRED ON

@@ -56,9 +56,6 @@ struct LocalizedString final {
     X(Settings, L"Settings") \
     X(CloseSettings, L"Close Settings") \
     X(SaveSettings, L"Save Settings") \
-    X(Developer, L"Developer") \
-    X(CloseDeveloper, L"Close Developer") \
-    X(DeveloperSampleButton, L"Developer Sample Button") \
     X(About, L"About") \
     X(AboutImgViewer, L"About ImgViewer") \
     X(CloseAbout, L"Close About") \
@@ -287,8 +284,6 @@ struct LocalizedString final {
     X(ImagesFilter, L"Images") \
     X(AllFilesFilter, L"All files") \
     X(PngImageFilter, L"PNG image") \
-    X(DeveloperControlLab, L"Control Lab") \
-    X(DeveloperState, L"Developer state") \
     X(Value, L"Value") \
     X(Tool, L"Tool") \
     X(Size, L"Size") \

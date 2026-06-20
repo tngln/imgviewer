@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <cstdio>
-#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -85,7 +84,7 @@ std::string TestSignalName(JSContext* context, JSValueConst value)
 JSValue TestSignalsGet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     TestSignalApi* api = TestSignalApiFromContext(context);
-    if (api == nullptr || argc < 1 || TestSignalName(context, argv[0]) != "developer.counter") {
+    if (api == nullptr || argc < 1 || TestSignalName(context, argv[0]) != "test.counter") {
         return JS_UNDEFINED;
     }
     return JS_NewInt32(context, api->value.Get());
@@ -94,7 +93,7 @@ JSValue TestSignalsGet(JSContext* context, JSValueConst, int argc, JSValueConst*
 JSValue TestSignalsSet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     TestSignalApi* api = TestSignalApiFromContext(context);
-    if (api == nullptr || argc < 2 || TestSignalName(context, argv[0]) != "developer.counter") {
+    if (api == nullptr || argc < 2 || TestSignalName(context, argv[0]) != "test.counter") {
         return JS_FALSE;
     }
     int32_t next = 0;
@@ -105,7 +104,7 @@ JSValue TestSignalsSet(JSContext* context, JSValueConst, int argc, JSValueConst*
 JSValue TestSignalsSubscribe(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     TestSignalApi* api = TestSignalApiFromContext(context);
-    if (api == nullptr || argc < 2 || TestSignalName(context, argv[0]) != "developer.counter" ||
+    if (api == nullptr || argc < 2 || TestSignalName(context, argv[0]) != "test.counter" ||
         !JS_IsFunction(context, argv[1])) {
         return JS_NewInt32(context, 0);
     }
@@ -147,16 +146,6 @@ void InstallTestSignals(JSContext* context, TestSignalApi* api)
     JS_SetPropertyStr(context, signals, "unsubscribe", JS_NewCFunction(context, TestSignalsUnsubscribe, "unsubscribe", 1));
     JS_SetPropertyStr(context, global, "signals", signals);
     JS_FreeValue(context, global);
-}
-
-std::filesystem::path CurrentExeDirectory()
-{
-    std::vector<wchar_t> buffer(MAX_PATH);
-    DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
-    if (length == 0) {
-        return {};
-    }
-    return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
 }
 
 // ---------------------------------------------------------------------------
@@ -408,11 +397,11 @@ void TestQuickJsSignalApiSmoke()
 
     const script::QuickJsEvalResult result = runtime.EvalScript(
         "globalThis.seen = 0;"
-        "const sub = signals.subscribe('developer.counter', value => { globalThis.seen = value; });"
-        "signals.set('developer.counter', 5);"
+        "const sub = signals.subscribe('test.counter', value => { globalThis.seen = value; });"
+        "signals.set('test.counter', 5);"
         "signals.unsubscribe(sub);"
-        "signals.set('developer.counter', 8);"
-        "signals.get('developer.counter') + ':' + globalThis.seen;",
+        "signals.set('test.counter', 8);"
+        "signals.get('test.counter') + ':' + globalThis.seen;",
         "quickjs-signal-test.js");
     CHECK(result.ok);
     CHECK(result.value_utf8 == "8:5");
@@ -486,12 +475,6 @@ void TestScriptVectorIconReader()
     JS_FreeValue(context, global);
 }
 
-void TestDeveloperScriptBundlePath()
-{
-    const std::filesystem::path script_path = CurrentExeDirectory() / L"scripts" / L"developer_ui.js";
-    CHECK(std::filesystem::exists(script_path));
-}
-
 } // namespace
 
 int main()
@@ -507,7 +490,6 @@ int main()
     TestQuickJsSignalApiSmoke();
     TestCanvasColorParser();
     TestScriptVectorIconReader();
-    TestDeveloperScriptBundlePath();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

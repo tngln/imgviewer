@@ -10,7 +10,7 @@
 
 #include <vector>
 
-// Owned child windows (Settings/About/Developer) post a single
+// Owned child windows (Settings/About) post a single
 // kImgViewerOwnedWindowDestroyedMessage with their UiWindowDelegate* on destroy.
 // One cleanup clears the matching slot/modal and deletes via the virtual base
 // dtor (replaces three near-identical per-window handshakes; refactor.md L2).
@@ -26,9 +26,6 @@ void CleanupImgViewerOwnedWindow(ImgViewerContext* context, UiWindowDelegate* wi
         } else if (context->about_context == window) {
             context->about_context = nullptr;
             context->interaction.ClearModal(ImgViewerModalOwner::About);
-        } else if (context->developer_context == window) {
-            context->developer_context = nullptr;
-            context->interaction.ClearModal(ImgViewerModalOwner::Developer);
         }
     }
     delete window;

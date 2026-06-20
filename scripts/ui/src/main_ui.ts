@@ -156,12 +156,9 @@ function mainMenuState(state: MainOverlayState): PopupState {
     menuItem(state, "showInFileExplorer"),
     menuSeparator(),
     menuItem(state, "openSettings"),
-  ];
-  if (state.developerEnabled) {
-    items.push(menuItem(state, "openDeveloper"));
-  }
-  items.push(
     menuItem(state, "openAbout"),
+  ];
+  items.push(
     menuSeparator(),
     menuItem(state, "toggleInfoPanel", state.infoPanel.visible),
     menuItem(state, "toggleAnimationLoop", state.animation.loop),

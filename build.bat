@@ -65,8 +65,6 @@ if errorlevel 1 (
 )
 
 if not exist "%ROOT%build\%CONFIG%\scripts" mkdir "%ROOT%build\%CONFIG%\scripts"
-bun build "%ROOT%scripts\ui\src\developer_ui.ts" --target=browser --format=iife --outdir "%ROOT%build\%CONFIG%\scripts" --entry-naming developer_ui.js --sourcemap=external
-if errorlevel 1 exit /b %errorlevel%
 bun build "%ROOT%scripts\ui\src\settings_ui.ts" --target=browser --format=iife --outdir "%ROOT%build\%CONFIG%\scripts" --entry-naming settings_ui.js --sourcemap=external
 if errorlevel 1 exit /b %errorlevel%
 bun build "%ROOT%scripts\ui\src\main_ui.ts" --target=browser --format=iife --outdir "%ROOT%build\%CONFIG%\scripts" --entry-naming main_ui.js --sourcemap=external
