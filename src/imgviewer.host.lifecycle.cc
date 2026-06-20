@@ -25,7 +25,6 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
             FAILED(context->viewer.Initialize())) {
             return win32::WindowMessageResult::Handled(-1);
         }
-        context->popup.SetTextFormats(context->renderer.BodyTextFormat(), context->renderer.IconTextFormat());
         context->viewer.SetPixelatedSampling(context->config.pixelated_sampling);
         context->renderer.SetCheckerboardBackground(context->config.checkerboard_background);
         ApplyWindowOpacity(hwnd, context->current_window_opacity_percent);

@@ -129,8 +129,6 @@ HRESULT RenderUiCompositionSurface(
     UINT* allocated_width,
     UINT* allocated_height,
     IDWriteFactory* dwrite_factory,
-    IDWriteTextFormat* body_text_format,
-    IDWriteTextFormat* icon_text_format,
     D2D1_SIZE_F viewport_size,
     float dpi_scale,
     D2D1_POINT_2F translation,
@@ -144,8 +142,6 @@ HRESULT RenderUiCompositionSurface(
     struct RenderState final {
         GraphicsDevice* graphics;
         IDWriteFactory* dwrite_factory;
-        IDWriteTextFormat* body_text_format;
-        IDWriteTextFormat* icon_text_format;
         D2D1_SIZE_F viewport_size;
         float dpi_scale;
         D2D1_POINT_2F translation;
@@ -155,8 +151,6 @@ HRESULT RenderUiCompositionSurface(
     } state{
         graphics,
         dwrite_factory,
-        body_text_format,
-        icon_text_format,
         viewport_size,
         dpi_scale,
         translation,
@@ -185,8 +179,6 @@ HRESULT RenderUiCompositionSurface(
                 .d2d_context = d2d_context,
                 .d2d_factory = state->graphics->D2DFactory(),
                 .dwrite_factory = state->dwrite_factory,
-                .body_text_format = state->body_text_format,
-                .icon_text_format = state->icon_text_format,
                 .viewport_size = state->viewport_size,
                 .dpi_scale = state->dpi_scale,
             };

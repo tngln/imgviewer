@@ -94,8 +94,6 @@ private:
     wil::com_ptr<IDCompositionVisual> dcomp_visual_;
     wil::com_ptr<IDCompositionSurface> dcomp_surface_;
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
-    wil::com_ptr<IDWriteTextFormat> body_text_format_;
-    wil::com_ptr<IDWriteTextFormat> icon_text_format_;
     std::optional<D2D1_POINT_2F> ime_caret_point_;
     UINT surface_width_ = 0;
     UINT surface_height_ = 0;

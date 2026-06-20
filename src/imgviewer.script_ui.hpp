@@ -56,6 +56,7 @@ float FloatProperty(JSContext* context, JSValueConst object, const char* name, f
 UiAction ActionProperty(JSContext* context, JSValueConst object);
 JSValue CreateSystemPreferencesObject(JSContext* context);
 JSValue CreateHostObject(JSContext* context);
+void InstallTypographyGlobals(JSContext* context, JSValue global);
 
 JSValue CreateCanvasObject(JSContext* context);
 JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context);

@@ -55,26 +55,6 @@ void UiDraw::DrawRoundedRect(D2D1_ROUNDED_RECT rect, D2D1_COLOR_F color, float s
     context_.d2d_context->DrawRoundedRectangle(rect, brush, stroke_width);
 }
 
-void UiDraw::DrawBodyText(
-    std::wstring_view text,
-    D2D1_RECT_F rect,
-    D2D1_COLOR_F color,
-    D2D1_DRAW_TEXT_OPTIONS options,
-    DWRITE_MEASURING_MODE measuring_mode) const
-{
-    DrawText(text, context_.body_text_format, rect, color, options, measuring_mode);
-}
-
-void UiDraw::DrawIconText(
-    std::wstring_view text,
-    D2D1_RECT_F rect,
-    D2D1_COLOR_F color,
-    D2D1_DRAW_TEXT_OPTIONS options,
-    DWRITE_MEASURING_MODE measuring_mode) const
-{
-    DrawText(text, context_.icon_text_format, rect, color, options, measuring_mode);
-}
-
 void UiDraw::DrawText(
     std::wstring_view text,
     IDWriteTextFormat* text_format,

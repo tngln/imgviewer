@@ -37,8 +37,6 @@ public:
     HRESULT Commit();
 
     D2D1_SIZE_U ViewportPixelSize() const;
-    IDWriteTextFormat* BodyTextFormat() const;
-    IDWriteTextFormat* IconTextFormat() const;
     float DpiScale() const;
 
 private:
@@ -50,8 +48,6 @@ private:
     wil::com_ptr<ID2D1Factory1> d2d_factory_;
     wil::com_ptr<ID2D1DeviceContext> d2d_context_;
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
-    wil::com_ptr<IDWriteTextFormat> body_text_format_;
-    wil::com_ptr<IDWriteTextFormat> icon_text_format_;
     wil::com_ptr<IDCompositionDevice> dcomp_device_;
     wil::com_ptr<IDCompositionTarget> dcomp_target_;
     wil::com_ptr<IDCompositionVisual> root_visual_;

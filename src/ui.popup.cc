@@ -106,12 +106,6 @@ HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* g
         PopupWindowProc);
 }
 
-void PopupHost::SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextFormat* icon_text_format)
-{
-    body_text_format_ = body_text_format;
-    icon_text_format_ = icon_text_format;
-}
-
 bool PopupHost::IsOpen() const
 {
     return native_open_;
@@ -216,6 +210,7 @@ HRESULT PopupHost::LoadScript()
     JSContext* context = script_context_->Context();
     JSValue global = JS_GetGlobalObject(context);
     JS_SetPropertyStr(context, global, "host", imgviewer::CreateHostObject(context));
+    imgviewer::InstallTypographyGlobals(context, global);
     JS_FreeValue(context, global);
 
     script_path_ = imgviewer::ScriptPath(kPopupScriptRelativePath);
@@ -530,8 +525,6 @@ HRESULT PopupHost::RenderDCompPopup(UINT width, UINT height)
         &dcomp_surface_width_,
         &dcomp_surface_height_,
         dwrite_factory_.get(),
-        body_text_format_,
-        icon_text_format_,
         D2D1::SizeF(static_cast<float>(width) / state.dpi_scale, static_cast<float>(height) / state.dpi_scale),
         state.dpi_scale,
         D2D1::Point2F(kPopupContentInset * state.dpi_scale, kPopupContentInset * state.dpi_scale),

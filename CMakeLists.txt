@@ -146,6 +146,7 @@ add_executable(imgviewer_tests
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.draw.cc
+    src/ui.text.cc
     src/imgviewer.script_ui.cc
     src/imgviewer.script_window_root.cc
 )

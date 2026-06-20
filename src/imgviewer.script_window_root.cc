@@ -233,6 +233,7 @@ void ScriptWindowRootBase::InstallGlobals()
     JSValue global = JS_GetGlobalObject(context);
 
     JS_SetPropertyStr(context, global, "host", CreateHostObject(context));
+    InstallTypographyGlobals(context, global);
 
     InstallCustomGlobals(global);
     JS_FreeValue(context, global);

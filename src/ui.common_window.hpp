@@ -62,8 +62,6 @@ HRESULT RenderUiCompositionSurface(
     UINT* allocated_width,
     UINT* allocated_height,
     IDWriteFactory* dwrite_factory,
-    IDWriteTextFormat* body_text_format,
-    IDWriteTextFormat* icon_text_format,
     D2D1_SIZE_F viewport_size,
     float dpi_scale,
     D2D1_POINT_2F translation,

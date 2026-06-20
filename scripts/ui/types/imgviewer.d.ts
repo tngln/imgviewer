@@ -13,11 +13,55 @@ interface VectorIcon {
   commands: VectorPathCommand[];
 }
 
+type FontWeightValue = number;
+type FontStyleValue = number;
+type FontStretchValue = number;
+
+interface TypeFace {
+  family: string;
+  size: number;
+  weight: FontWeightValue;
+  style: FontStyleValue;
+  stretch: FontStretchValue;
+}
+
+declare const FontWeight: {
+  Thin: FontWeightValue;
+  ExtraLight: FontWeightValue;
+  Light: FontWeightValue;
+  Normal: FontWeightValue;
+  Medium: FontWeightValue;
+  Semibold: FontWeightValue;
+  Bold: FontWeightValue;
+  ExtraBold: FontWeightValue;
+  Black: FontWeightValue;
+};
+
+declare const FontStyle: {
+  Normal: FontStyleValue;
+  Oblique: FontStyleValue;
+  Italic: FontStyleValue;
+};
+
+declare const FontStretch: {
+  Normal: FontStretchValue;
+  Condensed: FontStretchValue;
+  Expanded: FontStretchValue;
+};
+
+declare function createTypeFace(
+  family: string,
+  size: number,
+  weight?: FontWeightValue,
+  style?: FontStyleValue,
+  stretch?: FontStretchValue,
+): TypeFace;
+
 interface CanvasApi {
   clear(color: string): void;
   fillRect(x: number, y: number, width: number, height: number, color: string): void;
   strokeRect(x: number, y: number, width: number, height: number, color: string, strokeWidth?: number): void;
-  fillText(text: string, x: number, y: number, width: number, height: number, color: string): void;
+  fillText(text: string, typeFace: TypeFace, x: number, y: number, width: number, height: number, color: string): void;
   strokeLine(x1: number, y1: number, x2: number, y2: number, color: string, strokeWidth?: number): void;
   drawIcon(icon: VectorIcon, x: number, y: number, width: number, height: number, color: string, strokeWidth?: number): void;
 }

@@ -1,6 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
 import { type Rect, clamp, drawButton as drawCommonButton, drawText, hitTestReverse } from "./common";
+import { uiTitle } from "./typography";
 
 type ControlKind = "button" | "toggle" | "radio" | "slider" | "filter";
 type Control = Rect & {
@@ -190,7 +191,7 @@ globalThis.imgviewerSettingsUi = {
     const contentWidth = right - left;
     let y = 22 - scrollY;
 
-    canvas.fillText("Settings", left, y, contentWidth, 30, colors.text);
+    drawText(canvas, "Settings", left, y, contentWidth, colors.text, 30, uiTitle);
     y += 48;
 
     y = section(canvas, "Language", left, y, contentWidth);

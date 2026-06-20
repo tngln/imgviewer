@@ -20,27 +20,6 @@ HRESULT UiRenderer::Initialize(HWND hwnd, GraphicsDevice* graphics)
     dwrite_factory_ = graphics_->DWriteFactory();
     dcomp_device_ = graphics_->DCompDevice();
 
-    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
-        L"Segoe UI",
-        nullptr,
-        DWRITE_FONT_WEIGHT_SEMI_BOLD,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        14.0f,
-        L"",
-        body_text_format_.put()));
-    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
-        L"Segoe MDL2 Assets",
-        nullptr,
-        DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        12.0f,
-        L"",
-        icon_text_format_.put()));
-    RETURN_IF_FAILED(body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
-    RETURN_IF_FAILED(icon_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
-
     RETURN_IF_FAILED(graphics_->CreateCompositionTarget(hwnd_, dcomp_target_.put(), root_visual_.put()));
     RETURN_IF_FAILED(surfaces_.Initialize(dcomp_device_.get(), root_visual_.get()));
     RETURN_IF_FAILED(ResizeSurfacesToClient());
@@ -74,8 +53,6 @@ HRESULT UiRenderer::DrawSurface(UiSurfaceId id, UiSurfaceDrawCallback callback, 
             .d2d_context = d2d_context_.get(),
             .d2d_factory = d2d_factory_.get(),
             .dwrite_factory = dwrite_factory_.get(),
-            .body_text_format = body_text_format_.get(),
-            .icon_text_format = icon_text_format_.get(),
             .viewport_size = D2D1::SizeF(
                 static_cast<float>(surfaces_.Width()),
                 static_cast<float>(surfaces_.Height())),
@@ -160,16 +137,6 @@ HRESULT UiRenderer::Commit()
 D2D1_SIZE_U UiRenderer::ViewportPixelSize() const
 {
     return D2D1::SizeU(surfaces_.Width(), surfaces_.Height());
-}
-
-IDWriteTextFormat* UiRenderer::BodyTextFormat() const
-{
-    return body_text_format_.get();
-}
-
-IDWriteTextFormat* UiRenderer::IconTextFormat() const
-{
-    return icon_text_format_.get();
 }
 
 float UiRenderer::DpiScale() const

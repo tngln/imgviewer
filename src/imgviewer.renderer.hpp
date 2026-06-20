@@ -20,8 +20,6 @@ public:
     HRESULT SetUiOverlayVisible(bool visible);
     void SetCheckerboardBackground(bool enabled);
     D2D1_SIZE_U ViewportPixelSize() const;
-    IDWriteTextFormat* BodyTextFormat() const;
-    IDWriteTextFormat* IconTextFormat() const;
 
 private:
     // Inputs that determine the image layer's pixels. The image layer is the

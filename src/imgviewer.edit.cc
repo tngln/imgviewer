@@ -12,6 +12,7 @@
 #include "imgviewer.edit_geometry.hpp"
 #include "math.hpp"
 #include "ui.graphics_device.hpp"
+#include "ui.text.hpp"
 #include "win32.clipboard.hpp"
 
 namespace {
@@ -376,16 +377,14 @@ D2D1_RECT_F TextLayoutRect(
 
     if (dwrite_factory != nullptr) {
         wil::com_ptr<IDWriteTextFormat> format;
-        if (SUCCEEDED(dwrite_factory->CreateTextFormat(
-                text.style.font_family.c_str(),
-                nullptr,
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                font_size,
-                L"",
+        if (SUCCEEDED(ui_text::CreateTextFormat(
+                dwrite_factory,
+                ui_text::TypeFace{
+                    .family = text.style.font_family,
+                    .size = font_size,
+                    .weight = DWRITE_FONT_WEIGHT_NORMAL,
+                },
                 format.put()))) {
-            format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
             wil::com_ptr<IDWriteTextLayout> layout;
             if (SUCCEEDED(dwrite_factory->CreateTextLayout(
                     text_to_measure.c_str(),
@@ -422,16 +421,14 @@ HRESULT DrawTextObject(ID2D1DeviceContext* render_target, IDWriteFactory* dwrite
     }
 
     wil::com_ptr<IDWriteTextFormat> format;
-    RETURN_IF_FAILED(dwrite_factory->CreateTextFormat(
-        text.style.font_family.c_str(),
-        nullptr,
-        DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        (std::max)(6.0f, text.style.font_size),
-        L"",
+    RETURN_IF_FAILED(ui_text::CreateTextFormat(
+        dwrite_factory,
+        ui_text::TypeFace{
+            .family = text.style.font_family,
+            .size = (std::max)(6.0f, text.style.font_size),
+            .weight = DWRITE_FONT_WEIGHT_NORMAL,
+        },
         format.put()));
-    RETURN_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
     RETURN_IF_FAILED(render_target->CreateSolidColorBrush(text.style.text_color, brush.put()));
     const std::wstring text_to_draw = text.text.empty() ? L" " : text.text;
     render_target->DrawTextW(

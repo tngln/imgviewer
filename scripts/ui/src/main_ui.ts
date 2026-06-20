@@ -1,6 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
 import { clamp, contains, drawButton, drawText, type Rect } from "./common";
+import { uiSmall, uiTitle } from "./typography";
 import { svgIcon } from "./vector_icon";
 
 type Hit = Rect & { id: string; action?: string; actionArg?: number; enabled?: boolean; kind?: string };
@@ -269,9 +270,9 @@ function renderTitlebar(canvas: CanvasApi, env: RenderEnvironment, state: MainOv
   addHit(menu);
   button(canvas, menu, "Menu", false);
 
-  drawText(canvas, state.title || "ImgViewer", 54, 11, Math.max(60, env.width - 220), colors.text, 22);
+  drawText(canvas, state.title || "ImgViewer", 54, 11, Math.max(60, env.width - 220), colors.text, 22, uiTitle);
   if (state.topMost) {
-    drawText(canvas, "Top", env.width - 144, 11, 36, colors.accent, 22);
+    drawText(canvas, "Top", env.width - 144, 11, 36, colors.accent, 22, uiTitle);
   }
 
   const min: Hit = { id: "minimize", x: env.width - 108, y: 7, width: 30, height: 28, action: "minimize", enabled: enabled(state, "minimize") };
@@ -448,7 +449,7 @@ function renderAnimation(canvas: CanvasApi, env: RenderEnvironment, state: MainO
     button(canvas, hit, label, action === "toggleAnimationLoop" && state.animation.loop);
     x += 48;
   }
-  drawText(canvas, `${state.animation.currentFrame + 1} / ${state.animation.totalFrames}`, x + 6, rect.y + 10, env.width - x - 10, colors.muted, 18);
+  drawText(canvas, `${state.animation.currentFrame + 1} / ${state.animation.totalFrames}`, x + 6, rect.y + 10, env.width - x - 10, colors.muted, 18, uiSmall);
 }
 
 function renderInfoPanel(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void {
@@ -458,7 +459,7 @@ function renderInfoPanel(canvas: CanvasApi, env: RenderEnvironment, state: MainO
   addHit({ id: "infoPanel", ...rect, kind: "panel", enabled: true });
   canvas.fillRect(rect.x, rect.y, rect.width, rect.height, colors.panel);
   canvas.strokeRect(rect.x, rect.y, rect.width, rect.height, colors.stroke, 1);
-  drawText(canvas, "Info", rect.x + 12, rect.y + 10, rect.width - 54, colors.text, 20);
+  drawText(canvas, "Info", rect.x + 12, rect.y + 10, rect.width - 54, colors.text, 20, uiTitle);
   const close: Hit = { id: "infoClose", x: rect.x + rect.width - 38, y: rect.y + 8, width: 26, height: 24, action: "toggleInfoPanel", enabled: enabled(state, "toggleInfoPanel") };
   addHit(close);
   button(canvas, close, "X");
@@ -493,7 +494,7 @@ function renderInfoPanel(canvas: CanvasApi, env: RenderEnvironment, state: MainO
 
 function renderRows(canvas: CanvasApi, rows: MainOverlayRows[], rect: Rect, y: number): number {
   for (const row of rows) {
-    drawText(canvas, row.label, rect.x + 12, y, 94, colors.muted, 18);
+    drawText(canvas, row.label, rect.x + 12, y, 94, colors.muted, 18, uiSmall);
     drawText(canvas, row.value || "-", rect.x + 108, y, rect.width - 120, colors.text, 18);
     y += 22;
   }
@@ -510,8 +511,8 @@ function renderChip(canvas: CanvasApi, x: number, y: number, label: string, colo
   const hex = `#FF${color.red.toString(16).padStart(2, "0")}${color.green.toString(16).padStart(2, "0")}${color.blue.toString(16).padStart(2, "0")}`.toUpperCase();
   canvas.fillRect(x, y, 84, 18, hex);
   canvas.strokeRect(x, y, 84, 18, colors.stroke, 1);
-  drawText(canvas, label, x, y + 22, 84, colors.muted, 16);
-  drawText(canvas, hex.slice(3), x, y + 40, 84, colors.text, 16);
+  drawText(canvas, label, x, y + 22, 84, colors.muted, 16, uiSmall);
+  drawText(canvas, hex.slice(3), x, y + 40, 84, colors.text, 16, uiSmall);
 }
 
 function renderToast(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void {

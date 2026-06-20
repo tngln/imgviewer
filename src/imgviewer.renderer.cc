@@ -12,6 +12,7 @@
 #include "math.hpp"
 #include "imgviewer.edit_geometry.hpp"
 #include "ui.draw.hpp"
+#include "ui.text.hpp"
 
 namespace {
 
@@ -141,16 +142,14 @@ D2D1_RECT_F TextLayoutRect(
 
     if (dwrite_factory != nullptr) {
         wil::com_ptr<IDWriteTextFormat> format;
-        if (SUCCEEDED(dwrite_factory->CreateTextFormat(
-                text.style.font_family.c_str(),
-                nullptr,
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                font_size,
-                L"",
+        if (SUCCEEDED(ui_text::CreateTextFormat(
+                dwrite_factory,
+                ui_text::TypeFace{
+                    .family = text.style.font_family,
+                    .size = font_size,
+                    .weight = DWRITE_FONT_WEIGHT_NORMAL,
+                },
                 format.put()))) {
-            format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
             wil::com_ptr<IDWriteTextLayout> layout;
             if (SUCCEEDED(dwrite_factory->CreateTextLayout(
                     text_to_measure.c_str(),
@@ -325,16 +324,14 @@ HRESULT DrawEditTextObject(
     brush.reset();
 
     wil::com_ptr<IDWriteTextFormat> format;
-    RETURN_IF_FAILED(dwrite_factory->CreateTextFormat(
-        text.style.font_family.c_str(),
-        nullptr,
-        DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        (std::max)(6.0f, text.style.font_size),
-        L"",
+    RETURN_IF_FAILED(ui_text::CreateTextFormat(
+        dwrite_factory,
+        ui_text::TypeFace{
+            .family = text.style.font_family,
+            .size = (std::max)(6.0f, text.style.font_size),
+            .weight = DWRITE_FONT_WEIGHT_NORMAL,
+        },
         format.put()));
-    RETURN_IF_FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
     const D2D1_RECT_F text_rect = D2D1::RectF(rect.left + kPaddingX, rect.top + kPaddingY, rect.right - kPaddingX, rect.bottom - kPaddingY);
     const std::wstring text_to_draw = editing && edit_state != nullptr
         ? (edit_state->DisplayText().empty() ? L" " : edit_state->DisplayText())
@@ -380,7 +377,7 @@ HRESULT DrawEditTextObject(
 
 HRESULT DrawCropOverlay(
     ID2D1DeviceContext* d2d_context,
-    IDWriteTextFormat* text_format,
+    IDWriteFactory* dwrite_factory,
     const ImgViewerEditSnapshot& edit,
     D2D1_RECT_F image_rect,
     float image_scale)
@@ -430,7 +427,16 @@ HRESULT DrawCropOverlay(
         crop_rect.top + label_padding,
         (std::min)(crop_rect.right - label_padding, crop_rect.left + label_padding + label_width),
         (std::min)(crop_rect.bottom - label_padding, crop_rect.top + label_padding + label_height));
-    if (label_rect.right > label_rect.left && label_rect.bottom > label_rect.top && text_format != nullptr) {
+    if (label_rect.right > label_rect.left && label_rect.bottom > label_rect.top && dwrite_factory != nullptr) {
+        wil::com_ptr<IDWriteTextFormat> text_format;
+        RETURN_IF_FAILED(ui_text::CreateTextFormat(
+            dwrite_factory,
+            ui_text::TypeFace{
+                .family = L"Segoe UI",
+                .size = 14.0f / (std::max)(0.01f, image_scale),
+                .weight = DWRITE_FONT_WEIGHT_SEMI_BOLD,
+            },
+            text_format.put()));
         RETURN_IF_FAILED(d2d_context->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black, 0.68f), brush.put()));
         d2d_context->FillRectangle(label_rect, brush.get());
         brush.reset();
@@ -438,7 +444,7 @@ HRESULT DrawCropOverlay(
         d2d_context->DrawTextW(
             size_text,
             static_cast<UINT32>(wcslen(size_text)),
-            text_format,
+            text_format.get(),
             D2D1::RectF(label_rect.left + label_padding, label_rect.top, label_rect.right, label_rect.bottom),
             brush.get(),
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -555,16 +561,6 @@ void ImgViewerRenderer::SetCheckerboardBackground(bool enabled)
 D2D1_SIZE_U ImgViewerRenderer::ViewportPixelSize() const
 {
     return ui_renderer_.ViewportPixelSize();
-}
-
-IDWriteTextFormat* ImgViewerRenderer::BodyTextFormat() const
-{
-    return ui_renderer_.BodyTextFormat();
-}
-
-IDWriteTextFormat* ImgViewerRenderer::IconTextFormat() const
-{
-    return ui_renderer_.IconTextFormat();
 }
 
 HRESULT ImgViewerRenderer::RenderImageLayer(const ImgViewerSnapshot& image, const ImgViewerEditSnapshot& edit)
@@ -711,7 +707,7 @@ HRESULT ImgViewerRenderer::RenderEditLayer(const ImgViewerSnapshot& image, const
                 state->edit.has_crop) {
                 RETURN_IF_FAILED(DrawCropOverlay(
                     d2d_context,
-                    context.draw.body_text_format,
+                    context.draw.dwrite_factory,
                     state->edit,
                     image_rect,
                     image_scale));

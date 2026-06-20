@@ -1,8 +1,10 @@
 #include "ui.text.hpp"
 
+#include <algorithm>
 #include <string>
 
 #include <wil/com.h>
+#include <wil/result_macros.h>
 
 namespace {
 
@@ -13,6 +15,31 @@ constexpr wchar_t kEllipsis[] = L"...";
 } // namespace
 
 namespace ui_text {
+
+HRESULT CreateTextFormat(
+    IDWriteFactory* factory,
+    const TypeFace& typeface,
+    IDWriteTextFormat** format)
+{
+    RETURN_HR_IF_NULL(E_INVALIDARG, factory);
+    RETURN_HR_IF_NULL(E_INVALIDARG, format);
+
+    *format = nullptr;
+    wil::com_ptr<IDWriteTextFormat> local_format;
+    const std::wstring family = typeface.family.empty() ? L"Segoe UI" : typeface.family;
+    RETURN_IF_FAILED(factory->CreateTextFormat(
+        family.c_str(),
+        nullptr,
+        typeface.weight,
+        typeface.style,
+        typeface.stretch,
+        (std::max)(1.0f, typeface.size),
+        L"",
+        local_format.put()));
+    RETURN_IF_FAILED(local_format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
+    *format = local_format.detach();
+    return S_OK;
+}
 
 TextMetrics GetTextMetrics(
     IDWriteFactory* factory,

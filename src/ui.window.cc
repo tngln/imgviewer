@@ -21,9 +21,6 @@ using ui_host_input::PhysicalClientPointToUi;
 using ui_host_input::ScreenPointToUi;
 using ui_host_input::UiPointToPhysicalClient;
 
-constexpr float kUiWindowBodyFontSize = 8.5f;
-constexpr float kUiWindowIconFontSize = 10.0f;
-
 } // namespace
 
 HRESULT UiWindowHost::Create(
@@ -302,27 +299,6 @@ HRESULT UiWindowHost::InitializeRenderResources()
     d2d_context_ = graphics_->D2DContext();
     dcomp_device_ = graphics_->DCompDevice();
     dwrite_factory_ = graphics_->DWriteFactory();
-    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
-        L"Segoe UI",
-        nullptr,
-        DWRITE_FONT_WEIGHT_SEMI_BOLD,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        kUiWindowBodyFontSize,
-        L"",
-        body_text_format_.put()));
-    RETURN_IF_FAILED(dwrite_factory_->CreateTextFormat(
-        L"Segoe MDL2 Assets",
-        nullptr,
-        DWRITE_FONT_WEIGHT_NORMAL,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        kUiWindowIconFontSize,
-        L"",
-        icon_text_format_.put()));
-    RETURN_IF_FAILED(body_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
-    RETURN_IF_FAILED(icon_text_format_->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP));
-    popup_.SetTextFormats(body_text_format_.get(), icon_text_format_.get());
     return S_OK;
 }
 
@@ -347,8 +323,6 @@ void UiWindowHost::Render()
         &surface_width_,
         &surface_height_,
         dwrite_factory_.get(),
-        body_text_format_.get(),
-        icon_text_format_.get(),
         D2D1::SizeF(static_cast<float>(client_pixel.width) / dpi_scale, static_cast<float>(client_pixel.height) / dpi_scale),
         dpi_scale,
         D2D1::Point2F(0.0f, 0.0f),

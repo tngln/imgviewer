@@ -1,5 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
+import { uiBrand, uiText } from "./typography";
+
 const colors = {
   background: "#FFF8FAFC",
   text: "#FF111827",
@@ -15,8 +17,8 @@ const notices = [
   ["Windows Implementation Libraries", "Microsoft Corporation - MIT License", "third_parties/wil/LICENSE"],
 ];
 
-function drawText(canvas: CanvasApi, text: string, x: number, y: number, width: number, color = colors.text): void {
-  canvas.fillText(text, x, y, width, 24, color);
+function drawText(canvas: CanvasApi, text: string, x: number, y: number, width: number, color = colors.text, typeFace: TypeFace = uiText): void {
+  canvas.fillText(text, typeFace, x, y, width, 24, color);
 }
 
 function section(canvas: CanvasApi, title: string, x: number, y: number, width: number, height: number): number {
@@ -34,7 +36,7 @@ globalThis.imgviewerAboutUi = {
     const width = Math.max(180, env.width - left * 2);
     let y = 24;
 
-    drawText(canvas, "ImgViewer", left, y, width);
+    drawText(canvas, "ImgViewer", left, y, width, colors.text, uiBrand);
     y += 30;
     drawText(canvas, "Lightweight native image viewer.", left, y, width, colors.muted);
     y += 24;

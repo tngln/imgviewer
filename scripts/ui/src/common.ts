@@ -1,5 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
+import { uiText } from "./typography";
+
 export type Rect = { x: number; y: number; width: number; height: number };
 
 export type ButtonColors = {
@@ -37,8 +39,17 @@ export function hitTestReverse<T extends Rect>(items: T[], x: number, y: number)
   return undefined;
 }
 
-export function drawText(canvas: CanvasApi, text: string, x: number, y: number, width: number, color = "#FF172033", height = 22): void {
-  canvas.fillText(text, x, y, width, height, color);
+export function drawText(
+  canvas: CanvasApi,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  color = "#FF172033",
+  height = 22,
+  typeFace: TypeFace = uiText,
+): void {
+  canvas.fillText(text, typeFace, x, y, width, height, color);
 }
 
 export function drawButton(

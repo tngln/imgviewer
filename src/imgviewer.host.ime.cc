@@ -3,6 +3,7 @@
 #include "imgviewer.edit_geometry.hpp"
 #include "math.hpp"
 #include "ui.host_ime.hpp"
+#include "ui.text.hpp"
 #include "win32.util.hpp"
 
 #include <windows.h>
@@ -36,18 +37,14 @@ bool EditingTextCaretPoint(ImgViewerContext* context, D2D1_POINT_2F* point)
     const ImgViewerEditText& text = edit.texts[edit.editing_text_index];
     const float font_size = (std::max)(6.0f, text.style.font_size);
     wil::com_ptr<IDWriteTextFormat> format;
-    if (FAILED(context->graphics_device.DWriteFactory()->CreateTextFormat(
-            text.style.font_family.c_str(),
-            nullptr,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            font_size,
-            L"",
+    if (FAILED(ui_text::CreateTextFormat(
+            context->graphics_device.DWriteFactory(),
+            ui_text::TypeFace{
+                .family = text.style.font_family,
+                .size = font_size,
+                .weight = DWRITE_FONT_WEIGHT_NORMAL,
+            },
             format.put()))) {
-        return false;
-    }
-    if (FAILED(format->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP))) {
         return false;
     }
 

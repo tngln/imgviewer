@@ -1,6 +1,7 @@
 /// <reference types="../types/imgviewer" />
 
 import { contains, drawText, type Rect } from "./common";
+import { uiMenu } from "./typography";
 
 type MenuPanel = { items: PopupMenuItem[]; x: number; y: number; width: number; depth: number };
 type MenuLayout = { panels: MenuPanel[]; width: number; height: number };
@@ -185,9 +186,9 @@ function renderMenu(canvas: CanvasApi, state: Extract<PopupState, { kind: "menu"
       if (menu.selectedPath[panel.depth] === index) {
         canvas.fillRect(rect.x, rect.y, rect.width, rect.height, colors.hover);
       }
-      if (item.checked) drawText(canvas, "x", rect.x + 5, rect.y + 4, 12, colors.accent, 16);
-      drawText(canvas, item.text, rect.x + 20, rect.y + 4, rect.width - 34, item.enabled ? colors.text : colors.disabled, 16);
-      if (item.children.length > 0) drawText(canvas, ">", rect.x + rect.width - 14, rect.y + 4, 10, item.enabled ? colors.muted : colors.disabled, 16);
+      if (item.checked) drawText(canvas, "x", rect.x + 5, rect.y + 4, 12, colors.accent, 16, uiMenu);
+      drawText(canvas, item.text, rect.x + 20, rect.y + 4, rect.width - 34, item.enabled ? colors.text : colors.disabled, 16, uiMenu);
+      if (item.children.length > 0) drawText(canvas, ">", rect.x + rect.width - 14, rect.y + 4, 10, item.enabled ? colors.muted : colors.disabled, 16, uiMenu);
     }
   }
 }
@@ -200,7 +201,7 @@ function renderDropdown(canvas: CanvasApi, state: Extract<PopupState, { kind: "d
     if (index === dropdown.hoverIndex || index === state.selectedIndex) {
       canvas.fillRect(0, y, state.width, row.dropdown, colors.hover);
     }
-    drawText(canvas, state.options[index].text, 7, y + 4, state.width - 14, colors.text, 16);
+    drawText(canvas, state.options[index].text, 7, y + 4, state.width - 14, colors.text, 16, uiMenu);
   }
 }
 

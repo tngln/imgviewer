@@ -30,7 +30,6 @@ std::unique_ptr<PopupContent> MakeJsonPopupContent(std::string state_json);
 class PopupHost final : public imgviewer::ScriptUiHost {
 public:
     HRESULT Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, script::QuickJsRuntime* script_engine);
-    void SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextFormat* icon_text_format);
 
     bool IsOpen() const;
     void Close();
@@ -78,10 +77,6 @@ private:
     wil::com_ptr<IDCompositionVisual> dcomp_visual_;
     wil::com_ptr<IDCompositionSurface> dcomp_surface_;
     wil::com_ptr<IDWriteFactory> dwrite_factory_;
-    wil::com_ptr<IDWriteTextFormat> menu_body_text_format_;
-    wil::com_ptr<IDWriteTextFormat> menu_icon_text_format_;
-    IDWriteTextFormat* body_text_format_ = nullptr;
-    IDWriteTextFormat* icon_text_format_ = nullptr;
     UINT dcomp_surface_width_ = 0;
     UINT dcomp_surface_height_ = 0;
     bool invalidate_requested_ = false;

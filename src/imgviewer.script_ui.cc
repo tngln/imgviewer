@@ -14,6 +14,7 @@
 
 #include "imgviewer.action.hpp"
 #include "script.canvas_color.hpp"
+#include "ui.text.hpp"
 
 namespace imgviewer {
 
@@ -23,6 +24,16 @@ constexpr DWORD kDefaultAccentColor = 0xff2f6fed;
 constexpr D2D1_COLOR_F kScriptErrorBackground = {0xf7 / 255.0f, 0xf9 / 255.0f, 0xfc / 255.0f, 1.0f};
 constexpr D2D1_COLOR_F kScriptErrorText = {0x17 / 255.0f, 0x20 / 255.0f, 0x33 / 255.0f, 1.0f};
 constexpr D2D1_COLOR_F kScriptErrorMutedText = {0x69 / 255.0f, 0x73 / 255.0f, 0x86 / 255.0f, 1.0f};
+const ui_text::TypeFace kScriptErrorTitleTypeFace{
+    .family = L"Segoe UI",
+    .size = 16.0f,
+    .weight = DWRITE_FONT_WEIGHT_SEMI_BOLD,
+};
+const ui_text::TypeFace kScriptErrorBodyTypeFace{
+    .family = L"Segoe UI",
+    .size = 14.0f,
+    .weight = DWRITE_FONT_WEIGHT_SEMI_BOLD,
+};
 constexpr wchar_t kPersonalizeRegistryPath[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 constexpr wchar_t kAppsUseLightThemeRegistryName[] = L"AppsUseLightTheme";
 
@@ -382,6 +393,75 @@ JSValue CreateHostObject(JSContext* context)
     return host;
 }
 
+JSValue CreateTypeFace(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    JSValue value = JS_NewObject(context);
+    const std::string family = argc > 0 ? Utf8FromValue(context, argv[0]) : "Segoe UI";
+    double size = 14.0;
+    if (argc > 1) {
+        JS_ToFloat64(context, &size, argv[1]);
+    }
+    int32_t weight = DWRITE_FONT_WEIGHT_SEMI_BOLD;
+    int32_t style = DWRITE_FONT_STYLE_NORMAL;
+    int32_t stretch = DWRITE_FONT_STRETCH_NORMAL;
+    if (argc > 2) {
+        JS_ToInt32(context, &weight, argv[2]);
+    }
+    if (argc > 3) {
+        JS_ToInt32(context, &style, argv[3]);
+    }
+    if (argc > 4) {
+        JS_ToInt32(context, &stretch, argv[4]);
+    }
+    SetString(context, value, "family", family.empty() ? "Segoe UI" : family);
+    JS_SetPropertyStr(context, value, "size", JS_NewFloat64(context, size));
+    SetInt(context, value, "weight", weight);
+    SetInt(context, value, "style", style);
+    SetInt(context, value, "stretch", stretch);
+    return value;
+}
+
+JSValue CreateFontWeightObject(JSContext* context)
+{
+    JSValue weights = JS_NewObject(context);
+    SetInt(context, weights, "Thin", DWRITE_FONT_WEIGHT_THIN);
+    SetInt(context, weights, "ExtraLight", DWRITE_FONT_WEIGHT_EXTRA_LIGHT);
+    SetInt(context, weights, "Light", DWRITE_FONT_WEIGHT_LIGHT);
+    SetInt(context, weights, "Normal", DWRITE_FONT_WEIGHT_NORMAL);
+    SetInt(context, weights, "Medium", DWRITE_FONT_WEIGHT_MEDIUM);
+    SetInt(context, weights, "Semibold", DWRITE_FONT_WEIGHT_SEMI_BOLD);
+    SetInt(context, weights, "Bold", DWRITE_FONT_WEIGHT_BOLD);
+    SetInt(context, weights, "ExtraBold", DWRITE_FONT_WEIGHT_EXTRA_BOLD);
+    SetInt(context, weights, "Black", DWRITE_FONT_WEIGHT_BLACK);
+    return weights;
+}
+
+JSValue CreateFontStyleObject(JSContext* context)
+{
+    JSValue styles = JS_NewObject(context);
+    SetInt(context, styles, "Normal", DWRITE_FONT_STYLE_NORMAL);
+    SetInt(context, styles, "Oblique", DWRITE_FONT_STYLE_OBLIQUE);
+    SetInt(context, styles, "Italic", DWRITE_FONT_STYLE_ITALIC);
+    return styles;
+}
+
+JSValue CreateFontStretchObject(JSContext* context)
+{
+    JSValue stretches = JS_NewObject(context);
+    SetInt(context, stretches, "Normal", DWRITE_FONT_STRETCH_NORMAL);
+    SetInt(context, stretches, "Condensed", DWRITE_FONT_STRETCH_CONDENSED);
+    SetInt(context, stretches, "Expanded", DWRITE_FONT_STRETCH_EXPANDED);
+    return stretches;
+}
+
+void InstallTypographyGlobals(JSContext* context, JSValue global)
+{
+    JS_SetPropertyStr(context, global, "FontWeight", CreateFontWeightObject(context));
+    JS_SetPropertyStr(context, global, "FontStyle", CreateFontStyleObject(context));
+    JS_SetPropertyStr(context, global, "FontStretch", CreateFontStretchObject(context));
+    SetFunction(context, global, "createTypeFace", CreateTypeFace, 5);
+}
+
 namespace {
 
 const char* PointerTypeName(UiEventType type)
@@ -705,22 +785,45 @@ JSValue CanvasStrokeRect(JSContext* context, JSValueConst, int argc, JSValueCons
     return JS_UNDEFINED;
 }
 
+ui_text::TypeFace ReadTypeFace(JSContext* context, JSValueConst value)
+{
+    if (!JS_IsObject(value)) {
+        return {};
+    }
+    JSValue family_value = JS_GetPropertyStr(context, value, "family");
+    const std::wstring family = WideFromUtf8(Utf8FromValue(context, family_value));
+    JS_FreeValue(context, family_value);
+    return ui_text::TypeFace{
+        .family = family,
+        .size = FloatProperty(context, value, "size", 14.0f),
+        .weight = static_cast<DWRITE_FONT_WEIGHT>(Int32Property(context, value, "weight", DWRITE_FONT_WEIGHT_SEMI_BOLD)),
+        .style = static_cast<DWRITE_FONT_STYLE>(Int32Property(context, value, "style", DWRITE_FONT_STYLE_NORMAL)),
+        .stretch = static_cast<DWRITE_FONT_STRETCH>(Int32Property(context, value, "stretch", DWRITE_FONT_STRETCH_NORMAL)),
+    };
+}
+
 JSValue CanvasFillText(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     const UiDrawContext* draw_context = ActiveDrawContext(context);
-    if (draw_context == nullptr || argc < 6) {
+    if (draw_context == nullptr || draw_context->dwrite_factory == nullptr || argc < 7) {
         return JS_UNDEFINED;
     }
     const std::wstring text = WideFromUtf8(Utf8FromValue(context, argv[0]));
+    const ui_text::TypeFace typeface = ReadTypeFace(context, argv[1]);
     double x = 0.0, y = 0.0, width = 0.0, height = 0.0;
-    JS_ToFloat64(context, &x, argv[1]);
-    JS_ToFloat64(context, &y, argv[2]);
-    JS_ToFloat64(context, &width, argv[3]);
-    JS_ToFloat64(context, &height, argv[4]);
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[5]));
+    JS_ToFloat64(context, &x, argv[2]);
+    JS_ToFloat64(context, &y, argv[3]);
+    JS_ToFloat64(context, &width, argv[4]);
+    JS_ToFloat64(context, &height, argv[5]);
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[6]));
     if (color.has_value()) {
-        UiDraw(*draw_context).DrawBodyText(
+        wil::com_ptr<IDWriteTextFormat> format;
+        if (FAILED(ui_text::CreateTextFormat(draw_context->dwrite_factory, typeface, format.put()))) {
+            return JS_UNDEFINED;
+        }
+        UiDraw(*draw_context).DrawText(
             text,
+            format.get(),
             D2D1::RectF(static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + width), static_cast<float>(y + height)),
             *color,
             D2D1_DRAW_TEXT_OPTIONS_CLIP);
@@ -815,7 +918,7 @@ JSValue CreateCanvasObject(JSContext* context)
     JS_SetPropertyStr(context, canvas, "clear", JS_NewCFunction(context, CanvasClear, "clear", 1));
     JS_SetPropertyStr(context, canvas, "fillRect", JS_NewCFunction(context, CanvasFillRect, "fillRect", 5));
     JS_SetPropertyStr(context, canvas, "strokeRect", JS_NewCFunction(context, CanvasStrokeRect, "strokeRect", 6));
-    JS_SetPropertyStr(context, canvas, "fillText", JS_NewCFunction(context, CanvasFillText, "fillText", 6));
+    JS_SetPropertyStr(context, canvas, "fillText", JS_NewCFunction(context, CanvasFillText, "fillText", 7));
     JS_SetPropertyStr(context, canvas, "strokeLine", JS_NewCFunction(context, CanvasStrokeLine, "strokeLine", 6));
     JS_SetPropertyStr(context, canvas, "drawIcon", JS_NewCFunction(context, CanvasDrawIcon, "drawIcon", 7));
     return canvas;
@@ -1020,24 +1123,34 @@ void RenderScriptError(
 {
     const UiDraw draw(context);
     draw.Clear(kScriptErrorBackground);
-    draw.DrawBodyText(
+    wil::com_ptr<IDWriteTextFormat> title_format;
+    wil::com_ptr<IDWriteTextFormat> body_format;
+    if (FAILED(ui_text::CreateTextFormat(context.dwrite_factory, kScriptErrorTitleTypeFace, title_format.put())) ||
+        FAILED(ui_text::CreateTextFormat(context.dwrite_factory, kScriptErrorBodyTypeFace, body_format.put()))) {
+        return;
+    }
+    draw.DrawText(
         std::wstring(title),
+        title_format.get(),
         D2D1::RectF(24.0f, 24.0f, context.viewport_size.width - 24.0f, 52.0f),
         kScriptErrorText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
     const std::wstring script = L"Script: " + script_path.wstring();
-    draw.DrawBodyText(
+    draw.DrawText(
         script,
+        body_format.get(),
         D2D1::RectF(24.0f, 60.0f, context.viewport_size.width - 24.0f, 84.0f),
         kScriptErrorMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
-    draw.DrawBodyText(
+    draw.DrawText(
         WideFromUtf8(error_text),
+        body_format.get(),
         D2D1::RectF(24.0f, 96.0f, context.viewport_size.width - 24.0f, context.viewport_size.height - 56.0f),
         kScriptErrorText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
-    draw.DrawBodyText(
+    draw.DrawText(
         L"Press F5 to reload. Press Esc to close.",
+        body_format.get(),
         D2D1::RectF(24.0f, context.viewport_size.height - 44.0f, context.viewport_size.width - 24.0f, context.viewport_size.height - 16.0f),
         kScriptErrorMutedText,
         D2D1_DRAW_TEXT_OPTIONS_CLIP);
