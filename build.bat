@@ -38,6 +38,15 @@ if not exist "%VCVARS%" (
     exit /b 1
 )
 
+where python >nul 2>nul
+if errorlevel 1 (
+    echo python.exe was not found in PATH.
+    exit /b 1
+)
+for /f "delims=" %%I in ('where python') do (
+    if not defined PYTHON_EXE set "PYTHON_EXE=%%I"
+)
+
 call "%VCVARS%"
 if errorlevel 1 exit /b %errorlevel%
 
@@ -81,7 +90,7 @@ if errorlevel 1 exit /b %errorlevel%
 
 "%CMAKE_EXE%" --build --preset "%CONFIG%" >"%BUILD_LOG%" 2>&1
 set "BUILD_EXIT=%ERRORLEVEL%"
-python "%ROOT%tools\filter_build_output.py" "%BUILD_LOG%"
+"%PYTHON_EXE%" "%ROOT%tools\filter_build_output.py" "%BUILD_LOG%"
 set "FILTER_EXIT=%ERRORLEVEL%"
 del "%BUILD_LOG%" >nul 2>nul
 if not "%FILTER_EXIT%"=="0" exit /b %FILTER_EXIT%

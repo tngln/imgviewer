@@ -13,7 +13,6 @@ const colors = {
 
 const notices = [
   ["stb_image.h v2.30", "Sean Barrett - MIT License or Public Domain", "third_parties/stb/LICENSE"],
-  ["nlohmann_json", "Niels Lohmann - MIT License", "third_parties/nlohmann_json/LICENSE.MIT"],
   ["Windows Implementation Libraries", "Microsoft Corporation - MIT License", "third_parties/wil/LICENSE"],
 ];
 
@@ -43,7 +42,7 @@ globalThis.imgviewerAboutUi = {
     drawText(canvas, "Development build", left, y, width, colors.muted);
     y += 42;
 
-    const panelTop = section(canvas, "Third-party notices", left, y, width, 190);
+    const panelTop = section(canvas, "Third-party notices", left, y, width, 130);
     y = panelTop;
     for (const [name, detail, path] of notices) {
       drawText(canvas, name, left + 14, y, width - 28);

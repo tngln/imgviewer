@@ -76,7 +76,6 @@ add_executable(imgviewer
 
 target_include_directories(imgviewer PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/nlohmann_json/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/stb"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/wil/include"
 )
@@ -141,6 +140,7 @@ add_executable(imgviewer_tests
     tests/imgviewer_tests.cc
     src/experimental/util.signal.cc
     src/imgviewer.action.cc
+    src/imgviewer.config.cc
     src/imgviewer.host.pointer_router.cc
     src/imgviewer.interaction.cc
     src/imgviewer.keybindings.cc
@@ -155,7 +155,6 @@ add_executable(imgviewer_tests
 
 target_include_directories(imgviewer_tests PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/nlohmann_json/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_parties/wil/include"
 )
 

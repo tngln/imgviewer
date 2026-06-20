@@ -361,7 +361,8 @@ HRESULT RunImgViewerApplicationAsHresult()
     RETURN_LAST_ERROR_IF_NULL(instance);
 
     ImgViewerContext context;
-    RETURN_IF_FAILED(LoadImgViewerConfig(&context.config));
+    RETURN_HR_IF(E_FAIL, !context.script_engine->Initialize());
+    RETURN_IF_FAILED(LoadImgViewerConfig(*context.script_engine, &context.config));
     context.current_window_opacity_percent = context.config.window_opacity_percent;
     context.current_toolbar_scale_percent = context.config.toolbar_scale_percent;
     RETURN_IF_FAILED(ResetImgViewerUi(nullptr, &context));

@@ -6,6 +6,10 @@
 
 #include "imgviewer.keybindings.hpp"
 
+namespace script {
+class QuickJsRuntime;
+}
+
 struct WindowSizeConfig final {
     int width = 960;
     int height = 640;
@@ -35,5 +39,5 @@ int ClampWindowOpacityPercent(int percent);
 int ClampToolbarScalePercent(int percent);
 int ClampEdgeClickNavigationZonePercent(int percent);
 
-HRESULT LoadImgViewerConfig(ImgViewerConfig* config);
+HRESULT LoadImgViewerConfig(script::QuickJsRuntime& runtime, ImgViewerConfig* config);
 HRESULT SaveImgViewerConfig(const ImgViewerConfig& config);

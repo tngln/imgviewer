@@ -6,6 +6,8 @@
 
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -13,6 +15,7 @@
 
 #include "experimental/util.signal.hpp"
 #include "imgviewer.edit_geometry.hpp"
+#include "imgviewer.config.hpp"
 #include "imgviewer.host.pointer_router.hpp"
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.keybindings.hpp"
@@ -148,6 +151,33 @@ void InstallTestSignals(JSContext* context, TestSignalApi* api)
     JS_FreeValue(context, global);
 }
 
+std::filesystem::path CurrentExeDirectory()
+{
+    std::vector<wchar_t> buffer(MAX_PATH);
+    DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
+    if (length == 0) {
+        return {};
+    }
+    return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
+}
+
+std::filesystem::path TestConfigPath()
+{
+    return CurrentExeDirectory() / L"imgviewer.config.js";
+}
+
+void WriteTestConfig(std::string_view source)
+{
+    std::ofstream output(TestConfigPath(), std::ios::binary | std::ios::trunc);
+    output << source;
+}
+
+void DeleteTestConfig()
+{
+    std::error_code ignored;
+    std::filesystem::remove(TestConfigPath(), ignored);
+}
+
 // ---------------------------------------------------------------------------
 // pointer_router
 // ---------------------------------------------------------------------------
@@ -274,6 +304,115 @@ void TestKeybindings()
     // An obviously-unbound gesture resolves to None.
     const ImgViewerAction unbound = ActionForKey(defaults, VK_F24, true, true, true);
     CHECK(unbound == ImgViewerAction::None);
+}
+
+void TestConfigJsLoad()
+{
+    DeleteTestConfig();
+    WriteTestConfig(
+        "globalThis.imgviewerConfig = {"
+        "  language: 'zh-CN',"
+        "  initialImageView: 'actualSize',"
+        "  rememberWindowSize: false,"
+        "  pixelatedSampling: true,"
+        "  checkerboardBackground: true,"
+        "  borderlessWindow: true,"
+        "  edgeClickNavigation: true,"
+        "  windowOpacity: 55,"
+        "  toolbarScale: 160,"
+        "  edgeClickNavigationZone: 40,"
+        "  window: { width: 222, height: 333 },"
+        "  keyBindings: { nextImage: ['Ctrl+N'], previousImage: [] }"
+        "};");
+
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    ImgViewerConfig config;
+    CHECK(SUCCEEDED(LoadImgViewerConfig(runtime, &config)));
+    CHECK(config.language == "zh-CN");
+    CHECK(config.initial_image_view_mode == InitialImageViewMode::ActualSize);
+    CHECK(!config.remember_window_size);
+    CHECK(config.pixelated_sampling);
+    CHECK(config.checkerboard_background);
+    CHECK(config.borderless_window);
+    CHECK(config.edge_click_navigation);
+    CHECK(config.window_opacity_percent == 55);
+    CHECK(config.toolbar_scale_percent == 160);
+    CHECK(config.edge_click_navigation_zone_percent == 40);
+    CHECK(config.window_size.width == 222);
+    CHECK(config.window_size.height == 333);
+    CHECK(ActionForKey(config.action_bindings, 'N', true, false, false) == ImgViewerAction::NextImage);
+    CHECK(ActionForKey(config.action_bindings, VK_LEFT, false, false, false) == ImgViewerAction::None);
+    DeleteTestConfig();
+}
+
+void TestConfigJsFallbacks()
+{
+    DeleteTestConfig();
+    WriteTestConfig(
+        "globalThis.imgviewerConfig = {"
+        "  language: 'fr-FR',"
+        "  rememberWindowSize: 'no',"
+        "  windowOpacity: '10',"
+        "  toolbarScale: 999,"
+        "  edgeClickNavigationZone: 1,"
+        "  window: { width: 1, height: 'bad' }"
+        "};");
+
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    ImgViewerConfig config;
+    CHECK(SUCCEEDED(LoadImgViewerConfig(runtime, &config)));
+    CHECK(config.language == "en-US");
+    CHECK(config.remember_window_size);
+    CHECK(config.window_opacity_percent == 100);
+    CHECK(config.toolbar_scale_percent == 160);
+    CHECK(config.edge_click_navigation_zone_percent == 5);
+    CHECK(config.window_size.width == 160);
+    CHECK(config.window_size.height == 640);
+
+    WriteTestConfig("throw new Error('broken config');");
+    CHECK(SUCCEEDED(LoadImgViewerConfig(runtime, &config)));
+    CHECK(config.language == "en-US");
+    CHECK(config.window_size.width == 960);
+
+    WriteTestConfig("globalThis.notImgViewerConfig = {};");
+    CHECK(SUCCEEDED(LoadImgViewerConfig(runtime, &config)));
+    CHECK(config.language == "en-US");
+    CHECK(ActionForKey(config.action_bindings, VK_RIGHT, false, false, false) == ImgViewerAction::NextImage);
+    DeleteTestConfig();
+}
+
+void TestConfigJsSaveRoundTrip()
+{
+    DeleteTestConfig();
+    ImgViewerConfig saved;
+    saved.language = "zh-CN";
+    saved.initial_image_view_mode = InitialImageViewMode::ActualSize;
+    saved.remember_window_size = false;
+    saved.window_size.width = 321;
+    saved.window_size.height = 654;
+    saved.action_bindings = DefaultActionBindings();
+    ApplyKeyBindingConfig(ImgViewerAction::NextImage, {"Ctrl+N"}, &saved.action_bindings);
+    ApplyKeyBindingConfig(ImgViewerAction::PreviousImage, {}, &saved.action_bindings);
+
+    CHECK(SUCCEEDED(SaveImgViewerConfig(saved)));
+    std::ifstream input(TestConfigPath(), std::ios::binary);
+    const std::string source((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    CHECK(source.find("globalThis.imgviewerConfig =") != std::string::npos);
+
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    ImgViewerConfig loaded;
+    CHECK(SUCCEEDED(LoadImgViewerConfig(runtime, &loaded)));
+    CHECK(loaded.language == "zh-CN");
+    CHECK(loaded.initial_image_view_mode == InitialImageViewMode::ActualSize);
+    CHECK(!loaded.remember_window_size);
+    CHECK(loaded.window_size.width == 321);
+    CHECK(loaded.window_size.height == 654);
+    CHECK(ActionForKey(loaded.action_bindings, 'N', true, false, false) == ImgViewerAction::NextImage);
+    CHECK(ActionForKey(loaded.action_bindings, VK_LEFT, false, false, false) == ImgViewerAction::None);
+    DeleteTestConfig();
 }
 
 // ---------------------------------------------------------------------------
@@ -483,6 +622,9 @@ int main()
     TestModalStack();
     TestEditGeometry();
     TestKeybindings();
+    TestConfigJsLoad();
+    TestConfigJsFallbacks();
+    TestConfigJsSaveRoundTrip();
     TestSignal();
     TestSignalReentrancy();
     TestQuickJsRuntime();

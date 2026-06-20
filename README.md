@@ -38,4 +38,4 @@ Tung's ImgViewer 是一个轻量、快速、极简主义的，面向 Windows 10/
 
 ## 配置
 
-ImgViewer 会在程序目录旁保存 `imgviewer.jsonc`。将 `pixelatedSampling` 设为 `true` 后，放大图片时会使用像素化采样，适合查看像素图、图标和纹理细节；默认值为 `false`，保持平滑缩放。将 `borderlessWindow` 设为 `true` 后，主窗口会禁用原生边框和阴影；鼠标离开窗口时只显示图片，鼠标进入后恢复工具栏。
+ImgViewer 会在程序目录旁保存 `imgviewer.config.js`，格式为 `globalThis.imgviewerConfig = { ... };`。将 `pixelatedSampling` 设为 `true` 后，放大图片时会使用像素化采样，适合查看像素图、图标和纹理细节；默认值为 `false`，保持平滑缩放。将 `borderlessWindow` 设为 `true` 后，主窗口会禁用原生边框和阴影；鼠标离开窗口时只显示图片，鼠标进入后恢复工具栏。

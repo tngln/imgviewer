@@ -2,9 +2,8 @@
 
 #include <windows.h>
 
+#include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "imgviewer.action.hpp"
 
@@ -25,8 +24,9 @@ struct ActionBindings final {
 };
 
 ActionBindings DefaultActionBindings();
-void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings);
+void ApplyKeyBindingConfig(ImgViewerAction action, const std::vector<std::string>& key_texts, ActionBindings* bindings);
 ImgViewerAction ActionForKey(const ActionBindings& bindings, UINT virtual_key, bool ctrl, bool shift, bool alt);
 
 std::wstring KeyName(UINT virtual_key);
+std::string GestureConfigText(const KeyGesture& gesture);
 std::wstring GestureText(const KeyGesture& gesture);

@@ -20,6 +20,50 @@ std::string ToLowerAscii(std::string_view value)
     return lowered;
 }
 
+std::string KeyConfigName(UINT virtual_key)
+{
+    if (virtual_key >= 'A' && virtual_key <= 'Z') {
+        return std::string(1, static_cast<char>(virtual_key));
+    }
+    if (virtual_key >= '0' && virtual_key <= '9') {
+        return std::string(1, static_cast<char>(virtual_key));
+    }
+    switch (virtual_key) {
+    case VK_LEFT:
+        return "Left";
+    case VK_RIGHT:
+        return "Right";
+    case VK_UP:
+        return "Up";
+    case VK_DOWN:
+        return "Down";
+    case VK_ESCAPE:
+        return "Escape";
+    case VK_RETURN:
+        return "Enter";
+    case VK_SPACE:
+        return "Space";
+    case VK_DELETE:
+        return "Delete";
+    case VK_BACK:
+        return "Backspace";
+    case VK_HOME:
+        return "Home";
+    case VK_END:
+        return "End";
+    case VK_PRIOR:
+        return "PageUp";
+    case VK_NEXT:
+        return "PageDown";
+    case VK_OEM_PLUS:
+        return "=";
+    case VK_OEM_MINUS:
+        return "-";
+    default:
+        return "Key";
+    }
+}
+
 bool ParseVirtualKey(std::string_view token, UINT* virtual_key)
 {
     if (virtual_key == nullptr || token.empty()) {
@@ -181,34 +225,17 @@ ActionBindings DefaultActionBindings()
     return bindings;
 }
 
-void ApplyKeyBindingsConfig(const nlohmann::json& root, ActionBindings* bindings)
+void ApplyKeyBindingConfig(ImgViewerAction action, const std::vector<std::string>& key_texts, ActionBindings* bindings)
 {
-    if (bindings == nullptr) {
+    if (bindings == nullptr || !IsImgViewerActionConfigurableKeyBinding(action)) {
         return;
     }
 
-    const auto key_bindings = root.find("keyBindings");
-    if (key_bindings == root.end() || !key_bindings->is_object()) {
-        return;
-    }
-
-    for (const auto& item : key_bindings->items()) {
-        const ImgViewerAction action = ImgViewerActionFromName(item.key().c_str());
-        if (!IsImgViewerActionConfigurableKeyBinding(action) || !item.value().is_array()) {
-            continue;
-        }
-
-        RemoveBindingsForAction(bindings, action);
-        for (const nlohmann::json& key_value : item.value()) {
-            if (!key_value.is_string()) {
-                continue;
-            }
-
-            KeyGesture gesture;
-            const std::string key_text = key_value.get<std::string>();
-            if (ParseKeyGesture(key_text, &gesture)) {
-                SetBinding(bindings, gesture, action);
-            }
+    RemoveBindingsForAction(bindings, action);
+    for (const std::string& key_text : key_texts) {
+        KeyGesture gesture;
+        if (ParseKeyGesture(key_text, &gesture)) {
+            SetBinding(bindings, gesture, action);
         }
     }
 }
@@ -247,6 +274,22 @@ std::wstring KeyName(UINT virtual_key)
     default:
         return L"Key";
     }
+}
+
+std::string GestureConfigText(const KeyGesture& gesture)
+{
+    std::string text;
+    if (gesture.ctrl) {
+        text += "Ctrl+";
+    }
+    if (gesture.shift) {
+        text += "Shift+";
+    }
+    if (gesture.alt) {
+        text += "Alt+";
+    }
+    text += KeyConfigName(gesture.virtual_key);
+    return text;
 }
 
 std::wstring GestureText(const KeyGesture& gesture)
