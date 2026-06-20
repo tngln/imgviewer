@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -50,6 +51,9 @@ public:
     ObjectBuilder& Set(const char* name, uint32_t value);
     ObjectBuilder& Set(const char* name, float value);
     ObjectBuilder& Set(const char* name, double value);
+    ObjectBuilder& Set(const char* name, std::nullptr_t value) = delete;
+    template <typename T>
+    ObjectBuilder& Set(const char* name, T* value) = delete;
     ObjectBuilder& SetFunction(const char* name, JSCFunction* function, int length);
     ObjectBuilder& SetValue(const char* name, JSValue value);
 
