@@ -1,13 +1,15 @@
 #include "image.stb_decoder.hpp"
 
 #include <cstdint>
-#include <filesystem>
-#include <fstream>
 #include <limits>
 #include <memory>
 #include <vector>
 
+#include <wil/com.h>
 #include <wil/result_macros.h>
+
+#include "image.bitmap.hpp"
+#include "image.utils.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_TGA
@@ -31,28 +33,6 @@ struct StbImageDeleter final {
 };
 
 using StbImagePixels = std::unique_ptr<stbi_uc, StbImageDeleter>;
-
-HRESULT ReadFileBytes(const wchar_t* path, std::vector<stbi_uc>* bytes)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, path);
-    RETURN_HR_IF_NULL(E_POINTER, bytes);
-
-    std::ifstream stream(std::filesystem::path(path), std::ios::binary | std::ios::ate);
-    RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), !stream);
-
-    const std::streamoff file_size = stream.tellg();
-    RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), file_size < 0);
-    RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE), file_size > (std::numeric_limits<int>::max)());
-
-    bytes->resize(static_cast<size_t>(file_size));
-    stream.seekg(0, std::ios::beg);
-    if (!bytes->empty()) {
-        stream.read(reinterpret_cast<char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
-        RETURN_HR_IF(E_FAIL, stream.gcount() != static_cast<std::streamsize>(bytes->size()));
-    }
-
-    return S_OK;
-}
 
 HRESULT ConvertRgbaToBgra(const stbi_uc* rgba, int width, int height, std::vector<BYTE>* bgra)
 {
@@ -90,7 +70,7 @@ HRESULT DecodeStbImageFile(
     *source = nullptr;
 
     std::vector<stbi_uc> bytes;
-    RETURN_IF_FAILED(ReadFileBytes(path, &bytes));
+    RETURN_IF_FAILED(image_utils::ReadFileBytes(path, &bytes, static_cast<size_t>((std::numeric_limits<int>::max)())));
     RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), bytes.empty());
 
     int width = 0;
@@ -108,28 +88,10 @@ HRESULT DecodeStbImageFile(
     std::vector<BYTE> bgra;
     RETURN_IF_FAILED(ConvertRgbaToBgra(rgba.get(), width, height, &bgra));
 
-    const size_t stride_size = static_cast<size_t>(width) * 4;
-    RETURN_HR_IF(
-        HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW),
-        stride_size > (std::numeric_limits<UINT>::max)() ||
-            bgra.size() > (std::numeric_limits<UINT>::max)());
-
-    wil::com_ptr<IWICBitmap> bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromMemory(
+    return image_bitmap::CreateBitmapSourceFromBgra(
+        wic_factory,
         static_cast<UINT>(width),
         static_cast<UINT>(height),
-        GUID_WICPixelFormat32bppBGRA,
-        static_cast<UINT>(stride_size),
-        static_cast<UINT>(bgra.size()),
-        bgra.data(),
-        bitmap.put()));
-
-    wil::com_ptr<IWICBitmap> cached_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(
-        bitmap.get(),
-        WICBitmapCacheOnLoad,
-        cached_bitmap.put()));
-
-    *source = cached_bitmap.detach();
-    return S_OK;
+        bgra,
+        source);
 }

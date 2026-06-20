@@ -13,6 +13,8 @@
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
+#include "image.bitmap.hpp"
+
 namespace win32 {
 namespace {
 
@@ -148,35 +150,6 @@ HRESULT RegisterRegionSelectorClass(HINSTANCE instance)
     RETURN_LAST_ERROR();
 }
 
-HRESULT CreateBitmapSourceFromBgra(
-    IWICImagingFactory2* wic_factory,
-    UINT width,
-    UINT height,
-    std::vector<BYTE>* bgra,
-    IWICBitmapSource** source)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
-    RETURN_HR_IF_NULL(E_INVALIDARG, bgra);
-    RETURN_HR_IF_NULL(E_POINTER, source);
-    RETURN_HR_IF(E_INVALIDARG, width == 0 || height == 0 || bgra->empty());
-
-    wil::com_ptr<IWICBitmap> memory_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromMemory(
-        width,
-        height,
-        GUID_WICPixelFormat32bppBGRA,
-        width * 4,
-        static_cast<UINT>(bgra->size()),
-        bgra->data(),
-        memory_bitmap.put()));
-
-    wil::com_ptr<IWICBitmap> cached_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(memory_bitmap.get(), WICBitmapCacheOnLoad, cached_bitmap.put()));
-
-    *source = cached_bitmap.detach();
-    return S_OK;
-}
-
 } // namespace
 
 HRESULT SelectCaptureRegion(HWND owner, RECT* region)
@@ -295,11 +268,11 @@ HRESULT CaptureScreenRect(IWICImagingFactory2* wic_factory, const RECT& region, 
         bgra[index] = 0xFF;
     }
 
-    RETURN_IF_FAILED(CreateBitmapSourceFromBgra(
+    RETURN_IF_FAILED(image_bitmap::CreateBitmapSourceFromBgra(
         wic_factory,
         static_cast<UINT>(capture_width),
         static_cast<UINT>(capture_height),
-        &bgra,
+        bgra,
         source));
     return S_OK;
 }

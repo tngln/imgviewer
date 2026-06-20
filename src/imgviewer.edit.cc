@@ -9,6 +9,7 @@
 #include <dwrite.h>
 #include <wil/result_macros.h>
 
+#include "image.bitmap.hpp"
 #include "imgviewer.edit_geometry.hpp"
 #include "math.hpp"
 #include "ui.graphics_device.hpp"
@@ -1212,7 +1213,7 @@ HRESULT ImgViewerEditController::CopySelectedPixels(IWICImagingFactory2* wic_fac
     RETURN_IF_FAILED(clipper->Initialize(document_.source.get(), &rect));
 
     wil::com_ptr<IWICBitmap> cached_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(clipper.get(), WICBitmapCacheOnLoad, cached_bitmap.put()));
+    RETURN_IF_FAILED(image_bitmap::CreateCachedBitmapFromSource(wic_factory, clipper.get(), cached_bitmap.put()));
     *source = cached_bitmap.detach();
     return S_OK;
 }
@@ -1680,13 +1681,14 @@ HRESULT ImgViewerEditController::ExportPngSource(
         }
     }
     wil::com_ptr<IWICBitmap> memory_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromMemory(
+    RETURN_IF_FAILED(image_bitmap::CreateBitmapFromMemory(
+        wic_factory,
         output_width,
         output_height,
         GUID_WICPixelFormat32bppPBGRA,
         output_width * 4,
-        static_cast<UINT>(output_pixels.size()),
         output_pixels.data(),
+        output_pixels.size(),
         memory_bitmap.put()));
 
     if (!document_.shapes.empty() || !document_.texts.empty()) {
@@ -1741,7 +1743,7 @@ HRESULT ImgViewerEditController::ExportPngSource(
     }
 
     wil::com_ptr<IWICBitmap> cached_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(memory_bitmap.get(), WICBitmapCacheOnLoad, cached_bitmap.put()));
+    RETURN_IF_FAILED(image_bitmap::CreateCachedBitmapFromSource(wic_factory, memory_bitmap.get(), cached_bitmap.put()));
     *source = cached_bitmap.detach();
     return S_OK;
 }

@@ -2,14 +2,15 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <filesystem>
-#include <fstream>
 #include <limits>
 #include <utility>
 
 #include <propvarutil.h>
 #include <wil/com.h>
 #include <wil/result_macros.h>
+
+#include "image.bitmap.hpp"
+#include "image.utils.hpp"
 
 namespace {
 
@@ -54,74 +55,6 @@ struct WebpFrame final {
     BlendOp blend = BlendOp::Over;
     std::vector<BYTE> webp_bytes;
 };
-
-bool IsType(const char type[4], const char (&value)[5])
-{
-    return type[0] == value[0] && type[1] == value[1] && type[2] == value[2] && type[3] == value[3];
-}
-
-UINT ReadBe32(const BYTE* data)
-{
-    return (static_cast<UINT>(data[0]) << 24) |
-        (static_cast<UINT>(data[1]) << 16) |
-        (static_cast<UINT>(data[2]) << 8) |
-        static_cast<UINT>(data[3]);
-}
-
-UINT ReadLe24(const BYTE* data)
-{
-    return static_cast<UINT>(data[0]) |
-        (static_cast<UINT>(data[1]) << 8) |
-        (static_cast<UINT>(data[2]) << 16);
-}
-
-UINT ReadLe32(const BYTE* data)
-{
-    return static_cast<UINT>(data[0]) |
-        (static_cast<UINT>(data[1]) << 8) |
-        (static_cast<UINT>(data[2]) << 16) |
-        (static_cast<UINT>(data[3]) << 24);
-}
-
-void AppendBe32(std::vector<BYTE>* bytes, UINT value)
-{
-    bytes->push_back(static_cast<BYTE>((value >> 24) & 0xff));
-    bytes->push_back(static_cast<BYTE>((value >> 16) & 0xff));
-    bytes->push_back(static_cast<BYTE>((value >> 8) & 0xff));
-    bytes->push_back(static_cast<BYTE>(value & 0xff));
-}
-
-void AppendLe32(std::vector<BYTE>* bytes, UINT value)
-{
-    bytes->push_back(static_cast<BYTE>(value & 0xff));
-    bytes->push_back(static_cast<BYTE>((value >> 8) & 0xff));
-    bytes->push_back(static_cast<BYTE>((value >> 16) & 0xff));
-    bytes->push_back(static_cast<BYTE>((value >> 24) & 0xff));
-}
-
-HRESULT ReadFileBytes(const wchar_t* path, std::vector<BYTE>* bytes)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, path);
-    RETURN_HR_IF_NULL(E_POINTER, bytes);
-
-    std::ifstream stream(std::filesystem::path(path), std::ios::binary | std::ios::ate);
-    RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), !stream);
-
-    const std::streamoff file_size = stream.tellg();
-    RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), file_size < 0);
-    RETURN_HR_IF(
-        HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE),
-        static_cast<uint64_t>(file_size) > (std::numeric_limits<DWORD>::max)());
-
-    bytes->resize(static_cast<size_t>(file_size));
-    stream.seekg(0, std::ios::beg);
-    if (!bytes->empty()) {
-        stream.read(reinterpret_cast<char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
-        RETURN_HR_IF(E_FAIL, stream.gcount() != static_cast<std::streamsize>(bytes->size()));
-    }
-
-    return S_OK;
-}
 
 bool RectFits(RectU rect, UINT width, UINT height)
 {
@@ -185,46 +118,6 @@ HRESULT ReadUnsignedMetadata(IWICMetadataQueryReader* reader, const wchar_t* que
     return S_OK;
 }
 
-HRESULT CopySourceBgra(
-    IWICImagingFactory2* wic_factory,
-    IWICBitmapSource* source,
-    std::vector<BYTE>* bgra,
-    UINT* width,
-    UINT* height)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
-    RETURN_HR_IF_NULL(E_INVALIDARG, source);
-    RETURN_HR_IF_NULL(E_POINTER, bgra);
-    RETURN_HR_IF_NULL(E_POINTER, width);
-    RETURN_HR_IF_NULL(E_POINTER, height);
-
-    wil::com_ptr<IWICFormatConverter> converter;
-    RETURN_IF_FAILED(wic_factory->CreateFormatConverter(converter.put()));
-    RETURN_IF_FAILED(converter->Initialize(
-        source,
-        GUID_WICPixelFormat32bppBGRA,
-        WICBitmapDitherTypeNone,
-        nullptr,
-        0.0,
-        WICBitmapPaletteTypeMedianCut));
-
-    RETURN_IF_FAILED(converter->GetSize(width, height));
-    const size_t stride = static_cast<size_t>(*width) * 4;
-    const size_t byte_count = stride * static_cast<size_t>(*height);
-    RETURN_HR_IF(
-        HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW),
-        stride > (std::numeric_limits<UINT>::max)() ||
-            byte_count > (std::numeric_limits<UINT>::max)());
-
-    bgra->resize(byte_count);
-    RETURN_IF_FAILED(converter->CopyPixels(
-        nullptr,
-        static_cast<UINT>(stride),
-        static_cast<UINT>(bgra->size()),
-        bgra->data()));
-    return S_OK;
-}
-
 HRESULT DecodeImageBytes(
     IWICImagingFactory2* wic_factory,
     std::vector<BYTE>& bytes,
@@ -252,7 +145,7 @@ HRESULT DecodeImageBytes(
 
     wil::com_ptr<IWICBitmapFrameDecode> frame;
     RETURN_IF_FAILED(decoder->GetFrame(0, frame.put()));
-    RETURN_IF_FAILED(CopySourceBgra(wic_factory, frame.get(), bgra, width, height));
+    RETURN_IF_FAILED(image_bitmap::CopySourceBgra(wic_factory, frame.get(), bgra, width, height));
     return S_OK;
 }
 
@@ -379,7 +272,7 @@ HRESULT ParsePngChunks(const std::vector<BYTE>& bytes, std::vector<PngChunk>* ch
 
     size_t offset = sizeof(kPngSignature);
     while (offset + 12 <= bytes.size()) {
-        const UINT data_size = ReadBe32(bytes.data() + offset);
+        const UINT data_size = image_utils::ReadBe32(bytes.data() + offset);
         RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), data_size > bytes.size() - offset - 12);
 
         PngChunk chunk;
@@ -392,7 +285,7 @@ HRESULT ParsePngChunks(const std::vector<BYTE>& bytes, std::vector<PngChunk>* ch
         chunks->push_back(chunk);
 
         offset += 12 + data_size;
-        if (IsType(chunk.type, "IEND")) {
+        if (image_utils::IsFourCC(chunk.type, "IEND")) {
             return S_OK;
         }
     }
@@ -414,13 +307,13 @@ UINT Crc32(const BYTE* data, size_t size)
 
 void AppendPngChunk(std::vector<BYTE>* png, const char type[4], const BYTE* data, UINT data_size)
 {
-    AppendBe32(png, data_size);
+    image_utils::AppendBe32(png, data_size);
     const size_t type_offset = png->size();
     png->insert(png->end(), type, type + 4);
     if (data_size > 0) {
         png->insert(png->end(), data, data + data_size);
     }
-    AppendBe32(png, Crc32(png->data() + type_offset, static_cast<size_t>(data_size) + 4));
+    image_utils::AppendBe32(png, Crc32(png->data() + type_offset, static_cast<size_t>(data_size) + 4));
 }
 
 HRESULT MakeFramePng(
@@ -435,7 +328,7 @@ HRESULT MakeFramePng(
 
     const PngChunk* ihdr = nullptr;
     for (const PngChunk& chunk : chunks) {
-        if (IsType(chunk.type, "IHDR")) {
+        if (image_utils::IsFourCC(chunk.type, "IHDR")) {
             ihdr = &chunk;
             break;
         }
@@ -459,8 +352,8 @@ HRESULT MakeFramePng(
     AppendPngChunk(png, "IHDR", ihdr_data, 13);
 
     for (const PngChunk& chunk : chunks) {
-        if (IsType(chunk.type, "IHDR") || IsType(chunk.type, "IDAT") || IsType(chunk.type, "IEND") ||
-            IsType(chunk.type, "acTL") || IsType(chunk.type, "fcTL") || IsType(chunk.type, "fdAT")) {
+        if (image_utils::IsFourCC(chunk.type, "IHDR") || image_utils::IsFourCC(chunk.type, "IDAT") || image_utils::IsFourCC(chunk.type, "IEND") ||
+            image_utils::IsFourCC(chunk.type, "acTL") || image_utils::IsFourCC(chunk.type, "fcTL") || image_utils::IsFourCC(chunk.type, "fdAT")) {
             continue;
         }
         AppendPngChunk(png, chunk.type, source.data() + chunk.data_offset, chunk.data_size);
@@ -553,7 +446,7 @@ HRESULT AppendRiffWebp(std::vector<BYTE>* webp, const BYTE* payload, size_t payl
 
     webp->clear();
     webp->insert(webp->end(), {'R', 'I', 'F', 'F'});
-    AppendLe32(webp, static_cast<UINT>(payload_size + 4));
+    image_utils::AppendLe32(webp, static_cast<UINT>(payload_size + 4));
     webp->insert(webp->end(), {'W', 'E', 'B', 'P'});
     webp->insert(webp->end(), payload, payload + payload_size);
     return S_OK;
@@ -595,7 +488,7 @@ HRESULT DecodeGifAnimationPixels(
         std::vector<BYTE> frame_bgra;
         UINT frame_width = 0;
         UINT frame_height = 0;
-        RETURN_IF_FAILED(CopySourceBgra(wic_factory, frame.get(), &frame_bgra, &frame_width, &frame_height));
+        RETURN_IF_FAILED(image_bitmap::CopySourceBgra(wic_factory, frame.get(), &frame_bgra, &frame_width, &frame_height));
         if (frame_width != rect.width || frame_height != rect.height) {
             rect.width = frame_width;
             rect.height = frame_height;
@@ -626,7 +519,7 @@ HRESULT DecodeApngAnimationPixels(
     RETURN_HR_IF_NULL(E_POINTER, animation);
 
     std::vector<BYTE> bytes;
-    RETURN_IF_FAILED(ReadFileBytes(path, &bytes));
+    RETURN_IF_FAILED(image_utils::ReadFileBytes(path, &bytes));
 
     std::vector<PngChunk> chunks;
     RETURN_IF_FAILED(ParsePngChunks(bytes, &chunks));
@@ -635,18 +528,18 @@ HRESULT DecodeApngAnimationPixels(
     bool has_actl = false;
     UINT play_count = 0;
     for (const PngChunk& chunk : chunks) {
-        if (IsType(chunk.type, "IHDR")) {
+        if (image_utils::IsFourCC(chunk.type, "IHDR")) {
             ihdr = &chunk;
-        } else if (IsType(chunk.type, "acTL")) {
+        } else if (image_utils::IsFourCC(chunk.type, "acTL")) {
             has_actl = true;
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk.data_size != 8);
-            play_count = ReadBe32(bytes.data() + chunk.data_offset + 4);
+            play_count = image_utils::ReadBe32(bytes.data() + chunk.data_offset + 4);
         }
     }
     RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), !has_actl || ihdr == nullptr || ihdr->data_size != 13);
 
-    animation->width = ReadBe32(bytes.data() + ihdr->data_offset);
-    animation->height = ReadBe32(bytes.data() + ihdr->data_offset + 4);
+    animation->width = image_utils::ReadBe32(bytes.data() + ihdr->data_offset);
+    animation->height = image_utils::ReadBe32(bytes.data() + ihdr->data_offset + 4);
     animation->loop = play_count == 0;
     animation->frames.clear();
 
@@ -689,7 +582,7 @@ HRESULT DecodeApngAnimationPixels(
     };
 
     for (const PngChunk& chunk : chunks) {
-        if (IsType(chunk.type, "fcTL")) {
+        if (image_utils::IsFourCC(chunk.type, "fcTL")) {
             RETURN_IF_FAILED(flush_frame());
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk.data_size != 26);
             const BYTE* data = bytes.data() + chunk.data_offset;
@@ -697,10 +590,10 @@ HRESULT DecodeApngAnimationPixels(
             const UINT delay_den = (static_cast<UINT>(data[22]) << 8) | data[23];
             control = ApngFrameControl{
                 .rect = RectU{
-                    .x = ReadBe32(data + 12),
-                    .y = ReadBe32(data + 16),
-                    .width = ReadBe32(data + 4),
-                    .height = ReadBe32(data + 8),
+                    .x = image_utils::ReadBe32(data + 12),
+                    .y = image_utils::ReadBe32(data + 16),
+                    .width = image_utils::ReadBe32(data + 4),
+                    .height = image_utils::ReadBe32(data + 8),
                 },
                 .duration_ms = delay_num == 0
                     ? kDefaultFrameDurationMs
@@ -709,16 +602,16 @@ HRESULT DecodeApngAnimationPixels(
                 .blend = data[25] == 1 ? BlendOp::Over : BlendOp::Source,
             };
             collecting = true;
-        } else if (IsType(chunk.type, "IDAT") && collecting) {
+        } else if (image_utils::IsFourCC(chunk.type, "IDAT") && collecting) {
             idat_payloads.push_back(std::vector<BYTE>(
                 bytes.data() + chunk.data_offset,
                 bytes.data() + chunk.data_offset + chunk.data_size));
-        } else if (IsType(chunk.type, "fdAT") && collecting) {
+        } else if (image_utils::IsFourCC(chunk.type, "fdAT") && collecting) {
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk.data_size < 4);
             idat_payloads.push_back(std::vector<BYTE>(
                 bytes.data() + chunk.data_offset + 4,
                 bytes.data() + chunk.data_offset + chunk.data_size));
-        } else if (IsType(chunk.type, "IEND")) {
+        } else if (image_utils::IsFourCC(chunk.type, "IEND")) {
             RETURN_IF_FAILED(flush_frame());
         }
     }
@@ -737,7 +630,7 @@ HRESULT DecodeWebpAnimationPixels(
     RETURN_HR_IF_NULL(E_POINTER, animation);
 
     std::vector<BYTE> bytes;
-    RETURN_IF_FAILED(ReadFileBytes(path, &bytes));
+    RETURN_IF_FAILED(image_utils::ReadFileBytes(path, &bytes));
     RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), bytes.size() < 12);
     RETURN_HR_IF(
         HRESULT_FROM_WIN32(ERROR_INVALID_DATA),
@@ -751,14 +644,14 @@ HRESULT DecodeWebpAnimationPixels(
     size_t offset = 12;
     while (offset + 8 <= bytes.size()) {
         const char* type = reinterpret_cast<const char*>(bytes.data() + offset);
-        const UINT chunk_size = ReadLe32(bytes.data() + offset + 4);
+        const UINT chunk_size = image_utils::ReadLe32(bytes.data() + offset + 4);
         RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk_size > bytes.size() - offset - 8);
         const BYTE* payload = bytes.data() + offset + 8;
 
         if (type[0] == 'V' && type[1] == 'P' && type[2] == '8' && type[3] == 'X') {
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk_size < 10);
-            animation->width = ReadLe24(payload + 4) + 1;
-            animation->height = ReadLe24(payload + 7) + 1;
+            animation->width = image_utils::ReadLe24(payload + 4) + 1;
+            animation->height = image_utils::ReadLe24(payload + 7) + 1;
         } else if (type[0] == 'A' && type[1] == 'N' && type[2] == 'I' && type[3] == 'M') {
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk_size < 6);
             animation->loop = (payload[4] | (static_cast<UINT>(payload[5]) << 8)) != 1;
@@ -766,12 +659,12 @@ HRESULT DecodeWebpAnimationPixels(
             RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), chunk_size < 16);
             WebpFrame frame;
             frame.rect = RectU{
-                .x = ReadLe24(payload) * 2,
-                .y = ReadLe24(payload + 3) * 2,
-                .width = ReadLe24(payload + 6) + 1,
-                .height = ReadLe24(payload + 9) + 1,
+                .x = image_utils::ReadLe24(payload) * 2,
+                .y = image_utils::ReadLe24(payload + 3) * 2,
+                .width = image_utils::ReadLe24(payload + 6) + 1,
+                .height = image_utils::ReadLe24(payload + 9) + 1,
             };
-            frame.duration_ms = ReadLe24(payload + 12);
+            frame.duration_ms = image_utils::ReadLe24(payload + 12);
             const BYTE flags = payload[15];
             frame.blend = (flags & 0x02) != 0 ? BlendOp::Source : BlendOp::Over;
             frame.dispose = (flags & 0x01) != 0 ? DisposeOp::Background : DisposeOp::None;

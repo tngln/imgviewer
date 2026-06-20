@@ -39,11 +39,13 @@ add_executable(imgviewer
     src/imgviewer.ui.cc
     src/image.analysis.cc
     src/image.animation_decoder.cc
+    src/image.bitmap.cc
     src/image.decoder.cc
     src/image.encoder.cc
     src/image.metadata.cc
     src/image.sequence.cc
     src/image.stb_decoder.cc
+    src/image.utils.cc
     src/imgviewer.viewer.cc
     src/main.cc
     src/script.canvas_color.cc

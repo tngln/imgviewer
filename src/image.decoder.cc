@@ -3,11 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <cwctype>
 #include <cstring>
 #include <cmath>
-#include <filesystem>
-#include <fstream>
 #include <limits>
 #include <string>
 
@@ -15,6 +12,7 @@
 
 #include "imgviewer.strings.hpp"
 #include "image.animation_decoder.hpp"
+#include "image.bitmap.hpp"
 #include "image.stb_decoder.hpp"
 #include "image.utils.hpp"
 
@@ -75,50 +73,6 @@ void RebuildColorRows(ImageMetadata* metadata)
     AddColorRow(metadata, ImgViewerString(ImgViewerStringId::SourcePreserved), YesNo(color.source_preserved));
 }
 
-bool ReadFilePrefix(const wchar_t* path, std::vector<BYTE>* bytes)
-{
-    if (path == nullptr || bytes == nullptr) {
-        return false;
-    }
-
-    std::ifstream stream(std::filesystem::path(path), std::ios::binary);
-    if (!stream) {
-        return false;
-    }
-
-    stream.seekg(0, std::ios::end);
-    const std::streamoff file_size = stream.tellg();
-    if (file_size <= 0) {
-        return false;
-    }
-    stream.seekg(0, std::ios::beg);
-    const size_t size = static_cast<size_t>((std::min<std::streamoff>)(file_size, 1024 * 1024));
-    bytes->resize(size);
-    stream.read(reinterpret_cast<char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
-    return stream.gcount() == static_cast<std::streamsize>(bytes->size());
-}
-
-uint32_t ReadBe32(const std::vector<BYTE>& bytes, size_t offset)
-{
-    return (static_cast<uint32_t>(bytes[offset]) << 24) |
-        (static_cast<uint32_t>(bytes[offset + 1]) << 16) |
-        (static_cast<uint32_t>(bytes[offset + 2]) << 8) |
-        static_cast<uint32_t>(bytes[offset + 3]);
-}
-
-uint16_t ReadBe16(const std::vector<BYTE>& bytes, size_t offset)
-{
-    return static_cast<uint16_t>((static_cast<uint16_t>(bytes[offset]) << 8) | bytes[offset + 1]);
-}
-
-bool IsChunkType(const BYTE* type, const char (&text)[5])
-{
-    return type[0] == static_cast<BYTE>(text[0]) &&
-        type[1] == static_cast<BYTE>(text[1]) &&
-        type[2] == static_cast<BYTE>(text[2]) &&
-        type[3] == static_cast<BYTE>(text[3]);
-}
-
 std::wstring PngTransferName(BYTE value)
 {
     switch (value) {
@@ -155,14 +109,6 @@ std::wstring PngPrimariesName(BYTE value)
     }
 }
 
-uint32_t ReadBe32(const BYTE* data)
-{
-    return (static_cast<uint32_t>(data[0]) << 24) |
-        (static_cast<uint32_t>(data[1]) << 16) |
-        (static_cast<uint32_t>(data[2]) << 8) |
-        static_cast<uint32_t>(data[3]);
-}
-
 void ApplyCicpMetadata(BYTE primaries, BYTE transfer, ImageColorInfo* color)
 {
     color->dynamic_range.primaries = PngPrimariesName(primaries);
@@ -183,7 +129,7 @@ void InspectIccProfileMetadata(const BYTE* data, size_t size, ImageColorInfo* co
         return;
     }
 
-    const uint32_t tag_count = ReadBe32(data + 128);
+    const uint32_t tag_count = image_utils::ReadBe32(data + 128);
     if (tag_count > (size - 132) / 12) {
         return;
     }
@@ -195,8 +141,8 @@ void InspectIccProfileMetadata(const BYTE* data, size_t size, ImageColorInfo* co
             continue;
         }
 
-        const uint32_t offset = ReadBe32(tag + 4);
-        const uint32_t length = ReadBe32(tag + 8);
+        const uint32_t offset = image_utils::ReadBe32(tag + 4);
+        const uint32_t length = image_utils::ReadBe32(tag + 8);
         if (offset > size || length > size - offset || length < 12) {
             return;
         }
@@ -218,7 +164,7 @@ void InspectPngMetadata(const wchar_t* path, ImageColorInfo* color)
     }
 
     std::vector<BYTE> bytes;
-    if (!ReadFilePrefix(path, &bytes) || bytes.size() < 33) {
+    if (FAILED(image_utils::ReadFileBytes(path, &bytes, 1024 * 1024)) || bytes.size() < 33) {
         return;
     }
 
@@ -230,24 +176,24 @@ void InspectPngMetadata(const wchar_t* path, ImageColorInfo* color)
     color->container = L"PNG";
     size_t offset = 8;
     while (offset + 12 <= bytes.size()) {
-        const uint32_t length = ReadBe32(bytes, offset);
+        const uint32_t length = image_utils::ReadBe32(bytes.data() + offset);
         const BYTE* type = bytes.data() + offset + 4;
         const size_t data_offset = offset + 8;
         if (data_offset + length + 4 > bytes.size()) {
             break;
         }
 
-        if (IsChunkType(type, "IHDR") && length >= 13) {
+        if (image_utils::IsFourCC(type, "IHDR") && length >= 13) {
             color->bits_per_channel = bytes[data_offset + 8];
             const BYTE color_type = bytes[data_offset + 9];
             color->channel_count = color_type == 6 ? 4 : (color_type == 2 ? 3 : (color_type == 4 ? 2 : 1));
-        } else if (IsChunkType(type, "iCCP")) {
+        } else if (image_utils::IsFourCC(type, "iCCP")) {
             color->has_icc_profile = true;
-        } else if (IsChunkType(type, "cICP") && length >= 4) {
+        } else if (image_utils::IsFourCC(type, "cICP") && length >= 4) {
             ApplyCicpMetadata(bytes[data_offset], bytes[data_offset + 1], color);
-        } else if (IsChunkType(type, "cLLi") || IsChunkType(type, "mDCv")) {
+        } else if (image_utils::IsFourCC(type, "cLLi") || image_utils::IsFourCC(type, "mDCv")) {
             color->dynamic_range.has_hdr_metadata = true;
-        } else if (IsChunkType(type, "IEND")) {
+        } else if (image_utils::IsFourCC(type, "IEND")) {
             break;
         }
 
@@ -262,7 +208,7 @@ void InspectJpegMetadata(const wchar_t* path, ImageColorInfo* color)
     }
 
     std::vector<BYTE> bytes;
-    if (!ReadFilePrefix(path, &bytes) || bytes.size() < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) {
+    if (FAILED(image_utils::ReadFileBytes(path, &bytes, 1024 * 1024)) || bytes.size() < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) {
         return;
     }
 
@@ -288,7 +234,7 @@ void InspectJpegMetadata(const wchar_t* path, ImageColorInfo* color)
             break;
         }
 
-        const uint16_t length = ReadBe16(bytes, offset);
+        const uint16_t length = image_utils::ReadBe16(bytes.data() + offset);
         const size_t data_offset = offset + 2;
         if (length < 2 || data_offset + length - 2 > bytes.size()) {
             break;
@@ -546,47 +492,6 @@ HRESULT CreateHdrDisplayBitmap(
     return S_OK;
 }
 
-HRESULT CreateBitmapSourceFromBgra(
-    IWICImagingFactory2* wic_factory,
-    UINT width,
-    UINT height,
-    const std::vector<BYTE>& bgra,
-    IWICBitmapSource** source)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
-    RETURN_HR_IF_NULL(E_POINTER, source);
-    *source = nullptr;
-    RETURN_HR_IF(HRESULT_FROM_WIN32(ERROR_INVALID_DATA), width == 0 || height == 0);
-
-    const size_t stride = static_cast<size_t>(width) * 4;
-    RETURN_HR_IF(
-        HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW),
-        stride > (std::numeric_limits<UINT>::max)() ||
-            bgra.size() > (std::numeric_limits<UINT>::max)());
-    RETURN_HR_IF(
-        HRESULT_FROM_WIN32(ERROR_INVALID_DATA),
-        bgra.size() != stride * static_cast<size_t>(height));
-
-    wil::com_ptr<IWICBitmap> bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromMemory(
-        width,
-        height,
-        GUID_WICPixelFormat32bppBGRA,
-        static_cast<UINT>(stride),
-        static_cast<UINT>(bgra.size()),
-        const_cast<BYTE*>(bgra.data()),
-        bitmap.put()));
-
-    wil::com_ptr<IWICBitmap> cached_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(
-        bitmap.get(),
-        WICBitmapCacheOnLoad,
-        cached_bitmap.put()));
-
-    *source = cached_bitmap.detach();
-    return S_OK;
-}
-
 } // namespace
 
 HRESULT ImageDecoder::Initialize()
@@ -636,7 +541,7 @@ HRESULT ImageDecoder::DecodeImageFile(
             decoded_set.animation_frames.reserve(animation.frames.size());
             for (const AnimationFramePixels& frame : animation.frames) {
                 wil::com_ptr<IWICBitmapSource> source;
-                RETURN_IF_FAILED(CreateBitmapSourceFromBgra(
+                RETURN_IF_FAILED(image_bitmap::CreateBitmapSourceFromBgra(
                     wic_factory_.get(),
                     animation.width,
                     animation.height,

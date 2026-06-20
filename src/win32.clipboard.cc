@@ -10,6 +10,8 @@
 #include <wil/resource.h>
 #include <wil/result_macros.h>
 
+#include "image.bitmap.hpp"
+
 namespace win32 {
 namespace {
 
@@ -219,34 +221,6 @@ bool CopyDibPixelsToBgra(const BYTE* dib_data, size_t dib_size, UINT* width, UIN
     return true;
 }
 
-HRESULT CreateBitmapSourceFromBgra(
-    IWICImagingFactory2* wic_factory,
-    UINT width,
-    UINT height,
-    const std::vector<BYTE>& bgra,
-    IWICBitmapSource** source)
-{
-    RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
-    RETURN_HR_IF_NULL(E_POINTER, source);
-    RETURN_HR_IF(E_INVALIDARG, width == 0 || height == 0 || bgra.empty());
-
-    wil::com_ptr<IWICBitmap> memory_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromMemory(
-        width,
-        height,
-        GUID_WICPixelFormat32bppBGRA,
-        width * 4,
-        static_cast<UINT>(bgra.size()),
-        const_cast<BYTE*>(bgra.data()),
-        memory_bitmap.put()));
-
-    wil::com_ptr<IWICBitmap> cached_bitmap;
-    RETURN_IF_FAILED(wic_factory->CreateBitmapFromSource(memory_bitmap.get(), WICBitmapCacheOnLoad, cached_bitmap.put()));
-
-    *source = cached_bitmap.detach();
-    return S_OK;
-}
-
 HRESULT ReadClipboardDib(IWICImagingFactory2* wic_factory, UINT format, IWICBitmapSource** source)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, wic_factory);
@@ -264,7 +238,7 @@ HRESULT ReadClipboardDib(IWICImagingFactory2* wic_factory, UINT format, IWICBitm
     UINT height = 0;
     std::vector<BYTE> bgra;
     RETURN_HR_IF(E_FAIL, !CopyDibPixelsToBgra(dib_data, GlobalSize(memory), &width, &height, &bgra));
-    RETURN_IF_FAILED(CreateBitmapSourceFromBgra(wic_factory, width, height, bgra, source));
+    RETURN_IF_FAILED(image_bitmap::CreateBitmapSourceFromBgra(wic_factory, width, height, bgra, source));
     return S_OK;
 }
 
