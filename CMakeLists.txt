@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.29)
 
+include(cmake/msvc_environment.cmake)
+
 project(imgviewer LANGUAGES CXX RC)
 
-if(WIN32 AND CMAKE_CXX_COMPILER)
-    set(CMAKE_C_COMPILER "${CMAKE_CXX_COMPILER}" CACHE FILEPATH "C compiler" FORCE)
-endif()
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 enable_language(C)
 
