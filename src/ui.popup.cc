@@ -55,17 +55,15 @@ public:
 
     JSValue CreateState(JSContext* context) const override
     {
-        JSValue state = JS_ParseJSON(context, state_json_.c_str(), state_json_.size(), "<popup-state>");
-        if (!JS_IsException(state)) {
-            return state;
+        script::QuickJsValue state(context, JS_ParseJSON(context, state_json_.c_str(), state_json_.size(), "<popup-state>"));
+        if (!JS_IsException(state.Get())) {
+            return state.Release();
         }
 
-        JS_FreeValue(context, state);
-        JSValue exception = JS_GetException(context);
-        JS_FreeValue(context, exception);
-        JSValue fallback = JS_NewObject(context);
-        script::SetString(context, fallback, "kind", "none");
-        return fallback;
+        script::QuickJsValue exception(context, JS_GetException(context));
+        script::ObjectBuilder fallback(context);
+        fallback.Set("kind", "none");
+        return fallback.Release();
     }
 
     void ApplyResult(JSContext*, JSValueConst, UiEventResult*) override {}
@@ -205,10 +203,9 @@ HRESULT PopupHost::LoadScript()
     JS_SetContextOpaque(script_context_->Context(), this);
 
     JSContext* context = script_context_->Context();
-    JSValue global = JS_GetGlobalObject(context);
-    JS_SetPropertyStr(context, global, "host", imgviewer::CreateHostObject(context));
-    imgviewer::InstallTypographyGlobals(context, global);
-    JS_FreeValue(context, global);
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    JS_SetPropertyStr(context, global.Get(), "host", imgviewer::CreateHostObject(context));
+    imgviewer::InstallTypographyGlobals(context, global.Get());
 
     script_path_ = imgviewer::ScriptPath(kPopupScriptRelativePath);
     std::optional<std::string> source = imgviewer::ReadTextFileUtf8(script_path_);
@@ -221,13 +218,11 @@ HRESULT PopupHost::LoadScript()
         error_text_ = script_engine_->TakeExceptionTextUtf8();
         return E_FAIL;
     }
-    JSValue app = AppObject();
-    if (!JS_IsObject(app)) {
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    if (!JS_IsObject(app.Get())) {
         error_text_ = "globalThis.imgviewerPopupUi was not defined";
         return E_FAIL;
     }
-    JS_FreeValue(context, app);
     error_text_.clear();
     return S_OK;
 }
@@ -247,29 +242,23 @@ D2D1_SIZE_F PopupHost::QueryScriptContentSize()
         return D2D1::SizeF(1.0f, 1.0f);
     }
     JSContext* context = script_context_->Context();
-    JSValue app = AppObject();
-    JSValue measure = JS_GetPropertyStr(context, app, "measure");
-    if (!JS_IsFunction(context, measure)) {
-        JS_FreeValue(context, measure);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue measure = script::GetProperty(context, app.Get(), "measure");
+    if (!JS_IsFunction(context, measure.Get())) {
         return D2D1::SizeF(1.0f, 1.0f);
     }
-    JSValue state = CreateStateObject();
-    JSValue result = JS_Call(context, measure, app, 1, &state);
-    JS_FreeValue(context, state);
-    JS_FreeValue(context, measure);
-    JS_FreeValue(context, app);
-    if (JS_IsException(result)) {
-        JS_FreeValue(context, result);
+    script::QuickJsValue state(context, CreateStateObject());
+    JSValue args[] = {state.Get()};
+    script::QuickJsValue result = script::Call(context, measure.Get(), app.Get(), 1, args);
+    if (JS_IsException(result.Get())) {
         script_context_->CaptureException();
         error_text_ = script_engine_->TakeExceptionTextUtf8();
         return D2D1::SizeF(1.0f, 1.0f);
     }
     const D2D1_SIZE_F size{
-        (std::max)(1.0f, script::FloatProperty(context, result, "width", 1.0f)),
-        (std::max)(1.0f, script::FloatProperty(context, result, "height", 1.0f)),
+        (std::max)(1.0f, script::FloatProperty(context, result.Get(), "width", 1.0f)),
+        (std::max)(1.0f, script::FloatProperty(context, result.Get(), "height", 1.0f)),
     };
-    JS_FreeValue(context, result);
     return size;
 }
 
@@ -279,32 +268,23 @@ void PopupHost::RenderScriptContent(const UiDrawContext& draw_context)
         return;
     }
     JSContext* context = script_context_->Context();
-    JSValue app = AppObject();
-    JSValue render = JS_GetPropertyStr(context, app, "render");
-    if (!JS_IsFunction(context, render)) {
-        JS_FreeValue(context, render);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue render = script::GetProperty(context, app.Get(), "render");
+    if (!JS_IsFunction(context, render.Get())) {
         return;
     }
-    JSValue canvas = imgviewer::CreateCanvasObject(context);
-    JSValue env = imgviewer::CreateRenderEnvironment(context, draw_context);
-    JSValue state = CreateStateObject();
-    JSValue args[] = {canvas, env, state};
+    script::QuickJsValue canvas(context, imgviewer::CreateCanvasObject(context));
+    script::QuickJsValue env(context, imgviewer::CreateRenderEnvironment(context, draw_context));
+    script::QuickJsValue state(context, CreateStateObject());
+    JSValue args[] = {canvas.Get(), env.Get(), state.Get()};
     active_draw_context_ = &draw_context;
-    JSValue result = JS_Call(context, render, app, 3, args);
+    script::QuickJsValue result = script::Call(context, render.Get(), app.Get(), 3, args);
     active_draw_context_ = nullptr;
-    JS_FreeValue(context, state);
-    JS_FreeValue(context, env);
-    JS_FreeValue(context, canvas);
-    JS_FreeValue(context, render);
-    JS_FreeValue(context, app);
-    if (JS_IsException(result)) {
-        JS_FreeValue(context, result);
+    if (JS_IsException(result.Get())) {
         script_context_->CaptureException();
         error_text_ = script_engine_->TakeExceptionTextUtf8();
         return;
     }
-    JS_FreeValue(context, result);
     script_engine_->PumpJobs();
 }
 
@@ -315,30 +295,23 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
         return event_result;
     }
     JSContext* context = script_context_->Context();
-    JSValue app = AppObject();
     const bool pointer_event = event.type == UiEventType::PointerMove ||
         event.type == UiEventType::PointerDown ||
         event.type == UiEventType::PointerUp ||
         event.type == UiEventType::PointerLeave ||
         event.type == UiEventType::PointerWheel;
-    JSValue handler = JS_GetPropertyStr(context, app, pointer_event ? "pointer" : "key");
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), pointer_event ? "pointer" : "key");
+    if (!JS_IsFunction(context, handler.Get())) {
         return event_result;
     }
-    JSValue js_event = pointer_event
+    script::QuickJsValue js_event(context, pointer_event
         ? imgviewer::CreatePointerEvent(context, event.pointer)
-        : imgviewer::CreateKeyEvent(context, event.key);
-    JSValue state = CreateStateObject();
-    JSValue args[] = {js_event, state};
-    JSValue result = JS_Call(context, handler, app, 2, args);
-    JS_FreeValue(context, state);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    if (JS_IsException(result)) {
-        JS_FreeValue(context, result);
+        : imgviewer::CreateKeyEvent(context, event.key));
+    script::QuickJsValue state(context, CreateStateObject());
+    JSValue args[] = {js_event.Get(), state.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 2, args);
+    if (JS_IsException(result.Get())) {
         script_context_->CaptureException();
         error_text_ = script_engine_->TakeExceptionTextUtf8();
         event_result.handled = true;
@@ -346,14 +319,13 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
         return event_result;
     }
 
-    event_result.handled = script::BoolProperty(context, result, "handled", false);
-    event_result.close_popup = script::BoolProperty(context, result, "close", false) || close_requested_;
-    event_result.value_changed = script::BoolProperty(context, result, "invalidate", false) || invalidate_requested_;
-    event_result.action = ActionProperty(context, result);
+    event_result.handled = script::BoolProperty(context, result.Get(), "handled", false);
+    event_result.close_popup = script::BoolProperty(context, result.Get(), "close", false) || close_requested_;
+    event_result.value_changed = script::BoolProperty(context, result.Get(), "invalidate", false) || invalidate_requested_;
+    event_result.action = ActionProperty(context, result.Get());
     if (content_ != nullptr) {
-        content_->ApplyResult(context, result, &event_result);
+        content_->ApplyResult(context, result.Get(), &event_result);
     }
-    JS_FreeValue(context, result);
 
     close_requested_ = false;
     invalidate_requested_ = false;
@@ -364,10 +336,8 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
 JSValue PopupHost::AppObject() const
 {
     JSContext* context = script_context_->Context();
-    JSValue global = JS_GetGlobalObject(context);
-    JSValue app = JS_GetPropertyStr(context, global, "imgviewerPopupUi");
-    JS_FreeValue(context, global);
-    return app;
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    return script::GetProperty(context, global.Get(), "imgviewerPopupUi").Release();
 }
 
 JSValue PopupHost::CreateStateObject() const

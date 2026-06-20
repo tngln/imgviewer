@@ -89,23 +89,21 @@ QuickJsEvalResult QuickJsContext::EvalScript(std::string_view source_utf8, std::
         return {};
     }
 
-    JSValue value = JS_Eval(
+    QuickJsValue value(context_, JS_Eval(
         context_,
         source_utf8.data(),
         source_utf8.size(),
         filename_utf8.empty() ? "<script>" : std::string(filename_utf8).c_str(),
-        JS_EVAL_TYPE_GLOBAL);
-    if (JS_IsException(value)) {
-        JS_FreeValue(context_, value);
+        JS_EVAL_TYPE_GLOBAL));
+    if (JS_IsException(value.Get())) {
         CaptureException();
         return {};
     }
 
     QuickJsEvalResult result{
         .ok = true,
-        .value_utf8 = ToStringUtf8(context_, value),
+        .value_utf8 = ToStringUtf8(context_, value.Get()),
     };
-    JS_FreeValue(context_, value);
     return result;
 }
 
@@ -156,12 +154,12 @@ void QuickJsRuntime::CaptureException(JSContext* context)
         return;
     }
 
-    JSValue exception = JS_GetException(context);
-    const std::string exception_text = ToStringUtf8(context, exception);
-    JSValue stack = JS_GetPropertyStr(context, exception, "stack");
+    QuickJsValue exception(context, JS_GetException(context));
+    const std::string exception_text = ToStringUtf8(context, exception.Get());
+    QuickJsValue stack = GetProperty(context, exception.Get(), "stack");
     const std::string stack_text =
-        !JS_IsUndefined(stack) && !JS_IsException(stack) ? ToStringUtf8(context, stack) : std::string();
-    if (!JS_IsUndefined(stack) && !JS_IsException(stack)) {
+        !JS_IsUndefined(stack.Get()) && !JS_IsException(stack.Get()) ? ToStringUtf8(context, stack.Get()) : std::string();
+    if (!JS_IsUndefined(stack.Get()) && !JS_IsException(stack.Get())) {
         last_exception_utf8_ = stack_text;
     }
     if (!exception_text.empty() &&
@@ -173,8 +171,6 @@ void QuickJsRuntime::CaptureException(JSContext* context)
     if (last_exception_utf8_.empty()) {
         last_exception_utf8_ = "JavaScript exception";
     }
-    JS_FreeValue(context, stack);
-    JS_FreeValue(context, exception);
 }
 
 } // namespace script

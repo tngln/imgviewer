@@ -143,6 +143,36 @@ std::string ToStringUtf8(JSContext* context, JSValueConst value)
     return result;
 }
 
+QuickJsValue GetGlobalObject(JSContext* context)
+{
+    return QuickJsValue(context, JS_GetGlobalObject(context));
+}
+
+QuickJsValue GetProperty(JSContext* context, JSValueConst object, const char* name)
+{
+    return QuickJsValue(context, JS_GetPropertyStr(context, object, name));
+}
+
+QuickJsValue GetProperty(JSContext* context, JSValueConst object, uint32_t index)
+{
+    return QuickJsValue(context, JS_GetPropertyUint32(context, object, index));
+}
+
+QuickJsValue Call(
+    JSContext* context,
+    JSValueConst function,
+    JSValueConst this_value,
+    int argc,
+    JSValue* argv)
+{
+    return QuickJsValue(context, JS_Call(context, function, this_value, argc, argv));
+}
+
+QuickJsValue JsonStringifyValue(JSContext* context, JSValueConst value)
+{
+    return QuickJsValue(context, JS_JSONStringify(context, value, JS_UNDEFINED, JS_UNDEFINED));
+}
+
 void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
 {
     JS_SetPropertyStr(context, object, name, JS_NewString(context, Utf8FromWide(value).c_str()));
@@ -189,7 +219,7 @@ bool BoolProperty(JSContext* context, JSValueConst object, const char* name, boo
     if (!JS_IsObject(object)) {
         return fallback;
     }
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     return JS_IsUndefined(value.Get()) ? fallback : JS_ToBool(context, value.Get()) != 0;
 }
 
@@ -198,7 +228,7 @@ std::optional<bool> OptionalBoolProperty(JSContext* context, JSValueConst object
     if (!JS_IsObject(object)) {
         return std::nullopt;
     }
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     if (JS_IsUndefined(value.Get())) {
         return std::nullopt;
     }
@@ -210,7 +240,7 @@ int32_t Int32Property(JSContext* context, JSValueConst object, const char* name,
     if (!JS_IsObject(object)) {
         return fallback;
     }
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     if (JS_IsUndefined(value.Get())) {
         return fallback;
     }
@@ -224,7 +254,7 @@ float FloatProperty(JSContext* context, JSValueConst object, const char* name, f
     if (!JS_IsObject(object)) {
         return fallback;
     }
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     if (JS_IsUndefined(value.Get())) {
         return fallback;
     }
@@ -235,7 +265,7 @@ float FloatProperty(JSContext* context, JSValueConst object, const char* name, f
 
 bool StringProperty(JSContext* context, JSValueConst object, const char* name, std::string* result)
 {
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     if (!JS_IsString(value.Get())) {
         return false;
     }
@@ -246,7 +276,7 @@ bool StringProperty(JSContext* context, JSValueConst object, const char* name, s
 
 bool StrictBoolProperty(JSContext* context, JSValueConst object, const char* name, bool* result)
 {
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     if (!JS_IsBool(value.Get())) {
         return false;
     }
@@ -257,7 +287,7 @@ bool StrictBoolProperty(JSContext* context, JSValueConst object, const char* nam
 
 bool StrictInt32Property(JSContext* context, JSValueConst object, const char* name, int32_t* result)
 {
-    QuickJsValue value(context, JS_GetPropertyStr(context, object, name));
+    QuickJsValue value = GetProperty(context, object, name);
     if (!JS_IsNumber(value.Get())) {
         return false;
     }
@@ -267,13 +297,13 @@ bool StrictInt32Property(JSContext* context, JSValueConst object, const char* na
 
 bool ArrayLength(JSContext* context, JSValueConst value, uint32_t* length)
 {
-    QuickJsValue length_value(context, JS_GetPropertyStr(context, value, "length"));
+    QuickJsValue length_value = GetProperty(context, value, "length");
     return JS_ToUint32(context, length, length_value.Get()) == 0;
 }
 
 bool ArrayNumber(JSContext* context, JSValueConst value, uint32_t index, float* number)
 {
-    QuickJsValue item(context, JS_GetPropertyUint32(context, value, index));
+    QuickJsValue item = GetProperty(context, value, index);
     double parsed = 0.0;
     const bool ok = JS_ToFloat64(context, &parsed, item.Get()) == 0;
     if (ok) {

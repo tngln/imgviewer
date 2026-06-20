@@ -35,35 +35,27 @@ void ScriptWindowRootBase::Render(const UiDrawContext& context)
     }
 
     JSContext* js_context = Context();
-    JSValue app = AppObject();
-    JSValue render = JS_GetPropertyStr(js_context, app, "render");
-    if (!JS_IsFunction(js_context, render)) {
-        JS_FreeValue(js_context, render);
-        JS_FreeValue(js_context, app);
+    script::QuickJsValue app(js_context, AppObject());
+    script::QuickJsValue render = script::GetProperty(js_context, app.Get(), "render");
+    if (!JS_IsFunction(js_context, render.Get())) {
         SetError(std::string(app_global_name_) + ".render is not a function");
         RenderError(context);
         return;
     }
 
-    JSValue canvas = CreateCanvasObject(js_context);
-    JSValue env = CreateRenderEnvironment(js_context, context);
-    JSValue args[] = {canvas, env};
+    script::QuickJsValue canvas(js_context, CreateCanvasObject(js_context));
+    script::QuickJsValue env(js_context, CreateRenderEnvironment(js_context, context));
+    JSValue args[] = {canvas.Get(), env.Get()};
     active_draw_context_ = &context;
-    JSValue result = JS_Call(js_context, render, app, 2, args);
+    script::QuickJsValue result = script::Call(js_context, render.Get(), app.Get(), 2, args);
     active_draw_context_ = nullptr;
-    JS_FreeValue(js_context, env);
-    JS_FreeValue(js_context, canvas);
-    JS_FreeValue(js_context, render);
-    JS_FreeValue(js_context, app);
 
-    if (JS_IsException(result)) {
-        JS_FreeValue(js_context, result);
+    if (JS_IsException(result.Get())) {
         script_context_->CaptureException();
         SetError(engine_.TakeExceptionTextUtf8());
         RenderError(context);
         return;
     }
-    JS_FreeValue(js_context, result);
     if (engine_.PumpJobs() < 0) {
         SetError(engine_.TakeExceptionTextUtf8());
     }
@@ -140,13 +132,11 @@ void ScriptWindowRootBase::ReloadScript()
         return;
     }
 
-    JSValue app = AppObject();
-    if (!JS_IsObject(app)) {
-        JS_FreeValue(Context(), app);
+    script::QuickJsValue app(Context(), AppObject());
+    if (!JS_IsObject(app.Get())) {
         SetError(std::string("globalThis.") + app_global_name_ + " was not defined");
         return;
     }
-    JS_FreeValue(Context(), app);
     OnScriptLoaded();
     ready_ = true;
 }
@@ -162,8 +152,8 @@ UiEventResult ScriptWindowRootBase::FinishEventDispatch(JSValue result)
 {
     UiEventResult event_result{};
     JSContext* context = Context();
-    if (JS_IsException(result)) {
-        JS_FreeValue(context, result);
+    script::QuickJsValue result_value(context, result);
+    if (JS_IsException(result_value.Get())) {
         script_context_->CaptureException();
         SetError(engine_.TakeExceptionTextUtf8());
         event_result.handled = true;
@@ -171,11 +161,10 @@ UiEventResult ScriptWindowRootBase::FinishEventDispatch(JSValue result)
         return event_result;
     }
 
-    const bool handled = script::BoolProperty(context, result, "handled", false);
-    const std::optional<bool> capture = script::OptionalBoolProperty(context, result, "capture");
-    const bool invalidate = script::BoolProperty(context, result, "invalidate", false);
-    event_result.ime_caret_point = ImeCaretPointProperty(context, result);
-    JS_FreeValue(context, result);
+    const bool handled = script::BoolProperty(context, result_value.Get(), "handled", false);
+    const std::optional<bool> capture = script::OptionalBoolProperty(context, result_value.Get(), "capture");
+    const bool invalidate = script::BoolProperty(context, result_value.Get(), "invalidate", false);
+    event_result.ime_caret_point = ImeCaretPointProperty(context, result_value.Get());
 
     const bool wants_reload = reload_requested_;
     const bool wants_close = close_requested_;
@@ -212,10 +201,8 @@ JSContext* ScriptWindowRootBase::Context() const
 JSValue ScriptWindowRootBase::AppObject() const
 {
     JSContext* context = Context();
-    JSValue global = JS_GetGlobalObject(context);
-    JSValue app = JS_GetPropertyStr(context, global, app_global_name_);
-    JS_FreeValue(context, global);
-    return app;
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    return script::GetProperty(context, global.Get(), app_global_name_).Release();
 }
 
 void ScriptWindowRootBase::SetError(std::string text)
@@ -232,13 +219,12 @@ void ScriptWindowRootBase::SetActiveDrawContext(const UiDrawContext* context)
 void ScriptWindowRootBase::InstallGlobals()
 {
     JSContext* context = Context();
-    JSValue global = JS_GetGlobalObject(context);
+    script::QuickJsValue global = script::GetGlobalObject(context);
 
-    JS_SetPropertyStr(context, global, "host", CreateHostObject(context));
-    InstallTypographyGlobals(context, global);
+    JS_SetPropertyStr(context, global.Get(), "host", CreateHostObject(context));
+    InstallTypographyGlobals(context, global.Get());
 
-    InstallCustomGlobals(global);
-    JS_FreeValue(context, global);
+    InstallCustomGlobals(global.Get());
 }
 
 void ScriptWindowRootBase::RenderError(const UiDrawContext& context) const
@@ -249,65 +235,53 @@ void ScriptWindowRootBase::RenderError(const UiDrawContext& context) const
 UiEventResult ScriptWindowRootBase::DispatchPointerToScript(const UiPointerEvent& event)
 {
     JSContext* context = Context();
-    JSValue app = AppObject();
-    JSValue handler = JS_GetPropertyStr(context, app, "pointer");
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "pointer");
+    if (!JS_IsFunction(context, handler.Get())) {
         return {};
     }
-    JSValue js_event = CreatePointerEvent(context, event);
-    JSValue result = JS_Call(context, handler, app, 1, &js_event);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    return FinishEventDispatch(result);
+    script::QuickJsValue js_event(context, CreatePointerEvent(context, event));
+    JSValue args[] = {js_event.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    return FinishEventDispatch(result.Release());
 }
 
 UiEventResult ScriptWindowRootBase::DispatchKeyToScript(const UiKeyEvent& event)
 {
     JSContext* context = Context();
-    JSValue app = AppObject();
-    JSValue handler = JS_GetPropertyStr(context, app, "key");
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "key");
+    if (!JS_IsFunction(context, handler.Get())) {
         return {};
     }
-    JSValue js_event = CreateKeyEvent(context, event);
-    JSValue result = JS_Call(context, handler, app, 1, &js_event);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    return FinishEventDispatch(result);
+    script::QuickJsValue js_event(context, CreateKeyEvent(context, event));
+    JSValue args[] = {js_event.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    return FinishEventDispatch(result.Release());
 }
 
 UiEventResult ScriptWindowRootBase::DispatchInputToScript(const UiInputEvent& event)
 {
     JSContext* context = Context();
-    JSValue app = AppObject();
-    JSValue handler = JS_GetPropertyStr(context, app, "input");
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "input");
     bool use_native_input_event = true;
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
+    if (!JS_IsFunction(context, handler.Get())) {
         if (event.type != UiEventType::TextChar) {
-            JS_FreeValue(context, app);
             return {};
         }
-        handler = JS_GetPropertyStr(context, app, "text");
-        if (!JS_IsFunction(context, handler)) {
-            JS_FreeValue(context, handler);
-            JS_FreeValue(context, app);
+        handler.Reset(context, JS_GetPropertyStr(context, app.Get(), "text"));
+        if (!JS_IsFunction(context, handler.Get())) {
             return {};
         }
         use_native_input_event = false;
     }
-    JSValue js_event = use_native_input_event ? CreateInputEvent(context, event) : CreateTextEvent(context, event.character);
-    JSValue result = JS_Call(context, handler, app, 1, &js_event);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    return FinishEventDispatch(result);
+    script::QuickJsValue js_event(
+        context,
+        use_native_input_event ? CreateInputEvent(context, event) : CreateTextEvent(context, event.character));
+    JSValue args[] = {js_event.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    return FinishEventDispatch(result.Release());
 }
 
 } // namespace imgviewer

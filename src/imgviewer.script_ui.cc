@@ -116,18 +116,15 @@ UiAction ActionProperty(JSContext* context, JSValueConst object)
     if (!JS_IsObject(object)) {
         return kUiActionNone;
     }
-    JSValue action_value = JS_GetPropertyStr(context, object, "actionValue");
-    if (!JS_IsUndefined(action_value)) {
+    script::QuickJsValue action_value = script::GetProperty(context, object, "actionValue");
+    if (!JS_IsUndefined(action_value.Get())) {
         int32_t value = 0;
-        JS_ToInt32(context, &value, action_value);
-        JS_FreeValue(context, action_value);
+        JS_ToInt32(context, &value, action_value.Get());
         return UiAction(value, script::Int32Property(context, object, "actionArg", 0));
     }
-    JS_FreeValue(context, action_value);
 
-    JSValue value = JS_GetPropertyStr(context, object, "action");
-    const std::string name = script::ToStringUtf8(context, value);
-    JS_FreeValue(context, value);
+    script::QuickJsValue value = script::GetProperty(context, object, "action");
+    const std::string name = script::ToStringUtf8(context, value.Get());
     if (name.empty()) {
         return kUiActionNone;
     }
@@ -473,9 +470,8 @@ bool ReadVectorIconCommand(JSContext* context, JSValueConst value, icons::PathCo
         return false;
     }
 
-    JSValue verb_value = JS_GetPropertyUint32(context, value, 0);
-    const std::string verb = script::ToStringUtf8(context, verb_value);
-    JS_FreeValue(context, verb_value);
+    script::QuickJsValue verb_value = script::GetProperty(context, value, uint32_t{0});
+    const std::string verb = script::ToStringUtf8(context, verb_value.Get());
 
     *command = {};
     if (verb == "M" && length >= 3) {
@@ -640,9 +636,8 @@ ui_text::TypeFace ReadTypeFace(JSContext* context, JSValueConst value)
     if (!JS_IsObject(value)) {
         return {};
     }
-    JSValue family_value = JS_GetPropertyStr(context, value, "family");
-    const std::wstring family = WideFromUtf8(script::ToStringUtf8(context, family_value));
-    JS_FreeValue(context, family_value);
+    script::QuickJsValue family_value = script::GetProperty(context, value, "family");
+    const std::wstring family = WideFromUtf8(script::ToStringUtf8(context, family_value.Get()));
     return ui_text::TypeFace{
         .family = family,
         .size = script::FloatProperty(context, value, "size", 14.0f),
@@ -887,54 +882,48 @@ bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* ic
 
     ScriptVectorIcon parsed;
 
-    JSValue id_value = JS_GetPropertyStr(context, value, "id");
-    if (!JS_IsUndefined(id_value) && !JS_IsNull(id_value)) {
-        parsed.id = script::ToStringUtf8(context, id_value);
+    script::QuickJsValue id_value = script::GetProperty(context, value, "id");
+    if (!JS_IsUndefined(id_value.Get()) && !JS_IsNull(id_value.Get())) {
+        parsed.id = script::ToStringUtf8(context, id_value.Get());
     }
-    JS_FreeValue(context, id_value);
 
-    JSValue view_box = JS_GetPropertyStr(context, value, "viewBox");
+    script::QuickJsValue view_box = script::GetProperty(context, value, "viewBox");
     uint32_t view_box_length = 0;
     float view_x = 0.0f;
     float view_y = 0.0f;
     float view_width = 0.0f;
     float view_height = 0.0f;
     const bool valid_view_box =
-        JS_IsArray(view_box) == 1 &&
-        script::ArrayLength(context, view_box, &view_box_length) &&
+        JS_IsArray(view_box.Get()) == 1 &&
+        script::ArrayLength(context, view_box.Get(), &view_box_length) &&
         view_box_length == 4 &&
-        script::ArrayNumber(context, view_box, 0, &view_x) &&
-        script::ArrayNumber(context, view_box, 1, &view_y) &&
-        script::ArrayNumber(context, view_box, 2, &view_width) &&
-        script::ArrayNumber(context, view_box, 3, &view_height) &&
+        script::ArrayNumber(context, view_box.Get(), 0, &view_x) &&
+        script::ArrayNumber(context, view_box.Get(), 1, &view_y) &&
+        script::ArrayNumber(context, view_box.Get(), 2, &view_width) &&
+        script::ArrayNumber(context, view_box.Get(), 3, &view_height) &&
         view_width > 0.0f &&
         view_height > 0.0f;
-    JS_FreeValue(context, view_box);
     if (!valid_view_box) {
         return false;
     }
     parsed.view_box = D2D1::RectF(view_x, view_y, view_x + view_width, view_y + view_height);
 
-    JSValue commands = JS_GetPropertyStr(context, value, "commands");
+    script::QuickJsValue commands = script::GetProperty(context, value, "commands");
     uint32_t command_count = 0;
-    if (JS_IsArray(commands) != 1 || !script::ArrayLength(context, commands, &command_count) || command_count == 0) {
-        JS_FreeValue(context, commands);
+    if (JS_IsArray(commands.Get()) != 1 || !script::ArrayLength(context, commands.Get(), &command_count) || command_count == 0) {
         return false;
     }
 
     parsed.commands.reserve(command_count);
     for (uint32_t index = 0; index < command_count; ++index) {
-        JSValue command_value = JS_GetPropertyUint32(context, commands, index);
+        script::QuickJsValue command_value = script::GetProperty(context, commands.Get(), index);
         icons::PathCommand command = {};
-        const bool ok = ReadVectorIconCommand(context, command_value, &command);
-        JS_FreeValue(context, command_value);
+        const bool ok = ReadVectorIconCommand(context, command_value.Get(), &command);
         if (!ok) {
-            JS_FreeValue(context, commands);
             return false;
         }
         parsed.commands.push_back(command);
     }
-    JS_FreeValue(context, commands);
 
     *icon = std::move(parsed);
     return true;
@@ -945,20 +934,16 @@ std::optional<D2D1_POINT_2F> ImeCaretPointProperty(JSContext* context, JSValueCo
     if (!JS_IsObject(object)) {
         return std::nullopt;
     }
-    JSValue caret = JS_GetPropertyStr(context, object, "imeCaret");
-    if (!JS_IsObject(caret)) {
-        JS_FreeValue(context, caret);
+    script::QuickJsValue caret = script::GetProperty(context, object, "imeCaret");
+    if (!JS_IsObject(caret.Get())) {
         return std::nullopt;
     }
 
-    JSValue x_value = JS_GetPropertyStr(context, caret, "x");
-    JSValue y_value = JS_GetPropertyStr(context, caret, "y");
+    script::QuickJsValue x_value = script::GetProperty(context, caret.Get(), "x");
+    script::QuickJsValue y_value = script::GetProperty(context, caret.Get(), "y");
     double x = 0.0;
     double y = 0.0;
-    const bool ok = JS_ToFloat64(context, &x, x_value) == 0 && JS_ToFloat64(context, &y, y_value) == 0;
-    JS_FreeValue(context, y_value);
-    JS_FreeValue(context, x_value);
-    JS_FreeValue(context, caret);
+    const bool ok = JS_ToFloat64(context, &x, x_value.Get()) == 0 && JS_ToFloat64(context, &y, y_value.Get()) == 0;
     if (!ok) {
         return std::nullopt;
     }

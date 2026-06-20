@@ -107,10 +107,9 @@ JSValue TestSignalsSubscribe(JSContext* context, JSValueConst, int argc, JSValue
     }
     api->callback = JS_DupValue(context, argv[1]);
     api->subscription = api->value.Subscribe([context, api](int value) {
-        JSValue arg = JS_NewInt32(context, value);
-        JSValue result = JS_Call(context, api->callback, JS_UNDEFINED, 1, &arg);
-        JS_FreeValue(context, arg);
-        JS_FreeValue(context, result);
+        script::QuickJsValue arg(context, JS_NewInt32(context, value));
+        JSValue args[] = {arg.Get()};
+        script::QuickJsValue result = script::Call(context, api->callback, JS_UNDEFINED, 1, args);
     });
     return JS_NewInt32(context, 1);
 }
@@ -131,14 +130,13 @@ JSValue TestSignalsUnsubscribe(JSContext* context, JSValueConst, int argc, JSVal
 void InstallTestSignals(JSContext* context, TestSignalApi* api)
 {
     JS_SetContextOpaque(context, api);
-    JSValue global = JS_GetGlobalObject(context);
+    script::QuickJsValue global = script::GetGlobalObject(context);
     JSValue signals = JS_NewObject(context);
     JS_SetPropertyStr(context, signals, "get", JS_NewCFunction(context, TestSignalsGet, "get", 1));
     JS_SetPropertyStr(context, signals, "set", JS_NewCFunction(context, TestSignalsSet, "set", 2));
     JS_SetPropertyStr(context, signals, "subscribe", JS_NewCFunction(context, TestSignalsSubscribe, "subscribe", 2));
     JS_SetPropertyStr(context, signals, "unsubscribe", JS_NewCFunction(context, TestSignalsUnsubscribe, "unsubscribe", 1));
-    JS_SetPropertyStr(context, global, "signals", signals);
-    JS_FreeValue(context, global);
+    JS_SetPropertyStr(context, global.Get(), "signals", signals);
 }
 
 std::filesystem::path CurrentExeDirectory()
@@ -523,9 +521,8 @@ void TestQuickJsObjectBuilder()
         .SetValue("items", script::StringArray(context, std::vector<std::string>{"a", "b"}))
         .SetFunction("nativeAdd", TestNativeAdd, 2);
 
-    JSValue global = JS_GetGlobalObject(context);
-    JS_SetPropertyStr(context, global, "built", built.Release());
-    JS_FreeValue(context, global);
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    JS_SetPropertyStr(context, global.Get(), "built", built.Release());
 
     const script::QuickJsEvalResult result = runtime.EvalScript(
         "built.text === 'hello' && "
@@ -543,14 +540,38 @@ void TestQuickJsObjectBuilder()
     CHECK(result.value_utf8 == "ok");
 }
 
+void TestQuickJsValueHelpers()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    JSContext* context = runtime.Context();
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    JS_SetPropertyStr(context, global.Get(), "nativeAdd", JS_NewCFunction(context, TestNativeAdd, "nativeAdd", 2));
+
+    script::QuickJsValue function = script::GetProperty(context, global.Get(), "nativeAdd");
+    script::QuickJsValue left(context, JS_NewInt32(context, 12));
+    script::QuickJsValue right(context, JS_NewInt32(context, 30));
+    JSValue args[] = {left.Get(), right.Get()};
+    script::QuickJsValue result = script::Call(context, function.Get(), JS_UNDEFINED, 2, args);
+    CHECK(!JS_IsException(result.Get()));
+
+    int32_t sum = 0;
+    CHECK(JS_ToInt32(context, &sum, result.Get()) == 0);
+    CHECK(sum == 42);
+
+    script::QuickJsValue length = script::GetProperty(context, function.Get(), "length");
+    int32_t arity = 0;
+    CHECK(JS_ToInt32(context, &arity, length.Get()) == 0);
+    CHECK(arity == 2);
+}
+
 void TestQuickJsNativeFunctionRegistration()
 {
     script::QuickJsRuntime runtime;
     CHECK(runtime.Initialize());
     JSContext* context = runtime.Context();
-    JSValue global = JS_GetGlobalObject(context);
-    JS_SetPropertyStr(context, global, "nativeAdd", JS_NewCFunction(context, TestNativeAdd, "nativeAdd", 2));
-    JS_FreeValue(context, global);
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    JS_SetPropertyStr(context, global.Get(), "nativeAdd", JS_NewCFunction(context, TestNativeAdd, "nativeAdd", 2));
 
     const script::QuickJsEvalResult result = runtime.EvalScript("nativeAdd(19, 23)", "quickjs-native-test.js");
     CHECK(result.ok);
@@ -618,10 +639,10 @@ void TestScriptVectorIconReader()
     CHECK(result.ok);
 
     JSContext* context = runtime.Context();
-    JSValue global = JS_GetGlobalObject(context);
-    JSValue good_value = JS_GetPropertyStr(context, global, "goodIcon");
+    script::QuickJsValue global = script::GetGlobalObject(context);
+    script::QuickJsValue good_value = script::GetProperty(context, global.Get(), "goodIcon");
     imgviewer::ScriptVectorIcon good_icon;
-    CHECK(imgviewer::ReadVectorIcon(context, good_value, &good_icon));
+    CHECK(imgviewer::ReadVectorIcon(context, good_value.Get(), &good_icon));
     CHECK(good_icon.id == "test-icon");
     CHECK(good_icon.commands.size() == 4);
     CHECK(good_icon.commands[0].verb == icons::PathVerb::MoveTo);
@@ -630,18 +651,14 @@ void TestScriptVectorIconReader()
     CHECK(good_icon.commands[3].verb == icons::PathVerb::Close);
     CHECK(NearF(good_icon.view_box.right, 24.0f));
     CHECK(NearF(good_icon.view_box.bottom, 24.0f));
-    JS_FreeValue(context, good_value);
 
-    JSValue bad_value = JS_GetPropertyStr(context, global, "badIcon");
+    script::QuickJsValue bad_value = script::GetProperty(context, global.Get(), "badIcon");
     imgviewer::ScriptVectorIcon bad_icon;
-    CHECK(!imgviewer::ReadVectorIcon(context, bad_value, &bad_icon));
-    JS_FreeValue(context, bad_value);
+    CHECK(!imgviewer::ReadVectorIcon(context, bad_value.Get(), &bad_icon));
 
-    JSValue no_view_box_value = JS_GetPropertyStr(context, global, "noViewBox");
+    script::QuickJsValue no_view_box_value = script::GetProperty(context, global.Get(), "noViewBox");
     imgviewer::ScriptVectorIcon no_view_box_icon;
-    CHECK(!imgviewer::ReadVectorIcon(context, no_view_box_value, &no_view_box_icon));
-    JS_FreeValue(context, no_view_box_value);
-    JS_FreeValue(context, global);
+    CHECK(!imgviewer::ReadVectorIcon(context, no_view_box_value.Get(), &no_view_box_icon));
 }
 
 } // namespace
@@ -659,6 +676,7 @@ int main()
     TestSignalReentrancy();
     TestQuickJsRuntime();
     TestQuickJsObjectBuilder();
+    TestQuickJsValueHelpers();
     TestQuickJsNativeFunctionRegistration();
     TestQuickJsSignalApiSmoke();
     TestCanvasColorParser();

@@ -21,6 +21,7 @@ public:
 
     JSValue Get() const { return value_; }
     JSValueConst GetConst() const { return value_; }
+    JSValue* Address() { return &value_; }
     JSValue Release();
     void Reset(JSContext* context, JSValue value);
 
@@ -65,6 +66,17 @@ private:
 };
 
 std::string ToStringUtf8(JSContext* context, JSValueConst value);
+
+[[nodiscard]] QuickJsValue GetGlobalObject(JSContext* context);
+[[nodiscard]] QuickJsValue GetProperty(JSContext* context, JSValueConst object, const char* name);
+[[nodiscard]] QuickJsValue GetProperty(JSContext* context, JSValueConst object, uint32_t index);
+[[nodiscard]] QuickJsValue Call(
+    JSContext* context,
+    JSValueConst function,
+    JSValueConst this_value,
+    int argc,
+    JSValue* argv);
+[[nodiscard]] QuickJsValue JsonStringifyValue(JSContext* context, JSValueConst value);
 
 void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value);
 void SetString(JSContext* context, JSValue object, const char* name, std::string_view value);

@@ -96,14 +96,11 @@ JSValue ColorSample(JSContext* context, ImageColorSample sample)
 
 std::optional<std::string> JsonStringify(JSContext* context, JSValueConst value)
 {
-    JSValue json = JS_JSONStringify(context, value, JS_UNDEFINED, JS_UNDEFINED);
-    if (JS_IsException(json)) {
-        JS_FreeValue(context, json);
+    script::QuickJsValue json = script::JsonStringifyValue(context, value);
+    if (JS_IsException(json.Get())) {
         return std::nullopt;
     }
-    std::string text = script::ToStringUtf8(context, json);
-    JS_FreeValue(context, json);
-    return text;
+    return script::ToStringUtf8(context, json.Get());
 }
 
 std::optional<UiPopupRequest> PopupRequestProperty(JSContext* context, JSValueConst object, bool* failed)
@@ -112,17 +109,14 @@ std::optional<UiPopupRequest> PopupRequestProperty(JSContext* context, JSValueCo
         return std::nullopt;
     }
 
-    JSValue popup = JS_GetPropertyStr(context, object, "popup");
-    if (JS_IsUndefined(popup) || JS_IsNull(popup)) {
-        JS_FreeValue(context, popup);
+    script::QuickJsValue popup = script::GetProperty(context, object, "popup");
+    if (JS_IsUndefined(popup.Get()) || JS_IsNull(popup.Get())) {
         return std::nullopt;
     }
 
-    JSValue state = JS_GetPropertyStr(context, popup, "state");
-    std::optional<std::string> state_json = JsonStringify(context, state);
-    JS_FreeValue(context, state);
+    script::QuickJsValue state = script::GetProperty(context, popup.Get(), "state");
+    std::optional<std::string> state_json = JsonStringify(context, state.Get());
     if (!state_json.has_value()) {
-        JS_FreeValue(context, popup);
         if (failed != nullptr) {
             *failed = true;
         }
@@ -130,10 +124,11 @@ std::optional<UiPopupRequest> PopupRequestProperty(JSContext* context, JSValueCo
     }
 
     UiPopupRequest request{
-        .origin = D2D1::Point2F(script::FloatProperty(context, popup, "x", 0.0f), script::FloatProperty(context, popup, "y", 0.0f)),
+        .origin = D2D1::Point2F(
+            script::FloatProperty(context, popup.Get(), "x", 0.0f),
+            script::FloatProperty(context, popup.Get(), "y", 0.0f)),
         .state_json = std::move(state_json.value()),
     };
-    JS_FreeValue(context, popup);
     return request;
 }
 
@@ -144,37 +139,31 @@ std::vector<D2D1_RECT_F> CaptionDragRectsProperty(JSContext* context, JSValueCon
         return rects;
     }
 
-    JSValue array = JS_GetPropertyStr(context, object, "captionDragRects");
-    if (!JS_IsArray(array)) {
-        JS_FreeValue(context, array);
+    script::QuickJsValue array = script::GetProperty(context, object, "captionDragRects");
+    if (!JS_IsArray(array.Get())) {
         return rects;
     }
 
-    JSValue length_value = JS_GetPropertyStr(context, array, "length");
+    script::QuickJsValue length_value = script::GetProperty(context, array.Get(), "length");
     uint32_t length = 0;
-    if (JS_ToUint32(context, &length, length_value) != 0) {
-        JS_FreeValue(context, length_value);
-        JS_FreeValue(context, array);
+    if (JS_ToUint32(context, &length, length_value.Get()) != 0) {
         return {};
     }
-    JS_FreeValue(context, length_value);
 
     rects.reserve(length);
     for (uint32_t index = 0; index < length; ++index) {
-        JSValue item = JS_GetPropertyUint32(context, array, index);
-        if (JS_IsObject(item)) {
-            const float x = script::FloatProperty(context, item, "x", 0.0f);
-            const float y = script::FloatProperty(context, item, "y", 0.0f);
-            const float width = script::FloatProperty(context, item, "width", 0.0f);
-            const float height = script::FloatProperty(context, item, "height", 0.0f);
+        script::QuickJsValue item = script::GetProperty(context, array.Get(), index);
+        if (JS_IsObject(item.Get())) {
+            const float x = script::FloatProperty(context, item.Get(), "x", 0.0f);
+            const float y = script::FloatProperty(context, item.Get(), "y", 0.0f);
+            const float width = script::FloatProperty(context, item.Get(), "width", 0.0f);
+            const float height = script::FloatProperty(context, item.Get(), "height", 0.0f);
             if (width > 0.0f && height > 0.0f) {
                 rects.push_back(D2D1::RectF(x, y, x + width, y + height));
             }
         }
-        JS_FreeValue(context, item);
     }
 
-    JS_FreeValue(context, array);
     return rects;
 }
 
@@ -240,40 +229,31 @@ void ImgViewerUi::Render(const UiDrawContext& context)
     }
 
     JSContext* js_context = Context();
-    JSValue app = AppObject();
-    JSValue render = JS_GetPropertyStr(js_context, app, "render");
-    if (!JS_IsFunction(js_context, render)) {
-        JS_FreeValue(js_context, render);
-        JS_FreeValue(js_context, app);
+    script::QuickJsValue app(js_context, AppObject());
+    script::QuickJsValue render = script::GetProperty(js_context, app.Get(), "render");
+    if (!JS_IsFunction(js_context, render.Get())) {
         caption_drag_rects_.clear();
         SetError("imgviewerMainUi.render is not a function");
         RenderError(context);
         return;
     }
 
-    JSValue canvas = imgviewer::CreateCanvasObject(js_context);
-    JSValue env = imgviewer::CreateRenderEnvironment(js_context, context);
-    JSValue snapshot = CreateStateObject();
-    JSValue args[] = {canvas, env, snapshot};
+    script::QuickJsValue canvas(js_context, imgviewer::CreateCanvasObject(js_context));
+    script::QuickJsValue env(js_context, imgviewer::CreateRenderEnvironment(js_context, context));
+    script::QuickJsValue snapshot(js_context, CreateStateObject());
+    JSValue args[] = {canvas.Get(), env.Get(), snapshot.Get()};
     SetActiveDrawContext(&context);
-    JSValue result = JS_Call(js_context, render, app, 3, args);
+    script::QuickJsValue result = script::Call(js_context, render.Get(), app.Get(), 3, args);
     SetActiveDrawContext(nullptr);
-    JS_FreeValue(js_context, snapshot);
-    JS_FreeValue(js_context, env);
-    JS_FreeValue(js_context, canvas);
-    JS_FreeValue(js_context, render);
-    JS_FreeValue(js_context, app);
 
-    if (JS_IsException(result)) {
-        JS_FreeValue(js_context, result);
+    if (JS_IsException(result.Get())) {
         caption_drag_rects_.clear();
         script_context_->CaptureException();
         SetError(engine_.TakeExceptionTextUtf8());
         RenderError(context);
         return;
     }
-    caption_drag_rects_ = CaptionDragRectsProperty(js_context, result);
-    JS_FreeValue(js_context, result);
+    caption_drag_rects_ = CaptionDragRectsProperty(js_context, result.Get());
     if (engine_.PumpJobs() < 0) {
         SetError(engine_.TakeExceptionTextUtf8());
     }
@@ -532,63 +512,51 @@ JSValue ImgViewerUi::CreateStateObject() const
 UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)
 {
     JSContext* context = Context();
-    JSValue app = AppObject();
-    JSValue handler = JS_GetPropertyStr(context, app, "pointer");
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "pointer");
+    if (!JS_IsFunction(context, handler.Get())) {
         return {};
     }
-    JSValue js_event = imgviewer::CreatePointerEvent(context, event);
-    JSValue result = JS_Call(context, handler, app, 1, &js_event);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    return FinishEventDispatch(result);
+    script::QuickJsValue js_event(context, imgviewer::CreatePointerEvent(context, event));
+    JSValue args[] = {js_event.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    return FinishEventDispatch(result.Release());
 }
 
 UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event)
 {
     JSContext* context = Context();
-    JSValue app = AppObject();
-    JSValue handler = JS_GetPropertyStr(context, app, "key");
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "key");
+    if (!JS_IsFunction(context, handler.Get())) {
         return {};
     }
-    JSValue js_event = imgviewer::CreateKeyEvent(context, event);
-    JSValue result = JS_Call(context, handler, app, 1, &js_event);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    return FinishEventDispatch(result);
+    script::QuickJsValue js_event(context, imgviewer::CreateKeyEvent(context, event));
+    JSValue args[] = {js_event.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    return FinishEventDispatch(result.Release());
 }
 
 UiEventResult ImgViewerUi::DispatchInputToScript(const UiInputEvent& event)
 {
     JSContext* context = Context();
-    JSValue app = AppObject();
-    JSValue handler = JS_GetPropertyStr(context, app, "input");
-    if (!JS_IsFunction(context, handler)) {
-        JS_FreeValue(context, handler);
-        JS_FreeValue(context, app);
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "input");
+    if (!JS_IsFunction(context, handler.Get())) {
         return {};
     }
-    JSValue js_event = imgviewer::CreateInputEvent(context, event);
-    JSValue result = JS_Call(context, handler, app, 1, &js_event);
-    JS_FreeValue(context, js_event);
-    JS_FreeValue(context, handler);
-    JS_FreeValue(context, app);
-    return FinishEventDispatch(result);
+    script::QuickJsValue js_event(context, imgviewer::CreateInputEvent(context, event));
+    JSValue args[] = {js_event.Get()};
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    return FinishEventDispatch(result.Release());
 }
 
 UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
 {
     UiEventResult event_result{};
     JSContext* context = Context();
-    if (JS_IsException(result)) {
-        JS_FreeValue(context, result);
+    script::QuickJsValue result_value(context, result);
+    if (JS_IsException(result_value.Get())) {
         script_context_->CaptureException();
         SetError(engine_.TakeExceptionTextUtf8());
         event_result.handled = true;
@@ -596,22 +564,20 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
         return event_result;
     }
 
-    const bool handled = script::BoolProperty(context, result, "handled", false);
-    const std::optional<bool> capture = script::OptionalBoolProperty(context, result, "capture");
-    const bool invalidate = script::BoolProperty(context, result, "invalidate", false);
-    UiAction action = ActionProperty(context, result);
-    event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(context, result);
+    const bool handled = script::BoolProperty(context, result_value.Get(), "handled", false);
+    const std::optional<bool> capture = script::OptionalBoolProperty(context, result_value.Get(), "capture");
+    const bool invalidate = script::BoolProperty(context, result_value.Get(), "invalidate", false);
+    UiAction action = ActionProperty(context, result_value.Get());
+    event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(context, result_value.Get());
     bool popup_failed = false;
-    event_result.popup = PopupRequestProperty(context, result, &popup_failed);
+    event_result.popup = PopupRequestProperty(context, result_value.Get(), &popup_failed);
     if (popup_failed) {
-        JS_FreeValue(context, result);
         script_context_->CaptureException();
         SetError(engine_.TakeExceptionTextUtf8());
         event_result.handled = true;
         event_result.value_changed = true;
         return event_result;
     }
-    JS_FreeValue(context, result);
 
     if (pending_action_ != ImgViewerAction::None) {
         action = UiAction(static_cast<int>(pending_action_), action.arg);
