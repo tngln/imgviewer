@@ -29,6 +29,41 @@ private:
     JSValue value_ = JS_UNDEFINED;
 };
 
+class ObjectBuilder final {
+public:
+    explicit ObjectBuilder(JSContext* context);
+    ObjectBuilder(const ObjectBuilder&) = delete;
+    ObjectBuilder& operator=(const ObjectBuilder&) = delete;
+    ObjectBuilder(ObjectBuilder&& other) noexcept = default;
+    ObjectBuilder& operator=(ObjectBuilder&& other) noexcept = default;
+
+    JSValue Get() const { return value_.Get(); }
+    JSValue Release() { return value_.Release(); }
+
+    ObjectBuilder& Set(const char* name, std::wstring_view value);
+    ObjectBuilder& Set(const char* name, std::string_view value);
+    ObjectBuilder& Set(const char* name, const char* value);
+    ObjectBuilder& Set(const char* name, bool value);
+    ObjectBuilder& Set(const char* name, int32_t value);
+    ObjectBuilder& Set(const char* name, uint32_t value);
+    ObjectBuilder& Set(const char* name, float value);
+    ObjectBuilder& Set(const char* name, double value);
+    ObjectBuilder& SetFunction(const char* name, JSCFunction* function, int length);
+    ObjectBuilder& SetValue(const char* name, JSValue value);
+
+    template <typename Fill>
+    ObjectBuilder& SetObject(const char* name, Fill fill)
+    {
+        ObjectBuilder object(context_);
+        fill(object);
+        return SetValue(name, object.Release());
+    }
+
+private:
+    JSContext* context_ = nullptr;
+    QuickJsValue value_;
+};
+
 std::string ToStringUtf8(JSContext* context, JSValueConst value);
 
 void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value);

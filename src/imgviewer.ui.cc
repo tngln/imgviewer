@@ -77,21 +77,21 @@ JSValue MetadataRows(JSContext* context, const std::vector<ImageMetadataRow>& ro
     JSValue array = JS_NewArray(context);
     uint32_t index = 0;
     for (const ImageMetadataRow& row : rows) {
-        JSValue item = JS_NewObject(context);
-        script::SetString(context, item, "label", row.label);
-        script::SetString(context, item, "value", row.value);
-        JS_SetPropertyUint32(context, array, index++, item);
+        script::ObjectBuilder item(context);
+        item.Set("label", row.label)
+            .Set("value", row.value);
+        JS_SetPropertyUint32(context, array, index++, item.Release());
     }
     return array;
 }
 
 JSValue ColorSample(JSContext* context, ImageColorSample sample)
 {
-    JSValue value = JS_NewObject(context);
-    script::SetInt(context, value, "red", sample.red);
-    script::SetInt(context, value, "green", sample.green);
-    script::SetInt(context, value, "blue", sample.blue);
-    return value;
+    script::ObjectBuilder value(context);
+    value.Set("red", static_cast<int32_t>(sample.red))
+        .Set("green", static_cast<int32_t>(sample.green))
+        .Set("blue", static_cast<int32_t>(sample.blue));
+    return value.Release();
 }
 
 std::optional<std::string> JsonStringify(JSContext* context, JSValueConst value)
@@ -424,109 +424,109 @@ void ImgViewerUi::BeforeReload()
 void ImgViewerUi::InstallCustomGlobals(JSValue global)
 {
     JSContext* context = Context();
-    JSValue overlay = JS_NewObject(context);
-    script::SetFunction(context, overlay, "action", OverlayAction, 1);
-    script::SetFunction(context, overlay, "popup", OverlayPopup, 3);
-    script::SetFunction(context, overlay, "invalidate", imgviewer::HostInvalidate, 0);
-    JS_SetPropertyStr(context, global, "overlay", overlay);
+    script::ObjectBuilder overlay(context);
+    overlay.SetFunction("action", OverlayAction, 1)
+        .SetFunction("popup", OverlayPopup, 3)
+        .SetFunction("invalidate", imgviewer::HostInvalidate, 0);
+    JS_SetPropertyStr(context, global, "overlay", overlay.Release());
 }
 
 JSValue ImgViewerUi::CreateStateObject() const
 {
     JSContext* context = Context();
-    JSValue state = JS_NewObject(context);
-    script::SetString(context, state, "title", title_text_);
-    script::SetBool(context, state, "topMost", top_most_);
-    script::SetBool(context, state, "maximized", maximized_);
-    script::SetBool(context, state, "editMode", edit_toolbar_state_.visible);
-    script::SetInt(context, state, "toolbarScalePercent", toolbar_scale_percent_);
-    script::SetBool(context, state, "edgeClickNavigation", edge_click_navigation_);
-    script::SetInt(context, state, "edgeClickNavigationZonePercent", edge_click_navigation_zone_percent_);
-    script::SetBool(context, state, "colorPickerActive", color_picker_active_);
+    script::ObjectBuilder state(context);
+    state.Set("title", title_text_)
+        .Set("topMost", top_most_)
+        .Set("maximized", maximized_)
+        .Set("editMode", edit_toolbar_state_.visible)
+        .Set("toolbarScalePercent", toolbar_scale_percent_)
+        .Set("edgeClickNavigation", edge_click_navigation_)
+        .Set("edgeClickNavigationZonePercent", edge_click_navigation_zone_percent_)
+        .Set("colorPickerActive", color_picker_active_);
 
-    JSValue actions = JS_NewObject(context);
-    JSValue labels = JS_NewObject(context);
+    script::ObjectBuilder actions(context);
+    script::ObjectBuilder labels(context);
     for (const ImgViewerActionInfo& action : ImgViewerActions()) {
         const char* name = ImgViewerActionName(action.action);
-        JS_SetPropertyStr(context, actions, name, JS_NewBool(context, ActionEnabled(action.action)));
-        script::SetString(context, labels, name, ImgViewerActionDisplayName(action.action));
+        actions.Set(name, ActionEnabled(action.action));
+        labels.Set(name, ImgViewerActionDisplayName(action.action));
     }
-    JS_SetPropertyStr(context, state, "actionEnabled", actions);
-    JS_SetPropertyStr(context, state, "actionLabels", labels);
+    state.SetValue("actionEnabled", actions.Release())
+        .SetValue("actionLabels", labels.Release());
 
-    JSValue edit = JS_NewObject(context);
-    script::SetBool(context, edit, "visible", edit_toolbar_state_.visible);
-    script::SetString(context, edit, "tool", EditToolName(edit_toolbar_state_.tool));
-    script::SetBool(context, edit, "dirty", edit_toolbar_state_.dirty);
-    script::SetBool(context, edit, "canUndo", edit_toolbar_state_.can_undo);
-    script::SetBool(context, edit, "canRedo", edit_toolbar_state_.can_redo);
-    JS_SetPropertyStr(context, state, "editToolbar", edit);
+    state.SetObject("editToolbar", [&](script::ObjectBuilder& edit) {
+        edit.Set("visible", edit_toolbar_state_.visible)
+            .Set("tool", EditToolName(edit_toolbar_state_.tool))
+            .Set("dirty", edit_toolbar_state_.dirty)
+            .Set("canUndo", edit_toolbar_state_.can_undo)
+            .Set("canRedo", edit_toolbar_state_.can_redo);
+    });
 
-    JSValue color_picker = JS_NewObject(context);
-    script::SetBool(context, color_picker, "visible", color_picker_toolstrip_state_.visible);
-    script::SetBool(context, color_picker, "hasSample", color_picker_toolstrip_state_.has_sample);
-    script::SetString(context, color_picker, "hexText", color_picker_toolstrip_state_.hex_text);
-    JS_SetPropertyStr(context, state, "colorPickerToolstrip", color_picker);
+    state.SetObject("colorPickerToolstrip", [&](script::ObjectBuilder& color_picker) {
+        color_picker.Set("visible", color_picker_toolstrip_state_.visible)
+            .Set("hasSample", color_picker_toolstrip_state_.has_sample)
+            .Set("hexText", color_picker_toolstrip_state_.hex_text);
+    });
 
-    JSValue pen = JS_NewObject(context);
-    script::SetBool(context, pen, "visible", pen_toolstrip_state_.visible);
-    script::SetString(context, pen, "color", ColorHex(pen_toolstrip_state_.color).c_str());
-    script::SetFloat(context, pen, "width", pen_toolstrip_state_.width);
-    JS_SetPropertyStr(context, state, "penToolstrip", pen);
+    state.SetObject("penToolstrip", [&](script::ObjectBuilder& pen) {
+        pen.Set("visible", pen_toolstrip_state_.visible)
+            .Set("color", ColorHex(pen_toolstrip_state_.color))
+            .Set("width", pen_toolstrip_state_.width);
+    });
 
-    JSValue shape = JS_NewObject(context);
-    script::SetBool(context, shape, "visible", shape_toolstrip_state_.visible);
-    script::SetString(context, shape, "kind", ShapeKindName(shape_toolstrip_state_.kind));
-    script::SetString(context, shape, "color", ColorHex(shape_toolstrip_state_.color).c_str());
-    JS_SetPropertyStr(context, state, "shapeToolstrip", shape);
+    state.SetObject("shapeToolstrip", [&](script::ObjectBuilder& shape) {
+        shape.Set("visible", shape_toolstrip_state_.visible)
+            .Set("kind", ShapeKindName(shape_toolstrip_state_.kind))
+            .Set("color", ColorHex(shape_toolstrip_state_.color));
+    });
 
-    JSValue text = JS_NewObject(context);
-    script::SetBool(context, text, "visible", text_toolstrip_state_.visible);
-    script::SetString(context, text, "fontFamily", text_toolstrip_state_.style.font_family);
-    script::SetFloat(context, text, "fontSize", text_toolstrip_state_.style.font_size);
-    script::SetString(context, text, "textColor", ColorHex(text_toolstrip_state_.style.text_color).c_str());
-    script::SetString(context, text, "backgroundColor", ColorHex(text_toolstrip_state_.style.background_color).c_str());
-    script::SetBool(context, text, "hasBackground", text_toolstrip_state_.style.has_background);
-    JS_SetPropertyStr(context, state, "textToolstrip", text);
+    state.SetObject("textToolstrip", [&](script::ObjectBuilder& text) {
+        text.Set("visible", text_toolstrip_state_.visible)
+            .Set("fontFamily", text_toolstrip_state_.style.font_family)
+            .Set("fontSize", text_toolstrip_state_.style.font_size)
+            .Set("textColor", ColorHex(text_toolstrip_state_.style.text_color))
+            .Set("backgroundColor", ColorHex(text_toolstrip_state_.style.background_color))
+            .Set("hasBackground", text_toolstrip_state_.style.has_background);
+    });
 
-    JSValue selection = JS_NewObject(context);
-    script::SetBool(context, selection, "visible", selection_toolstrip_state_.visible);
-    JS_SetPropertyStr(context, state, "selectionToolstrip", selection);
+    state.SetObject("selectionToolstrip", [&](script::ObjectBuilder& selection) {
+        selection.Set("visible", selection_toolstrip_state_.visible);
+    });
 
-    JSValue animation = JS_NewObject(context);
-    script::SetBool(context, animation, "available", animation_state_.available);
-    script::SetBool(context, animation, "playing", animation_state_.playing);
-    script::SetBool(context, animation, "loop", animation_state_.loop);
-    script::SetInt(context, animation, "currentFrame", static_cast<int>(animation_state_.current_frame));
-    script::SetInt(context, animation, "totalFrames", static_cast<int>(animation_state_.total_frames));
-    JS_SetPropertyStr(context, state, "animation", animation);
+    state.SetObject("animation", [&](script::ObjectBuilder& animation) {
+        animation.Set("available", animation_state_.available)
+            .Set("playing", animation_state_.playing)
+            .Set("loop", animation_state_.loop)
+            .Set("currentFrame", static_cast<int32_t>(animation_state_.current_frame))
+            .Set("totalFrames", static_cast<int32_t>(animation_state_.total_frames));
+    });
 
-    JSValue info = JS_NewObject(context);
-    script::SetBool(context, info, "visible", info_panel_state_.visible);
-    script::SetBool(context, info, "hasAnalysis", info_panel_state_.has_analysis);
-    script::SetBool(context, info, "analysisUnavailable", info_panel_state_.analysis_unavailable);
-    script::SetString(context, info, "name", info_panel_state_.name);
-    script::SetString(context, info, "path", info_panel_state_.path);
-    script::SetString(context, info, "dimensions", info_panel_state_.dimensions);
-    script::SetString(context, info, "type", info_panel_state_.type);
-    script::SetString(context, info, "fileSize", info_panel_state_.file_size);
-    script::SetString(context, info, "modifiedTime", info_panel_state_.modified_time);
-    JS_SetPropertyStr(context, info, "colorRows", MetadataRows(context, info_panel_state_.color_rows));
-    JS_SetPropertyStr(context, info, "exifRows", MetadataRows(context, info_panel_state_.exif_rows));
-    JSValue analysis = JS_NewObject(context);
-    script::SetInt(context, analysis, "sampledPixels", static_cast<int>(info_panel_state_.analysis.sampled_pixels));
-    script::SetBool(context, analysis, "downsampled", info_panel_state_.analysis.downsampled);
-    JS_SetPropertyStr(context, analysis, "average", ColorSample(context, info_panel_state_.analysis.average));
-    JS_SetPropertyStr(context, analysis, "darkest", ColorSample(context, info_panel_state_.analysis.darkest));
-    JS_SetPropertyStr(context, analysis, "brightest", ColorSample(context, info_panel_state_.analysis.brightest));
-    JS_SetPropertyStr(context, info, "analysis", analysis);
-    JS_SetPropertyStr(context, state, "infoPanel", info);
+    state.SetObject("infoPanel", [&](script::ObjectBuilder& info) {
+        info.Set("visible", info_panel_state_.visible)
+            .Set("hasAnalysis", info_panel_state_.has_analysis)
+            .Set("analysisUnavailable", info_panel_state_.analysis_unavailable)
+            .Set("name", info_panel_state_.name)
+            .Set("path", info_panel_state_.path)
+            .Set("dimensions", info_panel_state_.dimensions)
+            .Set("type", info_panel_state_.type)
+            .Set("fileSize", info_panel_state_.file_size)
+            .Set("modifiedTime", info_panel_state_.modified_time)
+            .SetValue("colorRows", MetadataRows(context, info_panel_state_.color_rows))
+            .SetValue("exifRows", MetadataRows(context, info_panel_state_.exif_rows));
+        info.SetObject("analysis", [&](script::ObjectBuilder& analysis) {
+            analysis.Set("sampledPixels", static_cast<int32_t>(info_panel_state_.analysis.sampled_pixels))
+                .Set("downsampled", info_panel_state_.analysis.downsampled)
+                .SetValue("average", ColorSample(context, info_panel_state_.analysis.average))
+                .SetValue("darkest", ColorSample(context, info_panel_state_.analysis.darkest))
+                .SetValue("brightest", ColorSample(context, info_panel_state_.analysis.brightest));
+        });
+    });
 
-    JSValue toast = JS_NewObject(context);
-    script::SetBool(context, toast, "visible", toast_visible_);
-    script::SetString(context, toast, "text", toast_text_);
-    JS_SetPropertyStr(context, state, "toast", toast);
-    return state;
+    state.SetObject("toast", [&](script::ObjectBuilder& toast) {
+        toast.Set("visible", toast_visible_)
+            .Set("text", toast_text_);
+    });
+    return state.Release();
 }
 
 UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)

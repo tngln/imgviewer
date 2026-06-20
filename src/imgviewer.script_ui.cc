@@ -240,33 +240,33 @@ JSValue CreateSystemPreferencesObject(JSContext* context)
         languages.front() = "en-US";
     }
 
-    JSValue preferences = JS_NewObject(context);
-    script::SetUint(context, preferences, "caretBlinkTime", GetCaretBlinkTime());
-    script::SetUint(context, preferences, "doubleClickTime", GetDoubleClickTime());
-    script::SetString(context, preferences, "accentColor", ArgbColorString(accent_color));
-    script::SetBool(context, preferences, "accentColorOpaqueBlend", accent_opaque_blend != FALSE);
-    script::SetBool(context, preferences, "prefersDarkTheme", PrefersDarkTheme());
-    script::SetString(context, preferences, "preferredLanguage", languages.front());
-    JS_SetPropertyStr(context, preferences, "preferredLanguages", script::StringArray(context, languages));
-    script::SetBool(context, preferences, "highContrast", HighContrastEnabled());
-    script::SetBool(context, preferences, "clientAreaAnimationEnabled", ClientAreaAnimationEnabled());
-    return preferences;
+    script::ObjectBuilder preferences(context);
+    preferences.Set("caretBlinkTime", GetCaretBlinkTime())
+        .Set("doubleClickTime", GetDoubleClickTime())
+        .Set("accentColor", ArgbColorString(accent_color))
+        .Set("accentColorOpaqueBlend", accent_opaque_blend != FALSE)
+        .Set("prefersDarkTheme", PrefersDarkTheme())
+        .Set("preferredLanguage", languages.front())
+        .SetValue("preferredLanguages", script::StringArray(context, languages))
+        .Set("highContrast", HighContrastEnabled())
+        .Set("clientAreaAnimationEnabled", ClientAreaAnimationEnabled());
+    return preferences.Release();
 }
 
 JSValue CreateHostObject(JSContext* context)
 {
-    JSValue host = JS_NewObject(context);
-    JS_SetPropertyStr(context, host, "invalidate", JS_NewCFunction(context, HostInvalidate, "invalidate", 0));
-    JS_SetPropertyStr(context, host, "reload", JS_NewCFunction(context, HostReload, "reload", 0));
-    JS_SetPropertyStr(context, host, "close", JS_NewCFunction(context, HostClose, "close", 0));
-    JS_SetPropertyStr(context, host, "log", JS_NewCFunction(context, HostLog, "log", 1));
-    JS_SetPropertyStr(context, host, "systemPreferences", CreateSystemPreferencesObject(context));
-    return host;
+    script::ObjectBuilder host(context);
+    host.SetFunction("invalidate", HostInvalidate, 0)
+        .SetFunction("reload", HostReload, 0)
+        .SetFunction("close", HostClose, 0)
+        .SetFunction("log", HostLog, 1)
+        .SetValue("systemPreferences", CreateSystemPreferencesObject(context));
+    return host.Release();
 }
 
 JSValue CreateTypeFace(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
-    JSValue value = JS_NewObject(context);
+    script::ObjectBuilder value(context);
     const std::string family = argc > 0 ? script::ToStringUtf8(context, argv[0]) : "Segoe UI";
     double size = 14.0;
     if (argc > 1) {
@@ -284,12 +284,12 @@ JSValue CreateTypeFace(JSContext* context, JSValueConst, int argc, JSValueConst*
     if (argc > 4) {
         JS_ToInt32(context, &stretch, argv[4]);
     }
-    script::SetString(context, value, "family", family.empty() ? "Segoe UI" : family);
-    JS_SetPropertyStr(context, value, "size", JS_NewFloat64(context, size));
-    script::SetInt(context, value, "weight", weight);
-    script::SetInt(context, value, "style", style);
-    script::SetInt(context, value, "stretch", stretch);
-    return value;
+    value.Set("family", family.empty() ? "Segoe UI" : family)
+        .Set("size", size)
+        .Set("weight", weight)
+        .Set("style", style)
+        .Set("stretch", stretch);
+    return value.Release();
 }
 
 JSValue CreateFontWeightObject(JSContext* context)
@@ -764,119 +764,119 @@ JSValue CanvasDrawIcon(JSContext* context, JSValueConst, int argc, JSValueConst*
 
 JSValue CreateCanvasObject(JSContext* context)
 {
-    JSValue canvas = JS_NewObject(context);
-    JS_SetPropertyStr(context, canvas, "clear", JS_NewCFunction(context, CanvasClear, "clear", 1));
-    JS_SetPropertyStr(context, canvas, "fillRect", JS_NewCFunction(context, CanvasFillRect, "fillRect", 5));
-    JS_SetPropertyStr(context, canvas, "strokeRect", JS_NewCFunction(context, CanvasStrokeRect, "strokeRect", 6));
-    JS_SetPropertyStr(context, canvas, "fillText", JS_NewCFunction(context, CanvasFillText, "fillText", 7));
-    JS_SetPropertyStr(context, canvas, "strokeLine", JS_NewCFunction(context, CanvasStrokeLine, "strokeLine", 6));
-    JS_SetPropertyStr(context, canvas, "drawIcon", JS_NewCFunction(context, CanvasDrawIcon, "drawIcon", 7));
-    return canvas;
+    script::ObjectBuilder canvas(context);
+    canvas.SetFunction("clear", CanvasClear, 1)
+        .SetFunction("fillRect", CanvasFillRect, 5)
+        .SetFunction("strokeRect", CanvasStrokeRect, 6)
+        .SetFunction("fillText", CanvasFillText, 7)
+        .SetFunction("strokeLine", CanvasStrokeLine, 6)
+        .SetFunction("drawIcon", CanvasDrawIcon, 7);
+    return canvas.Release();
 }
 
 JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context)
 {
-    JSValue env = JS_NewObject(context);
-    JS_SetPropertyStr(context, env, "width", JS_NewFloat64(context, draw_context.viewport_size.width));
-    JS_SetPropertyStr(context, env, "height", JS_NewFloat64(context, draw_context.viewport_size.height));
-    JS_SetPropertyStr(context, env, "dpiScale", JS_NewFloat64(context, draw_context.dpi_scale));
-    return env;
+    script::ObjectBuilder env(context);
+    env.Set("width", draw_context.viewport_size.width)
+        .Set("height", draw_context.viewport_size.height)
+        .Set("dpiScale", draw_context.dpi_scale);
+    return env.Release();
 }
 
 JSValue CreatePointerEvent(JSContext* context, const UiPointerEvent& event)
 {
-    JSValue value = JS_NewObject(context);
-    JS_SetPropertyStr(context, value, "type", JS_NewString(context, PointerTypeName(event.type)));
-    JS_SetPropertyStr(context, value, "x", JS_NewFloat64(context, event.point.x));
-    JS_SetPropertyStr(context, value, "y", JS_NewFloat64(context, event.point.y));
-    JS_SetPropertyStr(context, value, "button", JS_NewString(context, PointerButtonName(event.button)));
-    JS_SetPropertyStr(context, value, "wheelDelta", JS_NewInt32(context, event.wheel_delta));
-    AddModifiers(context, value, event.modifiers);
-    return value;
+    script::ObjectBuilder value(context);
+    value.Set("type", PointerTypeName(event.type))
+        .Set("x", event.point.x)
+        .Set("y", event.point.y)
+        .Set("button", PointerButtonName(event.button))
+        .Set("wheelDelta", event.wheel_delta);
+    AddModifiers(context, value.Get(), event.modifiers);
+    return value.Release();
 }
 
 JSValue CreateKeyEvent(JSContext* context, const UiKeyEvent& event)
 {
-    JSValue value = JS_NewObject(context);
-    JS_SetPropertyStr(context, value, "type", JS_NewString(context, KeyTypeName(event.type)));
-    JS_SetPropertyStr(context, value, "virtualKey", JS_NewInt32(context, static_cast<int32_t>(event.virtual_key)));
-    JS_SetPropertyStr(context, value, "repeat", JS_NewBool(context, event.repeat));
-    JS_SetPropertyStr(context, value, "system", JS_NewBool(context, event.system));
-    AddModifiers(context, value, event.modifiers);
-    return value;
+    script::ObjectBuilder value(context);
+    value.Set("type", KeyTypeName(event.type))
+        .Set("virtualKey", static_cast<int32_t>(event.virtual_key))
+        .Set("repeat", event.repeat)
+        .Set("system", event.system);
+    AddModifiers(context, value.Get(), event.modifiers);
+    return value.Release();
 }
 
 JSValue CreateTextEvent(JSContext* context, wchar_t ch)
 {
-    JSValue value = JS_NewObject(context);
+    script::ObjectBuilder value(context);
     const std::wstring text(1, ch);
-    JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(text).c_str()));
-    return value;
+    value.Set("text", Utf8FromWide(text));
+    return value.Release();
 }
 
 JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event)
 {
-    JSValue value = JS_NewObject(context);
-    script::SetString(context, value, "kind", InputKindName(event.type));
+    script::ObjectBuilder value(context);
+    value.Set("kind", InputKindName(event.type));
     switch (event.type) {
     case UiEventType::PointerMove:
     case UiEventType::PointerDown:
     case UiEventType::PointerUp:
     case UiEventType::PointerLeave:
     case UiEventType::PointerWheel:
-        JS_SetPropertyStr(context, value, "type", JS_NewString(context, PointerTypeName(event.type)));
-        JS_SetPropertyStr(context, value, "x", JS_NewFloat64(context, event.pointer.point.x));
-        JS_SetPropertyStr(context, value, "y", JS_NewFloat64(context, event.pointer.point.y));
-        JS_SetPropertyStr(context, value, "button", JS_NewString(context, PointerButtonName(event.pointer.button)));
-        JS_SetPropertyStr(context, value, "wheelDelta", JS_NewInt32(context, event.pointer.wheel_delta));
-        AddModifiers(context, value, event.pointer.modifiers);
+        value.Set("type", PointerTypeName(event.type))
+            .Set("x", event.pointer.point.x)
+            .Set("y", event.pointer.point.y)
+            .Set("button", PointerButtonName(event.pointer.button))
+            .Set("wheelDelta", event.pointer.wheel_delta);
+        AddModifiers(context, value.Get(), event.pointer.modifiers);
         break;
     case UiEventType::KeyDown:
     case UiEventType::KeyUp:
-        JS_SetPropertyStr(context, value, "type", JS_NewString(context, KeyTypeName(event.type)));
-        JS_SetPropertyStr(context, value, "virtualKey", JS_NewInt32(context, static_cast<int32_t>(event.key.virtual_key)));
-        JS_SetPropertyStr(context, value, "repeat", JS_NewBool(context, event.key.repeat));
-        JS_SetPropertyStr(context, value, "system", JS_NewBool(context, event.key.system));
-        AddModifiers(context, value, event.key.modifiers);
+        value.Set("type", KeyTypeName(event.type))
+            .Set("virtualKey", static_cast<int32_t>(event.key.virtual_key))
+            .Set("repeat", event.key.repeat)
+            .Set("system", event.key.system);
+        AddModifiers(context, value.Get(), event.key.modifiers);
         break;
     case UiEventType::TextChar: {
         const std::wstring text(1, event.character);
-        JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(text).c_str()));
+        value.Set("text", Utf8FromWide(text));
         break;
     }
     case UiEventType::ImeStartComposition:
         break;
     case UiEventType::ImeComposition:
-        JS_SetPropertyStr(context, value, "text", JS_NewString(context, Utf8FromWide(event.text).c_str()));
+        value.Set("text", Utf8FromWide(event.text));
         break;
     case UiEventType::ImeEndComposition:
         break;
     case UiEventType::ContextMenu:
-        JS_SetPropertyStr(context, value, "x", JS_NewFloat64(context, event.point.x));
-        JS_SetPropertyStr(context, value, "y", JS_NewFloat64(context, event.point.y));
-        JS_SetPropertyStr(context, value, "screenX", JS_NewInt32(context, event.screen_point.x));
-        JS_SetPropertyStr(context, value, "screenY", JS_NewInt32(context, event.screen_point.y));
+        value.Set("x", event.point.x)
+            .Set("y", event.point.y)
+            .Set("screenX", static_cast<int32_t>(event.screen_point.x))
+            .Set("screenY", static_cast<int32_t>(event.screen_point.y));
         break;
     case UiEventType::Timer:
-        JS_SetPropertyStr(context, value, "timerId", JS_NewUint32(context, static_cast<uint32_t>(event.timer_id)));
+        value.Set("timerId", static_cast<uint32_t>(event.timer_id));
         break;
     case UiEventType::FilesDropped:
-        JS_SetPropertyStr(context, value, "files", script::WideStringArray(context, event.file_paths));
+        value.SetValue("files", script::WideStringArray(context, event.file_paths));
         break;
     case UiEventType::WindowResized:
     case UiEventType::DpiChanged:
-        JS_SetPropertyStr(context, value, "pixelWidth", JS_NewUint32(context, event.pixel_size.width));
-        JS_SetPropertyStr(context, value, "pixelHeight", JS_NewUint32(context, event.pixel_size.height));
-        JS_SetPropertyStr(context, value, "width", JS_NewFloat64(context, event.ui_size.width));
-        JS_SetPropertyStr(context, value, "height", JS_NewFloat64(context, event.ui_size.height));
+        value.Set("pixelWidth", event.pixel_size.width)
+            .Set("pixelHeight", event.pixel_size.height)
+            .Set("width", event.ui_size.width)
+            .Set("height", event.ui_size.height);
         if (event.dpi != 0) {
-            JS_SetPropertyStr(context, value, "dpi", JS_NewUint32(context, event.dpi));
+            value.Set("dpi", event.dpi);
         }
         break;
     default:
         break;
     }
-    return value;
+    return value.Release();
 }
 
 bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* icon)

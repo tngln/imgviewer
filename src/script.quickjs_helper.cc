@@ -65,6 +65,72 @@ void QuickJsValue::Reset(JSContext* context, JSValue value)
     value_ = value;
 }
 
+ObjectBuilder::ObjectBuilder(JSContext* context) :
+    context_(context),
+    value_(context, JS_NewObject(context))
+{
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, std::wstring_view value)
+{
+    SetString(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, std::string_view value)
+{
+    SetString(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, const char* value)
+{
+    SetString(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, bool value)
+{
+    SetBool(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, int32_t value)
+{
+    SetInt(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, uint32_t value)
+{
+    SetUint(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, float value)
+{
+    SetFloat(context_, Get(), name, value);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::Set(const char* name, double value)
+{
+    JS_SetPropertyStr(context_, Get(), name, JS_NewFloat64(context_, value));
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::SetFunction(const char* name, JSCFunction* function, int length)
+{
+    script::SetFunction(context_, Get(), name, function, length);
+    return *this;
+}
+
+ObjectBuilder& ObjectBuilder::SetValue(const char* name, JSValue value)
+{
+    JS_SetPropertyStr(context_, Get(), name, value);
+    return *this;
+}
+
 std::string ToStringUtf8(JSContext* context, JSValueConst value)
 {
     const char* text = JS_ToCString(context, value);

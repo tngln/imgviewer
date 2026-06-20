@@ -503,6 +503,46 @@ void TestQuickJsRuntime()
     CHECK(exception.find("quickjs smoke failure") != std::string::npos);
 }
 
+void TestQuickJsObjectBuilder()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    JSContext* context = runtime.Context();
+
+    script::ObjectBuilder built(context);
+    built.Set("text", "hello")
+        .Set("wide", std::wstring(L"wide"))
+        .Set("flag", true)
+        .Set("i", int32_t{-7})
+        .Set("u", uint32_t{42})
+        .Set("f", 2.5f)
+        .Set("d", 3.25)
+        .SetObject("nested", [](script::ObjectBuilder& nested) {
+            nested.Set("value", "child");
+        })
+        .SetValue("items", script::StringArray(context, std::vector<std::string>{"a", "b"}))
+        .SetFunction("nativeAdd", TestNativeAdd, 2);
+
+    JSValue global = JS_GetGlobalObject(context);
+    JS_SetPropertyStr(context, global, "built", built.Release());
+    JS_FreeValue(context, global);
+
+    const script::QuickJsEvalResult result = runtime.EvalScript(
+        "built.text === 'hello' && "
+        "built.wide === 'wide' && "
+        "built.flag === true && "
+        "built.i === -7 && "
+        "built.u === 42 && "
+        "built.f === 2.5 && "
+        "built.d === 3.25 && "
+        "built.nested.value === 'child' && "
+        "built.items.join(',') === 'a,b' && "
+        "built.nativeAdd(4, 5) === 9 ? 'ok' : 'bad'",
+        "quickjs-object-builder-test.js");
+    CHECK(result.ok);
+    CHECK(result.value_utf8 == "ok");
+}
+
 void TestQuickJsNativeFunctionRegistration()
 {
     script::QuickJsRuntime runtime;
@@ -618,6 +658,7 @@ int main()
     TestSignal();
     TestSignalReentrancy();
     TestQuickJsRuntime();
+    TestQuickJsObjectBuilder();
     TestQuickJsNativeFunctionRegistration();
     TestQuickJsSignalApiSmoke();
     TestCanvasColorParser();

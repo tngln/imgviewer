@@ -377,9 +377,9 @@ JSValue PopupHost::CreateStateObject() const
         return content_->CreateState(context);
     }
 
-    JSValue state = JS_NewObject(context);
-    script::SetString(context, state, "kind", "none");
-    return state;
+    script::ObjectBuilder state(context);
+    state.Set("kind", "none");
+    return state.Release();
 }
 
 HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
