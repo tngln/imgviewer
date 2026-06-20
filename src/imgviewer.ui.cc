@@ -11,11 +11,15 @@
 #include <d2d1helper.h>
 
 #include "imgviewer.config.hpp"
+#include "imgviewer.hpp"
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
 #include "imgviewer.script_ui.hpp"
 #include "script.quickjs_helper.hpp"
+#include "win32.clipboard.hpp"
+#include "win32.util.hpp"
+#include "win32.window.hpp"
 
 namespace {
 
@@ -132,6 +136,19 @@ std::optional<UiPopupRequest> PopupRequestProperty(JSContext* context, JSValueCo
     return request;
 }
 
+std::string LocalActionProperty(JSContext* context, JSValueConst object)
+{
+    if (!JS_IsObject(object)) {
+        return {};
+    }
+
+    script::QuickJsValue value = script::GetProperty(context, object, "localAction");
+    if (JS_IsUndefined(value.Get()) || JS_IsNull(value.Get())) {
+        return {};
+    }
+    return script::ToStringUtf8(context, value.Get());
+}
+
 std::vector<D2D1_RECT_F> CaptionDragRectsProperty(JSContext* context, JSValueConst object)
 {
     std::vector<D2D1_RECT_F> rects;
@@ -205,6 +222,70 @@ JSValue OverlayPopup(JSContext* context, JSValueConst, int argc, JSValueConst* a
     JS_SetPropertyStr(context, popup, "state", JS_DupValue(context, argv[2]));
     JS_SetPropertyStr(context, result, "popup", popup);
     return result;
+}
+
+JSValue OverlaySampleColorAt(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    ImgViewerUi* ui = ScriptUi(context);
+    if (ui == nullptr || argc < 2) {
+        return JS_FALSE;
+    }
+
+    HWND hwnd = ui->ActiveEventHwnd();
+    ImgViewerContext* app_context = hwnd != nullptr
+        ? static_cast<ImgViewerContext*>(win32::NativeWindow::UserData(hwnd))
+        : nullptr;
+    if (app_context == nullptr) {
+        return JS_FALSE;
+    }
+
+    double x = 0.0;
+    double y = 0.0;
+    JS_ToFloat64(context, &x, argv[0]);
+    JS_ToFloat64(context, &y, argv[1]);
+
+    const float dpi_scale = static_cast<float>(GetDpiForWindow(hwnd)) / 96.0f;
+    ImgViewerColorSample color;
+    if (!app_context->viewer.SampleColorAt(
+            static_cast<float>(x) * dpi_scale,
+            static_cast<float>(y) * dpi_scale,
+            app_context->renderer.ViewportPixelSize(),
+            &color)) {
+        return JS_FALSE;
+    }
+
+    wchar_t hex_text[8] = {};
+    swprintf_s(hex_text, L"#%02X%02X%02X", color.red, color.green, color.blue);
+    script::ObjectBuilder sample(context);
+    sample.Set("red", static_cast<int32_t>(color.red))
+        .Set("green", static_cast<int32_t>(color.green))
+        .Set("blue", static_cast<int32_t>(color.blue))
+        .Set("hexText", static_cast<const wchar_t*>(hex_text));
+    return sample.Release();
+}
+
+JSValue OverlayCopyText(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    ImgViewerUi* ui = ScriptUi(context);
+    if (ui == nullptr || argc < 1) {
+        return JS_FALSE;
+    }
+
+    HWND hwnd = ui->ActiveEventHwnd();
+    ImgViewerContext* app_context = hwnd != nullptr
+        ? static_cast<ImgViewerContext*>(win32::NativeWindow::UserData(hwnd))
+        : nullptr;
+    const std::wstring text = imgviewer::WideFromUtf8(script::ToStringUtf8(context, argv[0]));
+    const bool copied = hwnd != nullptr && win32::CopyTextToClipboard(hwnd, text.c_str());
+    if (app_context != nullptr) {
+        if (copied) {
+            const std::wstring toast_text = std::wstring(L"Copied ") + text;
+            ShowImgViewerToast(hwnd, app_context, toast_text.c_str());
+        } else {
+            ShowImgViewerToast(hwnd, app_context, ImgViewerString(ImgViewerStringId::CouldNotCopyColor));
+        }
+    }
+    return JS_NewBool(context, copied);
 }
 
 } // namespace
@@ -282,6 +363,12 @@ UiEventResult ImgViewerUi::OnKeyEvent(const UiKeyEvent& event)
 UiEventResult ImgViewerUi::OnInputEvent(const UiInputEvent& event)
 {
     switch (event.type) {
+    case UiEventType::PointerMove:
+    case UiEventType::PointerDown:
+    case UiEventType::PointerUp:
+    case UiEventType::PointerLeave:
+    case UiEventType::PointerWheel:
+        return ready_ ? DispatchPointerToScript(event.pointer, event.hwnd) : UiEventResult{};
     case UiEventType::TextChar:
     case UiEventType::ImeStartComposition:
     case UiEventType::ImeComposition:
@@ -324,12 +411,6 @@ void ImgViewerUi::SetWindowState(bool top_most, bool maximized)
     maximized_ = maximized;
 }
 
-void ImgViewerUi::SetColorPickerActive(bool active)
-{
-    color_picker_active_ = active;
-    color_picker_toolstrip_state_.visible = active;
-}
-
 void ImgViewerUi::SetToolbarScalePercent(int percent)
 {
     toolbar_scale_percent_ = ClampToolbarScalePercent(percent);
@@ -361,12 +442,6 @@ void ImgViewerUi::SetAnimationState(ImgViewerAnimationState state)
 void ImgViewerUi::SetEditToolbarState(ImgViewerUiEditToolbarState state)
 {
     edit_toolbar_state_ = state;
-}
-
-void ImgViewerUi::SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState state)
-{
-    color_picker_toolstrip_state_ = std::move(state);
-    color_picker_active_ = color_picker_toolstrip_state_.visible;
 }
 
 void ImgViewerUi::SetPenToolstripState(ImgViewerUiPenToolstripState state)
@@ -407,7 +482,9 @@ void ImgViewerUi::InstallCustomGlobals(JSValue global)
     script::ObjectBuilder overlay(context);
     overlay.SetFunction("action", OverlayAction, 1)
         .SetFunction("popup", OverlayPopup, 3)
-        .SetFunction("invalidate", imgviewer::HostInvalidate, 0);
+        .SetFunction("invalidate", imgviewer::HostInvalidate, 0)
+        .SetFunction("sampleColorAt", OverlaySampleColorAt, 2)
+        .SetFunction("copyText", OverlayCopyText, 1);
     JS_SetPropertyStr(context, global, "overlay", overlay.Release());
 }
 
@@ -421,8 +498,7 @@ JSValue ImgViewerUi::CreateStateObject() const
         .Set("editMode", edit_toolbar_state_.visible)
         .Set("toolbarScalePercent", toolbar_scale_percent_)
         .Set("edgeClickNavigation", edge_click_navigation_)
-        .Set("edgeClickNavigationZonePercent", edge_click_navigation_zone_percent_)
-        .Set("colorPickerActive", color_picker_active_);
+        .Set("edgeClickNavigationZonePercent", edge_click_navigation_zone_percent_);
 
     script::ObjectBuilder actions(context);
     script::ObjectBuilder labels(context);
@@ -440,12 +516,6 @@ JSValue ImgViewerUi::CreateStateObject() const
             .Set("dirty", edit_toolbar_state_.dirty)
             .Set("canUndo", edit_toolbar_state_.can_undo)
             .Set("canRedo", edit_toolbar_state_.can_redo);
-    });
-
-    state.SetObject("colorPickerToolstrip", [&](script::ObjectBuilder& color_picker) {
-        color_picker.Set("visible", color_picker_toolstrip_state_.visible)
-            .Set("hasSample", color_picker_toolstrip_state_.has_sample)
-            .Set("hexText", color_picker_toolstrip_state_.hex_text);
     });
 
     state.SetObject("penToolstrip", [&](script::ObjectBuilder& pen) {
@@ -509,7 +579,7 @@ JSValue ImgViewerUi::CreateStateObject() const
     return state.Release();
 }
 
-UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)
+UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event, HWND hwnd)
 {
     JSContext* context = Context();
     script::QuickJsValue app(context, AppObject());
@@ -519,11 +589,13 @@ UiEventResult ImgViewerUi::DispatchPointerToScript(const UiPointerEvent& event)
     }
     script::QuickJsValue js_event(context, imgviewer::CreatePointerEvent(context, event));
     JSValue args[] = {js_event.Get()};
+    active_event_hwnd_ = hwnd;
     script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    active_event_hwnd_ = nullptr;
     return FinishEventDispatch(result.Release());
 }
 
-UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event)
+UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event, HWND hwnd)
 {
     JSContext* context = Context();
     script::QuickJsValue app(context, AppObject());
@@ -533,7 +605,9 @@ UiEventResult ImgViewerUi::DispatchKeyToScript(const UiKeyEvent& event)
     }
     script::QuickJsValue js_event(context, imgviewer::CreateKeyEvent(context, event));
     JSValue args[] = {js_event.Get()};
+    active_event_hwnd_ = hwnd;
     script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    active_event_hwnd_ = nullptr;
     return FinishEventDispatch(result.Release());
 }
 
@@ -547,8 +621,36 @@ UiEventResult ImgViewerUi::DispatchInputToScript(const UiInputEvent& event)
     }
     script::QuickJsValue js_event(context, imgviewer::CreateInputEvent(context, event));
     JSValue args[] = {js_event.Get()};
+    active_event_hwnd_ = event.hwnd;
     script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    active_event_hwnd_ = nullptr;
     return FinishEventDispatch(result.Release());
+}
+
+UiEventResult ImgViewerUi::DispatchLocalActionToScript(std::string_view action, int32_t action_arg, HWND hwnd)
+{
+    if (!ready_ || action.empty()) {
+        return {};
+    }
+
+    JSContext* context = Context();
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "action");
+    if (!JS_IsFunction(context, handler.Get())) {
+        return {};
+    }
+    script::QuickJsValue action_value(context, JS_NewStringLen(context, action.data(), action.size()));
+    script::QuickJsValue action_arg_value(context, JS_NewInt32(context, action_arg));
+    JSValue args[] = {action_value.Get(), action_arg_value.Get()};
+    active_event_hwnd_ = hwnd;
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 2, args);
+    active_event_hwnd_ = nullptr;
+    return FinishEventDispatch(result.Release());
+}
+
+HWND ImgViewerUi::ActiveEventHwnd() const
+{
+    return active_event_hwnd_;
 }
 
 UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
@@ -568,6 +670,7 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
     const std::optional<bool> capture = script::OptionalBoolProperty(context, result_value.Get(), "capture");
     const bool invalidate = script::BoolProperty(context, result_value.Get(), "invalidate", false);
     UiAction action = ActionProperty(context, result_value.Get());
+    const std::string local_action = LocalActionProperty(context, result_value.Get());
     event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(context, result_value.Get());
     bool popup_failed = false;
     event_result.popup = PopupRequestProperty(context, result_value.Get(), &popup_failed);
@@ -593,7 +696,7 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
         ReloadScript();
     }
 
-    event_result.handled = handled || capture.has_value() || action != ImgViewerAction::None || wants_close || event_result.popup.has_value();
+    event_result.handled = handled || capture.has_value() || action != ImgViewerAction::None || !local_action.empty() || wants_close || event_result.popup.has_value();
     if (capture.has_value()) {
         event_result.capture = *capture ? UiCaptureRequest::Capture : UiCaptureRequest::Release;
     }
@@ -602,6 +705,10 @@ UiEventResult ImgViewerUi::FinishEventDispatch(JSValue result)
     }
     if (action != kUiActionNone) {
         event_result.action = action;
+    }
+    if (!local_action.empty()) {
+        event_result.local_action = local_action;
+        event_result.local_action_arg = script::Int32Property(context, result_value.Get(), "actionArg", 0);
     }
     event_result.value_changed = wants_invalidate;
     if (engine_.PumpJobs() < 0) {

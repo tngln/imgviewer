@@ -133,6 +133,7 @@ function activateMenuItem(item: PopupMenuItem): PopupEventResult {
     handled: true,
     close: true,
     action: item.action,
+    localAction: item.localAction,
     actionValue: item.actionValue,
     actionArg: item.actionArg,
   };
@@ -247,7 +248,7 @@ function pointer(event: UiPointerEvent, state: PopupState): PopupEventResult | v
     }
     if (event.type === "up" || event.type === "down") {
       const option = state.options[index];
-      return { handled: true, close: true, selectedIndex: index, action: option.action, actionValue: option.actionValue, actionArg: option.actionArg };
+      return { handled: true, close: true, selectedIndex: index, action: option.action, localAction: option.localAction, actionValue: option.actionValue, actionArg: option.actionArg };
     }
     return { handled: true };
   }
@@ -297,6 +298,7 @@ function key(event: UiKeyEvent, state: PopupState): PopupEventResult | void {
       close: event.virtualKey === 13 || event.virtualKey === 32,
       selectedIndex: index,
       action: option?.action,
+      localAction: option?.localAction,
       actionValue: option?.actionValue,
       actionArg: option?.actionArg,
       invalidate: true,

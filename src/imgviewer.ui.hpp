@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -34,25 +35,25 @@ public:
     void ShowToast(const wchar_t* text);
     bool HideToast();
     void SetWindowState(bool top_most, bool maximized);
-    void SetColorPickerActive(bool active);
     void SetToolbarScalePercent(int percent);
     void SetEdgeClickNavigationState(bool enabled, int zone_percent);
     void SetActionEnabled(UiAction action, bool enabled);
     void SetInfoPanelState(ImgViewerUiInfoPanelState state);
     void SetAnimationState(ImgViewerAnimationState state);
     void SetEditToolbarState(ImgViewerUiEditToolbarState state);
-    void SetColorPickerToolstripState(ImgViewerUiColorPickerToolstripState state);
     void SetPenToolstripState(ImgViewerUiPenToolstripState state);
     void SetShapeToolstripState(ImgViewerUiShapeToolstripState state);
     void SetTextToolstripState(ImgViewerUiTextToolstripState state);
     void SetSelectionToolstripState(ImgViewerUiSelectionToolstripState state);
     const std::wstring& SelectedTextFontFamily() const;
+    UiEventResult DispatchLocalActionToScript(std::string_view action, int32_t action_arg = 0, HWND hwnd = nullptr);
+    HWND ActiveEventHwnd() const;
 
 private:
     void BeforeReload() override;
     void InstallCustomGlobals(JSValue global) override;
-    UiEventResult DispatchPointerToScript(const UiPointerEvent& event);
-    UiEventResult DispatchKeyToScript(const UiKeyEvent& event);
+    UiEventResult DispatchPointerToScript(const UiPointerEvent& event, HWND hwnd = nullptr);
+    UiEventResult DispatchKeyToScript(const UiKeyEvent& event, HWND hwnd = nullptr);
     UiEventResult DispatchInputToScript(const UiInputEvent& event);
     UiEventResult FinishEventDispatch(JSValue result) override;
     JSValue CreateStateObject() const;
@@ -69,7 +70,6 @@ private:
     ImgViewerUiInfoPanelState info_panel_state_;
     ImgViewerAnimationState animation_state_;
     ImgViewerUiEditToolbarState edit_toolbar_state_;
-    ImgViewerUiColorPickerToolstripState color_picker_toolstrip_state_;
     ImgViewerUiPenToolstripState pen_toolstrip_state_;
     ImgViewerUiShapeToolstripState shape_toolstrip_state_;
     ImgViewerUiTextToolstripState text_toolstrip_state_;
@@ -77,9 +77,9 @@ private:
     ImgViewerAction pending_action_ = ImgViewerAction::None;
     int toolbar_scale_percent_ = 125;
     int edge_click_navigation_zone_percent_ = 10;
+    HWND active_event_hwnd_ = nullptr;
     bool top_most_ = false;
     bool maximized_ = false;
     bool edge_click_navigation_ = false;
-    bool color_picker_active_ = false;
     bool toast_visible_ = false;
 };

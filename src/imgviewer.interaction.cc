@@ -77,25 +77,6 @@ void ImgViewerInteractionState::SetCanvasOwner(ImgViewerCanvasOwner owner)
     canvas_owner_ = owner;
 }
 
-void ImgViewerInteractionState::BeginColorPick()
-{
-    mode_ = ImgViewerInteractionMode::Viewing;
-    canvas_owner_ = ImgViewerCanvasOwner::ColorPicker;
-    if (keyboard_owner_ == ImgViewerKeyboardOwner::EditText) {
-        keyboard_owner_ = ImgViewerKeyboardOwner::ViewerShortcut;
-    }
-    ClearPointerCapture();
-}
-
-void ImgViewerInteractionState::EndColorPick()
-{
-    if (canvas_owner_ == ImgViewerCanvasOwner::ColorPicker) {
-        canvas_owner_ = mode_ == ImgViewerInteractionMode::Editing
-            ? ImgViewerCanvasOwner::EditTool
-            : ImgViewerCanvasOwner::Viewer;
-    }
-}
-
 void ImgViewerInteractionState::SetKeyboardOwner(ImgViewerKeyboardOwner owner)
 {
     keyboard_owner_ = owner;

@@ -24,9 +24,6 @@ ImgViewerPointerTarget CapturedPointerTarget(ImgViewerPointerCaptureOwner owner)
     if (owner == ImgViewerPointerCaptureOwner::Ui) {
         return ImgViewerPointerTarget::Ui;
     }
-    if (owner == ImgViewerPointerCaptureOwner::ColorPicker) {
-        return ImgViewerPointerTarget::ColorPicker;
-    }
     if (IsEditPointerCapture(owner)) {
         return ImgViewerPointerTarget::EditTool;
     }
@@ -38,9 +35,6 @@ ImgViewerPointerTarget CapturedPointerTarget(ImgViewerPointerCaptureOwner owner)
 
 ImgViewerPointerTarget CanvasPointerTarget(const ImgViewerInteractionState& interaction, bool edit_active)
 {
-    if (interaction.CanvasOwner() == ImgViewerCanvasOwner::ColorPicker) {
-        return ImgViewerPointerTarget::ColorPicker;
-    }
     if (interaction.CanvasOwner() == ImgViewerCanvasOwner::EditTool && edit_active) {
         return ImgViewerPointerTarget::EditTool;
     }

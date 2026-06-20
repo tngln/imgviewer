@@ -9,7 +9,6 @@ enum class ImgViewerCanvasOwner {
     None,
     Viewer,
     EditTool,
-    ColorPicker,
 };
 
 enum class ImgViewerKeyboardOwner {
@@ -27,7 +26,6 @@ enum class ImgViewerPointerCaptureOwner {
     EditStroke,
     EditCrop,
     EditPixelSelection,
-    ColorPicker,
 };
 
 enum class ImgViewerModalOwner {
@@ -53,8 +51,6 @@ public:
     void EnterViewing();
     void EnterEditing();
     void SetCanvasOwner(ImgViewerCanvasOwner owner);
-    void BeginColorPick();
-    void EndColorPick();
     void SetKeyboardOwner(ImgViewerKeyboardOwner owner);
     void BeginPointerCapture(ImgViewerPointerCaptureOwner owner);
     void EndPointerCapture(ImgViewerPointerCaptureOwner owner);

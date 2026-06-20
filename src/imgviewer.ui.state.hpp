@@ -33,12 +33,6 @@ struct ImgViewerUiEditToolbarState final {
     bool can_redo = false;
 };
 
-struct ImgViewerUiColorPickerToolstripState final {
-    bool visible = false;
-    bool has_sample = false;
-    std::wstring hex_text;
-};
-
 struct ImgViewerUiPenToolstripState final {
     bool visible = false;
     D2D1_COLOR_F color = D2D1::ColorF(D2D1::ColorF::Red);

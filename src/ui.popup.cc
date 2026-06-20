@@ -323,6 +323,11 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
     event_result.close_popup = script::BoolProperty(context, result.Get(), "close", false) || close_requested_;
     event_result.value_changed = script::BoolProperty(context, result.Get(), "invalidate", false) || invalidate_requested_;
     event_result.action = ActionProperty(context, result.Get());
+    script::QuickJsValue local_action = script::GetProperty(context, result.Get(), "localAction");
+    if (!JS_IsUndefined(local_action.Get()) && !JS_IsNull(local_action.Get())) {
+        event_result.local_action = script::ToStringUtf8(context, local_action.Get());
+        event_result.local_action_arg = script::Int32Property(context, result.Get(), "actionArg", 0);
+    }
     if (content_ != nullptr) {
         content_->ApplyResult(context, result.Get(), &event_result);
     }

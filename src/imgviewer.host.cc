@@ -7,6 +7,7 @@
 #include "imgviewer.host.internal.hpp"
 #include "imgviewer.keybindings.hpp"
 #include "imgviewer.strings.hpp"
+#include "imgviewer.ui.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "imgviewer.viewer.hpp"
 #include "ui.host_effects.hpp"
@@ -112,6 +113,10 @@ void ImgViewerHostEffects::Merge(UiEventResult result, bool request_popup_modal_
     if (result.action != kUiActionNone) {
         action = result.action;
     }
+    if (!result.local_action.empty()) {
+        local_action = std::move(result.local_action);
+        local_action_arg = result.local_action_arg;
+    }
     if (result.popup.has_value()) {
         popup = std::move(result.popup);
     }
@@ -160,6 +165,18 @@ void ApplyHostEffects(HWND hwnd, ImgViewerContext* context, ImgViewerHostEffects
     if (effects.released_capture) {
         context->interaction.ClearPointerCapture();
         ApplyUiCaptureRequest(hwnd, UiCaptureRequest::Release);
+    }
+
+    if (!effects.local_action.empty() && context->main_ui != nullptr) {
+        ImgViewerHostEffects local_effects;
+        local_effects.Merge(context->main_ui->DispatchLocalActionToScript(
+            effects.local_action,
+            effects.local_action_arg,
+            hwnd));
+        effects.local_action.clear();
+        if (local_effects.HasFollowUpWork()) {
+            ApplyHostEffects(hwnd, context, local_effects);
+        }
     }
 
     // Full-repaint doctrine: dispatched events repaint the layer (refactor.md 3.4).

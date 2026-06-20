@@ -176,6 +176,8 @@ interface OverlayHostApi {
   action(name: MainActionName, actionArg?: number): MainEventResult | false;
   popup(x: number, y: number, state: PopupState): MainEventResult;
   invalidate(): void;
+  sampleColorAt(x: number, y: number): (MainOverlayColorSample & { hexText: string }) | false;
+  copyText(text: string): boolean;
 }
 
 interface MainOverlayRows {
@@ -208,11 +210,9 @@ interface MainOverlayState {
   toolbarScalePercent: number;
   edgeClickNavigation: boolean;
   edgeClickNavigationZonePercent: number;
-  colorPickerActive: boolean;
   actionEnabled: Record<MainActionName, boolean>;
   actionLabels: Record<MainActionName, string>;
   editToolbar: { visible: boolean; tool: string; dirty: boolean; canUndo: boolean; canRedo: boolean };
-  colorPickerToolstrip: { visible: boolean; hasSample: boolean; hexText: string };
   penToolstrip: { visible: boolean; color: string; width: number };
   shapeToolstrip: { visible: boolean; kind: string; color: string };
   textToolstrip: { visible: boolean; fontFamily: string; fontSize: number; textColor: string; backgroundColor: string; hasBackground: boolean };
@@ -245,6 +245,7 @@ type MainPointerEvent = UiPointerEvent;
 type MainKeyEvent = UiKeyEvent;
 type MainEventResult = InputEventResult & {
   action?: MainActionName;
+  localAction?: MainActionName;
   actionArg?: number;
   popup?: { x: number; y: number; state: PopupState };
 };
@@ -253,11 +254,13 @@ interface MainUiApp {
   render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderResult | void;
   pointer(event: MainPointerEvent): MainEventResult | void;
   key?(event: MainKeyEvent): MainEventResult | void;
+  action?(name: MainActionName, actionArg?: number): MainEventResult | void;
   input?(event: NativeInputEvent): MainEventResult | void;
 }
 
 interface PopupActionPayload {
   action?: string;
+  localAction?: string;
   actionValue?: number;
   actionArg?: number;
 }

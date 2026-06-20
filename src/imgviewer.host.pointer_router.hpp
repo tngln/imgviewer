@@ -7,7 +7,6 @@ enum class ImgViewerPointerTarget {
     Ui,
     Viewer,
     EditTool,
-    ColorPicker,
 };
 
 bool CanUiReceivePointer(const ImgViewerInteractionState& interaction);

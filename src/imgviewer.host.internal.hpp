@@ -8,7 +8,9 @@
 
 #include <windows.h>
 
+#include <cstdint>
 #include <optional>
+#include <string>
 
 ImgViewerContext* GetImgViewerContext(HWND hwnd);
 
@@ -24,6 +26,8 @@ struct ImgViewerHostEffects final {
     ImgViewerPointerCaptureOwner begin_pointer_capture = ImgViewerPointerCaptureOwner::None;
     ImgViewerPointerCaptureOwner end_pointer_capture = ImgViewerPointerCaptureOwner::None;
     UiAction action = kUiActionNone;
+    std::string local_action;
+    int32_t local_action_arg = 0;
     std::optional<UiPopupRequest> popup;
     bool sync_popup_modal = false;
     bool sync_ime = false;
@@ -37,6 +41,7 @@ struct ImgViewerHostEffects final {
             begin_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             end_pointer_capture != ImgViewerPointerCaptureOwner::None ||
             action != kUiActionNone ||
+            !local_action.empty() ||
             popup.has_value() ||
             sync_popup_modal ||
             sync_ime;

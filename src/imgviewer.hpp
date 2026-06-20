@@ -55,9 +55,6 @@ struct ImgViewerContext final {
     HWND settings_window = nullptr;
     UiWindowDelegate* settings_context = nullptr;
     UiWindowDelegate* about_context = nullptr;
-    bool color_picker_active = false;
-    bool color_picker_has_sample = false;
-    std::wstring color_picker_hex_text;
     bool current_image_from_clipboard = false;
     bool current_image_from_screenshot = false;
     bool info_panel_visible = false;
@@ -88,8 +85,6 @@ void ResetImgViewerTransientInput(HWND hwnd, ImgViewerContext* context);
 bool EnterImgViewerEditMode(HWND hwnd, ImgViewerContext* context);
 void ExitImgViewerEditMode(HWND hwnd, ImgViewerContext* context);
 void SetImgViewerEditTool(HWND hwnd, ImgViewerContext* context, ImgViewerEditTool tool, const wchar_t* toast_text);
-void SetImgViewerColorPickerActive(HWND hwnd, ImgViewerContext* context, bool active);
-bool UpdateImgViewerColorPickerSample(ImgViewerContext* context, D2D1_POINT_2F point);
 void ApplyWindowOpacity(HWND hwnd, int percent);
 void SetImgViewerWindowOpacity(HWND hwnd, ImgViewerContext* context, int percent);
 void SetImgViewerToolbarScale(HWND hwnd, ImgViewerContext* context, int percent);

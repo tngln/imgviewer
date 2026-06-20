@@ -120,6 +120,7 @@ let pressedId = "";
 let edgePress: { id: string; action: string; x: number; y: number } | undefined;
 let toolbar = { x: 0, y: 0, ready: false, dragging: false, dx: 0, dy: 0 };
 let infoScroll = 0;
+let colorPicker = { active: false, hasSample: false, hexText: "", picking: false };
 
 function actionLabel(state: MainOverlayState, action: string): string {
   return state.actionLabels[action] || action;
@@ -172,7 +173,7 @@ function mainMenuState(state: MainOverlayState): PopupState {
     menuItem(state, "fitWindow"),
     menuItem(state, "actualSize"),
     menuItem(state, "resetView"),
-    menuItem(state, "toggleColorPicker", state.colorPickerActive),
+    menuItem(state, "toggleColorPicker", colorPicker.active),
     menuSeparator(),
     menuParent(actionLabel(state, "toggleEditMode"), state.editToolbar.visible, enabled(state, "toggleEditMode"), [
       menuItem(state, "toggleEditMode", state.editToolbar.visible),
@@ -262,6 +263,37 @@ function backgroundArg(color: string, hasBackground: boolean): number {
   return hasBackground ? ((packColor(color) << 8) | 1) | 0 : 0;
 }
 
+function isLocalAction(action: string): boolean {
+  return action === "toggleColorPicker" || action === "copyColorPickerValue" || action === "clearColorPicker";
+}
+
+function handleLocalAction(action: string): MainEventResult | void {
+  if (action === "toggleColorPicker") {
+    const active = !colorPicker.active;
+    colorPicker = { active, hasSample: false, hexText: "", picking: false };
+    const result = active && lastState?.editToolbar.visible ? overlay.action("toggleEditMode") : false;
+    return result ? { ...result, handled: true, invalidate: true } : { handled: true, invalidate: true };
+  }
+  if (action === "clearColorPicker") {
+    const changed = colorPicker.active || colorPicker.hasSample || colorPicker.hexText !== "" || colorPicker.picking;
+    colorPicker = { active: false, hasSample: false, hexText: "", picking: false };
+    return { handled: changed, invalidate: changed };
+  }
+  if (action === "copyColorPickerValue") {
+    if (!colorPicker.hasSample || !colorPicker.hexText) return { handled: true };
+    overlay.copyText(colorPicker.hexText);
+    return { handled: true, invalidate: true };
+  }
+}
+
+function sampleColorPicker(x: number, y: number): boolean {
+  const sample = overlay.sampleColorAt(x, y);
+  if (!sample) return false;
+  colorPicker.hasSample = true;
+  colorPicker.hexText = sample.hexText;
+  return true;
+}
+
 function renderTitlebar(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderRect[] {
   canvas.fillRect(0, 0, env.width, 42, colors.title);
   canvas.strokeLine(0, 41.5, env.width, 41.5, colors.stroke, 1);
@@ -326,7 +358,7 @@ function renderToolbar(canvas: CanvasApi, env: RenderEnvironment, state: MainOve
   for (const action of mainActions) {
     const hit: Hit = { id: `main:${action}`, x, y: rect.y + size.pad, width: size.button, height: size.button, action, enabled: enabled(state, action) };
     addHit(hit);
-    button(canvas, hit, shortLabel(actionLabel(state, action)), action === "toggleColorPicker" && state.colorPickerActive, actionIcons[action]);
+    button(canvas, hit, shortLabel(actionLabel(state, action)), action === "toggleColorPicker" && colorPicker.active, actionIcons[action]);
     x += size.button + size.gap;
   }
   return rect;
@@ -351,7 +383,7 @@ function shortLabel(label: string): string {
 }
 
 function renderEditToolbar(canvas: CanvasApi, state: MainOverlayState, anchor: Rect): Rect {
-  if (!state.editToolbar.visible) {
+  if (!state.editToolbar.visible || colorPicker.active) {
     return anchor;
   }
   const buttonSize = 32;
@@ -393,8 +425,8 @@ function toolLabel(tool: string): string {
 
 function renderToolstrip(canvas: CanvasApi, state: MainOverlayState, anchor: Rect): void {
   const items: Array<{ id: string; label: string; action?: string; actionArg?: number; active?: boolean; enabled?: boolean }> = [];
-  if (state.colorPickerToolstrip.visible) {
-    items.push({ id: "copyColorPickerValue", label: state.colorPickerToolstrip.hasSample ? state.colorPickerToolstrip.hexText : "No sample", action: "copyColorPickerValue", enabled: state.colorPickerToolstrip.hasSample });
+  if (colorPicker.active) {
+    items.push({ id: "copyColorPickerValue", label: colorPicker.hasSample ? colorPicker.hexText : "No sample", action: "copyColorPickerValue", enabled: colorPicker.hasSample });
   } else if (state.penToolstrip.visible) {
     for (const width of penWidths) items.push({ id: `penWidth:${width}`, label: `${width}px`, action: "editSetPenWidth", actionArg: packFloat(width), active: Math.abs(state.penToolstrip.width - width) < 0.1 });
     for (const item of palette) items.push({ id: `penColor:${item.color}`, label: item.label, action: "editSetPenColor", actionArg: packColor(item.color), active: state.penToolstrip.color.toUpperCase() === item.color.toUpperCase() });
@@ -543,6 +575,10 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
   if (!lastState || !lastEnv) return;
   const hit = hitAt(event.x, event.y);
   if (event.type === "move") {
+    if (colorPicker.active && colorPicker.picking) {
+      sampleColorPicker(event.x, event.y);
+      return { handled: true, invalidate: true };
+    }
     if (toolbar.dragging) {
       toolbar.x = event.x - toolbar.dx;
       toolbar.y = event.y - toolbar.dy;
@@ -564,6 +600,9 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
       hoverId = nextHover;
       return { handled: false, invalidate: true };
     }
+    if (colorPicker.active && !hoverHit) {
+      return sampleColorPicker(event.x, event.y) ? { handled: true, invalidate: true } : { handled: true };
+    }
     return hoverHit ? { handled: hoverHit.kind !== "panel" } : undefined;
   }
   if (event.type === "leave") {
@@ -571,11 +610,17 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
     pressedId = "";
     edgePress = undefined;
     toolbar.dragging = false;
+    colorPicker.picking = false;
     return { handled: false, capture: false, invalidate: true };
   }
   if (event.type === "wheel" && hit?.id === "infoPanel") {
     infoScroll = Math.max(0, infoScroll - event.wheelDelta / 4);
     return { handled: true, invalidate: true };
+  }
+  if (event.type === "down" && event.button === "left" && colorPicker.active && (!hit || hit.kind === "edge")) {
+    colorPicker.picking = true;
+    sampleColorPicker(event.x, event.y);
+    return { handled: true, capture: true, invalidate: true };
   }
   if (event.type === "down" && event.button === "left" && hit) {
     if (hit.kind === "edge" && hit.action && hit.enabled !== false) {
@@ -593,6 +638,11 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
     return { handled: true, invalidate: true };
   }
   if (event.type === "up" && event.button === "left") {
+    if (colorPicker.picking) {
+      colorPicker.picking = false;
+      sampleColorPicker(event.x, event.y);
+      return { handled: true, capture: false, invalidate: true };
+    }
     if (edgePress) {
       const pressed = edgePress;
       edgePress = undefined;
@@ -610,6 +660,7 @@ function pointer(event: MainPointerEvent): MainEventResult | void {
     }
     if (hit && pressed === hit.id && hit.enabled !== false) {
       if (hit.action === "openMenu" && lastState) return overlay.popup(3, 42, mainMenuState(lastState));
+      if (hit.action && isLocalAction(hit.action)) return handleLocalAction(hit.action) || { handled: true };
       if (hit.action) return overlay.action(hit.action, hit.actionArg) || { handled: true };
     }
     return pressed ? { handled: true, invalidate: true } : undefined;
@@ -623,4 +674,4 @@ function key(event: MainKeyEvent): MainEventResult | void {
   }
 }
 
-globalThis.imgviewerMainUi = { render, pointer, key };
+globalThis.imgviewerMainUi = { render, pointer, key, action: handleLocalAction };

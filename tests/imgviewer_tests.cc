@@ -192,15 +192,12 @@ void TestPointerRouter()
     CHECK(!IsEditPointerCapture(ImgViewerPointerCaptureOwner::ViewerPan));
 
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::Ui) == ImgViewerPointerTarget::Ui);
-    CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::ColorPicker) == ImgViewerPointerTarget::ColorPicker);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::EditCrop) == ImgViewerPointerTarget::EditTool);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::ViewerPan) == ImgViewerPointerTarget::Viewer);
     CHECK(CapturedPointerTarget(ImgViewerPointerCaptureOwner::None) == ImgViewerPointerTarget::None);
 
     // Canvas target depends on canvas owner and edit_active.
     ImgViewerInteractionState canvas;
-    canvas.SetCanvasOwner(ImgViewerCanvasOwner::ColorPicker);
-    CHECK(CanvasPointerTarget(canvas, false) == ImgViewerPointerTarget::ColorPicker);
     canvas.SetCanvasOwner(ImgViewerCanvasOwner::EditTool);
     CHECK(CanvasPointerTarget(canvas, true) == ImgViewerPointerTarget::EditTool);
     CHECK(CanvasPointerTarget(canvas, false) == ImgViewerPointerTarget::None);

@@ -4,6 +4,7 @@
 
 #include <d2d1_1.h>
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -127,6 +128,8 @@ struct UiEventResult final {
     bool handled = false;
     UiCaptureRequest capture = UiCaptureRequest::None;
     UiAction action = kUiActionNone;
+    std::string local_action;
+    int32_t local_action_arg = 0;
     bool wants_ime_position = false;
     std::optional<D2D1_POINT_2F> ime_caret_point;
     bool value_changed = false;
