@@ -56,17 +56,25 @@ win32::WindowMessageResult HandleImgViewerAppMessage(HWND hwnd, UINT message, WP
     }
 
     case WM_TIMER: {
-        if (wparam == kImgViewerToastTimerId) {
-            KillTimer(hwnd, kImgViewerToastTimerId);
-            ImgViewerContext* context = GetImgViewerContext(hwnd);
-            if (context != nullptr && context->main_ui->HideToast()) {
-                RequestWindowRender(hwnd);
+        ImgViewerContext* context = GetImgViewerContext(hwnd);
+        if (context != nullptr && context->ui != nullptr) {
+            UiEventResult timer_result = context->ui->OnInputEvent(UiInputEvent{
+                .type = UiEventType::Timer,
+                .timer_id = wparam,
+                .hwnd = hwnd,
+            });
+            if (timer_result.handled) {
+                if (timer_result.value_changed ||
+                    timer_result.action != kUiActionNone ||
+                    timer_result.capture != UiCaptureRequest::None ||
+                    timer_result.popup.has_value()) {
+                    ApplyMerged(hwnd, context, timer_result);
+                }
+                return win32::WindowMessageResult::Handled();
             }
-            return win32::WindowMessageResult::Handled();
         }
 
         if (wparam == kImgViewerAnimationTimerId) {
-            ImgViewerContext* context = GetImgViewerContext(hwnd);
             if (context == nullptr) {
                 return win32::WindowMessageResult::Handled();
             }

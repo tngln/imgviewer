@@ -7,6 +7,7 @@ import { svgIcon } from "./vector_icon";
 type Hit = Rect & { id: string; action?: string; actionArg?: number; enabled?: boolean; kind?: string };
 
 const edgeClickDragCancelDistance = 6;
+const toastDurationMs = 2000;
 
 const colors = {
   title: "#EFFFFFFF",
@@ -121,6 +122,7 @@ let edgePress: { id: string; action: string; x: number; y: number } | undefined;
 let toolbar = { x: 0, y: 0, ready: false, dragging: false, dx: 0, dy: 0 };
 let infoScroll = 0;
 let colorPicker = { active: false, hasSample: false, hexText: "", picking: false };
+let toast = { visible: false, text: "", timerId: 0 };
 
 function actionLabel(state: MainOverlayState, action: string): string {
   return state.actionLabels[action] || action;
@@ -292,6 +294,24 @@ function sampleColorPicker(x: number, y: number): boolean {
   colorPicker.hasSample = true;
   colorPicker.hexText = sample.hexText;
   return true;
+}
+
+function showToast(text: string): MainEventResult {
+  if (toast.timerId !== 0) {
+    clearTimeout(toast.timerId);
+    toast.timerId = 0;
+  }
+  toast.visible = text.length > 0;
+  toast.text = text;
+  if (toast.visible) {
+    toast.timerId = setTimeout(() => {
+      toast.visible = false;
+      toast.text = "";
+      toast.timerId = 0;
+      host.invalidate();
+    }, toastDurationMs);
+  }
+  return { handled: true, invalidate: true };
 }
 
 function renderTitlebar(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderRect[] {
@@ -547,13 +567,13 @@ function renderChip(canvas: CanvasApi, x: number, y: number, label: string, colo
   drawText(canvas, hex.slice(3), x, y + 40, 84, colors.text, 16, uiSmall);
 }
 
-function renderToast(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): void {
-  if (!state.toast.visible || !state.toast.text) return;
-  const width = Math.min(env.width - 40, Math.max(220, state.toast.text.length * 8 + 36));
+function renderToast(canvas: CanvasApi, env: RenderEnvironment): void {
+  if (!toast.visible || !toast.text) return;
+  const width = Math.min(env.width - 40, Math.max(220, toast.text.length * 8 + 36));
   const rect = { x: (env.width - width) / 2, y: 58, width, height: 38 };
   canvas.fillRect(rect.x, rect.y, rect.width, rect.height, "#F6FFFFFF");
   canvas.strokeRect(rect.x, rect.y, rect.width, rect.height, colors.accent, 1);
-  drawText(canvas, state.toast.text, rect.x + 16, rect.y + 10, rect.width - 32, colors.text, 20);
+  drawText(canvas, toast.text, rect.x + 16, rect.y + 10, rect.width - 32, colors.text, 20);
 }
 
 function render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlayState): MainRenderResult {
@@ -567,7 +587,7 @@ function render(canvas: CanvasApi, env: RenderEnvironment, state: MainOverlaySta
   renderToolstrip(canvas, state, editAnchor);
   renderAnimation(canvas, env, state, mainToolbar);
   renderInfoPanel(canvas, env, state);
-  renderToast(canvas, env, state);
+  renderToast(canvas, env);
   return { captionDragRects };
 }
 
@@ -674,4 +694,4 @@ function key(event: MainKeyEvent): MainEventResult | void {
   }
 }
 
-globalThis.imgviewerMainUi = { render, pointer, key, action: handleLocalAction };
+globalThis.imgviewerMainUi = { render, pointer, key, action: handleLocalAction, showToast };

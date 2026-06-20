@@ -21,7 +21,6 @@
 
 namespace {
 
-constexpr UINT kToastDurationMs = 2000;
 constexpr UINT kAnimationTickMs = 16;
 
 D2D1_COLOR_F UnpackActionColor(int32_t arg)
@@ -297,21 +296,14 @@ void SyncActionStates(ImgViewerContext* context)
 
 void ShowImgViewerToast(HWND hwnd, ImgViewerContext* context, const wchar_t* text)
 {
-    if (context == nullptr) {
+    if (context == nullptr || context->main_ui == nullptr) {
         return;
     }
 
-    if (text == nullptr || text[0] == L'\0') {
-        KillTimer(hwnd, kImgViewerToastTimerId);
-        if (context->main_ui->HideToast()) {
-            InvalidateRect(hwnd, nullptr, FALSE);
-        }
-        return;
+    const UiEventResult result = context->main_ui->ShowToast(hwnd, text);
+    if (hwnd != nullptr && result.value_changed) {
+        InvalidateRect(hwnd, nullptr, FALSE);
     }
-
-    context->main_ui->ShowToast(text);
-    SetTimer(hwnd, kImgViewerToastTimerId, kToastDurationMs, nullptr);
-    InvalidateRect(hwnd, nullptr, FALSE);
 }
 
 void SyncImgViewerAnimationTimer(HWND hwnd, ImgViewerContext* context)

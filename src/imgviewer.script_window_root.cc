@@ -14,6 +14,7 @@ ScriptWindowRootBase::ScriptWindowRootBase(
     const char* app_global_name,
     std::wstring error_title) :
     engine_(engine),
+    timers_(engine_),
     script_relative_path_(script_relative_path),
     app_global_name_(app_global_name),
     error_title_(std::move(error_title))
@@ -26,6 +27,11 @@ const UiDrawContext* ScriptWindowRootBase::ActiveDrawContext() const { return ac
 void ScriptWindowRootBase::RequestInvalidate() { invalidate_requested_ = true; }
 void ScriptWindowRootBase::RequestReload() { reload_requested_ = true; }
 void ScriptWindowRootBase::RequestClose() { close_requested_ = true; }
+uint32_t ScriptWindowRootBase::SetScriptTimer(JSContext* context, JSValueConst callback, uint32_t delay_ms, bool repeat)
+{
+    return timers_.SetTimer(context, callback, delay_ms, repeat);
+}
+void ScriptWindowRootBase::ClearScriptTimer(uint32_t id) { timers_.ClearTimer(id); }
 
 void ScriptWindowRootBase::Render(const UiDrawContext& context)
 {
@@ -89,7 +95,38 @@ UiEventResult ScriptWindowRootBase::OnInputEvent(const UiInputEvent& event)
     if (!ready_) {
         return {};
     }
+    if (event.hwnd != nullptr) {
+        timers_.SetHwnd(event.hwnd);
+    }
     switch (event.type) {
+    case UiEventType::Timer: {
+        if (event.timer_id < script::kScriptTimerNativeBase) {
+            return {};
+        }
+        const uint32_t timer_id = static_cast<uint32_t>(event.timer_id - script::kScriptTimerNativeBase);
+        if (!timers_.HasTimer(timer_id)) {
+            return {};
+        }
+        bool value_changed = false;
+        if (!timers_.OnTimer(timer_id, &value_changed)) {
+            SetError(engine_.TakeExceptionTextUtf8());
+            return UiEventResult{.handled = true, .value_changed = true};
+        }
+        const bool wants_reload = reload_requested_;
+        const bool wants_close = close_requested_;
+        const bool wants_invalidate = value_changed || invalidate_requested_ || wants_reload;
+        reload_requested_ = false;
+        close_requested_ = false;
+        invalidate_requested_ = false;
+        if (wants_reload) {
+            ReloadScript();
+        }
+        return UiEventResult{
+            .handled = true,
+            .action = wants_close ? CloseAction() : kUiActionNone,
+            .value_changed = wants_invalidate,
+        };
+    }
     case UiEventType::TextChar:
     case UiEventType::ImeStartComposition:
     case UiEventType::ImeComposition:
@@ -103,6 +140,7 @@ UiEventResult ScriptWindowRootBase::OnInputEvent(const UiInputEvent& event)
 void ScriptWindowRootBase::ReloadScript()
 {
     BeforeReload();
+    timers_.ClearAll();
     script_context_.reset();
     script_context_ = engine_.CreateContext();
     ready_ = false;
@@ -216,12 +254,18 @@ void ScriptWindowRootBase::SetActiveDrawContext(const UiDrawContext* context)
     active_draw_context_ = context;
 }
 
+void ScriptWindowRootBase::SetScriptTimerHwnd(HWND hwnd)
+{
+    timers_.SetHwnd(hwnd);
+}
+
 void ScriptWindowRootBase::InstallGlobals()
 {
     JSContext* context = Context();
     script::QuickJsValue global = script::GetGlobalObject(context);
 
     JS_SetPropertyStr(context, global.Get(), "host", CreateHostObject(context));
+    InstallTimerGlobals(context, global.Get());
     InstallTypographyGlobals(context, global.Get());
 
     InstallCustomGlobals(global.Get());

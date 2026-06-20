@@ -257,6 +257,21 @@ win32::WindowMessageResult UiWindowHost::OnWindowMessage(
         HandleUiResult(result);
         return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
     }
+    case WM_TIMER: {
+        UiEventResult result = root_ != nullptr ? root_->OnInputEvent(UiInputEvent{
+            .type = UiEventType::Timer,
+            .timer_id = wparam,
+            .hwnd = window_.Hwnd(),
+        }) : UiEventResult{};
+        if (result.value_changed ||
+            result.action != kUiActionNone ||
+            result.capture != UiCaptureRequest::None ||
+            result.popup.has_value() ||
+            result.close_popup) {
+            HandleUiResult(result);
+        }
+        return result.handled ? win32::WindowMessageResult::Handled() : win32::WindowMessageResult::Unhandled();
+    }
     case WM_ACTIVATE:
         if (LOWORD(wparam) == WA_INACTIVE) {
             if (options_.enable_popup) {

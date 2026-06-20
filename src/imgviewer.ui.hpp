@@ -32,8 +32,7 @@ public:
     bool IsPointInCaptionDragArea(D2D1_POINT_2F point) const override;
 
     void SetTitleText(const wchar_t* title);
-    void ShowToast(const wchar_t* text);
-    bool HideToast();
+    UiEventResult ShowToast(HWND hwnd, const wchar_t* text);
     void SetWindowState(bool top_most, bool maximized);
     void SetToolbarScalePercent(int percent);
     void SetEdgeClickNavigationState(bool enabled, int zone_percent);
@@ -65,7 +64,6 @@ private:
     std::vector<D2D1_RECT_F> caption_drag_rects_;
     std::unordered_map<int, bool> action_enabled_;
     std::wstring title_text_;
-    std::wstring toast_text_;
     std::wstring selected_text_font_family_ = L"Segoe UI";
     ImgViewerUiInfoPanelState info_panel_state_;
     ImgViewerAnimationState animation_state_;
@@ -81,5 +79,4 @@ private:
     bool top_most_ = false;
     bool maximized_ = false;
     bool edge_click_navigation_ = false;
-    bool toast_visible_ = false;
 };

@@ -2,15 +2,14 @@
 
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <string>
-#include <string_view>
 
+#include <windows.h>
 #include <quickjs.h>
 
-#include "imgviewer.action.hpp"
 #include "imgviewer.script_ui.hpp"
 #include "script.quickjs_runtime.hpp"
+#include "script.timer.hpp"
 #include "script.view.hpp"
 
 namespace imgviewer {
@@ -28,6 +27,8 @@ public:
     void RequestInvalidate() override;
     void RequestReload() override;
     void RequestClose() override;
+    uint32_t SetScriptTimer(JSContext* context, JSValueConst callback, uint32_t delay_ms, bool repeat) override;
+    void ClearScriptTimer(uint32_t id) override;
 
     void Render(const UiDrawContext& context) override;
     UiEventResult OnInputEvent(const UiInputEvent& event) override;
@@ -47,8 +48,10 @@ protected:
     void SetError(std::string text);
     void SetActiveDrawContext(const UiDrawContext* context);
     void RenderError(const UiDrawContext& context) const;
+    void SetScriptTimerHwnd(HWND hwnd);
 
     script::QuickJsRuntime& engine_;
+    script::ScriptTimerManager timers_;
     std::unique_ptr<script::QuickJsContext> script_context_;
     std::filesystem::path script_path_;
     std::string error_text_;

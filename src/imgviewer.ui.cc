@@ -362,7 +362,12 @@ UiEventResult ImgViewerUi::OnKeyEvent(const UiKeyEvent& event)
 
 UiEventResult ImgViewerUi::OnInputEvent(const UiInputEvent& event)
 {
+    if (event.hwnd != nullptr) {
+        SetScriptTimerHwnd(event.hwnd);
+    }
     switch (event.type) {
+    case UiEventType::Timer:
+        return imgviewer::ScriptWindowRootBase::OnInputEvent(event);
     case UiEventType::PointerMove:
     case UiEventType::PointerDown:
     case UiEventType::PointerUp:
@@ -392,17 +397,28 @@ void ImgViewerUi::SetTitleText(const wchar_t* title)
     title_text_ = title != nullptr ? title : L"";
 }
 
-void ImgViewerUi::ShowToast(const wchar_t* text)
+UiEventResult ImgViewerUi::ShowToast(HWND hwnd, const wchar_t* text)
 {
-    toast_text_ = text != nullptr ? text : L"";
-    toast_visible_ = true;
-}
+    if (!ready_) {
+        return {};
+    }
 
-bool ImgViewerUi::HideToast()
-{
-    const bool was_visible = toast_visible_;
-    toast_visible_ = false;
-    return was_visible;
+    JSContext* context = Context();
+    script::QuickJsValue app(context, AppObject());
+    script::QuickJsValue handler = script::GetProperty(context, app.Get(), "showToast");
+    if (!JS_IsFunction(context, handler.Get())) {
+        return {};
+    }
+    const std::string text_utf8 = imgviewer::Utf8FromWide(text != nullptr ? text : L"");
+    script::QuickJsValue toast_text(context, JS_NewString(context, text_utf8.c_str()));
+    JSValue args[] = {toast_text.Get()};
+    if (hwnd != nullptr) {
+        SetScriptTimerHwnd(hwnd);
+    }
+    active_event_hwnd_ = hwnd;
+    script::QuickJsValue result = script::Call(context, handler.Get(), app.Get(), 1, args);
+    active_event_hwnd_ = nullptr;
+    return FinishEventDispatch(result.Release());
 }
 
 void ImgViewerUi::SetWindowState(bool top_most, bool maximized)
@@ -572,10 +588,6 @@ JSValue ImgViewerUi::CreateStateObject() const
         });
     });
 
-    state.SetObject("toast", [&](script::ObjectBuilder& toast) {
-        toast.Set("visible", toast_visible_)
-            .Set("text", toast_text_);
-    });
     return state.Release();
 }
 
@@ -631,6 +643,9 @@ UiEventResult ImgViewerUi::DispatchLocalActionToScript(std::string_view action, 
 {
     if (!ready_ || action.empty()) {
         return {};
+    }
+    if (hwnd != nullptr) {
+        SetScriptTimerHwnd(hwnd);
     }
 
     JSContext* context = Context();
@@ -739,9 +754,6 @@ bool ImgViewerUi::IsOverlayPoint(D2D1_POINT_2F point) const
         return true;
     }
     if (info_panel_state_.visible && point.x >= rect_.right - 340.0f) {
-        return true;
-    }
-    if (toast_visible_ && point.y >= rect_.top + 54.0f && point.y <= rect_.top + 96.0f) {
         return true;
     }
     const float scale = static_cast<float>(toolbar_scale_percent_) / 125.0f;

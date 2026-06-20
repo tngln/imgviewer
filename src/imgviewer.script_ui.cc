@@ -220,6 +220,41 @@ JSValue HostLog(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
     return JS_UNDEFINED;
 }
 
+JSValue HostSetTimer(JSContext* context, JSValueConst, int argc, JSValueConst* argv, bool repeat)
+{
+    auto* host = static_cast<ScriptUiHost*>(JS_GetContextOpaque(context));
+    if (host == nullptr || argc < 1 || !JS_IsFunction(context, argv[0])) {
+        return JS_NewUint32(context, 0);
+    }
+
+    uint32_t delay_ms = 0;
+    if (argc > 1) {
+        JS_ToUint32(context, &delay_ms, argv[1]);
+    }
+    return JS_NewUint32(context, host->SetScriptTimer(context, argv[0], delay_ms, repeat));
+}
+
+JSValue HostSetTimeout(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv)
+{
+    return HostSetTimer(context, this_value, argc, argv, false);
+}
+
+JSValue HostSetInterval(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv)
+{
+    return HostSetTimer(context, this_value, argc, argv, true);
+}
+
+JSValue HostClearTimer(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
+{
+    auto* host = static_cast<ScriptUiHost*>(JS_GetContextOpaque(context));
+    if (host != nullptr && argc > 0) {
+        uint32_t id = 0;
+        JS_ToUint32(context, &id, argv[0]);
+        host->ClearScriptTimer(id);
+    }
+    return JS_UNDEFINED;
+}
+
 JSValue CreateSystemPreferencesObject(JSContext* context)
 {
     DWORD accent_color = kDefaultAccentColor;
@@ -259,6 +294,14 @@ JSValue CreateHostObject(JSContext* context)
         .SetFunction("log", HostLog, 1)
         .SetValue("systemPreferences", CreateSystemPreferencesObject(context));
     return host.Release();
+}
+
+void InstallTimerGlobals(JSContext* context, JSValue global)
+{
+    script::SetFunction(context, global, "setTimeout", HostSetTimeout, 2);
+    script::SetFunction(context, global, "setInterval", HostSetInterval, 2);
+    script::SetFunction(context, global, "clearTimeout", HostClearTimer, 1);
+    script::SetFunction(context, global, "clearInterval", HostClearTimer, 1);
 }
 
 JSValue CreateTypeFace(JSContext* context, JSValueConst, int argc, JSValueConst* argv)

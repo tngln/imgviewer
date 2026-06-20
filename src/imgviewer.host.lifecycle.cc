@@ -137,7 +137,6 @@ win32::WindowMessageResult HandleImgViewerLifecycleMessage(HWND hwnd, UINT messa
         return win32::WindowMessageResult::Handled(1);
 
     case WM_DESTROY:
-        KillTimer(hwnd, kImgViewerToastTimerId);
         KillTimer(hwnd, kImgViewerAnimationTimerId);
         if (ImgViewerContext* context = GetImgViewerContext(hwnd)) {
             ClosePopupIfOpen(&context->popup);

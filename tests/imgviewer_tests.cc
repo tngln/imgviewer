@@ -22,6 +22,7 @@
 #include "script.canvas_color.hpp"
 #include "script.quickjs_helper.hpp"
 #include "script.quickjs_runtime.hpp"
+#include "script.timer.hpp"
 #include "imgviewer.script_ui.hpp"
 
 namespace {
@@ -56,6 +57,11 @@ JSValue TestNativeAdd(JSContext* context, JSValueConst, int argc, JSValueConst* 
         JS_ToInt32(context, &right, argv[1]);
     }
     return JS_NewInt32(context, left + right);
+}
+
+JSValue TestTimerCallback(JSContext* context, JSValueConst, int, JSValueConst*)
+{
+    return JS_NewInt32(context, 1);
 }
 
 struct TestSignalApi final {
@@ -660,6 +666,30 @@ void TestScriptVectorIconReader()
     CHECK(!imgviewer::ReadVectorIcon(context, no_view_box_value.Get(), &no_view_box_icon));
 }
 
+void TestScriptTimerManager()
+{
+    script::QuickJsRuntime runtime;
+    CHECK(runtime.Initialize());
+    std::unique_ptr<script::QuickJsContext> context = runtime.CreateContext();
+    CHECK(context != nullptr);
+    if (context == nullptr) {
+        return;
+    }
+
+    script::ScriptTimerManager timers(runtime);
+    script::QuickJsValue callback(
+        context->Context(),
+        JS_NewCFunction(context->Context(), TestTimerCallback, "timerCallback", 0));
+    const uint32_t id = timers.SetTimer(context->Context(), callback.Get(), 10, false);
+    CHECK(id != 0);
+    CHECK(timers.HasTimer(id));
+    timers.ClearTimer(id);
+    CHECK(!timers.HasTimer(id));
+
+    const uint32_t invalid_id = timers.SetTimer(context->Context(), JS_UNDEFINED, 10, false);
+    CHECK(invalid_id == 0);
+}
+
 } // namespace
 
 int main()
@@ -680,6 +710,7 @@ int main()
     TestQuickJsSignalApiSmoke();
     TestCanvasColorParser();
     TestScriptVectorIconReader();
+    TestScriptTimerManager();
 
     std::printf("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;

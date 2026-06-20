@@ -191,6 +191,11 @@ interface MainOverlayColorSample {
   blue: number;
 }
 
+declare function setTimeout(callback: () => void, delay?: number): number;
+declare function setInterval(callback: () => void, delay?: number): number;
+declare function clearTimeout(id: number): void;
+declare function clearInterval(id: number): void;
+
 interface MainRenderRect {
   x: number;
   y: number;
@@ -238,7 +243,6 @@ interface MainOverlayState {
       brightest: MainOverlayColorSample;
     };
   };
-  toast: { visible: boolean; text: string };
 }
 
 type MainPointerEvent = UiPointerEvent;
@@ -255,6 +259,7 @@ interface MainUiApp {
   pointer(event: MainPointerEvent): MainEventResult | void;
   key?(event: MainKeyEvent): MainEventResult | void;
   action?(name: MainActionName, actionArg?: number): MainEventResult | void;
+  showToast?(text: string): MainEventResult | void;
   input?(event: NativeInputEvent): MainEventResult | void;
 }
 

@@ -28,6 +28,8 @@ public:
     virtual void RequestInvalidate() = 0;
     virtual void RequestReload() = 0;
     virtual void RequestClose() = 0;
+    virtual uint32_t SetScriptTimer(JSContext* context, JSValueConst callback, uint32_t delay_ms, bool repeat) = 0;
+    virtual void ClearScriptTimer(uint32_t id) = 0;
 };
 
 std::wstring WideFromUtf8(std::string_view text);
@@ -44,6 +46,7 @@ UiAction ActionProperty(JSContext* context, JSValueConst object);
 JSValue CreateSystemPreferencesObject(JSContext* context);
 JSValue CreateHostObject(JSContext* context);
 void InstallTypographyGlobals(JSContext* context, JSValue global);
+void InstallTimerGlobals(JSContext* context, JSValue global);
 
 JSValue CreateCanvasObject(JSContext* context);
 JSValue CreateRenderEnvironment(JSContext* context, const UiDrawContext& draw_context);

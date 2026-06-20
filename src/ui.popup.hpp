@@ -16,6 +16,7 @@
 #include "ui.graphics_device.hpp"
 #include "imgviewer.script_ui.hpp"
 #include "script.quickjs_runtime.hpp"
+#include "script.timer.hpp"
 
 class PopupContent {
 public:
@@ -41,6 +42,8 @@ public:
     void RequestInvalidate() override;
     void RequestReload() override;
     void RequestClose() override;
+    uint32_t SetScriptTimer(JSContext* context, JSValueConst callback, uint32_t delay_ms, bool repeat) override;
+    void ClearScriptTimer(uint32_t id) override;
 
 private:
     friend LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
@@ -68,6 +71,7 @@ private:
     GraphicsDevice* graphics_ = nullptr;
     script::QuickJsRuntime* script_engine_ = nullptr;
     std::unique_ptr<script::QuickJsContext> script_context_;
+    std::unique_ptr<script::ScriptTimerManager> timers_;
     const UiDrawContext* active_draw_context_ = nullptr;
     std::filesystem::path script_path_;
     std::string error_text_;

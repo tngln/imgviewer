@@ -90,6 +90,7 @@ HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* g
     action_message_ = action_message;
     graphics_ = graphics;
     script_engine_ = script_engine;
+    timers_ = std::make_unique<script::ScriptTimerManager>(*script_engine_);
     d2d_context_ = graphics_->D2DContext();
     dcomp_device_ = graphics_->DCompDevice();
     dwrite_factory_ = graphics_->DWriteFactory();
@@ -108,6 +109,10 @@ bool PopupHost::IsOpen() const
 
 void PopupHost::Close()
 {
+    if (timers_ != nullptr) {
+        timers_->ClearAll();
+        timers_->SetHwnd(nullptr);
+    }
     if (content_) {
         content_->OnClose();
         content_.reset();
@@ -136,6 +141,26 @@ UiEventResult PopupHost::OnInputEvent(const UiInputEvent& event)
 {
     if (!native_open_) {
         return {};
+    }
+
+    if (event.type == UiEventType::Timer && timers_ != nullptr) {
+        if (event.timer_id < script::kScriptTimerNativeBase) {
+            return {};
+        }
+        const uint32_t timer_id = static_cast<uint32_t>(event.timer_id - script::kScriptTimerNativeBase);
+        if (!timers_->HasTimer(timer_id)) {
+            return {};
+        }
+        bool value_changed = false;
+        if (!timers_->OnTimer(timer_id, &value_changed)) {
+            error_text_ = script_engine_ != nullptr ? script_engine_->TakeExceptionTextUtf8() : "JavaScript timer failed";
+            return UiEventResult{.handled = true, .value_changed = true, .close_popup = true};
+        }
+        const bool wants_close = close_requested_;
+        const bool wants_invalidate = value_changed || invalidate_requested_;
+        close_requested_ = false;
+        invalidate_requested_ = false;
+        return UiEventResult{.handled = true, .value_changed = wants_invalidate, .close_popup = wants_close};
     }
 
     if (event.type == UiEventType::Cancel || event.type == UiEventType::OwnerDeactivated ||
@@ -191,10 +216,25 @@ void PopupHost::RequestClose()
     close_requested_ = true;
 }
 
+uint32_t PopupHost::SetScriptTimer(JSContext* context, JSValueConst callback, uint32_t delay_ms, bool repeat)
+{
+    return timers_ != nullptr ? timers_->SetTimer(context, callback, delay_ms, repeat) : 0;
+}
+
+void PopupHost::ClearScriptTimer(uint32_t id)
+{
+    if (timers_ != nullptr) {
+        timers_->ClearTimer(id);
+    }
+}
+
 HRESULT PopupHost::LoadScript()
 {
     RETURN_HR_IF_NULL(E_UNEXPECTED, script_engine_);
     script_context_.reset();
+    if (timers_ != nullptr) {
+        timers_->ClearAll();
+    }
     script_context_ = script_engine_->CreateContext();
     if (script_context_ == nullptr) {
         error_text_ = script_engine_->TakeExceptionTextUtf8();
@@ -205,6 +245,7 @@ HRESULT PopupHost::LoadScript()
     JSContext* context = script_context_->Context();
     script::QuickJsValue global = script::GetGlobalObject(context);
     JS_SetPropertyStr(context, global.Get(), "host", imgviewer::CreateHostObject(context));
+    imgviewer::InstallTimerGlobals(context, global.Get());
     imgviewer::InstallTypographyGlobals(context, global.Get());
 
     script_path_ = imgviewer::ScriptPath(kPopupScriptRelativePath);
@@ -393,6 +434,9 @@ HRESULT PopupHost::OpenNativePopup(D2D1_POINT_2F origin, D2D1_SIZE_F size)
         reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(owner_, GWLP_HINSTANCE)),
         this);
     RETURN_LAST_ERROR_IF_NULL(popup_hwnd_);
+    if (timers_ != nullptr) {
+        timers_->SetHwnd(popup_hwnd_);
+    }
 
     RETURN_IF_FAILED(ui_common_window::EnsureCompositionTarget(graphics_, popup_hwnd_, dcomp_target_, dcomp_visual_));
     RETURN_IF_FAILED(ui_common_window::EnsureCompositionSurface(
@@ -581,6 +625,23 @@ LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM 
         }
         if (wparam == VK_ESCAPE) {
             return 0;
+        }
+        break;
+    }
+    case WM_TIMER: {
+        PopupHost* host = ui_common_window::WindowUserData<PopupHost>(hwnd);
+        if (host != nullptr) {
+            const UiEventResult result = host->OnInputEvent(UiInputEvent{
+                .type = UiEventType::Timer,
+                .timer_id = wparam,
+                .hwnd = hwnd,
+            });
+            if (result.value_changed || result.action != kUiActionNone || result.close_popup) {
+                host->HandlePopupResult(result);
+            }
+            if (result.handled) {
+                return 0;
+            }
         }
         break;
     }
