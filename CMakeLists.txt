@@ -33,7 +33,6 @@ add_executable(imgviewer
     src/imgviewer.keybindings.cc
     src/imgviewer.renderer.cc
     src/imgviewer.settings.cc
-    src/imgviewer.script_engine.cc
     src/imgviewer.script_ui.cc
     src/imgviewer.script_window_root.cc
     src/imgviewer.strings.cc
@@ -146,7 +145,6 @@ add_executable(imgviewer_tests
     src/script.canvas_color.cc
     src/script.quickjs_runtime.cc
     src/ui.draw.cc
-    src/imgviewer.script_engine.cc
     src/imgviewer.script_ui.cc
     src/imgviewer.script_window_root.cc
 )

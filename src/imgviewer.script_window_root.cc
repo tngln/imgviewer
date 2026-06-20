@@ -7,7 +7,7 @@
 namespace imgviewer {
 
 ScriptWindowRootBase::ScriptWindowRootBase(
-    ScriptEngine& engine,
+    script::QuickJsRuntime& engine,
     const char* script_relative_path,
     const char* app_global_name,
     std::wstring error_title) :
@@ -132,7 +132,7 @@ void ScriptWindowRootBase::ReloadScript()
         return;
     }
 
-    const ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
+    const script::QuickJsEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
     if (!eval.ok) {
         SetError(engine_.TakeExceptionTextUtf8());
         return;

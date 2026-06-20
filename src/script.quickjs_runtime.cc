@@ -23,10 +23,7 @@ std::string ToStringUtf8(JSContext* context, JSValueConst value)
 
 QuickJsRuntime::~QuickJsRuntime()
 {
-    if (context_ != nullptr) {
-        JS_FreeContext(context_);
-        context_ = nullptr;
-    }
+    default_context_.reset();
     if (runtime_ != nullptr) {
         JS_FreeRuntime(runtime_);
         runtime_ = nullptr;
@@ -49,21 +46,60 @@ bool QuickJsRuntime::Initialize(size_t memory_limit, size_t stack_size)
     JS_SetMaxStackSize(runtime_, stack_size);
     JS_SetInterruptHandler(runtime_, &QuickJsRuntime::InterruptHandler, this);
 
-    context_ = JS_NewContext(runtime_);
-    if (context_ == nullptr) {
-        last_exception_utf8_ = "JS_NewContext failed";
-        JS_FreeRuntime(runtime_);
-        runtime_ = nullptr;
-        return false;
+    return true;
+}
+
+std::unique_ptr<QuickJsContext> QuickJsRuntime::CreateContext()
+{
+    if (!IsInitialized()) {
+        if (!Initialize()) {
+            return nullptr;
+        }
     }
 
-    return true;
+    JSContext* context = JS_NewContext(runtime_);
+    if (context == nullptr) {
+        last_exception_utf8_ = "JS_NewContext failed";
+        return nullptr;
+    }
+    return std::make_unique<QuickJsContext>(*this, context);
 }
 
 QuickJsEvalResult QuickJsRuntime::EvalScript(std::string_view source_utf8, std::string_view filename_utf8)
 {
-    if (!IsInitialized()) {
-        last_exception_utf8_ = "QuickJsRuntime is not initialized";
+    JSContext* context = Context();
+    if (context == nullptr) {
+        return {};
+    }
+    return default_context_->EvalScript(source_utf8, filename_utf8);
+}
+
+JSContext* QuickJsRuntime::Context()
+{
+    if (default_context_ == nullptr) {
+        default_context_ = CreateContext();
+    }
+    return default_context_ != nullptr ? default_context_->Context() : nullptr;
+}
+
+QuickJsContext::QuickJsContext(QuickJsRuntime& runtime, JSContext* context) :
+    runtime_(runtime),
+    context_(context)
+{
+}
+
+QuickJsContext::~QuickJsContext()
+{
+    if (context_ != nullptr) {
+        JS_FreeContext(context_);
+        context_ = nullptr;
+    }
+}
+
+QuickJsEvalResult QuickJsContext::EvalScript(std::string_view source_utf8, std::string_view filename_utf8)
+{
+    if (context_ == nullptr) {
+        runtime_.CaptureException(nullptr);
         return {};
     }
 
@@ -75,7 +111,7 @@ QuickJsEvalResult QuickJsRuntime::EvalScript(std::string_view source_utf8, std::
         JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(value)) {
         JS_FreeValue(context_, value);
-        CaptureException(context_);
+        CaptureException();
         return {};
     }
 
@@ -85,6 +121,11 @@ QuickJsEvalResult QuickJsRuntime::EvalScript(std::string_view source_utf8, std::
     };
     JS_FreeValue(context_, value);
     return result;
+}
+
+void QuickJsContext::CaptureException()
+{
+    runtime_.CaptureException(context_);
 }
 
 int QuickJsRuntime::PumpJobs()
@@ -102,7 +143,7 @@ int QuickJsRuntime::PumpJobs()
             return count;
         }
         if (result < 0) {
-            CaptureException(job_context != nullptr ? job_context : context_);
+            CaptureException(job_context);
             return -1;
         }
         ++count;
@@ -122,7 +163,7 @@ int QuickJsRuntime::InterruptHandler(JSRuntime*, void*)
 void QuickJsRuntime::CaptureException(JSContext* context)
 {
     if (context == nullptr) {
-        context = context_;
+        context = default_context_ != nullptr ? default_context_->Context() : nullptr;
     }
     if (context == nullptr) {
         last_exception_utf8_ = "JavaScript exception";

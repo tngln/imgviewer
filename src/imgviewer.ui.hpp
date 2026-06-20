@@ -17,14 +17,9 @@
 #include "imgviewer.script_ui.hpp"
 #include "imgviewer.script_window_root.hpp"
 
-namespace imgviewer {
-class ScriptContext;
-class ScriptEngine;
-}
-
 class ImgViewerUi final : public imgviewer::ScriptWindowRootBase {
 public:
-    explicit ImgViewerUi(imgviewer::ScriptEngine& engine);
+    explicit ImgViewerUi(script::QuickJsRuntime& engine);
     ~ImgViewerUi() override;
 
     const wchar_t* AccessibilityName() const override;

@@ -20,6 +20,7 @@
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.renderer.hpp"
 #include "imgviewer.viewer.hpp"
+#include "script.quickjs_runtime.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.popup.hpp"
 
@@ -28,17 +29,13 @@ constexpr wchar_t kImgViewerWindowTitle[] = L"ImgViewer";
 class ImgViewerUi;
 class UiWindowDelegate;
 
-namespace imgviewer {
-class ScriptEngine;
-}
-
 struct ImgViewerContext final {
     ImgViewerContext();
     ~ImgViewerContext();
 
     GraphicsDevice graphics_device;
     ImgViewerRenderer renderer;
-    std::unique_ptr<imgviewer::ScriptEngine> script_engine;
+    std::unique_ptr<script::QuickJsRuntime> script_engine;
     std::unique_ptr<ScriptView> ui;
     ImgViewerUi* main_ui = nullptr;
     PopupHost popup;

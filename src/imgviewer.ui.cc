@@ -14,7 +14,6 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "math.hpp"
-#include "imgviewer.script_engine.hpp"
 #include "imgviewer.script_ui.hpp"
 
 namespace {
@@ -291,7 +290,7 @@ JSValue OverlayPopup(JSContext* context, JSValueConst, int argc, JSValueConst* a
 
 } // namespace
 
-ImgViewerUi::ImgViewerUi(imgviewer::ScriptEngine& engine) :
+ImgViewerUi::ImgViewerUi(script::QuickJsRuntime& engine) :
     ScriptWindowRootBase(engine, kMainScriptRelativePath, "imgviewerMainUi", L"Main TypeScript UI failed")
 {
     ReloadScript();

@@ -18,7 +18,6 @@
 #include "imgviewer.ui.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.window.hpp"
-#include "imgviewer.script_engine.hpp"
 #include "imgviewer.script_ui.hpp"
 #include "imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
@@ -57,7 +56,7 @@ SettingsScriptUi* ScriptUi(JSContext* context)
 
 class SettingsScriptUi final : public imgviewer::ScriptWindowRootBase {
 public:
-    SettingsScriptUi(imgviewer::ScriptEngine& engine, ImgViewerConfig config) :
+    SettingsScriptUi(script::QuickJsRuntime& engine, ImgViewerConfig config) :
         ScriptWindowRootBase(engine, kSettingsScriptRelativePath, "imgviewerSettingsUi", L"Settings TypeScript UI failed"),
         draft_(std::move(config))
     {

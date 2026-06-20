@@ -10,7 +10,6 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.action.hpp"
 #include "ui.window.hpp"
-#include "imgviewer.script_engine.hpp"
 #include "imgviewer.script_window_root.hpp"
 #include "win32.util.hpp"
 
@@ -24,7 +23,7 @@ constexpr char kAboutScriptRelativePath[] = "scripts/about_ui.js";
 
 class AboutScriptUi final : public imgviewer::ScriptWindowRootBase {
 public:
-    explicit AboutScriptUi(imgviewer::ScriptEngine& engine)
+    explicit AboutScriptUi(script::QuickJsRuntime& engine)
         : ScriptWindowRootBase(engine, kAboutScriptRelativePath, "imgviewerAboutUi", L"About TypeScript UI failed")
     {
         ReloadScript();

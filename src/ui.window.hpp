@@ -12,12 +12,12 @@
 #include <wil/com.h>
 
 #include "script.view.hpp"
+#include "script.quickjs_runtime.hpp"
 #include "ui.graphics_device.hpp"
 #include "ui.popup.hpp"
 #include "win32.window.hpp"
 
 class UiWindowHost;
-namespace imgviewer { class ScriptEngine; }
 
 class UiWindowDelegate {
 public:
@@ -42,7 +42,7 @@ struct UiWindowOptions final {
     UINT action_message = 0;
     bool enable_popup = true;
     bool enable_ime = true;
-    imgviewer::ScriptEngine* script_engine = nullptr;
+    script::QuickJsRuntime* script_engine = nullptr;
 };
 
 class UiWindowHost final : public win32::NativeWindowDelegate {

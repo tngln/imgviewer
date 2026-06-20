@@ -14,7 +14,6 @@
 #include "imgviewer.ui.hpp"
 #include "ui.host_popup.hpp"
 #include "util.format.hpp"
-#include "imgviewer.script_engine.hpp"
 #include "win32.clipboard.hpp"
 #include "win32.dialog.hpp"
 #include "win32.screen_capture.hpp"
@@ -48,7 +47,7 @@ void InvalidateInfoPanelAnalysis(ImgViewerContext* context);
 void UpdateImgViewerInfoPanelState(ImgViewerContext* context);
 HRESULT LoadImgViewerScreenshotBitmap(HWND hwnd, ImgViewerContext* context, IWICBitmapSource* source);
 
-std::unique_ptr<ScriptView> CreateMainUi(imgviewer::ScriptEngine& engine, ImgViewerUi** main_ui)
+std::unique_ptr<ScriptView> CreateMainUi(script::QuickJsRuntime& engine, ImgViewerUi** main_ui)
 {
     auto ui = std::make_unique<ImgViewerUi>(engine);
     if (main_ui != nullptr) {
@@ -80,7 +79,7 @@ void FinishImgViewerImageLoad(HWND hwnd, ImgViewerContext* context, const std::w
 }
 
 ImgViewerContext::ImgViewerContext() :
-    script_engine(std::make_unique<imgviewer::ScriptEngine>()),
+    script_engine(std::make_unique<script::QuickJsRuntime>()),
     ui(CreateMainUi(*script_engine, &main_ui))
 {
 }

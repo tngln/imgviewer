@@ -11,7 +11,6 @@
 #include <wil/result_macros.h>
 
 #include "imgviewer.ui.action.hpp"
-#include "imgviewer.script_engine.hpp"
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
@@ -187,7 +186,7 @@ std::unique_ptr<PopupContent> MakeJsonPopupContent(std::string state_json)
     return std::make_unique<JsonPopupContent>(std::move(state_json));
 }
 
-HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::ScriptEngine* script_engine)
+HRESULT PopupHost::Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, script::QuickJsRuntime* script_engine)
 {
     RETURN_HR_IF_NULL(E_INVALIDARG, owner);
     RETURN_HR_IF(E_INVALIDARG, action_message == 0);
@@ -324,7 +323,7 @@ HRESULT PopupHost::LoadScript()
         error_text_ = "Could not read " + script_path_.string();
         return E_FAIL;
     }
-    const imgviewer::ScriptEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
+    const script::QuickJsEvalResult eval = script_context_->EvalScript(*source, script_path_.string());
     if (!eval.ok) {
         error_text_ = script_engine_->TakeExceptionTextUtf8();
         return E_FAIL;

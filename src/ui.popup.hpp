@@ -14,12 +14,8 @@
 
 #include "ui.events.hpp"
 #include "ui.graphics_device.hpp"
-#include "imgviewer.script_engine.hpp"
 #include "imgviewer.script_ui.hpp"
-
-namespace imgviewer {
-class ScriptEngine;
-}
+#include "script.quickjs_runtime.hpp"
 
 class PopupContent {
 public:
@@ -33,7 +29,7 @@ std::unique_ptr<PopupContent> MakeJsonPopupContent(std::string state_json);
 
 class PopupHost final : public imgviewer::ScriptUiHost {
 public:
-    HRESULT Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, imgviewer::ScriptEngine* script_engine);
+    HRESULT Initialize(HWND owner, UINT action_message, GraphicsDevice* graphics, script::QuickJsRuntime* script_engine);
     void SetTextFormats(IDWriteTextFormat* body_text_format, IDWriteTextFormat* icon_text_format);
 
     bool IsOpen() const;
@@ -73,8 +69,8 @@ private:
     bool native_open_ = false;
     std::unique_ptr<PopupContent> content_;
     GraphicsDevice* graphics_ = nullptr;
-    imgviewer::ScriptEngine* script_engine_ = nullptr;
-    std::unique_ptr<imgviewer::ScriptContext> script_context_;
+    script::QuickJsRuntime* script_engine_ = nullptr;
+    std::unique_ptr<script::QuickJsContext> script_context_;
     const UiDrawContext* active_draw_context_ = nullptr;
     std::filesystem::path script_path_;
     std::string error_text_;
