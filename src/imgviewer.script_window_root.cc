@@ -4,6 +4,8 @@
 
 #include <d2d1helper.h>
 
+#include "script.quickjs_helper.hpp"
+
 namespace imgviewer {
 
 ScriptWindowRootBase::ScriptWindowRootBase(
@@ -169,9 +171,9 @@ UiEventResult ScriptWindowRootBase::FinishEventDispatch(JSValue result)
         return event_result;
     }
 
-    const bool handled = imgviewer::BoolProperty(context, result, "handled", false);
-    const std::optional<bool> capture = imgviewer::OptionalBoolProperty(context, result, "capture");
-    const bool invalidate = imgviewer::BoolProperty(context, result, "invalidate", false);
+    const bool handled = script::BoolProperty(context, result, "handled", false);
+    const std::optional<bool> capture = script::OptionalBoolProperty(context, result, "capture");
+    const bool invalidate = script::BoolProperty(context, result, "invalidate", false);
     event_result.ime_caret_point = ImeCaretPointProperty(context, result);
     JS_FreeValue(context, result);
 

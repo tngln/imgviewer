@@ -32,7 +32,6 @@ public:
 
 std::wstring WideFromUtf8(std::string_view text);
 std::string Utf8FromWide(std::wstring_view text);
-std::string Utf8FromValue(JSContext* context, JSValueConst value);
 std::optional<std::string> ReadTextFileUtf8(const std::filesystem::path& path);
 std::filesystem::path ExecutableDirectory();
 std::filesystem::path ScriptPath(const char* relative_path);
@@ -41,18 +40,6 @@ JSValue HostInvalidate(JSContext* context, JSValueConst this_value, int argc, JS
 JSValue HostReload(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 JSValue HostClose(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
 JSValue HostLog(JSContext* context, JSValueConst this_value, int argc, JSValueConst* argv);
-void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value);
-void SetString(JSContext* context, JSValue object, const char* name, std::string_view value);
-void SetString(JSContext* context, JSValue object, const char* name, const char* value);
-void SetBool(JSContext* context, JSValue object, const char* name, bool value);
-void SetInt(JSContext* context, JSValue object, const char* name, int32_t value);
-void SetUint(JSContext* context, JSValue object, const char* name, uint32_t value);
-void SetFloat(JSContext* context, JSValue object, const char* name, float value);
-void SetFunction(JSContext* context, JSValue object, const char* name, JSCFunction* function, int length);
-bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback);
-std::optional<bool> OptionalBoolProperty(JSContext* context, JSValueConst object, const char* name);
-int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback);
-float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback);
 UiAction ActionProperty(JSContext* context, JSValueConst object);
 JSValue CreateSystemPreferencesObject(JSContext* context);
 JSValue CreateHostObject(JSContext* context);

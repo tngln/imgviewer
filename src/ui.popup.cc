@@ -10,6 +10,7 @@
 #include <windowsx.h>
 #include <wil/result_macros.h>
 
+#include "script.quickjs_helper.hpp"
 #include "ui.common_window.hpp"
 
 LRESULT CALLBACK PopupWindowProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
@@ -21,10 +22,6 @@ constexpr float kPopupContentInset = 1.0f;
 constexpr char kPopupScriptRelativePath[] = "scripts/popup_ui.js";
 
 using imgviewer::ActionProperty;
-using imgviewer::BoolProperty;
-using imgviewer::FloatProperty;
-using imgviewer::SetBool;
-using imgviewer::SetString;
 
 D2D1_SIZE_F PopupWindowSize(D2D1_SIZE_F content_size)
 {
@@ -67,7 +64,7 @@ public:
         JSValue exception = JS_GetException(context);
         JS_FreeValue(context, exception);
         JSValue fallback = JS_NewObject(context);
-        SetString(context, fallback, "kind", "none");
+        script::SetString(context, fallback, "kind", "none");
         return fallback;
     }
 
@@ -269,8 +266,8 @@ D2D1_SIZE_F PopupHost::QueryScriptContentSize()
         return D2D1::SizeF(1.0f, 1.0f);
     }
     const D2D1_SIZE_F size{
-        (std::max)(1.0f, FloatProperty(context, result, "width", 1.0f)),
-        (std::max)(1.0f, FloatProperty(context, result, "height", 1.0f)),
+        (std::max)(1.0f, script::FloatProperty(context, result, "width", 1.0f)),
+        (std::max)(1.0f, script::FloatProperty(context, result, "height", 1.0f)),
     };
     JS_FreeValue(context, result);
     return size;
@@ -349,9 +346,9 @@ UiEventResult PopupHost::DispatchScriptInput(const UiInputEvent& event)
         return event_result;
     }
 
-    event_result.handled = BoolProperty(context, result, "handled", false);
-    event_result.close_popup = BoolProperty(context, result, "close", false) || close_requested_;
-    event_result.value_changed = BoolProperty(context, result, "invalidate", false) || invalidate_requested_;
+    event_result.handled = script::BoolProperty(context, result, "handled", false);
+    event_result.close_popup = script::BoolProperty(context, result, "close", false) || close_requested_;
+    event_result.value_changed = script::BoolProperty(context, result, "invalidate", false) || invalidate_requested_;
     event_result.action = ActionProperty(context, result);
     if (content_ != nullptr) {
         content_->ApplyResult(context, result, &event_result);
@@ -381,7 +378,7 @@ JSValue PopupHost::CreateStateObject() const
     }
 
     JSValue state = JS_NewObject(context);
-    SetString(context, state, "kind", "none");
+    script::SetString(context, state, "kind", "none");
     return state;
 }
 

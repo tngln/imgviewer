@@ -14,6 +14,7 @@
 
 #include "imgviewer.action.hpp"
 #include "script.canvas_color.hpp"
+#include "script.quickjs_helper.hpp"
 #include "ui.text.hpp"
 
 namespace imgviewer {
@@ -108,126 +109,7 @@ bool ClientAreaAnimationEnabled()
     return enabled != FALSE;
 }
 
-JSValue StringArray(JSContext* context, const std::vector<std::string>& values)
-{
-    JSValue array = JS_NewArray(context);
-    uint32_t index = 0;
-    for (const std::string& value : values) {
-        JS_SetPropertyUint32(context, array, index++, JS_NewString(context, value.c_str()));
-    }
-    return array;
-}
-
-JSValue WideStringArray(JSContext* context, const std::vector<std::wstring>& values)
-{
-    JSValue array = JS_NewArray(context);
-    uint32_t index = 0;
-    for (const std::wstring& value : values) {
-        JS_SetPropertyUint32(context, array, index++, JS_NewString(context, Utf8FromWide(value).c_str()));
-    }
-    return array;
-}
-
 } // namespace
-
-void SetString(JSContext* context, JSValue object, const char* name, std::wstring_view value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, Utf8FromWide(value).c_str()));
-}
-
-void SetString(JSContext* context, JSValue object, const char* name, std::string_view value)
-{
-    const std::string text(value);
-    JS_SetPropertyStr(context, object, name, JS_NewString(context, text.c_str()));
-}
-
-void SetString(JSContext* context, JSValue object, const char* name, const char* value)
-{
-    SetString(context, object, name, std::string_view(value != nullptr ? value : ""));
-}
-
-void SetBool(JSContext* context, JSValue object, const char* name, bool value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewBool(context, value));
-}
-
-void SetInt(JSContext* context, JSValue object, const char* name, int32_t value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewInt32(context, value));
-}
-
-void SetUint(JSContext* context, JSValue object, const char* name, uint32_t value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewUint32(context, value));
-}
-
-void SetFloat(JSContext* context, JSValue object, const char* name, float value)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewFloat64(context, value));
-}
-
-void SetFunction(JSContext* context, JSValue object, const char* name, JSCFunction* function, int length)
-{
-    JS_SetPropertyStr(context, object, name, JS_NewCFunction(context, function, name, length));
-}
-
-bool BoolProperty(JSContext* context, JSValueConst object, const char* name, bool fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    const bool result = JS_IsUndefined(value) ? fallback : JS_ToBool(context, value) != 0;
-    JS_FreeValue(context, value);
-    return result;
-}
-
-std::optional<bool> OptionalBoolProperty(JSContext* context, JSValueConst object, const char* name)
-{
-    if (!JS_IsObject(object)) {
-        return std::nullopt;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return std::nullopt;
-    }
-    const bool result = JS_ToBool(context, value) != 0;
-    JS_FreeValue(context, value);
-    return result;
-}
-
-int32_t Int32Property(JSContext* context, JSValueConst object, const char* name, int32_t fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return fallback;
-    }
-    int32_t result = fallback;
-    JS_ToInt32(context, &result, value);
-    JS_FreeValue(context, value);
-    return result;
-}
-
-float FloatProperty(JSContext* context, JSValueConst object, const char* name, float fallback)
-{
-    if (!JS_IsObject(object)) {
-        return fallback;
-    }
-    JSValue value = JS_GetPropertyStr(context, object, name);
-    if (JS_IsUndefined(value)) {
-        JS_FreeValue(context, value);
-        return fallback;
-    }
-    double result = fallback;
-    JS_ToFloat64(context, &result, value);
-    JS_FreeValue(context, value);
-    return static_cast<float>(result);
-}
 
 UiAction ActionProperty(JSContext* context, JSValueConst object)
 {
@@ -239,17 +121,17 @@ UiAction ActionProperty(JSContext* context, JSValueConst object)
         int32_t value = 0;
         JS_ToInt32(context, &value, action_value);
         JS_FreeValue(context, action_value);
-        return UiAction(value, Int32Property(context, object, "actionArg", 0));
+        return UiAction(value, script::Int32Property(context, object, "actionArg", 0));
     }
     JS_FreeValue(context, action_value);
 
     JSValue value = JS_GetPropertyStr(context, object, "action");
-    const std::string name = Utf8FromValue(context, value);
+    const std::string name = script::ToStringUtf8(context, value);
     JS_FreeValue(context, value);
     if (name.empty()) {
         return kUiActionNone;
     }
-    return UiAction(static_cast<int>(ImgViewerActionFromName(name.c_str())), Int32Property(context, object, "actionArg", 0));
+    return UiAction(static_cast<int>(ImgViewerActionFromName(name.c_str())), script::Int32Property(context, object, "actionArg", 0));
 }
 
 std::wstring WideFromUtf8(std::string_view text)
@@ -278,17 +160,6 @@ std::string Utf8FromWide(std::wstring_view text)
     std::string value(static_cast<size_t>(length), '\0');
     WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), value.data(), length, nullptr, nullptr);
     return value;
-}
-
-std::string Utf8FromValue(JSContext* context, JSValueConst value)
-{
-    const char* text = JS_ToCString(context, value);
-    if (text == nullptr) {
-        return {};
-    }
-    std::string result(text);
-    JS_FreeCString(context, text);
-    return result;
 }
 
 std::optional<std::string> ReadTextFileUtf8(const std::filesystem::path& path)
@@ -347,7 +218,7 @@ JSValue HostClose(JSContext* context, JSValueConst, int, JSValueConst*)
 JSValue HostLog(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     if (argc > 0) {
-        OutputDebugStringW(WideFromUtf8(Utf8FromValue(context, argv[0]) + "\n").c_str());
+        OutputDebugStringW(WideFromUtf8(script::ToStringUtf8(context, argv[0]) + "\n").c_str());
     }
     return JS_UNDEFINED;
 }
@@ -370,15 +241,15 @@ JSValue CreateSystemPreferencesObject(JSContext* context)
     }
 
     JSValue preferences = JS_NewObject(context);
-    SetUint(context, preferences, "caretBlinkTime", GetCaretBlinkTime());
-    SetUint(context, preferences, "doubleClickTime", GetDoubleClickTime());
-    SetString(context, preferences, "accentColor", ArgbColorString(accent_color));
-    SetBool(context, preferences, "accentColorOpaqueBlend", accent_opaque_blend != FALSE);
-    SetBool(context, preferences, "prefersDarkTheme", PrefersDarkTheme());
-    SetString(context, preferences, "preferredLanguage", languages.front());
-    JS_SetPropertyStr(context, preferences, "preferredLanguages", StringArray(context, languages));
-    SetBool(context, preferences, "highContrast", HighContrastEnabled());
-    SetBool(context, preferences, "clientAreaAnimationEnabled", ClientAreaAnimationEnabled());
+    script::SetUint(context, preferences, "caretBlinkTime", GetCaretBlinkTime());
+    script::SetUint(context, preferences, "doubleClickTime", GetDoubleClickTime());
+    script::SetString(context, preferences, "accentColor", ArgbColorString(accent_color));
+    script::SetBool(context, preferences, "accentColorOpaqueBlend", accent_opaque_blend != FALSE);
+    script::SetBool(context, preferences, "prefersDarkTheme", PrefersDarkTheme());
+    script::SetString(context, preferences, "preferredLanguage", languages.front());
+    JS_SetPropertyStr(context, preferences, "preferredLanguages", script::StringArray(context, languages));
+    script::SetBool(context, preferences, "highContrast", HighContrastEnabled());
+    script::SetBool(context, preferences, "clientAreaAnimationEnabled", ClientAreaAnimationEnabled());
     return preferences;
 }
 
@@ -396,7 +267,7 @@ JSValue CreateHostObject(JSContext* context)
 JSValue CreateTypeFace(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
 {
     JSValue value = JS_NewObject(context);
-    const std::string family = argc > 0 ? Utf8FromValue(context, argv[0]) : "Segoe UI";
+    const std::string family = argc > 0 ? script::ToStringUtf8(context, argv[0]) : "Segoe UI";
     double size = 14.0;
     if (argc > 1) {
         JS_ToFloat64(context, &size, argv[1]);
@@ -413,44 +284,44 @@ JSValue CreateTypeFace(JSContext* context, JSValueConst, int argc, JSValueConst*
     if (argc > 4) {
         JS_ToInt32(context, &stretch, argv[4]);
     }
-    SetString(context, value, "family", family.empty() ? "Segoe UI" : family);
+    script::SetString(context, value, "family", family.empty() ? "Segoe UI" : family);
     JS_SetPropertyStr(context, value, "size", JS_NewFloat64(context, size));
-    SetInt(context, value, "weight", weight);
-    SetInt(context, value, "style", style);
-    SetInt(context, value, "stretch", stretch);
+    script::SetInt(context, value, "weight", weight);
+    script::SetInt(context, value, "style", style);
+    script::SetInt(context, value, "stretch", stretch);
     return value;
 }
 
 JSValue CreateFontWeightObject(JSContext* context)
 {
     JSValue weights = JS_NewObject(context);
-    SetInt(context, weights, "Thin", DWRITE_FONT_WEIGHT_THIN);
-    SetInt(context, weights, "ExtraLight", DWRITE_FONT_WEIGHT_EXTRA_LIGHT);
-    SetInt(context, weights, "Light", DWRITE_FONT_WEIGHT_LIGHT);
-    SetInt(context, weights, "Normal", DWRITE_FONT_WEIGHT_NORMAL);
-    SetInt(context, weights, "Medium", DWRITE_FONT_WEIGHT_MEDIUM);
-    SetInt(context, weights, "Semibold", DWRITE_FONT_WEIGHT_SEMI_BOLD);
-    SetInt(context, weights, "Bold", DWRITE_FONT_WEIGHT_BOLD);
-    SetInt(context, weights, "ExtraBold", DWRITE_FONT_WEIGHT_EXTRA_BOLD);
-    SetInt(context, weights, "Black", DWRITE_FONT_WEIGHT_BLACK);
+    script::SetInt(context, weights, "Thin", DWRITE_FONT_WEIGHT_THIN);
+    script::SetInt(context, weights, "ExtraLight", DWRITE_FONT_WEIGHT_EXTRA_LIGHT);
+    script::SetInt(context, weights, "Light", DWRITE_FONT_WEIGHT_LIGHT);
+    script::SetInt(context, weights, "Normal", DWRITE_FONT_WEIGHT_NORMAL);
+    script::SetInt(context, weights, "Medium", DWRITE_FONT_WEIGHT_MEDIUM);
+    script::SetInt(context, weights, "Semibold", DWRITE_FONT_WEIGHT_SEMI_BOLD);
+    script::SetInt(context, weights, "Bold", DWRITE_FONT_WEIGHT_BOLD);
+    script::SetInt(context, weights, "ExtraBold", DWRITE_FONT_WEIGHT_EXTRA_BOLD);
+    script::SetInt(context, weights, "Black", DWRITE_FONT_WEIGHT_BLACK);
     return weights;
 }
 
 JSValue CreateFontStyleObject(JSContext* context)
 {
     JSValue styles = JS_NewObject(context);
-    SetInt(context, styles, "Normal", DWRITE_FONT_STYLE_NORMAL);
-    SetInt(context, styles, "Oblique", DWRITE_FONT_STYLE_OBLIQUE);
-    SetInt(context, styles, "Italic", DWRITE_FONT_STYLE_ITALIC);
+    script::SetInt(context, styles, "Normal", DWRITE_FONT_STYLE_NORMAL);
+    script::SetInt(context, styles, "Oblique", DWRITE_FONT_STYLE_OBLIQUE);
+    script::SetInt(context, styles, "Italic", DWRITE_FONT_STYLE_ITALIC);
     return styles;
 }
 
 JSValue CreateFontStretchObject(JSContext* context)
 {
     JSValue stretches = JS_NewObject(context);
-    SetInt(context, stretches, "Normal", DWRITE_FONT_STRETCH_NORMAL);
-    SetInt(context, stretches, "Condensed", DWRITE_FONT_STRETCH_CONDENSED);
-    SetInt(context, stretches, "Expanded", DWRITE_FONT_STRETCH_EXPANDED);
+    script::SetInt(context, stretches, "Normal", DWRITE_FONT_STRETCH_NORMAL);
+    script::SetInt(context, stretches, "Condensed", DWRITE_FONT_STRETCH_CONDENSED);
+    script::SetInt(context, stretches, "Expanded", DWRITE_FONT_STRETCH_EXPANDED);
     return stretches;
 }
 
@@ -459,7 +330,7 @@ void InstallTypographyGlobals(JSContext* context, JSValue global)
     JS_SetPropertyStr(context, global, "FontWeight", CreateFontWeightObject(context));
     JS_SetPropertyStr(context, global, "FontStyle", CreateFontStyleObject(context));
     JS_SetPropertyStr(context, global, "FontStretch", CreateFontStretchObject(context));
-    SetFunction(context, global, "createTypeFace", CreateTypeFace, 5);
+    script::SetFunction(context, global, "createTypeFace", CreateTypeFace, 5);
 }
 
 namespace {
@@ -589,42 +460,21 @@ private:
     D2D1_MATRIX_3X2_F old_transform_ = D2D1::Matrix3x2F::Identity();
 };
 
-bool ReadArrayLength(JSContext* context, JSValueConst value, uint32_t* length)
-{
-    JSValue length_value = JS_GetPropertyStr(context, value, "length");
-    const bool ok = JS_ToUint32(context, length, length_value) == 0;
-    JS_FreeValue(context, length_value);
-    return ok;
-}
-
-bool ReadArrayNumber(JSContext* context, JSValueConst value, uint32_t index, float* number)
-{
-    JSValue item = JS_GetPropertyUint32(context, value, index);
-    double parsed = 0.0;
-    const bool ok = JS_ToFloat64(context, &parsed, item) == 0;
-    JS_FreeValue(context, item);
-    if (!ok) {
-        return false;
-    }
-    *number = static_cast<float>(parsed);
-    return true;
-}
-
 bool ReadPoint(JSContext* context, JSValueConst value, uint32_t index, D2D1_POINT_2F* point)
 {
-    return ReadArrayNumber(context, value, index, &point->x) &&
-        ReadArrayNumber(context, value, index + 1, &point->y);
+    return script::ArrayNumber(context, value, index, &point->x) &&
+        script::ArrayNumber(context, value, index + 1, &point->y);
 }
 
 bool ReadVectorIconCommand(JSContext* context, JSValueConst value, icons::PathCommand* command)
 {
     uint32_t length = 0;
-    if (JS_IsArray(value) != 1 || !ReadArrayLength(context, value, &length) || length == 0) {
+    if (JS_IsArray(value) != 1 || !script::ArrayLength(context, value, &length) || length == 0) {
         return false;
     }
 
     JSValue verb_value = JS_GetPropertyUint32(context, value, 0);
-    const std::string verb = Utf8FromValue(context, verb_value);
+    const std::string verb = script::ToStringUtf8(context, verb_value);
     JS_FreeValue(context, verb_value);
 
     *command = {};
@@ -734,7 +584,7 @@ JSValue CanvasClear(JSContext* context, JSValueConst, int argc, JSValueConst* ar
     if (draw_context == nullptr || argc < 1) {
         return JS_UNDEFINED;
     }
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[0]));
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(script::ToStringUtf8(context, argv[0]));
     if (color.has_value()) {
         UiDraw(*draw_context).Clear(*color);
     }
@@ -752,7 +602,7 @@ JSValue CanvasFillRect(JSContext* context, JSValueConst, int argc, JSValueConst*
     JS_ToFloat64(context, &y, argv[1]);
     JS_ToFloat64(context, &width, argv[2]);
     JS_ToFloat64(context, &height, argv[3]);
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[4]));
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(script::ToStringUtf8(context, argv[4]));
     if (color.has_value()) {
         UiDraw(*draw_context).FillRect(
             D2D1::RectF(static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + width), static_cast<float>(y + height)),
@@ -775,7 +625,7 @@ JSValue CanvasStrokeRect(JSContext* context, JSValueConst, int argc, JSValueCons
     if (argc > 5) {
         JS_ToFloat64(context, &stroke_width, argv[5]);
     }
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[4]));
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(script::ToStringUtf8(context, argv[4]));
     if (color.has_value()) {
         UiDraw(*draw_context).DrawRect(
             D2D1::RectF(static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + width), static_cast<float>(y + height)),
@@ -791,14 +641,14 @@ ui_text::TypeFace ReadTypeFace(JSContext* context, JSValueConst value)
         return {};
     }
     JSValue family_value = JS_GetPropertyStr(context, value, "family");
-    const std::wstring family = WideFromUtf8(Utf8FromValue(context, family_value));
+    const std::wstring family = WideFromUtf8(script::ToStringUtf8(context, family_value));
     JS_FreeValue(context, family_value);
     return ui_text::TypeFace{
         .family = family,
-        .size = FloatProperty(context, value, "size", 14.0f),
-        .weight = static_cast<DWRITE_FONT_WEIGHT>(Int32Property(context, value, "weight", DWRITE_FONT_WEIGHT_SEMI_BOLD)),
-        .style = static_cast<DWRITE_FONT_STYLE>(Int32Property(context, value, "style", DWRITE_FONT_STYLE_NORMAL)),
-        .stretch = static_cast<DWRITE_FONT_STRETCH>(Int32Property(context, value, "stretch", DWRITE_FONT_STRETCH_NORMAL)),
+        .size = script::FloatProperty(context, value, "size", 14.0f),
+        .weight = static_cast<DWRITE_FONT_WEIGHT>(script::Int32Property(context, value, "weight", DWRITE_FONT_WEIGHT_SEMI_BOLD)),
+        .style = static_cast<DWRITE_FONT_STYLE>(script::Int32Property(context, value, "style", DWRITE_FONT_STYLE_NORMAL)),
+        .stretch = static_cast<DWRITE_FONT_STRETCH>(script::Int32Property(context, value, "stretch", DWRITE_FONT_STRETCH_NORMAL)),
     };
 }
 
@@ -808,14 +658,14 @@ JSValue CanvasFillText(JSContext* context, JSValueConst, int argc, JSValueConst*
     if (draw_context == nullptr || draw_context->dwrite_factory == nullptr || argc < 7) {
         return JS_UNDEFINED;
     }
-    const std::wstring text = WideFromUtf8(Utf8FromValue(context, argv[0]));
+    const std::wstring text = WideFromUtf8(script::ToStringUtf8(context, argv[0]));
     const ui_text::TypeFace typeface = ReadTypeFace(context, argv[1]);
     double x = 0.0, y = 0.0, width = 0.0, height = 0.0;
     JS_ToFloat64(context, &x, argv[2]);
     JS_ToFloat64(context, &y, argv[3]);
     JS_ToFloat64(context, &width, argv[4]);
     JS_ToFloat64(context, &height, argv[5]);
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[6]));
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(script::ToStringUtf8(context, argv[6]));
     if (color.has_value()) {
         wil::com_ptr<IDWriteTextFormat> format;
         if (FAILED(ui_text::CreateTextFormat(draw_context->dwrite_factory, typeface, format.put()))) {
@@ -845,7 +695,7 @@ JSValue CanvasStrokeLine(JSContext* context, JSValueConst, int argc, JSValueCons
     if (argc > 5) {
         JS_ToFloat64(context, &stroke_width, argv[5]);
     }
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[4]));
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(script::ToStringUtf8(context, argv[4]));
     if (color.has_value() && draw_context->d2d_context != nullptr) {
         wil::com_ptr<ID2D1SolidColorBrush> brush;
         if (SUCCEEDED(draw_context->d2d_context->CreateSolidColorBrush(*color, brush.put()))) {
@@ -881,7 +731,7 @@ JSValue CanvasDrawIcon(JSContext* context, JSValueConst, int argc, JSValueConst*
         JS_ToFloat64(context, &stroke_width, argv[6]);
     }
 
-    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(Utf8FromValue(context, argv[5]));
+    const std::optional<D2D1_COLOR_F> color = script::ParseCanvasColor(script::ToStringUtf8(context, argv[5]));
     const float box_width = static_cast<float>(width);
     const float box_height = static_cast<float>(height);
     const float icon_width = icon.view_box.right - icon.view_box.left;
@@ -967,7 +817,7 @@ JSValue CreateTextEvent(JSContext* context, wchar_t ch)
 JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event)
 {
     JSValue value = JS_NewObject(context);
-    SetString(context, value, "kind", InputKindName(event.type));
+    script::SetString(context, value, "kind", InputKindName(event.type));
     switch (event.type) {
     case UiEventType::PointerMove:
     case UiEventType::PointerDown:
@@ -1011,7 +861,7 @@ JSValue CreateInputEvent(JSContext* context, const UiInputEvent& event)
         JS_SetPropertyStr(context, value, "timerId", JS_NewUint32(context, static_cast<uint32_t>(event.timer_id)));
         break;
     case UiEventType::FilesDropped:
-        JS_SetPropertyStr(context, value, "files", WideStringArray(context, event.file_paths));
+        JS_SetPropertyStr(context, value, "files", script::WideStringArray(context, event.file_paths));
         break;
     case UiEventType::WindowResized:
     case UiEventType::DpiChanged:
@@ -1039,7 +889,7 @@ bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* ic
 
     JSValue id_value = JS_GetPropertyStr(context, value, "id");
     if (!JS_IsUndefined(id_value) && !JS_IsNull(id_value)) {
-        parsed.id = Utf8FromValue(context, id_value);
+        parsed.id = script::ToStringUtf8(context, id_value);
     }
     JS_FreeValue(context, id_value);
 
@@ -1051,12 +901,12 @@ bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* ic
     float view_height = 0.0f;
     const bool valid_view_box =
         JS_IsArray(view_box) == 1 &&
-        ReadArrayLength(context, view_box, &view_box_length) &&
+        script::ArrayLength(context, view_box, &view_box_length) &&
         view_box_length == 4 &&
-        ReadArrayNumber(context, view_box, 0, &view_x) &&
-        ReadArrayNumber(context, view_box, 1, &view_y) &&
-        ReadArrayNumber(context, view_box, 2, &view_width) &&
-        ReadArrayNumber(context, view_box, 3, &view_height) &&
+        script::ArrayNumber(context, view_box, 0, &view_x) &&
+        script::ArrayNumber(context, view_box, 1, &view_y) &&
+        script::ArrayNumber(context, view_box, 2, &view_width) &&
+        script::ArrayNumber(context, view_box, 3, &view_height) &&
         view_width > 0.0f &&
         view_height > 0.0f;
     JS_FreeValue(context, view_box);
@@ -1067,7 +917,7 @@ bool ReadVectorIcon(JSContext* context, JSValueConst value, ScriptVectorIcon* ic
 
     JSValue commands = JS_GetPropertyStr(context, value, "commands");
     uint32_t command_count = 0;
-    if (JS_IsArray(commands) != 1 || !ReadArrayLength(context, commands, &command_count) || command_count == 0) {
+    if (JS_IsArray(commands) != 1 || !script::ArrayLength(context, commands, &command_count) || command_count == 0) {
         JS_FreeValue(context, commands);
         return false;
     }

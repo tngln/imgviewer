@@ -20,6 +20,7 @@
 #include "imgviewer.interaction.hpp"
 #include "imgviewer.keybindings.hpp"
 #include "script.canvas_color.hpp"
+#include "script.quickjs_helper.hpp"
 #include "script.quickjs_runtime.hpp"
 #include "imgviewer.script_ui.hpp"
 
@@ -42,17 +43,6 @@ void CheckImpl(bool condition, const char* expr, const char* file, int line)
 bool NearF(float a, float b, float eps = 0.01f)
 {
     return std::fabs(a - b) < eps;
-}
-
-std::string JsValueToUtf8(JSContext* context, JSValueConst value)
-{
-    const char* text = JS_ToCString(context, value);
-    if (text == nullptr) {
-        return {};
-    }
-    std::string result(text);
-    JS_FreeCString(context, text);
-    return result;
 }
 
 JSValue TestNativeAdd(JSContext* context, JSValueConst, int argc, JSValueConst* argv)
@@ -81,7 +71,7 @@ TestSignalApi* TestSignalApiFromContext(JSContext* context)
 
 std::string TestSignalName(JSContext* context, JSValueConst value)
 {
-    return JsValueToUtf8(context, value);
+    return script::ToStringUtf8(context, value);
 }
 
 JSValue TestSignalsGet(JSContext* context, JSValueConst, int argc, JSValueConst* argv)

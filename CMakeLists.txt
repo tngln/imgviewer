@@ -49,6 +49,7 @@ add_executable(imgviewer
     src/imgviewer.viewer.cc
     src/main.cc
     src/script.canvas_color.cc
+    src/script.quickjs_helper.cc
     src/script.quickjs_runtime.cc
     src/ui.host_effects.cc
     src/ui.host_ime.cc
@@ -146,6 +147,7 @@ add_executable(imgviewer_tests
     src/imgviewer.keybindings.cc
     src/imgviewer.strings.cc
     src/script.canvas_color.cc
+    src/script.quickjs_helper.cc
     src/script.quickjs_runtime.cc
     src/ui.draw.cc
     src/ui.text.cc

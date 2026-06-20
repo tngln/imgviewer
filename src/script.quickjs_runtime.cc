@@ -2,24 +2,10 @@
 
 #include <utility>
 
+#include "script.quickjs_helper.hpp"
 #include "quickjs.h"
 
 namespace script {
-namespace {
-
-std::string ToStringUtf8(JSContext* context, JSValueConst value)
-{
-    const char* text = JS_ToCString(context, value);
-    if (text == nullptr) {
-        return {};
-    }
-
-    std::string result(text);
-    JS_FreeCString(context, text);
-    return result;
-}
-
-} // namespace
 
 QuickJsRuntime::~QuickJsRuntime()
 {

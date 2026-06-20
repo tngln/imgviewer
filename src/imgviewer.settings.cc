@@ -17,6 +17,7 @@
 #include "imgviewer.strings.hpp"
 #include "imgviewer.ui.hpp"
 #include "imgviewer.ui.action.hpp"
+#include "script.quickjs_helper.hpp"
 #include "ui.window.hpp"
 #include "imgviewer.script_ui.hpp"
 #include "imgviewer.script_window_root.hpp"
@@ -90,7 +91,7 @@ private:
         if (ui == nullptr || argc < 1) {
             return JS_UNDEFINED;
         }
-        const std::string name = imgviewer::Utf8FromValue(context, argv[0]);
+        const std::string name = script::ToStringUtf8(context, argv[0]);
         const ImgViewerConfig& config = ui->draft_;
         if (name == "language") {
             return JS_NewInt32(context, config.language == kZhCnLanguageName ? 1 : 0);
@@ -131,7 +132,7 @@ private:
         if (ui == nullptr || argc < 2) {
             return JS_FALSE;
         }
-        const std::string name = imgviewer::Utf8FromValue(context, argv[0]);
+        const std::string name = script::ToStringUtf8(context, argv[0]);
         ImgViewerConfig& config = ui->draft_;
         bool changed = false;
         if (name == "language") {
@@ -219,7 +220,7 @@ private:
             return JS_NewArray(context);
         }
         const std::wstring filter = argc > 0
-            ? imgviewer::WideFromUtf8(imgviewer::Utf8FromValue(context, argv[0]))
+            ? imgviewer::WideFromUtf8(script::ToStringUtf8(context, argv[0]))
             : std::wstring();
         return ui->CreateActionRows(filter);
     }
@@ -241,11 +242,11 @@ private:
     {
         JSContext* context = Context();
         JSValue settings = JS_NewObject(context);
-        imgviewer::SetFunction(context, settings, "get", SettingsGet, 1);
-        imgviewer::SetFunction(context, settings, "set", SettingsSet, 2);
-        imgviewer::SetFunction(context, settings, "save", SettingsSave, 0);
-        imgviewer::SetFunction(context, settings, "resetKeyBindings", SettingsResetKeyBindings, 0);
-        imgviewer::SetFunction(context, settings, "actionRows", SettingsActionRows, 1);
+        script::SetFunction(context, settings, "get", SettingsGet, 1);
+        script::SetFunction(context, settings, "set", SettingsSet, 2);
+        script::SetFunction(context, settings, "save", SettingsSave, 0);
+        script::SetFunction(context, settings, "resetKeyBindings", SettingsResetKeyBindings, 0);
+        script::SetFunction(context, settings, "actionRows", SettingsActionRows, 1);
         JS_SetPropertyStr(context, global, "settings", settings);
     }
 
@@ -292,9 +293,9 @@ private:
             return event_result;
         }
 
-        const bool handled = imgviewer::BoolProperty(Context(), result, "handled", false);
-        const std::optional<bool> capture = imgviewer::OptionalBoolProperty(Context(), result, "capture");
-        const bool invalidate = imgviewer::BoolProperty(Context(), result, "invalidate", false);
+        const bool handled = script::BoolProperty(Context(), result, "handled", false);
+        const std::optional<bool> capture = script::OptionalBoolProperty(Context(), result, "capture");
+        const bool invalidate = script::BoolProperty(Context(), result, "invalidate", false);
         event_result.ime_caret_point = imgviewer::ImeCaretPointProperty(Context(), result);
         JS_FreeValue(Context(), result);
 

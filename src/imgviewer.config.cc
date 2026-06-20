@@ -9,6 +9,7 @@
 #include <quickjs.h>
 #include <wil/result_macros.h>
 
+#include "script.quickjs_helper.hpp"
 #include "script.quickjs_runtime.hpp"
 
 namespace {
@@ -26,19 +27,6 @@ constexpr int kMaximumEdgeClickNavigationZonePercent = 40;
 constexpr wchar_t kConfigFileName[] = L"imgviewer.config.js";
 constexpr std::string_view kEnglishLanguageName = "en-US";
 constexpr std::string_view kZhCnLanguageName = "zh-CN";
-
-struct JsValue final {
-    JSContext* context = nullptr;
-    JSValue value = JS_UNDEFINED;
-
-    JsValue(JSContext* context, JSValue value) : context(context), value(value) {}
-    JsValue(const JsValue&) = delete;
-    JsValue& operator=(const JsValue&) = delete;
-    ~JsValue()
-    {
-        JS_FreeValue(context, value);
-    }
-};
 
 std::filesystem::path ConfigFilePath()
 {
@@ -74,18 +62,6 @@ std::string ReadFileUtf8(const std::filesystem::path& path)
     return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
 }
 
-std::string JsString(JSContext* context, JSValueConst value)
-{
-    const char* text = JS_ToCString(context, value);
-    if (text == nullptr) {
-        return {};
-    }
-
-    std::string result(text);
-    JS_FreeCString(context, text);
-    return result;
-}
-
 std::string EscapeJsString(std::string_view value)
 {
     std::string escaped;
@@ -114,43 +90,6 @@ std::string EscapeJsString(std::string_view value)
     return escaped;
 }
 
-bool ReadStringProperty(JSContext* context, JSValueConst object, const char* key, std::string* result)
-{
-    JsValue value(context, JS_GetPropertyStr(context, object, key));
-    if (!JS_IsString(value.value)) {
-        return false;
-    }
-
-    *result = JsString(context, value.value);
-    return true;
-}
-
-bool ReadBoolProperty(JSContext* context, JSValueConst object, const char* key, bool* result)
-{
-    JsValue value(context, JS_GetPropertyStr(context, object, key));
-    if (!JS_IsBool(value.value)) {
-        return false;
-    }
-
-    *result = JS_ToBool(context, value.value) != 0;
-    return true;
-}
-
-bool ReadIntProperty(JSContext* context, JSValueConst object, const char* key, int* result)
-{
-    JsValue value(context, JS_GetPropertyStr(context, object, key));
-    if (!JS_IsNumber(value.value)) {
-        return false;
-    }
-
-    int32_t parsed = 0;
-    if (JS_ToInt32(context, &parsed, value.value) != 0) {
-        return false;
-    }
-    *result = parsed;
-    return true;
-}
-
 int ReadClampedIntProperty(
     JSContext* context,
     JSValueConst object,
@@ -158,8 +97,8 @@ int ReadClampedIntProperty(
     int fallback,
     int minimum)
 {
-    int value = fallback;
-    if (!ReadIntProperty(context, object, key, &value)) {
+    int32_t value = fallback;
+    if (!script::StrictInt32Property(context, object, key, &value)) {
         return fallback;
     }
     return (std::max)(minimum, value);
@@ -168,7 +107,7 @@ int ReadClampedIntProperty(
 std::string ReadLanguage(JSContext* context, JSValueConst root)
 {
     std::string language;
-    if (!ReadStringProperty(context, root, "language", &language)) {
+    if (!script::StringProperty(context, root, "language", &language)) {
         return std::string(kEnglishLanguageName);
     }
 
@@ -188,7 +127,7 @@ std::string_view LanguageConfigName(const std::string& language)
 InitialImageViewMode ReadInitialImageViewMode(JSContext* context, JSValueConst root)
 {
     std::string mode;
-    if (!ReadStringProperty(context, root, "initialImageView", &mode)) {
+    if (!script::StringProperty(context, root, "initialImageView", &mode)) {
         return InitialImageViewMode::FitWindow;
     }
 
@@ -205,12 +144,6 @@ std::string_view InitialImageViewModeConfigName(InitialImageViewMode mode)
         "fitWindow";
 }
 
-bool ReadArrayLength(JSContext* context, JSValueConst array, uint32_t* length)
-{
-    JsValue length_value(context, JS_GetPropertyStr(context, array, "length"));
-    return JS_ToUint32(context, length, length_value.value) == 0;
-}
-
 std::vector<std::string> ReadStringArray(JSContext* context, JSValueConst value)
 {
     std::vector<std::string> result;
@@ -219,15 +152,15 @@ std::vector<std::string> ReadStringArray(JSContext* context, JSValueConst value)
     }
 
     uint32_t length = 0;
-    if (!ReadArrayLength(context, value, &length)) {
+    if (!script::ArrayLength(context, value, &length)) {
         return result;
     }
 
     result.reserve(length);
     for (uint32_t index = 0; index < length; ++index) {
-        JsValue item(context, JS_GetPropertyUint32(context, value, index));
-        if (JS_IsString(item.value)) {
-            result.push_back(JsString(context, item.value));
+        script::QuickJsValue item(context, JS_GetPropertyUint32(context, value, index));
+        if (JS_IsString(item.Get())) {
+            result.push_back(script::ToStringUtf8(context, item.Get()));
         }
     }
     return result;
@@ -235,8 +168,8 @@ std::vector<std::string> ReadStringArray(JSContext* context, JSValueConst value)
 
 void ApplyKeyBindingsObject(JSContext* context, JSValueConst root, ActionBindings* bindings)
 {
-    JsValue key_bindings(context, JS_GetPropertyStr(context, root, "keyBindings"));
-    if (!JS_IsObject(key_bindings.value)) {
+    script::QuickJsValue key_bindings(context, JS_GetPropertyStr(context, root, "keyBindings"));
+    if (!JS_IsObject(key_bindings.Get())) {
         return;
     }
 
@@ -245,9 +178,9 @@ void ApplyKeyBindingsObject(JSContext* context, JSValueConst root, ActionBinding
             continue;
         }
 
-        JsValue item(context, JS_GetPropertyStr(context, key_bindings.value, info.name));
-        if (JS_IsArray(item.value) == 1) {
-            ApplyKeyBindingConfig(info.action, ReadStringArray(context, item.value), bindings);
+        script::QuickJsValue item(context, JS_GetPropertyStr(context, key_bindings.Get(), info.name));
+        if (JS_IsArray(item.Get()) == 1) {
+            ApplyKeyBindingConfig(info.action, ReadStringArray(context, item.Get()), bindings);
         }
     }
 }
@@ -261,29 +194,29 @@ void LoadConfigObject(JSContext* context, JSValueConst root, ImgViewerConfig* co
     config->language = ReadLanguage(context, root);
     config->initial_image_view_mode = ReadInitialImageViewMode(context, root);
 
-    ReadBoolProperty(context, root, "rememberWindowSize", &config->remember_window_size);
-    ReadBoolProperty(context, root, "pixelatedSampling", &config->pixelated_sampling);
-    ReadBoolProperty(context, root, "checkerboardBackground", &config->checkerboard_background);
-    ReadBoolProperty(context, root, "borderlessWindow", &config->borderless_window);
-    ReadBoolProperty(context, root, "edgeClickNavigation", &config->edge_click_navigation);
+    script::StrictBoolProperty(context, root, "rememberWindowSize", &config->remember_window_size);
+    script::StrictBoolProperty(context, root, "pixelatedSampling", &config->pixelated_sampling);
+    script::StrictBoolProperty(context, root, "checkerboardBackground", &config->checkerboard_background);
+    script::StrictBoolProperty(context, root, "borderlessWindow", &config->borderless_window);
+    script::StrictBoolProperty(context, root, "edgeClickNavigation", &config->edge_click_navigation);
 
-    int value = 0;
-    if (ReadIntProperty(context, root, "windowOpacity", &value)) {
+    int32_t value = 0;
+    if (script::StrictInt32Property(context, root, "windowOpacity", &value)) {
         config->window_opacity_percent = ClampWindowOpacityPercent(value);
     }
-    if (ReadIntProperty(context, root, "toolbarScale", &value)) {
+    if (script::StrictInt32Property(context, root, "toolbarScale", &value)) {
         config->toolbar_scale_percent = ClampToolbarScalePercent(value);
     }
-    if (ReadIntProperty(context, root, "edgeClickNavigationZone", &value)) {
+    if (script::StrictInt32Property(context, root, "edgeClickNavigationZone", &value)) {
         config->edge_click_navigation_zone_percent = ClampEdgeClickNavigationZonePercent(value);
     }
 
-    JsValue window(context, JS_GetPropertyStr(context, root, "window"));
-    if (JS_IsObject(window.value)) {
+    script::QuickJsValue window(context, JS_GetPropertyStr(context, root, "window"));
+    if (JS_IsObject(window.Get())) {
         config->window_size.width =
-            ReadClampedIntProperty(context, window.value, "width", kDefaultWindowWidth, kMinimumWindowWidth);
+            ReadClampedIntProperty(context, window.Get(), "width", kDefaultWindowWidth, kMinimumWindowWidth);
         config->window_size.height =
-            ReadClampedIntProperty(context, window.value, "height", kDefaultWindowHeight, kMinimumWindowHeight);
+            ReadClampedIntProperty(context, window.Get(), "height", kDefaultWindowHeight, kMinimumWindowHeight);
     }
 
     ApplyKeyBindingsObject(context, root, &config->action_bindings);
@@ -357,9 +290,9 @@ HRESULT LoadImgViewerConfig(script::QuickJsRuntime& runtime, ImgViewerConfig* co
     }
 
     JSContext* context = script_context->Context();
-    JsValue global(context, JS_GetGlobalObject(context));
-    JsValue root(context, JS_GetPropertyStr(context, global.value, "imgviewerConfig"));
-    LoadConfigObject(context, root.value, config);
+    script::QuickJsValue global(context, JS_GetGlobalObject(context));
+    script::QuickJsValue root(context, JS_GetPropertyStr(context, global.Get(), "imgviewerConfig"));
+    LoadConfigObject(context, root.Get(), config);
     return S_OK;
 }
 
