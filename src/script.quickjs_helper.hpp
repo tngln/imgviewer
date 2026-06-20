@@ -42,6 +42,7 @@ public:
     JSValue Release() { return value_.Release(); }
 
     ObjectBuilder& Set(const char* name, std::wstring_view value);
+    ObjectBuilder& Set(const char* name, const wchar_t* value);
     ObjectBuilder& Set(const char* name, std::string_view value);
     ObjectBuilder& Set(const char* name, const char* value);
     ObjectBuilder& Set(const char* name, bool value);

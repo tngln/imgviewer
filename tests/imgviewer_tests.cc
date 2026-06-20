@@ -510,6 +510,7 @@ void TestQuickJsObjectBuilder()
     script::ObjectBuilder built(context);
     built.Set("text", "hello")
         .Set("wide", std::wstring(L"wide"))
+        .Set("widePointer", L"wide pointer")
         .Set("flag", true)
         .Set("i", int32_t{-7})
         .Set("u", uint32_t{42})
@@ -527,6 +528,7 @@ void TestQuickJsObjectBuilder()
     const script::QuickJsEvalResult result = runtime.EvalScript(
         "built.text === 'hello' && "
         "built.wide === 'wide' && "
+        "built.widePointer === 'wide pointer' && "
         "built.flag === true && "
         "built.i === -7 && "
         "built.u === 42 && "

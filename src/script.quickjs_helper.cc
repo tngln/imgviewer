@@ -77,6 +77,12 @@ ObjectBuilder& ObjectBuilder::Set(const char* name, std::wstring_view value)
     return *this;
 }
 
+ObjectBuilder& ObjectBuilder::Set(const char* name, const wchar_t* value)
+{
+    SetString(context_, Get(), name, std::wstring_view(value != nullptr ? value : L""));
+    return *this;
+}
+
 ObjectBuilder& ObjectBuilder::Set(const char* name, std::string_view value)
 {
     SetString(context_, Get(), name, value);
